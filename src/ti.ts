@@ -1,6 +1,8 @@
 
-function ti(){
-    console.log("hello ti")
+import {taichi} from './taichi'
+
+declare module globalThis {
+    let taichi: any;
 }
 
-export {ti};
+globalThis.taichi = taichi;
