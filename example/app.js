@@ -7,4 +7,5 @@ ti.kernel(f)
 
 console.log("heyy")
 
-ti.triangle(document.getElementById("myCanvas"))
+ti.triangle(document.getElementById("triangle_canvas"))
+ti.computeBoids(document.getElementById("computeBoids_canvas"))
