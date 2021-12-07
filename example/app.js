@@ -6,3 +6,5 @@ function f(){
 ti.kernel(f)
 
 console.log("heyy")
+
+ti.triangle(document.getElementById("myCanvas"))
