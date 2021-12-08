@@ -1,5 +1,6 @@
 import {triangle} from './webgpu/triangle/main'
 import {computeBoids} from './webgpu/computeBoids/main'
+import {runTaichiProgram} from './webgpu/taichi/main'
 function kernel(f:any){
     console.log(f.toString())
 }
@@ -7,7 +8,8 @@ function kernel(f:any){
 const taichi = {
     kernel,
     triangle,
-    computeBoids
+    computeBoids,
+    runTaichiProgram
 }
 
 export {taichi}
