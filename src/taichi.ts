@@ -1,6 +1,6 @@
-import {triangle} from './webgpu/triangle/main'
-import {computeBoids} from './webgpu/computeBoids/main'
-import {runTaichiProgram} from './webgpu/taichi/main'
+import {triangle} from './examples/triangle/main'
+import {computeBoids} from './examples/computeBoids/main'
+import {runTaichiProgram} from './examples/taichi/main'
 function kernel(f:any){
     console.log(f.toString())
 }
