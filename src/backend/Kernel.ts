@@ -1,5 +1,3 @@
-import '@webgpu/types'
-
 class TaskParams {
     code:string = ""
     invocatoions: number = 0

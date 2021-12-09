@@ -1,6 +1,6 @@
 import {shader as init0} from './init0.wgsl'
 
-let runTaichiProgram = async () => {
+let taichiExample0 = async () => {
 
   const adapter = await navigator.gpu.requestAdapter();
   const device = await adapter!.requestDevice();
@@ -54,8 +54,9 @@ let runTaichiProgram = async () => {
 
   await rootBufferCopy.mapAsync(GPUMapMode.READ)
   let result = new Int32Array(rootBufferCopy.getMappedRange())
+  console.log("Example 0 results:")
   console.log(result)
   rootBufferCopy.unmap()
 }
 
-export {runTaichiProgram}
+export {taichiExample0}

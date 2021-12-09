@@ -14,18 +14,18 @@ function field(dimensions: number[]) : Field{
     return program.partialTree.addField(size)
 }
 
-let vector = {
+let Vector = {
     field : (n:number, dimensions:number[]):Field => {
         let size = 4 * n * product(dimensions)
         return program.partialTree.addField(size)
     }
 }
 
-let matrix = {
+let Matrix = {
     field : (m:number, n:number, dimensions:number[]):Field => {
         let size = 4 * n * m * product(dimensions)
         return program.partialTree.addField(size)
     }
 }
 
-export {field,vector,matrix}
+export {field,Vector,Matrix}

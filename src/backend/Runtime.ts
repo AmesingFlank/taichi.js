@@ -1,7 +1,6 @@
-import '@webgpu/types'
-
 import { CompiledTask, CompiledKernel, TaskParams } from './Kernel'
 import { SNodeTree } from '../program/SNodeTree'
+import { divUp } from '../utils/Utils'
 
 class MaterializedTree {
     tree?: SNodeTree
@@ -14,8 +13,10 @@ class Runtime {
     kernels: CompiledKernel[] = []
     private materialzedTrees: MaterializedTree[] = []
 
-    constructor(){
-        this.createDevice()
+    constructor(){}
+
+    async init(){
+        await this.createDevice()
     }
 
     async createDevice() {
@@ -64,7 +65,8 @@ class Runtime {
             }
             passEncoder.setPipeline(task.pipeline!);
             passEncoder.setBindGroup(0, task.bindGroup);
-            passEncoder.dispatch(task.params.invocatoions / 128);
+            let numWorkGroups = divUp(task.params.invocatoions , 128);
+            passEncoder.dispatch(numWorkGroups);
         }
         passEncoder.endPass();
         this.device!.queue.submit([commandEncoder.finish()]);
@@ -83,6 +85,25 @@ class Runtime {
             device
         }
         this.materialzedTrees.push(materialized)
+    }
+
+    async copyRootBufferToHost(treeId: number): Promise<Int32Array> {
+        let size = this.materialzedTrees[treeId].tree!.size
+        const rootBufferCopy = this.device!.createBuffer({
+            size: size,
+            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+        });
+        let commandEncoder = this.device!.createCommandEncoder();
+        commandEncoder.copyBufferToBuffer(this.materialzedTrees[treeId].rootBuffer!,0,rootBufferCopy,0,size)
+        this.device!.queue.submit([commandEncoder.finish()]);
+        await this.device!.queue.onSubmittedWorkDone()
+    
+        await rootBufferCopy.mapAsync(GPUMapMode.READ)
+        let result = new Int32Array(rootBufferCopy.getMappedRange())
+        let copied = result.slice()
+        rootBufferCopy.unmap()
+        rootBufferCopy.destroy()
+        return copied
     }
 }
 

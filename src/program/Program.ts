@@ -1,4 +1,4 @@
-import {Runtime} from '../webgpu/Runtime'
+import {Runtime} from '../backend/Runtime'
 import {SNodeTree} from './SNodeTree'
 
 class Program {
@@ -10,8 +10,9 @@ class Program {
         this.partialTree.treeId = 0
     }
 
-    materializeRuntime(){
+    async materializeRuntime(){
         this.runtime = new Runtime()
+        await this.runtime.init()
     }
 
     materializeCurrentTree(){

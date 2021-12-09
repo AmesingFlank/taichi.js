@@ -7,6 +7,11 @@ ti.kernel(f)
 
 console.log("heyy")
 
-ti.triangle(document.getElementById("triangle_canvas"))
-ti.computeBoids(document.getElementById("computeBoids_canvas"))
-ti.runTaichiProgram()
+let main = async () => {
+    await ti.triangle(document.getElementById("triangle_canvas"))
+    await ti.computeBoids(document.getElementById("computeBoids_canvas"))
+    await ti.taichiExample0()
+    await ti.taichiExample1()
+}
+main()
+
