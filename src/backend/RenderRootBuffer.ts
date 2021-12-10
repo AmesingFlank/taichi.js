@@ -43,7 +43,8 @@ var<uniform> ubo : UniformBufferType;
 [[stage(fragment)]]
 
 fn main (input: Input) -> [[location(0)]] vec4<f32> {
-    let fragPos = input.fragPos;
+    var fragPos = input.fragPos;
+    fragPos = (fragPos + 1.0 ) / 2.0 ;
     if(fragPos.x == fragPos.y * 123456.0){
       return vec4<f32>(f32(ubo.width),f32(ubo.height),f32(rootBuffer.member[0]), 1.0);
     }
@@ -148,7 +149,7 @@ class RootBufferRenderer {
         })
     }
 
-    async render(){
+    async render(width: number, height:number){
         const commandEncoder = this.device!.createCommandEncoder();
         {
             const renderPassDescriptor: GPURenderPassDescriptor = {

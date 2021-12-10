@@ -62,22 +62,22 @@ let taichiExample2VortexRing = async (canvas:HTMLCanvasElement) => {
         }
     ])
 
-
-    program.runtime!.launchKernel(initTracersKernel)
-
-    for(let i = 0; i<4;++i){
-        program.runtime!.launchKernel(advectKernel)
-        program.runtime!.launchKernel(integrateVortexKernel)
-    }
-    program.runtime!.launchKernel(paintKernel)
-
     let renderer = await program.runtime!.getRootBufferRenderer(canvas)
-    renderer.render()
 
-    await program.runtime!.sync()
-    let rootBufferCopy = await program.runtime!.copyRootBufferToHost(0)
-    console.log("Example 1 results:")
-    console.log(rootBufferCopy)
+    async function frame() {
+        program.runtime!.launchKernel(initTracersKernel)
+
+        for(let i = 0; i<4;++i){
+            program.runtime!.launchKernel(advectKernel)
+            program.runtime!.launchKernel(integrateVortexKernel)
+        }
+        program.runtime!.launchKernel(paintKernel)
+        await program.runtime!.sync()
+        await renderer.render(1024,512)
+        console.log("done")
+        requestAnimationFrame(frame)
+    }
+    requestAnimationFrame(frame)
 }
 
 export {taichiExample2VortexRing}
