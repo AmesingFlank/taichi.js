@@ -56,6 +56,11 @@ fn main_1() {
             root_buffer_0_.member[((e_78 + 4u) >> bitcast<u32>(2u))] = bitcast<i32>(tmp39_);
             root_buffer_0_.member[((e_78 + 8u) >> bitcast<u32>(2u))] = bitcast<i32>(tmp39_);
             root_buffer_0_.member[((e_78 + 12u) >> bitcast<u32>(2u))] = bitcast<i32>(tmp46_);
+
+            root_buffer_0_.member[((e_78 + tmp2443_) >> bitcast<u32>(2u))] = bitcast<i32>(0.0);
+            root_buffer_0_.member[((e_78 + 4u) >> bitcast<u32>(2u))] = bitcast<i32>(0.0);
+            root_buffer_0_.member[((e_78 + 8u) >> bitcast<u32>(2u))] = bitcast<i32>(0.0);
+            root_buffer_0_.member[((e_78 + 12u) >> bitcast<u32>(2u))] = bitcast<i32>(0.0);
             continue;
         } else {
             break;

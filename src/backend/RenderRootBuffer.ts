@@ -26,7 +26,7 @@ struct Input {
 
 [[block]]
 struct RootBufferType {
-    member: [[stride(4)]] array<i32>;
+    member: [[stride(4)]] array<f32>;
 };
 [[group(0), binding(0)]]
 var<storage, read_write> rootBuffer: RootBufferType;
@@ -48,7 +48,20 @@ fn main (input: Input) -> [[location(0)]] vec4<f32> {
     if(fragPos.x == fragPos.y * 123456.0){
       return vec4<f32>(f32(ubo.width),f32(ubo.height),f32(rootBuffer.member[0]), 1.0);
     }
-    return vec4<f32>(fragPos,0.0, 1.0);
+    var working = vec4<f32>(fragPos,0.0, 1.0);
+
+    var cellPos = vec2<i32>(i32(fragPos.x*f32(ubo.width)), i32(fragPos.x*f32(ubo.height)));
+    var pixelIndex = cellPos.x * ubo.height + cellPos.y;
+    var result = vec4<f32>(
+        (rootBuffer.member[pixelIndex * 4 + 0]),
+        (rootBuffer.member[pixelIndex * 4 + 1]),
+        (rootBuffer.member[pixelIndex * 4 + 2]),
+        (rootBuffer.member[pixelIndex * 4 + 3])
+    );
+
+    //result = vec4<f32>(f32(pixelIndex)/500000.0, 0.0,0.0, 1.0) + 0.01 * result / (result + 0.01);
+
+    return result;
 }
 `
 
@@ -150,6 +163,13 @@ class RootBufferRenderer {
     }
 
     async render(width: number, height:number){
+        this.device!.queue.writeBuffer(
+            this.uniformBuffer!,
+            0,
+            new Int32Array([
+                width,height
+            ])
+        );
         const commandEncoder = this.device!.createCommandEncoder();
         {
             const renderPassDescriptor: GPURenderPassDescriptor = {
