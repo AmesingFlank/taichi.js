@@ -1,6 +1,7 @@
 import { CompiledTask, CompiledKernel, TaskParams } from './Kernel'
 import { SNodeTree } from '../program/SNodeTree'
 import { divUp } from '../utils/Utils'
+import {RootBufferRenderer} from './RenderRootBuffer'
 
 class MaterializedTree {
     tree?: SNodeTree
@@ -9,6 +10,7 @@ class MaterializedTree {
 }
 
 class Runtime {
+    adapter: GPUAdapter|null = null
     device: GPUDevice|null = null
     kernels: CompiledKernel[] = []
     private materialzedTrees: MaterializedTree[] = []
@@ -26,6 +28,7 @@ class Runtime {
         const adapter = await navigator.gpu.requestAdapter();
         const device = await adapter!.requestDevice();
         this.device = device
+        this.adapter = adapter
     }
 
     createTask(params:TaskParams): CompiledTask {
@@ -104,6 +107,12 @@ class Runtime {
         rootBufferCopy.unmap()
         rootBufferCopy.destroy()
         return copied
+    }
+
+    async getRootBufferRenderer(canvas:HTMLCanvasElement):Promise<RootBufferRenderer> {
+        let renderer = new RootBufferRenderer(this.adapter!,this.device!,this.materialzedTrees[0].rootBuffer!)
+        await renderer.initForCanvas(canvas)
+        return renderer
     }
 }
 
