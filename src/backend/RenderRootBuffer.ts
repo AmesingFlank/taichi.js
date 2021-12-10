@@ -50,8 +50,9 @@ fn main (input: Input) -> [[location(0)]] vec4<f32> {
     }
     var working = vec4<f32>(fragPos,0.0, 1.0);
 
-    var cellPos = vec2<i32>(i32(fragPos.x*f32(ubo.width)), i32(fragPos.x*f32(ubo.height)));
+    var cellPos = vec2<i32>(i32(fragPos.x*f32(ubo.width)), i32(fragPos.y*f32(ubo.height)));
     var pixelIndex = cellPos.x * ubo.height + cellPos.y;
+    //pixelIndex = cellPos.y * ubo.width + cellPos.x;
     var result = vec4<f32>(
         (rootBuffer.member[pixelIndex * 4 + 0]),
         (rootBuffer.member[pixelIndex * 4 + 1]),
@@ -59,8 +60,9 @@ fn main (input: Input) -> [[location(0)]] vec4<f32> {
         (rootBuffer.member[pixelIndex * 4 + 3])
     );
 
-    //result = vec4<f32>(f32(pixelIndex)/500000.0, 0.0,0.0, 1.0) + 0.01 * result / (result + 0.01);
+    //result = vec4<f32>(f32(pixelIndex)/500000.0, 0.0,0.0, 1.0);// + 0.01 * result / (result + 0.01);
 
+    //result = working;
     return result;
 }
 `

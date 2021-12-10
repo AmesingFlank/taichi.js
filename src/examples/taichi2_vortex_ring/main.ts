@@ -63,10 +63,9 @@ let taichiExample2VortexRing = async (canvas:HTMLCanvasElement) => {
     ])
 
     let renderer = await program.runtime!.getRootBufferRenderer(canvas)
+    program.runtime!.launchKernel(initTracersKernel)
 
     async function frame() {
-        program.runtime!.launchKernel(initTracersKernel)
-
         for(let i = 0; i<4;++i){
             program.runtime!.launchKernel(advectKernel)
             program.runtime!.launchKernel(integrateVortexKernel)
