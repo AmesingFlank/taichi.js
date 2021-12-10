@@ -13,7 +13,7 @@ struct Output {
 fn main (input: Input) -> Output {
   var output: Output;
   
-  output.Position = vec4<f32>(input.position,0.0,0.0);
+  output.Position = vec4<f32>(input.position,0.0,1.0);
   output.fragPos = vec2<f32>(input.position) ;
   return output;
 }
@@ -47,7 +47,7 @@ fn main (input: Input) -> [[location(0)]] vec4<f32> {
     if(fragPos.x == fragPos.y * 123456.0){
       return vec4<f32>(f32(ubo.width),f32(ubo.height),f32(rootBuffer.member[0]), 1.0);
     }
-    return vec4<f32>(fragPos,1.0, 1.0);
+    return vec4<f32>(fragPos,0.0, 1.0);
 }
 `
 
