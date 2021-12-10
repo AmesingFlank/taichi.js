@@ -5,7 +5,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "webpack",
-    "start": "http-server -a 127.0.0.1 -p 80"
+    "start": "http-server -a 127.0.0.1 -p 8080"
   },
   "devDependencies": {
     "http-server": "^14.0.0",
