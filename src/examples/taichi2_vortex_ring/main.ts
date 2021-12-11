@@ -1,8 +1,8 @@
 import {shader as init_tracers_0} from './init_tracers_c58_0_k0005_vk_t00'
-import {shader as init_tracers_1} from './init_tracers_c58_0_k0003_vk_t00'
-import {shader as advect_0} from './advect_c56_0_k0005_vk_t00'
-import {shader as integrate_vortex_0} from './integrate_vortex_c54_0_k0006_vk_t00'
-import {shader as integrate_vortex_1} from './integrate_vortex_c54_0_k0006_vk_t01'
+import {shader as init_tracers_1} from './init_tracers_c58_0_k0005_vk_t01'
+import {shader as advect_0} from './advect_c56_0_k0006_vk_t00'
+import {shader as integrate_vortex_0} from './integrate_vortex_c54_0_k0007_vk_t00'
+import {shader as integrate_vortex_1} from './integrate_vortex_c54_0_k0007_vk_t01'
 import {shader as paint_0} from './paint_c60_0_k0008_vk_t00'
 import {shader as paint_1} from './paint_c60_0_k0008_vk_t01'
 

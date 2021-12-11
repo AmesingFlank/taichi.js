@@ -1,39 +1,48 @@
 
 export const shader = `
+type RTArr = [[stride(4)]] array<i32>;
+
 [[block]]
-struct type_7 {
-    member: [[stride(4)]] array<i32>;
+struct S {
+  field0 : RTArr;
 };
 
-let tmp234_: u32 = 0u;
+type RTArr_1 = [[stride(4)]] array<f32>;
 
-var<private> global: vec3<u32>;
-[[group(0), binding(0)]]
-var<storage, read_write> root_buffer_0_: type_7;
+[[block]]
+struct S_1 {
+  field0 : RTArr_1;
+};
+
+var<private> x_15 : vec3<u32>;
+
+[[group(0), binding(0)]] var<storage, read_write> root_buffer_0 : S;
+
+[[group(0), binding(0)]] var<storage, read_write> root_buffer_0_1 : S_1;
 
 fn main_1() {
-    let e_27 = global[tmp234_];
-    if ((bitcast<i32>(e_27) == bitcast<i32>(tmp234_))) {
-        root_buffer_0_.member[2097152u] = 0;
-        root_buffer_0_.member[2097153u] = 1065353216;
-        root_buffer_0_.member[2097154u] = 0;
-        root_buffer_0_.member[2097155u] = -1082130432;
-        root_buffer_0_.member[2097156u] = 0;
-        root_buffer_0_.member[2097157u] = 1050253722;
-        root_buffer_0_.member[2097158u] = 0;
-        root_buffer_0_.member[2097159u] = -1097229926;
-        root_buffer_0_.member[2097168u] = 1065353216;
-        root_buffer_0_.member[2097169u] = -1082130432;
-        root_buffer_0_.member[2097170u] = 1065353216;
-        root_buffer_0_.member[2097171u] = -1082130432;
-    }
-    return;
+  let x_18 : u32 = x_15.x;
+  if ((x_18 == 0u)) {
+    root_buffer_0_1.field0[2097152u] = 0.0;
+    root_buffer_0_1.field0[2097153u] = 1.0;
+    root_buffer_0_1.field0[2097154u] = 0.0;
+    root_buffer_0_1.field0[2097155u] = -1.0;
+    root_buffer_0_1.field0[2097156u] = 0.0;
+    root_buffer_0_1.field0[2097157u] = 0.300000012;
+    root_buffer_0_1.field0[2097158u] = 0.0;
+    root_buffer_0_1.field0[2097159u] = -0.300000012;
+    root_buffer_0_1.field0[2097168u] = 1.0;
+    root_buffer_0_1.field0[2097169u] = -1.0;
+    root_buffer_0_1.field0[2097170u] = 1.0;
+    root_buffer_0_1.field0[2097171u] = -1.0;
+  }
+  return;
 }
 
 [[stage(compute), workgroup_size(1, 1, 1)]]
-fn main([[builtin(global_invocation_id)]] param: vec3<u32>) {
-    global = param;
-    main_1();
+fn main([[builtin(global_invocation_id)]] x_15_param : vec3<u32>) {
+  x_15 = x_15_param;
+  main_1();
 }
 
 `

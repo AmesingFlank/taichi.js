@@ -1,54 +1,55 @@
 
 export const shader = `
+type RTArr = [[stride(4)]] array<i32>;
+
 [[block]]
-struct type_7 {
-    member: [[stride(4)]] array<i32>;
+struct S {
+  field0 : RTArr;
 };
 
-let totale_lems: i32 = 524288;
+type RTArr_1 = [[stride(4)]] array<f32>;
 
-let tmp2396_: u32 = 0u;
+[[block]]
+struct S_1 {
+  field0 : RTArr_1;
+};
 
-let total_invocs: i32 = 524288;
+var<private> x_16 : vec3<u32>;
 
-let tmp2510_: i32 = 9;
+[[group(0), binding(0)]] var<storage, read_write> root_buffer_0 : S;
 
-let tmp2674_: i32 = 1023;
-
-let tmp2675_: i32 = 511;
-
-var<private> global: vec3<u32>;
-[[group(0), binding(0)]]
-var<storage, read_write> root_buffer_0_: type_7;
+[[group(0), binding(0)]] var<storage, read_write> root_buffer_0_1 : S_1;
 
 fn main_1() {
-    var phi_29_: i32;
-
-    let e_23 = global[tmp2396_];
-    phi_29_ = bitcast<i32>(e_23);
-    loop {
-        let e_26 = phi_29_;
-        if ((e_26 < totale_lems)) {
-            continue;
-        } else {
-            break;
-        }
-        continuing {
-            let e_36 = (bitcast<u32>(((e_26 & tmp2675_) + (((e_26 >> bitcast<u32>(tmp2510_)) & tmp2674_) << bitcast<u32>(tmp2510_)))) * 16u);
-            root_buffer_0_.member[(e_36 >> bitcast<u32>(2u))] = 1065353216;
-            root_buffer_0_.member[((e_36 + 4u) >> bitcast<u32>(2u))] = 1065353216;
-            root_buffer_0_.member[((e_36 + 8u) >> bitcast<u32>(2u))] = 1065353216;
-            root_buffer_0_.member[((e_36 + 12u) >> bitcast<u32>(2u))] = 1065353216;
-            phi_29_ = (e_26 + total_invocs);
-        }
+  var ii_phi : i32;
+  let x_20 : u32 = x_16.x;
+  let x_21 : i32 = bitcast<i32>(x_20);
+  ii_phi = x_21;
+  loop {
+    var x_76 : i32;
+    let ii : i32 = ii_phi;
+    if ((ii < 524288)) {
+    } else {
+      break;
     }
-    return;
+
+    continuing {
+      let x_53 : u32 = (bitcast<u32>(((ii & 511) + (((ii >> bitcast<u32>(9)) & 1023) << bitcast<u32>(9)))) * 16u);
+      root_buffer_0_1.field0[bitcast<u32>((bitcast<i32>(x_53) >> 2u))] = 1.0;
+      root_buffer_0_1.field0[bitcast<u32>((bitcast<i32>((x_53 + 4u)) >> 2u))] = 1.0;
+      root_buffer_0_1.field0[bitcast<u32>((bitcast<i32>((x_53 + 8u)) >> 2u))] = 1.0;
+      root_buffer_0_1.field0[bitcast<u32>((bitcast<i32>((x_53 + 12u)) >> 2u))] = 1.0;
+      x_76 = (ii + 524288);
+      ii_phi = x_76;
+    }
+  }
+  return;
 }
 
 [[stage(compute), workgroup_size(128, 1, 1)]]
-fn main([[builtin(global_invocation_id)]] param: vec3<u32>) {
-    global = param;
-    main_1();
+fn main([[builtin(global_invocation_id)]] x_16_param : vec3<u32>) {
+  x_16 = x_16_param;
+  main_1();
 }
 
 `
