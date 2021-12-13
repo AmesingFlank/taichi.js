@@ -28,6 +28,12 @@ let taichiExample0 = async () => {
             buffer: rootBuffer,
           },
         },
+        {
+          binding: 1,
+          resource: {
+            buffer: rootBuffer,
+          },
+        },
       ],
     });
   
