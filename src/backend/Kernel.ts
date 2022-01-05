@@ -1,4 +1,3 @@
-import {getTint}  from '../tint/tint'
 class TaskParams {
     code:string = ""
     invocatoions: number = 0
