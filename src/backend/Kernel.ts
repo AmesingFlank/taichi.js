@@ -1,6 +1,8 @@
+import {getTint}  from '../tint/tint'
 class TaskParams {
     code:string = ""
     invocatoions: number = 0
+    spv?: number[] = undefined
 }
 
 class CompiledTask {
@@ -14,10 +16,11 @@ class CompiledTask {
         this.createPipeline()
     }
     createPipeline(){
+        let code = this.params.code
         this.pipeline = this.device.createComputePipeline({
             compute: {
                 module: this.device.createShaderModule({
-                  code: this.params.code,
+                  code: code,
                 }),
                 entryPoint: 'main',
             },
