@@ -1,7 +1,6 @@
 class TaskParams {
     code:string = ""
     invocatoions: number = 0
-    spv?: number[] = undefined
 }
 
 class CompiledTask {
