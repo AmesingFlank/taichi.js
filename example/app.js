@@ -14,6 +14,7 @@ let main = async () => {
     await ti.taichiExample1()
     //await ti.taichiExample2VortexRing(document.getElementById("vortex_ring_canvas"))
     await ti.taichiExample3VortexRingSpv(document.getElementById("vortex_ring_spv_canvas"))
+    await ti.taichiExample4()
 }
 main()
 

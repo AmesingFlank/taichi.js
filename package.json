@@ -17,5 +17,6 @@
   "dependencies": {
     "@webgpu/types": "^0.1.9",
     "gl-matrix": "^3.4.3"
-  }
+  },
+  "browser": { "fs": false, "child_process": false }
 }
