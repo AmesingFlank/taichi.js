@@ -1,7 +1,7 @@
 
 
 def main():
-    with open("src/taichi_emscriptened/taichi.js","r") as f:
+    with open("C:/Users/ldfra/Code/Taichi/taichi/build/taichi.js","r") as f:
         code = f.read()
     code += "export {createTaichiModule}\n"
     code = code.replace("f(-1)","")
