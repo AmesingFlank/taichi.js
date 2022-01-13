@@ -43,13 +43,25 @@ let taichiExample4 = async () => {
     console.log(loop)
     {
       let loop_guard = ir_builder.get_range_loop_guard(loop);
-      console.log(loop_guard)
+      console.log(loop_guard) 
       let index = ir_builder.get_loop_index(loop,0);
       console.log(index)
-    //   auto *ptr = ir_builder.create_global_ptr(place, {index});
-    //   ir_builder.create_global_store(ptr, index);
+
+      let stmt_vec = new taichi.StdVectorOfStmtPtr()
+      console.log(stmt_vec)
+      stmt_vec.push_back(index)
+
+      let ptr = ir_builder.create_global_ptr(place, stmt_vec);
+      console.log(ptr)
+
+      ir_builder.create_global_ptr_global_store(ptr, index);
+
       loop_guard.delete()
     }
+    let extracted_ir = ir_builder.extract_ir()
+    console.log(extracted_ir)
+    let kernel_init = new taichi.Kernel(program,extracted_ir , "init", false)
+    console.log(kernel_init)
     
 }
 
