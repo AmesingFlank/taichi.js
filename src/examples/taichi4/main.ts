@@ -25,7 +25,10 @@ let taichiExample4 = async () => {
     let place = dense.insert_children(taichi.SNodeType.place);
     console.log(place)
 
-    place.dt = taichi.PrimitiveType.i32
+    place.dt_set(taichi.PrimitiveType.i32)
+
+
+    program.add_snode_tree(root,true)
 
     let aot_builder = program.make_aot_module_builder(taichi.Arch.vulkan);
     console.log(aot_builder)
@@ -58,10 +61,18 @@ let taichiExample4 = async () => {
 
       loop_guard.delete()
     }
-    let extracted_ir = ir_builder.extract_ir()
-    console.log(extracted_ir)
-    let kernel_init = new taichi.Kernel(program,extracted_ir , "init", false)
+    
+    let kernel_init = taichi.Kernel.create_kernel(program,ir_builder , "init", false)
     console.log(kernel_init)
+
+    let n_singleton = new taichi.StdVectorOfInt()
+    n_singleton.push_back(n);
+    console.log("adding place")
+    aot_builder.add_field("place", place, true, place.dt_get(), n_singleton, 1, 1);
+    console.log("added place")
+    aot_builder.add("init", kernel_init);
+    console.log("added init")
+    aot_builder.dump(".","aot.tcb")
     
 }
 
