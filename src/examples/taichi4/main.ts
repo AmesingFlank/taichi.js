@@ -1,6 +1,7 @@
 import {getTintModule} from '../../tint/getTint' 
 import {getTaichiModule} from '../../taichi_emscriptened/getTaichi' 
-
+import {program} from '../../program/Program'
+import {field,Vector,Matrix}  from '../../program/FieldsFactory'
 
 let taichiExample4 = async () => {
     console.log("im here")
@@ -10,8 +11,8 @@ let taichiExample4 = async () => {
     //@ts-ignore
     window.taichi = taichi
     
-    let program = new taichi.Program(taichi.Arch.vulkan)
-    console.log(program)
+    let native_program = new taichi.Program(taichi.Arch.vulkan)
+    console.log(native_program)
     
     let n = 10
 
@@ -28,9 +29,9 @@ let taichiExample4 = async () => {
     place.dt_set(taichi.PrimitiveType.i32)
 
 
-    program.add_snode_tree(root,true)
+    native_program.add_snode_tree(root,true)
 
-    let aot_builder = program.make_aot_module_builder(taichi.Arch.vulkan);
+    let aot_builder = native_program.make_aot_module_builder(taichi.Arch.vulkan);
     console.log(aot_builder)
 
     let ir_builder = new taichi.IRBuilder()
@@ -50,7 +51,7 @@ let taichiExample4 = async () => {
       let index = ir_builder.get_loop_index(loop,0);
       console.log(index)
 
-      let stmt_vec = new taichi.StdVectorOfStmtPtr()
+      let stmt_vec = new taichi.VectorOfStmtPtr()
       console.log(stmt_vec)
       stmt_vec.push_back(index)
 
@@ -62,18 +63,47 @@ let taichiExample4 = async () => {
       loop_guard.delete()
     }
     
-    let kernel_init = taichi.Kernel.create_kernel(program,ir_builder , "init", false)
+    let kernel_init = taichi.Kernel.create_kernel(native_program,ir_builder , "init", false)
     console.log(kernel_init)
 
-    let n_singleton = new taichi.StdVectorOfInt()
+    let n_singleton = new taichi.VectorOfInt()
     n_singleton.push_back(n);
     console.log("adding place")
     aot_builder.add_field("place", place, true, place.dt_get(), n_singleton, 1, 1);
     console.log("added place")
     aot_builder.add("init", kernel_init);
     console.log("added init")
-    aot_builder.dump(".","aot.tcb")
+    let spv_codes = taichi.get_kernel_spirv(aot_builder,"init");
+    let first_task_code = spv_codes.get(0)
+    let num_words = first_task_code.size()
+    let spv = []
+    for(let i = 0; i < num_words; i += 1){
+      spv.push(first_task_code.get(i))
+    }
+    console.log(spv)
     
+
+    await program.materializeRuntime()
+
+    let f = field([10])
+
+    program.materializeCurrentTree()
+
+    let code = tint.tintSpvToWgsl(spv)
+    console.log(code)
+
+    let initKernel = program.runtime!.createKernel([
+        {
+            code:code,
+            invocatoions: 10
+        },
+    ])
+    
+    program.runtime!.launchKernel(initKernel)
+    
+    let rootBufferCopy = await program.runtime!.copyRootBufferToHost(0)
+    console.log("Example 4 results:")
+    console.log(rootBufferCopy)
 }
 
 export {taichiExample4}
