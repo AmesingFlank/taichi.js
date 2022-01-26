@@ -6,6 +6,7 @@ import {taichiExample2VortexRing} from './examples/taichi2_vortex_ring/main'
 import {taichiExample3VortexRingSpv} from './examples/taichi3_vortex_ring_spv/main'
 import {taichiExample4} from './examples/taichi4/main'
 
+import {typecheckerExample0} from './examples/compiler_api/typechecker0'
 
 function kernel(f:any){
     console.log(f.toString())
@@ -20,6 +21,7 @@ const taichi = {
     taichiExample2VortexRing,
     taichiExample3VortexRingSpv,
     taichiExample4,
+    typecheckerExample0
 }
 
 export {taichi}
