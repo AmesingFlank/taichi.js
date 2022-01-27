@@ -1,9 +1,13 @@
 import * as ts from "typescript";
-
+import {assert} from "../../utils/Logging"
 
 type VisitorResult<T> = T | void | undefined
 
 class ASTVisitor<T> {
+    protected extractResult(result: VisitorResult<T>): T {
+        assert(result !== undefined, "Result is undefined")
+        return result as T
+    }
     protected dispatchVisit(node: ts.Node): VisitorResult<T> {
         switch(node.kind){
             case ts.SyntaxKind.VariableDeclaration:
@@ -94,4 +98,4 @@ class ASTVisitor<T> {
 }
 
 
-export {ASTVisitor}
+export {ASTVisitor,VisitorResult}

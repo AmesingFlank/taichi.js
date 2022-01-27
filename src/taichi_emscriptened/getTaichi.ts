@@ -1,7 +1,10 @@
 // @ts-ignore
 import {createTaichiModule} from './taichi'
 
-let taichiModule:any = undefined
+
+type NativeTaichiAny = any
+
+let taichiModule:NativeTaichiAny = undefined
 
 async function getTaichiModule() {
     if(taichiModule !== undefined){
@@ -11,4 +14,4 @@ async function getTaichiModule() {
     return taichiModule
 }
 
-export {getTaichiModule}
+export {getTaichiModule, NativeTaichiAny}
