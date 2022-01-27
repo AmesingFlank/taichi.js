@@ -43,7 +43,7 @@ let taichiExample4 = async () => {
     let n_stmt = ir_builder.get_int32(n)
     console.log(n_stmt)
 
-    let loop = ir_builder.create_range_for(zero, n_stmt, 1, 0, 4, 0, false);
+    let loop = ir_builder.create_range_for(zero, n_stmt,  0, 4, 0, false);
     console.log(loop)
     {
       let loop_guard = ir_builder.get_range_loop_guard(loop);
