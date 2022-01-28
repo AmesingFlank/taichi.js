@@ -1,4 +1,4 @@
-import {program} from './Program'
+import {Program} from './Program'
 import { Field } from './Field'
 
 function product(dimensions: number[]){
@@ -11,20 +11,20 @@ function product(dimensions: number[]){
 
 function field(dimensions: number[]) : Field{
     let size = 4 * product(dimensions)
-    return program.partialTree.addField(size)
+    return Program.getCurrentProgram().partialTree.addField(size)
 }
 
 let Vector = {
     field : (n:number, dimensions:number[]):Field => {
         let size = 4 * n * product(dimensions)
-        return program.partialTree.addField(size)
+        return Program.getCurrentProgram().partialTree.addField(size)
     }
 }
 
 let Matrix = {
     field : (m:number, n:number, dimensions:number[]):Field => {
         let size = 4 * n * m * product(dimensions)
-        return program.partialTree.addField(size)
+        return Program.getCurrentProgram().partialTree.addField(size)
     }
 }
 

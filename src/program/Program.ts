@@ -1,22 +1,27 @@
 import {Runtime} from '../backend/Runtime'
 import {SNodeTree} from './SNodeTree'
-import {getTaichiModule, NativeTaichiAny} from '../native/taichi/GetTaichi'
+import {nativeTaichi, NativeTaichiAny} from '../native/taichi/GetTaichi'
+import {error} from '../utils/Logging'
 class Program {
     runtime: Runtime|null = null
     materializedTrees: SNodeTree[] = []
     partialTree: SNodeTree
-    constructor(){
+
+    private static instance: Program
+    private constructor(){
         this.partialTree = new SNodeTree()
         this.partialTree.treeId = 0
+        this.nativeProgram = new nativeTaichi.Program(nativeTaichi.Arch.vulkan)
+    }
+    
+    public static getCurrentProgram(): Program{
+        if(!Program.instance){
+            Program.instance = new Program()
+        }
+        return Program.instance
     }
 
-    private nativeTaichi : NativeTaichiAny
-    private nativeProgram : NativeTaichiAny
-
-    async init(){
-        this.nativeTaichi = await getTaichiModule()
-        this.nativeProgram = new this.nativeTaichi.Program(this.nativeTaichi.Arch.vulkan)
-    }
+    nativeProgram : NativeTaichiAny
 
     async materializeRuntime(){
         this.runtime = new Runtime()
@@ -37,7 +42,5 @@ class Program {
         this.partialTree.treeId = nextId
     }
 }
-
-const program = new Program()
-
-export {Program,program}
+  
+export {Program}

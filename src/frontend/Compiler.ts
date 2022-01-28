@@ -2,7 +2,7 @@ import * as ts from "typescript";
 import { InMemoryHost } from "./InMemoryHost";
 import {ASTVisitor, VisitorResult} from "./ast/Visiter"
 import { CompiledKernel } from "../backend/Kernel";
-import {getTaichiModule, NativeTaichiAny} from '../native/taichi/GetTaichi' 
+import { nativeTaichi, NativeTaichiAny} from '../native/taichi/GetTaichi' 
 import {error, assert} from '../utils/Logging'
 
 export class CompilerContext {
@@ -34,8 +34,7 @@ export class Compiler extends ASTVisitor<NativeTaichiAny>{
     private irBuilder : NativeTaichiAny
 
     public async compileKernel(code:string) {
-        this.nativeTaichi = await getTaichiModule()
-        this.irBuilder = new this.nativeTaichi.IRBuilder()
+        this.irBuilder  = new nativeTaichi.IRBuilder()
         this.program = this.context.createProgramFromSource(code,{})
         this.typeChecker = this.program.getTypeChecker()
         

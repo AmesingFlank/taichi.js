@@ -1,14 +1,23 @@
 // @ts-ignore
 import {createTintModule} from './tint';
 
-let tintModule:any = undefined
+let nativeTintInstance:any = undefined
 
-async function getTintModule() {
-    if(tintModule !== undefined){
-        return tintModule
+async function createNativeTint() {
+    if(nativeTintInstance !== undefined){
+        return nativeTintInstance
     }
-    tintModule = await createTintModule()
-    return tintModule
+    nativeTintInstance  = await createTintModule()
+    return nativeTintInstance
 }
 
-export {getTintModule}
+let nativeTintProxy = {
+    get: function(unused:any, prop:string) {
+        return nativeTintInstance[prop]
+    }
+}
+
+let nativeTint = new Proxy({},nativeTintProxy)
+
+
+export {nativeTint, createNativeTint}

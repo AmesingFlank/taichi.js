@@ -1,4 +1,4 @@
-import {getTintModule} from '../../native/tint/GetTint' 
+import {nativeTint} from '../../native/tint/GetTint' 
 
 import {shader as init_tracers_0} from './init_tracers_c60_0_k0005_vk_t00'
 import {shader as init_tracers_1} from './init_tracers_c60_0_k0005_vk_t01'
@@ -8,12 +8,14 @@ import {shader as integrate_vortex_1} from './integrate_vortex_c56_0_k0007_vk_t0
 import {shader as paint_0} from './paint_c60_0_k0008_vk_t00'
 import {shader as paint_1} from './paint_c60_0_k0008_vk_t01'
 
-import {program} from '../../program/Program'
+import {Program} from '../../program/Program'
 import {field,Vector,Matrix}  from '../../program/FieldsFactory'
-
+import {init} from '../../misc/Init'
 let taichiExample3VortexRingSpv = async (canvas:HTMLCanvasElement) => {
-    let tint = await getTintModule()
-    let spvToWgsl = tint.tintSpvToWgsl
+    await init()
+
+    let spvToWgsl = nativeTint.tintSpvToWgsl
+    let program = Program.getCurrentProgram()
     await program.materializeRuntime()
 
     let resolution = [512,1024]
