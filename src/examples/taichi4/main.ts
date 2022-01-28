@@ -1,5 +1,5 @@
-import {getTintModule} from '../../tint/getTint' 
-import {getTaichiModule} from '../../taichi_emscriptened/getTaichi' 
+import {getTintModule} from '../../native/tint/GetTint' 
+import {getTaichiModule} from '../../native/taichi/GetTaichi' 
 import {program} from '../../program/Program'
 import {field,Vector,Matrix}  from '../../program/FieldsFactory'
 

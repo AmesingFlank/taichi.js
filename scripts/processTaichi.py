@@ -5,7 +5,7 @@ def main():
         code = f.read()
     code += "export {createTaichiModule}\n"
     code = code.replace("f(-1)","")
-    with open("src/taichi_emscriptened/taichi.js","w") as f:
+    with open("src/native/taichi/taichi.js","w") as f:
         f.write(code)
 
 if __name__ == "__main__":

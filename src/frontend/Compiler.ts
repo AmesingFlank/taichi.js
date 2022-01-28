@@ -2,7 +2,7 @@ import * as ts from "typescript";
 import { InMemoryHost } from "./InMemoryHost";
 import {ASTVisitor, VisitorResult} from "./ast/Visiter"
 import { CompiledKernel } from "../backend/Kernel";
-import {getTaichiModule, NativeTaichiAny} from '../taichi_emscriptened/getTaichi' 
+import {getTaichiModule, NativeTaichiAny} from '../native/taichi/GetTaichi' 
 import {error, assert} from '../utils/Logging'
 
 export class CompilerContext {

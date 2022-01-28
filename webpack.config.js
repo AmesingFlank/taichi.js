@@ -5,7 +5,7 @@ module.exports = {
   mode: "development",
   devtool: "inline-source-map",
   entry: {
-    main: "./src/ti.ts",
+    main: "./src/taichi.ts",
   },
   output: {
     path: path.resolve(__dirname, './lib'),

@@ -25,3 +25,9 @@ const taichi = {
 }
 
 export {taichi}
+
+declare module globalThis {
+    let taichi: any;
+}
+
+globalThis.taichi = taichi;

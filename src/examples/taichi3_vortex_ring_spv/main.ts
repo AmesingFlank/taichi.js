@@ -1,4 +1,4 @@
-import {getTintModule} from '../../tint/getTint' 
+import {getTintModule} from '../../native/tint/GetTint' 
 
 import {shader as init_tracers_0} from './init_tracers_c60_0_k0005_vk_t00'
 import {shader as init_tracers_1} from './init_tracers_c60_0_k0005_vk_t01'

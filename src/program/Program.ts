@@ -1,6 +1,6 @@
 import {Runtime} from '../backend/Runtime'
 import {SNodeTree} from './SNodeTree'
-
+import {getTaichiModule, NativeTaichiAny} from '../native/taichi/GetTaichi'
 class Program {
     runtime: Runtime|null = null
     materializedTrees: SNodeTree[] = []
@@ -8,6 +8,14 @@ class Program {
     constructor(){
         this.partialTree = new SNodeTree()
         this.partialTree.treeId = 0
+    }
+
+    private nativeTaichi : NativeTaichiAny
+    private nativeProgram : NativeTaichiAny
+
+    async init(){
+        this.nativeTaichi = await getTaichiModule()
+        this.nativeProgram = new this.nativeTaichi.Program(this.nativeTaichi.Arch.vulkan)
     }
 
     async materializeRuntime(){
