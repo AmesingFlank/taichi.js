@@ -5,6 +5,7 @@ import { CompiledKernel } from "../backend/Kernel";
 import { nativeTaichi, NativeTaichiAny} from '../native/taichi/GetTaichi' 
 import {error, assert} from '../utils/Logging'
 import { GlobalScope } from "../program/GlobalScope";
+import { Field } from "../program/Field";
 
 export class CompilerContext {
     private host: InMemoryHost
@@ -67,7 +68,7 @@ export class Compiler extends ASTVisitor<NativeTaichiAny>{
         let base = node.expression
         let argument = node.argumentExpression
         if(this.scope.hasStored(node.getText())){
-            let field = this.scope.getStored(node.getText())
+            let field = this.scope.getStored(node.getText()) as Field
         }
         else{
             error("Variable not found in global scope: ", base.getText())

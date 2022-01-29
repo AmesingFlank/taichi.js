@@ -11,30 +11,16 @@ let taichiExample4 = async () => {
     window.taichi = taichi
 
     let program = Program.getCurrentProgram()
+    await program.materializeRuntime()
+
+    let f = field([10])
+
+    program.materializeCurrentTree()
 
     
     console.log(program.nativeProgram)
     
     let n = 10
-
-    // program.materialize_runtime();
-    let root : NativeTaichiAny = new nativeTaichi.SNode(0, nativeTaichi.SNodeType.root);
-    console.log(root)
-
-    let axisVec : NativeTaichiAny = new nativeTaichi.VectorOfAxis()
-    axisVec.push_back(new nativeTaichi.Axis(0))
-    let sizesVec: NativeTaichiAny = new nativeTaichi.VectorOfInt()
-    sizesVec.push_back(n);
-    let dense = root.dense(axisVec,sizesVec, false);
-    console.log(dense)
-    
-    let place = dense.insert_children(nativeTaichi.SNodeType.place);
-    console.log(place)
-
-    place.dt_set(nativeTaichi.PrimitiveType.i32)
-
-
-    program.nativeProgram.add_snode_tree(root,true)
 
     let aot_builder = program.nativeProgram.make_aot_module_builder(nativeTaichi.Arch.vulkan);
     console.log(aot_builder)
@@ -60,7 +46,7 @@ let taichiExample4 = async () => {
       console.log(stmt_vec)
       stmt_vec.push_back(index)
 
-      let ptr = ir_builder.create_global_ptr(place, stmt_vec);
+      let ptr = ir_builder.create_global_ptr(f.placeNodes[0], stmt_vec);
       console.log(ptr)
 
       ir_builder.create_global_ptr_global_store(ptr, index);
@@ -74,7 +60,7 @@ let taichiExample4 = async () => {
     let n_singleton : NativeTaichiAny = new nativeTaichi.VectorOfInt()
     n_singleton.push_back(n);
     console.log("adding place")
-    aot_builder.add_field("place", place, true, place.dt_get(), n_singleton, 1, 1);
+    aot_builder.add_field("place", f.placeNodes[0], true, f.placeNodes[0].dt_get(), n_singleton, 1, 1);
     console.log("added place")
     aot_builder.add("init", kernel_init);
     console.log("added init")
@@ -86,12 +72,6 @@ let taichiExample4 = async () => {
       spv.push(first_task_code.get(i))
     }
     console.log(spv)
-    
-    await program.materializeRuntime()
-
-    let f = field([10])
-
-    program.materializeCurrentTree()
 
     let code = nativeTint.tintSpvToWgsl(spv)
     console.log(code)

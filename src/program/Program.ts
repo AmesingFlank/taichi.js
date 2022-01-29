@@ -43,6 +43,7 @@ class Program {
         if(this.runtime == null){
             this.materializeRuntime()
         }
+        this.nativeProgram.add_snode_tree(this.partialTree.nativeTreeRoot, true)
         this.runtime!.materializeTree(this.partialTree)
         this.materializedTrees.push(this.partialTree)
         let nextId = this.partialTree.treeId + 1
