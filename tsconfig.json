@@ -4,10 +4,11 @@
         "module": "commonjs",
         "declaration": true,
         "outDir": "./lib",
-        "strict": true,
         "typeRoots": [ "./node_modules/@webgpu/types", "./node_modules/@types"],
         "allowJs": true,
-        "esModuleInterop": true
+        "esModuleInterop": true,
+        "strict": false,
+        "noImplicitUseStrict": true
     },
     "include": ["src"],
     "exclude": ["node_modules", "**/__tests__/*"]

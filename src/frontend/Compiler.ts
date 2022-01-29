@@ -3,6 +3,7 @@ import { InMemoryHost } from "./InMemoryHost";
 import {ASTVisitor, VisitorResult} from "./ast/Visiter"
 import { CompiledKernel } from "../backend/Kernel";
 import { nativeTaichi, NativeTaichiAny} from '../native/taichi/GetTaichi' 
+import { nativeTint} from '../native/tint/GetTint' 
 import {error, assert} from '../utils/Logging'
 import { GlobalScope } from "../program/GlobalScope";
 import { Field } from "../program/Field";
@@ -28,27 +29,48 @@ export class OneTimeCompiler extends ASTVisitor<NativeTaichiAny>{
         this.symbolStmtMap = new Map<ts.Symbol,NativeTaichiAny>()
     }
     private context: CompilerContext
-    private program?: ts.Program
+    private tsProgram?: ts.Program
     private typeChecker? : ts.TypeChecker
 
     private symbolStmtMap : Map<ts.Symbol, NativeTaichiAny>;
 
     private nativeTaichi: NativeTaichiAny
     private irBuilder : NativeTaichiAny
+    public kernelName:string|null = null
 
-    public async compileKernel(code:string) {
+    compileKernel(code:string) : string[] {
         this.irBuilder  = new nativeTaichi.IRBuilder()
-        this.program = this.context.createProgramFromSource(code,{})
-        this.typeChecker = this.program.getTypeChecker()
+        this.tsProgram = this.context.createProgramFromSource(code,{})
+        this.typeChecker = this.tsProgram.getTypeChecker()
         
-        let sourceFiles = this.program!.getSourceFiles()
+        let sourceFiles = this.tsProgram!.getSourceFiles()
         assert(sourceFiles.length === 1, "Expecting exactly 1 source file")
         let sourceFile = sourceFiles[0]
         let statements = sourceFile.statements
         assert(statements.length === 1, "Expecting exactly 1 statement")
-        let kernelFunction = statements[0]
-        assert(kernelFunction.kind === ts.SyntaxKind.FunctionDeclaration, "Expecting a function declaration")
+        assert(statements[0].kind === ts.SyntaxKind.FunctionDeclaration, "Expecting a function declaration")
+
+        let kernelFunction = statements[0] as ts.FunctionDeclaration
+        this.kernelName = kernelFunction.name!.text
         this.visitEachChild(kernelFunction)
+
+        let kernel = nativeTaichi.Kernel.create_kernel(Program.getCurrentProgram().nativeProgram,this.irBuilder , this.kernelName, false)
+        Program.getCurrentProgram().nativeAotBuilder.add(this.kernelName, kernel);
+
+        let tasks = nativeTaichi.get_kernel_spirv(Program.getCurrentProgram().nativeAotBuilder,this.kernelName);
+        let result:string[] = []
+        let numTasks = tasks.size()
+        for(let i = 0; i < numTasks; ++ i){
+            let task = tasks.get(i)
+            let numWords = task.size()
+            let spv:number[] = []
+            for(let j = 0 ; j < numWords; ++ j){
+                spv.push(tasks.get(i))
+            }
+            let wgsl = nativeTint.tintSpvToWgsl(spv)
+            result.push(wgsl)
+        }
+        return result
     }
 
     protected override visitBinaryExpression(node: ts.BinaryExpression): VisitorResult<NativeTaichiAny> {
