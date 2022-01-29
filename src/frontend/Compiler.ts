@@ -4,6 +4,7 @@ import {ASTVisitor, VisitorResult} from "./ast/Visiter"
 import { CompiledKernel } from "../backend/Kernel";
 import { nativeTaichi, NativeTaichiAny} from '../native/taichi/GetTaichi' 
 import {error, assert} from '../utils/Logging'
+import { GlobalScope } from "../program/GlobalScope";
 
 export class CompilerContext {
     private host: InMemoryHost
@@ -19,7 +20,7 @@ export class CompilerContext {
 }
 
 export class Compiler extends ASTVisitor<NativeTaichiAny>{
-    constructor(){
+    constructor(private scope: GlobalScope){
         super()
         this.context = new CompilerContext()
         this.symbolStmtMap = new Map<ts.Symbol,NativeTaichiAny>()
@@ -60,6 +61,25 @@ export class Compiler extends ASTVisitor<NativeTaichiAny>{
             default:
                 error("Unrecognized binary operator")
         }
+    }
+
+    protected visitElementAccessExpression(node: ts.ElementAccessExpression): VisitorResult<NativeTaichiAny> {
+        let base = node.expression
+        let argument = node.argumentExpression
+        if(this.scope.hasStored(node.getText())){
+            let field = this.scope.getStored(node.getText())
+        }
+        else{
+            error("Variable not found in global scope: ", base.getText())
+        }
+    }
+
+    protected override visitIdentifier(node: ts.Identifier): VisitorResult<NativeTaichiAny> {
+        let symbol = this.typeChecker!.getSymbolAtLocation(node)!
+        if(!this.symbolStmtMap.has(symbol)){
+            error("Symbol not found: ",node,node.text)
+        }
+        return this.symbolStmtMap.get(symbol)
     }
     
     protected override visitForOfStatement(node: ts.ForOfStatement): VisitorResult<NativeTaichiAny> {

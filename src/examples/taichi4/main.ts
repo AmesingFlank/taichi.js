@@ -21,7 +21,11 @@ let taichiExample4 = async () => {
     let root : NativeTaichiAny = new nativeTaichi.SNode(0, nativeTaichi.SNodeType.root);
     console.log(root)
 
-    let dense = root.dense(new nativeTaichi.Axis(0), n, false);
+    let axisVec : NativeTaichiAny = new nativeTaichi.VectorOfAxis()
+    axisVec.push_back(new nativeTaichi.Axis(0))
+    let sizesVec: NativeTaichiAny = new nativeTaichi.VectorOfInt()
+    sizesVec.push_back(n);
+    let dense = root.dense(axisVec,sizesVec, false);
     console.log(dense)
     
     let place = dense.insert_children(nativeTaichi.SNodeType.place);

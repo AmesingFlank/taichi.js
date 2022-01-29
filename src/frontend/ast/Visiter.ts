@@ -55,7 +55,7 @@ class ASTVisitor<T> {
     }
 
     protected visitIdentifier(node: ts.Node) : VisitorResult<T> {
-        return this.visitIdentifier(node)
+        return this.visitEachChild(node)
     }
 
     protected visitVariableDeclaration(node: ts.VariableDeclaration): VisitorResult<T> {

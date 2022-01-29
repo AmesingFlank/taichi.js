@@ -20,12 +20,24 @@ class SNodeTree {
     }
 
     addNaiveDenseField(elementSize:number, dimensions: number[]): Field{
+
+        // let dense = root.dense(new nativeTaichi.Axis(0), n, false);
+        // console.log(dense)
+        
+        // let place = dense.insert_children(nativeTaichi.SNodeType.place);
+        // console.log(place)
+    
+        // place.dt_set(nativeTaichi.PrimitiveType.i32)
+
+
         let totalSize = elementSize * product(dimensions)
         let field:Field = {
             snodeTree: this,
             offset: this.size,
-            size: totalSize
+            size: totalSize,
+            placeNode: null
         }
+        
         this.size += totalSize
         this.fields.push(field)
 
