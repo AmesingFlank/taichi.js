@@ -14,6 +14,7 @@ let taichiExample4 = async () => {
     await program.materializeRuntime()
 
     let f = field([10])
+    //f.addToAotBuilder(program.nativeAotBuilder,"f") // This is crashing for somne readon. but i guess this isn't really needed..
 
     program.materializeCurrentTree()
 
@@ -21,10 +22,6 @@ let taichiExample4 = async () => {
     console.log(program.nativeProgram)
     
     let n = 10
-
-    let aot_builder = program.nativeProgram.make_aot_module_builder(nativeTaichi.Arch.vulkan);
-    console.log(aot_builder)
-
     let ir_builder : NativeTaichiAny = new nativeTaichi.IRBuilder()
     console.log(ir_builder)
 
@@ -46,7 +43,7 @@ let taichiExample4 = async () => {
       console.log(stmt_vec)
       stmt_vec.push_back(index)
 
-      let ptr = ir_builder.create_global_ptr(f.placeNodes[0], stmt_vec);
+      let ptr = ir_builder.create_global_ptr(f.placeNode, stmt_vec);
       console.log(ptr)
 
       ir_builder.create_global_ptr_global_store(ptr, index);
@@ -57,14 +54,9 @@ let taichiExample4 = async () => {
     let kernel_init = nativeTaichi.Kernel.create_kernel(program.nativeProgram,ir_builder , "init", false)
     console.log(kernel_init)
 
-    let n_singleton : NativeTaichiAny = new nativeTaichi.VectorOfInt()
-    n_singleton.push_back(n);
-    console.log("adding place")
-    aot_builder.add_field("place", f.placeNodes[0], true, f.placeNodes[0].dt_get(), n_singleton, 1, 1);
-    console.log("added place")
-    aot_builder.add("init", kernel_init);
-    console.log("added init")
-    let spv_codes = nativeTaichi.get_kernel_spirv(aot_builder,"init");
+    program.nativeAotBuilder.add("init", kernel_init);
+
+     let spv_codes = nativeTaichi.get_kernel_spirv(program.nativeAotBuilder,"init");
     let first_task_code = spv_codes.get(0)
     let num_words = first_task_code.size()
     let spv = []

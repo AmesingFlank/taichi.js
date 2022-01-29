@@ -2,7 +2,6 @@ import {Field} from './Field'
 import {nativeTaichi, NativeTaichiAny} from "../native/taichi/GetTaichi"
 import {nextPowerOf2} from "../utils/Utils"
 
-
 function numElements(dimensions: number[], packed:boolean = false){
     let result = 1
     for(let d of dimensions){
@@ -44,21 +43,13 @@ class SNodeTree {
         
         let dense = this.nativeTreeRoot.dense(axisVec,sizesVec, false);
 
-        let primitivesPerElement = product(elementShape)
-        let placeNodes: NativeTaichiAny[] = []
-        for(let i = 0; i< primitivesPerElement; ++ i){
-            let place = dense.insert_children(nativeTaichi.SNodeType.place);
-            place.dt_set(nativeTaichi.PrimitiveType.i32)
-            placeNodes.push(place)
-        }
+        //let primitivesPerElement = product(elementShape)
+
+        let place = dense.insert_children(nativeTaichi.SNodeType.place);
+        place.dt_set(nativeTaichi.PrimitiveType.i32) 
 
         let totalSize = elementSize * numElements(dimensions)
-        let field:Field = {
-            snodeTree: this,
-            offset: this.size,
-            size: totalSize,
-            placeNodes: placeNodes
-        }
+        let field = new Field(this,this.size, totalSize, dimensions, place, true, 1,1)
         
         this.size += totalSize
         this.fields.push(field)

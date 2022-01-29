@@ -9,12 +9,14 @@ class Program {
     partialTree: SNodeTree
     
     nativeProgram : NativeTaichiAny
+    nativeAotBuilder: NativeTaichiAny
     globalScopeObj: GlobalScope
     globalScopeProxy : GlobalScope
 
     private static instance: Program
     private constructor(){
         this.nativeProgram = new nativeTaichi.Program(nativeTaichi.Arch.vulkan)
+        this.nativeAotBuilder = this.nativeProgram.make_aot_module_builder(nativeTaichi.Arch.vulkan);
         this.partialTree = new SNodeTree()
         this.partialTree.treeId = 0
         this.globalScopeObj = new GlobalScope()

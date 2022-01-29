@@ -6,6 +6,7 @@ import { nativeTaichi, NativeTaichiAny} from '../native/taichi/GetTaichi'
 import {error, assert} from '../utils/Logging'
 import { GlobalScope } from "../program/GlobalScope";
 import { Field } from "../program/Field";
+import { Program } from "../program/Program";
 
 export class CompilerContext {
     private host: InMemoryHost
@@ -20,7 +21,7 @@ export class CompilerContext {
     }
 }
 
-export class Compiler extends ASTVisitor<NativeTaichiAny>{
+export class OneTimeCompiler extends ASTVisitor<NativeTaichiAny>{
     constructor(private scope: GlobalScope){
         super()
         this.context = new CompilerContext()
@@ -67,12 +68,32 @@ export class Compiler extends ASTVisitor<NativeTaichiAny>{
     protected visitElementAccessExpression(node: ts.ElementAccessExpression): VisitorResult<NativeTaichiAny> {
         let base = node.expression
         let argument = node.argumentExpression
-        if(this.scope.hasStored(node.getText())){
-            let field = this.scope.getStored(node.getText()) as Field
+        if(base.kind === ts.SyntaxKind.Identifier){
+            let baseName = base.getText()
+            if(this.scope.hasStored(baseName)){
+                if(!(this.scope.getStored(baseName) instanceof Field)){
+                    error("only supports indexing a field")
+                }
+                let field = this.scope.getStored(baseName) as Field
+                //field.addToAotBuilder(Program.getCurrentProgram().nativeAotBuilder, baseName)
+
+                let place = field.placeNode
+                let argumentStmt = this.extractResult(this.dispatchVisit(argument))
+
+                let accessVec : NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
+                accessVec.push_back(argumentStmt)
+          
+                let ptr = this.irBuilder.create_global_ptr(place,accessVec);
+                return ptr
+            }
+            else{
+                error("Variable not found in global scope: ", baseName)
+            }
         }
         else{
-            error("Variable not found in global scope: ", base.getText())
+            error("matrices and vectors not supported yet")
         }
+        
     }
 
     protected override visitIdentifier(node: ts.Identifier): VisitorResult<NativeTaichiAny> {
