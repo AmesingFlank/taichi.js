@@ -2,7 +2,7 @@ import {nativeTint} from '../../native/tint/GetTint'
  import {nativeTaichi, NativeTaichiAny} from '../../native/taichi/GetTaichi' 
 import {Program} from '../../program/Program'
 import {field,Vector,Matrix}  from '../../program/FieldsFactory'
-import {init} from '../../misc/Init'
+import {init} from '../../api/Init'
 
 let taichiExample4 = async () => {
     await init()

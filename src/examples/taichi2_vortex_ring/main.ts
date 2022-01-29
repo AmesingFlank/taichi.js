@@ -8,7 +8,7 @@ import {shader as paint_1} from './paint_c60_0_k0008_vk_t01'
 
 import {Program} from '../../program/Program'
 import {field,Vector,Matrix}  from '../../program/FieldsFactory'
-import {init} from '../../misc/Init'
+import {init} from '../../api/Init'
 
 let taichiExample2VortexRing = async (canvas:HTMLCanvasElement) => {
     await init()

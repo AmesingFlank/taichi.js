@@ -2,16 +2,23 @@ import {Runtime} from '../backend/Runtime'
 import {SNodeTree} from './SNodeTree'
 import {nativeTaichi, NativeTaichiAny} from '../native/taichi/GetTaichi'
 import {error} from '../utils/Logging'
+import {GlobalScope} from "./GlobalScope"
 class Program {
     runtime: Runtime|null = null
     materializedTrees: SNodeTree[] = []
     partialTree: SNodeTree
+    
+    nativeProgram : NativeTaichiAny
+    globalScopeObj: GlobalScope
+    globalScopeProxy : GlobalScope
 
     private static instance: Program
     private constructor(){
         this.nativeProgram = new nativeTaichi.Program(nativeTaichi.Arch.vulkan)
         this.partialTree = new SNodeTree()
         this.partialTree.treeId = 0
+        this.globalScopeObj = new GlobalScope()
+        this.globalScopeProxy = this.globalScopeObj.getProxy()
     }
     
     public static getCurrentProgram(): Program{
@@ -21,7 +28,6 @@ class Program {
         return Program.instance
     }
 
-    nativeProgram : NativeTaichiAny
 
     async materializeRuntime(){
         if(!this.runtime){

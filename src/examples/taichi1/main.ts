@@ -1,7 +1,7 @@
 import {shader as init0} from './init0.wgsl'
 import {Program} from '../../program/Program'
 import {field,Vector,Matrix}  from '../../program/FieldsFactory'
-import {init} from '../../misc/Init'
+import {init} from '../../api/Init'
 let taichiExample1 = async () => {
   await init()
   let program = Program.getCurrentProgram()

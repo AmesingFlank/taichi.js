@@ -20,6 +20,8 @@ class ASTVisitor<T> {
                 return this.visitArrowFunction(node as ts.ArrowFunction)
             case ts.SyntaxKind.VariableStatement:
                 return this.visitVariableStatement(node as ts.VariableStatement)
+            case ts.SyntaxKind.Identifier:
+                return this.visitIdentifier(node as ts.Identifier)
             case ts.SyntaxKind.ForOfStatement:
                 return this.visitForOfStatement(node as ts.ForOfStatement)
             case ts.SyntaxKind.Block:
@@ -50,6 +52,10 @@ class ASTVisitor<T> {
 
     protected visitUnknown(node: ts.Node) : VisitorResult<T> {
         return this.visitEachChild(node)
+    }
+
+    protected visitIdentifier(node: ts.Node) : VisitorResult<T> {
+        return this.visitIdentifier(node)
     }
 
     protected visitVariableDeclaration(node: ts.VariableDeclaration): VisitorResult<T> {
