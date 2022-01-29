@@ -1,13 +1,19 @@
 import {Field} from './Field'
 import {nativeTaichi, NativeTaichiAny} from "../native/taichi/GetTaichi"
+import {nextPowerOf2} from "../utils/Utils"
 
 
-function product(dimensions: number[]){
-    let size = 1
-    for (let d of dimensions) {
-        size = size * d
+function numElements(dimensions: number[], packed:boolean = false){
+    let result = 1
+    for(let d of dimensions){
+        if(packed){
+            result *= d
+        }
+        else{
+            result *= nextPowerOf2(d)
+        }
     }
-    return size
+    return result
 }
 
 class SNodeTree {
@@ -30,7 +36,7 @@ class SNodeTree {
         // place.dt_set(nativeTaichi.PrimitiveType.i32)
 
 
-        let totalSize = elementSize * product(dimensions)
+        let totalSize = elementSize * numElements(dimensions)
         let field:Field = {
             snodeTree: this,
             offset: this.size,
