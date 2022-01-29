@@ -1,30 +1,21 @@
 import {Program} from './Program'
 import { Field } from './Field'
 
-function product(dimensions: number[]){
-    let size = 1
-    for (let d of dimensions) {
-        size = size * d
-    }
-    return size
-}
+
 
 function field(dimensions: number[]) : Field{
-    let size = 4 * product(dimensions)
-    return Program.getCurrentProgram().partialTree.addField(size)
+    return Program.getCurrentProgram().partialTree.addNaiveDenseField(4,dimensions)
 }
 
 let Vector = {
     field : (n:number, dimensions:number[]):Field => {
-        let size = 4 * n * product(dimensions)
-        return Program.getCurrentProgram().partialTree.addField(size)
+        return Program.getCurrentProgram().partialTree.addNaiveDenseField(4 *n,dimensions)
     }
 }
 
 let Matrix = {
     field : (m:number, n:number, dimensions:number[]):Field => {
-        let size = 4 * n * m * product(dimensions)
-        return Program.getCurrentProgram().partialTree.addField(size)
+        return Program.getCurrentProgram().partialTree.addNaiveDenseField(4 *n *m,dimensions)
     }
 }
 

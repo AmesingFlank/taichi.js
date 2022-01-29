@@ -78,7 +78,6 @@ let taichiExample3VortexRingSpv = async (canvas:HTMLCanvasElement) => {
         program.runtime!.launchKernel(paintKernel)
         await program.runtime!.sync()
         await renderer.render(1024,512)
-        console.log("done")
         requestAnimationFrame(frame)
     }
     requestAnimationFrame(frame)

@@ -9,9 +9,9 @@ class Program {
 
     private static instance: Program
     private constructor(){
+        this.nativeProgram = new nativeTaichi.Program(nativeTaichi.Arch.vulkan)
         this.partialTree = new SNodeTree()
         this.partialTree.treeId = 0
-        this.nativeProgram = new nativeTaichi.Program(nativeTaichi.Arch.vulkan)
     }
     
     public static getCurrentProgram(): Program{
@@ -24,8 +24,10 @@ class Program {
     nativeProgram : NativeTaichiAny
 
     async materializeRuntime(){
-        this.runtime = new Runtime()
-        await this.runtime.init()
+        if(!this.runtime){
+            this.runtime = new Runtime()
+            await this.runtime.init()
+        }
     }
 
     materializeCurrentTree(){
