@@ -102,6 +102,16 @@ export class OneTimeCompiler extends ASTVisitor<NativeTaichiAny>{ // It's actual
         }
     }
 
+    protected override visitNumericLiteral(node: ts.NumericLiteral) : VisitorResult<NativeTaichiAny> {
+        let value = Number(node.text)
+        if(node.text.includes(".")){
+            return this.irBuilder.get_float32(value)
+        }
+        else{
+            return this.irBuilder.get_int32(value)
+        }
+    }
+
     protected override visitBinaryExpression(node: ts.BinaryExpression): VisitorResult<NativeTaichiAny> {
         let left = this.extractVisitorResult(this.dispatchVisit(node.left))
         let right = this.extractVisitorResult(this.dispatchVisit(node.right))
@@ -115,6 +125,14 @@ export class OneTimeCompiler extends ASTVisitor<NativeTaichiAny>{ // It's actual
             case (ts.SyntaxKind.PlusToken): {
                 let leftValue = this.getStmtValue(left)
                 return this.irBuilder.create_add(leftValue,rightValue)
+            }
+            case (ts.SyntaxKind.AsteriskToken): {
+                let leftValue = this.getStmtValue(left)
+                return this.irBuilder.create_mul(leftValue,rightValue)
+            }
+            case (ts.SyntaxKind.SlashToken): {
+                let leftValue = this.getStmtValue(left)
+                return this.irBuilder.create_div(leftValue,rightValue)
             }
             default:
                 error("Unrecognized binary operator")

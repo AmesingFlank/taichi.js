@@ -26,6 +26,8 @@ class ASTVisitor<T> {
                 return this.visitForOfStatement(node as ts.ForOfStatement)
             case ts.SyntaxKind.Block:
                 return this.visitBlock(node as ts.Block)
+            case ts.SyntaxKind.NumericLiteral:
+                return this.visitNumericLiteral(node as ts.NumericLiteral)
             case ts.SyntaxKind.ExpressionStatement:
                 return this.visitExpressionStatement(node as ts.ExpressionStatement)
             case ts.SyntaxKind.BinaryExpression:
@@ -51,6 +53,10 @@ class ASTVisitor<T> {
     }
 
     protected visitUnknown(node: ts.Node) : VisitorResult<T> {
+        return this.visitEachChild(node)
+    }
+
+    protected visitNumericLiteral(node: ts.NumericLiteral) : VisitorResult<T> {
         return this.visitEachChild(node)
     }
 
