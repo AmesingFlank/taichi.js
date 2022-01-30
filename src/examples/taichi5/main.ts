@@ -33,7 +33,7 @@ let taichiExample5 = async () => {
             }
             //@ts-ignore
             for(let i of range(10)){
-                f[i] = f[i] / 3
+                f[i+1-1] = f[i-1+1] / 3
             }
             
         }
