@@ -25,7 +25,7 @@ let taichiExample5 = async () => {
         function k() {
             //@ts-ignore
             for(let i of range(10)){
-                f[i] = i
+                f[i] = i + i
             }
         }
     )

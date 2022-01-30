@@ -8,6 +8,7 @@ import {error, assert} from '../utils/Logging'
 import { GlobalScope } from "../program/GlobalScope";
 import { Field } from "../program/Field";
 import { Program } from "../program/Program";
+import {getStmtKind, StmtKind} from "./Stmt"
 
 export class CompilerContext {
     private host: InMemoryHost
@@ -22,7 +23,7 @@ export class CompilerContext {
     }
 }
 
-export class OneTimeCompiler extends ASTVisitor<NativeTaichiAny>{
+export class OneTimeCompiler extends ASTVisitor<NativeTaichiAny>{ // It's actually a ASTVisitor<Stmt>, but we don't have the types yet
     constructor(private scope: GlobalScope){
         super()
         this.context = new CompilerContext()
@@ -89,14 +90,31 @@ export class OneTimeCompiler extends ASTVisitor<NativeTaichiAny>{
         return result
     }
 
+    private getStmtValue(stmt:NativeTaichiAny) : NativeTaichiAny{
+        let kind = getStmtKind(stmt)
+        switch(kind){
+            // case StmtKind.GlobalPtrStmt: {
+
+            // }
+            default: {
+                return stmt
+            }
+        }
+    }
+
     protected override visitBinaryExpression(node: ts.BinaryExpression): VisitorResult<NativeTaichiAny> {
-        let left = this.extractResult(this.dispatchVisit(node.left))
-        let right = this.extractResult(this.dispatchVisit(node.right))
+        let left = this.extractVisitorResult(this.dispatchVisit(node.left))
+        let right = this.extractVisitorResult(this.dispatchVisit(node.right))
+        let rightValue = this.getStmtValue(right)
         let op = node.operatorToken
         switch(op.kind){
             case (ts.SyntaxKind.EqualsToken): {
-                this.irBuilder.create_global_ptr_global_store(left,right);
+                this.irBuilder.create_global_ptr_global_store(left,rightValue);
                 return right
+            }
+            case (ts.SyntaxKind.PlusToken): {
+                let leftValue = this.getStmtValue(left)
+                return this.irBuilder.create_add(leftValue,rightValue)
             }
             default:
                 error("Unrecognized binary operator")
@@ -116,7 +134,7 @@ export class OneTimeCompiler extends ASTVisitor<NativeTaichiAny>{
                 //field.addToAotBuilder(Program.getCurrentProgram().nativeAotBuilder, baseName)
 
                 let place = field.placeNode
-                let argumentStmt = this.extractResult(this.dispatchVisit(argument))
+                let argumentStmt = this.extractVisitorResult(this.dispatchVisit(argument))
 
                 let accessVec : NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
                 accessVec.push_back(argumentStmt)

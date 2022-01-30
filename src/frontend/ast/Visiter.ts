@@ -4,7 +4,7 @@ import {assert} from "../../utils/Logging"
 type VisitorResult<T> = T | void | undefined
 
 class ASTVisitor<T> {
-    protected extractResult(result: VisitorResult<T>): T {
+    protected extractVisitorResult(result: VisitorResult<T>): T {
         assert(result !== undefined, "Result is undefined")
         return result as T
     }
