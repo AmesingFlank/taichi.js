@@ -8,7 +8,8 @@
         "allowJs": true,
         "esModuleInterop": true,
         "strict": false,
-        "noImplicitUseStrict": true
+        "noImplicitUseStrict": true,
+        "importHelpers": true
     },
     "include": ["src"],
     "exclude": ["node_modules", "**/__tests__/*"]
