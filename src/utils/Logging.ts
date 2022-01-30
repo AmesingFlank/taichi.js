@@ -4,7 +4,8 @@ export function log(...args: any[]) {
 }
 
 export function error(...args: any[]) {
-    console.error("FATAL ERROR: ",args)
+    console.error("FATAL ERROR: ",...args)
+    throw "Taichi JS ERROR " 
 }
 
 export function assert(val: boolean, ...args:any[]) {

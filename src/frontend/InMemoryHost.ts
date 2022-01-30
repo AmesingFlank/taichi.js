@@ -19,6 +19,7 @@ export class InMemoryHost implements tsCompilerHost {
     private fs: VirtualFileSystem
 
 	public getSourceFile(fileName: string, languageVersion: tsScriptTarget, onError?: (message: string) => void): tsSourceFile | undefined{
+		log("getSourceFile ", fileName)
 		let fileContent: string|null = null;
 		if (this.fs.fileExists(fileName)) {
 			fileContent = this.fs.readFile(fileName);
@@ -29,7 +30,7 @@ export class InMemoryHost implements tsCompilerHost {
 	}
 
 	public getDefaultLibFileName(options: tsCompilerOptions): string {
-		return "lib.d.ts";
+		return ts.getDefaultLibFilePath(options)
 	}
 
 	public writeFile(path: string, content: string) {
@@ -85,11 +86,11 @@ export class InMemoryHost implements tsCompilerHost {
 	// }
 
 	public fileExists(fileName: string): boolean {
-		log(`fileExists(${fileName})`, "debug");
+		log(`fileExists(${fileName})`);
 		return this.fs.fileExists(fileName);
 	}
 	public readFile(fileName: string): string {
-		log(`readFile(${fileName})`, "debug");
+		log(`readFile(${fileName})`);
 		return this.fs.readFile(fileName);
 	}
 

@@ -10,8 +10,7 @@ class Program {
     
     nativeProgram : NativeTaichiAny
     nativeAotBuilder: NativeTaichiAny
-    globalScopeObj: GlobalScope
-    globalScopeProxy : GlobalScope
+    globalScopeObj: GlobalScope 
 
     private static instance: Program
     private constructor(){
@@ -20,8 +19,7 @@ class Program {
         this.partialTree = new SNodeTree()
         this.partialTree.treeId = 0
         this.globalScopeObj = new GlobalScope()
-        this.globalScopeProxy = this.globalScopeObj.getProxy()
-    }
+     }
     
     public static getCurrentProgram(): Program{
         if(!Program.instance){
@@ -51,6 +49,12 @@ class Program {
         let nextId = this.partialTree.treeId + 1
         this.partialTree = new SNodeTree()
         this.partialTree.treeId = nextId
+    }
+
+    addToKernelScope(obj: any){
+        for(let name in obj){
+            this.globalScopeObj.addStored(name,obj[name])
+        }
     }
 }
   

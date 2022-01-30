@@ -38,13 +38,26 @@ export class OneTimeCompiler extends ASTVisitor<NativeTaichiAny>{
     private irBuilder : NativeTaichiAny
     public kernelName:string|null = null
 
-    compileKernel(code:string) : string[] {
+    compileKernel(code: any) : string[] {
+        let codeString = code.toString()
         this.irBuilder  = new nativeTaichi.IRBuilder()
-        this.tsProgram = this.context.createProgramFromSource(code,{})
+
+        let tsOptions: ts.CompilerOptions = {
+            allowNonTsExtensions: true,
+            target: ts.ScriptTarget.Latest,
+            allowJs: true,
+            strict: false,
+            noImplicitUseStrict: true,
+            alwaysStrict: false,
+            strictFunctionTypes: false,
+            checkJs: true
+        };
+
+        this.tsProgram = this.context.createProgramFromSource(codeString,tsOptions)
         this.typeChecker = this.tsProgram.getTypeChecker()
         
         let sourceFiles = this.tsProgram!.getSourceFiles()
-        assert(sourceFiles.length === 1, "Expecting exactly 1 source file")
+        assert(sourceFiles.length === 1, "Expecting exactly 1 source file, got ",sourceFiles.length)
         let sourceFile = sourceFiles[0]
         let statements = sourceFile.statements
         assert(statements.length === 1, "Expecting exactly 1 statement")
@@ -52,7 +65,7 @@ export class OneTimeCompiler extends ASTVisitor<NativeTaichiAny>{
 
         let kernelFunction = statements[0] as ts.FunctionDeclaration
         this.kernelName = kernelFunction.name!.text
-        this.visitEachChild(kernelFunction)
+        this.visitEachChild(kernelFunction.body!)
 
         let kernel = nativeTaichi.Kernel.create_kernel(Program.getCurrentProgram().nativeProgram,this.irBuilder , this.kernelName, false)
         Program.getCurrentProgram().nativeAotBuilder.add(this.kernelName, kernel);
@@ -65,7 +78,7 @@ export class OneTimeCompiler extends ASTVisitor<NativeTaichiAny>{
             let numWords = task.size()
             let spv:number[] = []
             for(let j = 0 ; j < numWords; ++ j){
-                spv.push(tasks.get(i))
+                spv.push(task.get(j))
             }
             let wgsl = nativeTint.tintSpvToWgsl(spv)
             result.push(wgsl)
@@ -121,24 +134,28 @@ export class OneTimeCompiler extends ASTVisitor<NativeTaichiAny>{
     protected override visitIdentifier(node: ts.Identifier): VisitorResult<NativeTaichiAny> {
         let symbol = this.typeChecker!.getSymbolAtLocation(node)!
         if(!this.symbolStmtMap.has(symbol)){
-            error("Symbol not found: ",node,node.text)
+            error("Symbol not found: ",node,node.text,symbol)
         }
         return this.symbolStmtMap.get(symbol)
     }
     
     protected override visitForOfStatement(node: ts.ForOfStatement): VisitorResult<NativeTaichiAny> {
-        assert(node.initializer.kind === ts.SyntaxKind.VariableDeclarationList, "Expecting variable declaration list")
+        assert(node.initializer.kind === ts.SyntaxKind.VariableDeclarationList, "Expecting variable declaration list, got",node.initializer.kind)
         let declarationList = node.initializer as ts.VariableDeclarationList
-        assert(declarationList.declarations.length === 1, "Expecting exactly a single delcaration")
-        let loopIndex = declarationList.declarations[0]
-        let loopIndexSymbol = this.typeChecker!.getTypeAtLocation(loopIndex).getSymbol()!
+        assert(declarationList.declarations.length === 1, "Expecting exactly 1 delcaration")
+        let loopIndexDecl = declarationList.declarations[0]
+        assert(loopIndexDecl.name.kind === ts.SyntaxKind.Identifier, "Expecting identifier")
+        let loopIndexIdentifer = loopIndexDecl.name as ts.Identifier
+        let loopIndexType = this.typeChecker!.getTypeAtLocation(loopIndexIdentifer)
+        let loopIndexSymbol = loopIndexType.getSymbol()! 
+        console.log(loopIndexIdentifer.text,loopIndexType, loopIndexSymbol)
 
         assert(node.expression.kind === ts.SyntaxKind.CallExpression, "Expecting a range() call")
         let callExpr = node.expression as ts.CallExpression
-        let callExprType = this.typeChecker!.getTypeAtLocation(callExpr)
-        let callExprSymbol = callExprType.getSymbol()
-        let calledFuntionName = callExprSymbol!.name
-        assert(calledFuntionName === "range", "Expecting a range() call")
+        let calledFuntionExpr = callExpr.expression
+        assert(calledFuntionExpr.kind === ts.SyntaxKind.Identifier, "Expecting a range() call")
+        let calledFunctionName = (calledFuntionExpr as ts.Identifier).text
+        assert(calledFunctionName === "range", "Expecting a range() call")
 
         assert(callExpr.arguments.length === 1, "Expecting exactly 1 argument in range()")
         let rangeLengthExpr = callExpr.arguments[0]
@@ -152,7 +169,7 @@ export class OneTimeCompiler extends ASTVisitor<NativeTaichiAny>{
         let zero = this.irBuilder.get_int32(0)    
         let nStmt = this.irBuilder.get_int32(rangeLength)
     
-        let loop = this.irBuilder.create_range_for(zero, nStmt, 1, 0, 4, 0, false);
+        let loop = this.irBuilder.create_range_for(zero, nStmt, 0, 4, 0, false);
 
         let loopGuard = this.irBuilder.get_range_loop_guard(loop);
         let indexStmt = this.irBuilder.get_loop_index(loop,0);

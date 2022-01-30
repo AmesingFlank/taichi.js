@@ -12,11 +12,11 @@ class GlobalScope {
     getStored(name:string):any {
         //@ts-ignore
         return this[name];
-    }
+    } 
 
-    getProxy(){
-        let handler = {}
-        return new Proxy(this,handler)
+    addStored(name:string, val:any) {
+        //@ts-ignore
+        this[name] = val
     }
 }
 

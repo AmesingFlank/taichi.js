@@ -1,8 +1,7 @@
 import {Program} from '../program/Program'
 
-
-function globalScope(){
-    return Program.getCurrentProgram().globalScopeProxy
+function addToKernelScope(obj: any){
+    Program.getCurrentProgram().addToKernelScope(obj)
 }
 
-export {globalScope}
+export {addToKernelScope}
