@@ -126,6 +126,10 @@ export class OneTimeCompiler extends ASTVisitor<NativeTaichiAny>{ // It's actual
                 let leftValue = this.getStmtValue(left)
                 return this.irBuilder.create_add(leftValue,rightValue)
             }
+            case (ts.SyntaxKind.MinusToken): {
+                let leftValue = this.getStmtValue(left)
+                return this.irBuilder.create_sub(leftValue,rightValue)
+            }
             case (ts.SyntaxKind.AsteriskToken): {
                 let leftValue = this.getStmtValue(left)
                 return this.irBuilder.create_mul(leftValue,rightValue)
@@ -152,7 +156,7 @@ export class OneTimeCompiler extends ASTVisitor<NativeTaichiAny>{ // It's actual
                 //field.addToAotBuilder(Program.getCurrentProgram().nativeAotBuilder, baseName)
 
                 let place = field.placeNode
-                let argumentStmt = this.extractVisitorResult(this.dispatchVisit(argument))
+                let argumentStmt = this.getStmtValue(this.extractVisitorResult(this.dispatchVisit(argument)))
 
                 let accessVec : NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
                 accessVec.push_back(argumentStmt)
