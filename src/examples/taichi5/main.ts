@@ -22,13 +22,12 @@ let taichiExample5 = async () => {
     let compiler = new OneTimeCompiler(Program.getCurrentProgram().globalScopeObj)
 
     let result = compiler.compileKernel(
-        `
         function k() {
+            //@ts-ignore
             for(let i of range(10)){
                 f[i] = i
             }
         }
-        `
     )
 
     let initKernel = program.runtime!.createKernel([

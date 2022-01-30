@@ -146,9 +146,7 @@ export class OneTimeCompiler extends ASTVisitor<NativeTaichiAny>{
         let loopIndexDecl = declarationList.declarations[0]
         assert(loopIndexDecl.name.kind === ts.SyntaxKind.Identifier, "Expecting identifier")
         let loopIndexIdentifer = loopIndexDecl.name as ts.Identifier
-        let loopIndexType = this.typeChecker!.getTypeAtLocation(loopIndexIdentifer)
-        let loopIndexSymbol = loopIndexType.getSymbol()! 
-        console.log(loopIndexIdentifer.text,loopIndexType, loopIndexSymbol)
+        let loopIndexSymbol = this.typeChecker!.getSymbolAtLocation(loopIndexIdentifer)! 
 
         assert(node.expression.kind === ts.SyntaxKind.CallExpression, "Expecting a range() call")
         let callExpr = node.expression as ts.CallExpression
