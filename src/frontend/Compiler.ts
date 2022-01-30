@@ -93,9 +93,9 @@ export class OneTimeCompiler extends ASTVisitor<NativeTaichiAny>{ // It's actual
     private getStmtValue(stmt:NativeTaichiAny) : NativeTaichiAny{
         let kind = getStmtKind(stmt)
         switch(kind){
-            // case StmtKind.GlobalPtrStmt: {
-
-            // }
+            case StmtKind.GlobalPtrStmt: {
+                return this.irBuilder.create_global_ptr_global_load(stmt); 
+            }
             default: {
                 return stmt
             }

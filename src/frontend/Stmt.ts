@@ -6,6 +6,7 @@ enum StmtKind{
     RangeForStmt = "RangeForStmt",
     LoopIndexStmt = "LoopIndexStmt",
     GlobalPtrStmt = "GlobalPtrStmt",
+    GlobalLoadStmt = "GlobalLoadStmt",
     BinaryOpStmt = "BinaryOpStmt",
     UnaryOpStmt = "UnaryOpStmt"
 }
