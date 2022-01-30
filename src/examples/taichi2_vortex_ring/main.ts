@@ -29,37 +29,37 @@ let taichiExample2VortexRing = async (canvas:HTMLCanvasElement) => {
     let initTracersKernel = program.runtime!.createKernel([
         {
             code: init_tracers_0,
-            invocatoions: 1
+            invocations: 1
         },
         {
             code: init_tracers_1,
-            invocatoions: n_tracer
+            invocations: n_tracer
         }
     ])
     let advectKernel = program.runtime!.createKernel([
         {
             code: advect_0,
-            invocatoions: n_tracer
+            invocations: n_tracer
         }
     ])
     let integrateVortexKernel = program.runtime!.createKernel([
         {
             code: integrate_vortex_0,
-            invocatoions: n_vortex
+            invocations: n_vortex
         },
         {
             code: integrate_vortex_1,
-            invocatoions: n_vortex
+            invocations: n_vortex
         }
     ])
     let paintKernel = program.runtime!.createKernel([
         {
             code: paint_0,
-            invocatoions: resolution[0] * resolution[1]
+            invocations: resolution[0] * resolution[1]
         },
         {
             code: paint_1,
-            invocatoions: resolution[0] * resolution[1]
+            invocations: resolution[0] * resolution[1]
         }
     ])
 

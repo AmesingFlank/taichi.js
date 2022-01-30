@@ -1,6 +1,6 @@
 class TaskParams {
     code:string = ""
-    invocatoions: number = 0
+    invocations: number = 0
 }
 
 class CompiledTask {

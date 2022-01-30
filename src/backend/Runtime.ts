@@ -68,7 +68,7 @@ class Runtime {
             }
             passEncoder.setPipeline(task.pipeline!);
             passEncoder.setBindGroup(0, task.bindGroup);
-            let numWorkGroups = divUp(task.params.invocatoions , 128);
+            let numWorkGroups = divUp(task.params.invocations , 128);
             passEncoder.dispatch(numWorkGroups);
         }
         passEncoder.endPass();

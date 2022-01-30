@@ -30,12 +30,7 @@ let taichiExample5 = async () => {
         }
     )
 
-    let initKernel = program.runtime!.createKernel([
-        {
-            code:result[0],
-            invocatoions: 10
-        },
-    ])
+    let initKernel = program.runtime!.createKernel(result)
     
     program.runtime!.launchKernel(initKernel)
     

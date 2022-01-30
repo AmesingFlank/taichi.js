@@ -56,8 +56,8 @@ let taichiExample4 = async () => {
 
     program.nativeAotBuilder.add("init", kernel_init);
 
-     let spv_codes = nativeTaichi.get_kernel_spirv(program.nativeAotBuilder,"init");
-    let first_task_code = spv_codes.get(0)
+    let spv_codes = nativeTaichi.get_kernel_params(program.nativeAotBuilder,"init");
+    let first_task_code = spv_codes.get(0).get_spirv_ptr()
     let num_words = first_task_code.size()
     let spv = []
     for(let i = 0; i < num_words; i += 1){
@@ -71,7 +71,7 @@ let taichiExample4 = async () => {
     let initKernel = program.runtime!.createKernel([
         {
             code:code,
-            invocatoions: 10
+            invocations: 10
         },
     ])
     

@@ -33,37 +33,37 @@ let taichiExample3VortexRingSpv = async (canvas:HTMLCanvasElement) => {
     let initTracersKernel = program.runtime!.createKernel([
         {
             code: spvToWgsl(init_tracers_0),
-            invocatoions: 1
+            invocations: 1
         },
         {
             code: spvToWgsl(init_tracers_1),
-            invocatoions: n_tracer
+            invocations: n_tracer
         }
     ])
     let advectKernel = program.runtime!.createKernel([
         {
             code: spvToWgsl(advect_0),
-            invocatoions: n_tracer
+            invocations: n_tracer
         }
     ])
     let integrateVortexKernel = program.runtime!.createKernel([
         {
             code: spvToWgsl(integrate_vortex_0),
-            invocatoions: n_vortex
+            invocations: n_vortex
         },
         {
             code: spvToWgsl(integrate_vortex_1),
-            invocatoions: n_vortex
+            invocations: n_vortex
         }
     ])
     let paintKernel = program.runtime!.createKernel([
         {
             code: spvToWgsl(paint_0),
-            invocatoions: resolution[0] * resolution[1]
+            invocations: resolution[0] * resolution[1]
         },
         {
             code: spvToWgsl(paint_1),
-            invocatoions: resolution[0] * resolution[1]
+            invocations: resolution[0] * resolution[1]
         }
     ])
 

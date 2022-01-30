@@ -1,7 +1,7 @@
 import * as ts from "typescript";
 import { InMemoryHost } from "./InMemoryHost";
 import {ASTVisitor, VisitorResult} from "./ast/Visiter"
-import { CompiledKernel } from "../backend/Kernel";
+import { CompiledKernel, TaskParams } from "../backend/Kernel";
 import { nativeTaichi, NativeTaichiAny} from '../native/taichi/GetTaichi' 
 import { nativeTint} from '../native/tint/GetTint' 
 import {error, assert} from '../utils/Logging'
@@ -38,7 +38,7 @@ export class OneTimeCompiler extends ASTVisitor<NativeTaichiAny>{
     private irBuilder : NativeTaichiAny
     public kernelName:string|null = null
 
-    compileKernel(code: any) : string[] {
+    compileKernel(code: any) : TaskParams[] {
         let codeString = code.toString()
         this.irBuilder  = new nativeTaichi.IRBuilder()
 
@@ -70,18 +70,21 @@ export class OneTimeCompiler extends ASTVisitor<NativeTaichiAny>{
         let kernel = nativeTaichi.Kernel.create_kernel(Program.getCurrentProgram().nativeProgram,this.irBuilder , this.kernelName, false)
         Program.getCurrentProgram().nativeAotBuilder.add(this.kernelName, kernel);
 
-        let tasks = nativeTaichi.get_kernel_spirv(Program.getCurrentProgram().nativeAotBuilder,this.kernelName);
-        let result:string[] = []
+        let tasks = nativeTaichi.get_kernel_params(Program.getCurrentProgram().nativeAotBuilder,this.kernelName);
+        let result:TaskParams[] = []
         let numTasks = tasks.size()
         for(let i = 0; i < numTasks; ++ i){
             let task = tasks.get(i)
-            let numWords = task.size()
+            let spirvUint32Vec = task.get_spirv_ptr()
+            let numWords = spirvUint32Vec.size()
             let spv:number[] = []
             for(let j = 0 ; j < numWords; ++ j){
-                spv.push(task.get(j))
+                spv.push(spirvUint32Vec.get(j))
             }
             let wgsl = nativeTint.tintSpvToWgsl(spv)
-            result.push(wgsl)
+            let rangeHint:string = task.get_range_hint()
+            let invocations = Number(rangeHint)
+            result.push({code:wgsl,invocations})
         }
         return result
     }
