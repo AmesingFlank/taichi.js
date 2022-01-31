@@ -155,7 +155,7 @@ export class OneTimeCompiler extends ASTVisitor<NativeTaichiAny>{ // It's actual
                 let field = this.scope.getStored(baseName) as Field
                 //field.addToAotBuilder(Program.getCurrentProgram().nativeAotBuilder, baseName)
 
-                let place = field.placeNode
+                let place = field.placeNodes[0]
                 let argumentStmt = this.getStmtValue(this.extractVisitorResult(this.dispatchVisit(argument)))
 
                 let accessVec : NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()

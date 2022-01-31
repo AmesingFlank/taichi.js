@@ -32,7 +32,7 @@ class SNodeTree {
         this.nativeTreeRoot = new nativeTaichi.SNode(0, nativeTaichi.SNodeType.root);
     }
 
-    addNaiveDenseField(elementSize:number, elementShape: number[], dimensions: number[]): Field{
+    addNaiveDenseField(elementSize:number, numRows:number, numCols:number, dimensions: number[]): Field{
 
         let axisVec : NativeTaichiAny = new nativeTaichi.VectorOfAxis()
         let sizesVec: NativeTaichiAny = new nativeTaichi.VectorOfInt()
@@ -43,13 +43,15 @@ class SNodeTree {
         
         let dense = this.nativeTreeRoot.dense(axisVec,sizesVec, false);
 
-        //let primitivesPerElement = product(elementShape)
-
-        let place = dense.insert_children(nativeTaichi.SNodeType.place);
-        place.dt_set(nativeTaichi.PrimitiveType.i32) 
+        let placeNodes: NativeTaichiAny[] = []
+        for(let i = 0;i<numCols * numRows; ++i){
+            let place = dense.insert_children(nativeTaichi.SNodeType.place);
+            place.dt_set(nativeTaichi.PrimitiveType.i32) 
+            placeNodes.push(place)
+        }
 
         let totalSize = elementSize * numElements(dimensions)
-        let field = new Field(this,this.size, totalSize, dimensions, place, true, 1,1)
+        let field = new Field(this,this.size, totalSize, dimensions, placeNodes, true, numRows,numCols)
         
         this.size += totalSize
         this.fields.push(field)

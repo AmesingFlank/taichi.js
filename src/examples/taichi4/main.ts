@@ -43,7 +43,7 @@ let taichiExample4 = async () => {
       console.log(stmt_vec)
       stmt_vec.push_back(index)
 
-      let ptr = ir_builder.create_global_ptr(f.placeNode, stmt_vec);
+      let ptr = ir_builder.create_global_ptr(f.placeNodes[0], stmt_vec);
       console.log(ptr)
 
       ir_builder.create_global_ptr_global_store(ptr, index);

@@ -6,7 +6,7 @@ class Field {
         public offset: number  ,
         public size: number,
         public dimensions: number[],
-        public placeNode: NativeTaichiAny,
+        public placeNodes: NativeTaichiAny[],
         public isScalar: boolean,
         public numRows: number,
         public numCols: number,
