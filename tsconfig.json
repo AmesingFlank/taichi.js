@@ -7,8 +7,7 @@
         "typeRoots": [ "./node_modules/@webgpu/types", "./node_modules/@types"],
         "allowJs": true,
         "esModuleInterop": true,
-        "strict": false,
-        "noImplicitUseStrict": true,
+        "strict": true,
         "importHelpers": true
     },
     "include": ["src"],

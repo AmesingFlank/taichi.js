@@ -11,11 +11,11 @@ enum StmtKind{
     UnaryOpStmt = "UnaryOpStmt"
 }
 
-function getStmtKind (stmt:any):StmtKind {
+function getStmtKind (stmt:any): StmtKind | undefined {
     let name:string = stmt.constructor.name
     for(let kind in StmtKind){
         if(name === kind){
-            return StmtKind[kind]
+            return kind as StmtKind
         }
     }
     error("unrecognized stmt: ",stmt,name)

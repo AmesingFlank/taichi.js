@@ -1,3 +1,4 @@
+// @ts-nocheck
 import {nativeTint} from '../../native/tint/GetTint' 
 import {nativeTaichi, NativeTaichiAny} from '../../native/taichi/GetTaichi' 
 import {Program} from '../../program/Program'
