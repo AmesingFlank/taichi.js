@@ -2,11 +2,12 @@ import {shader as init0} from './init0.wgsl'
 import {Program} from '../../program/Program'
 import {field,Vector,Matrix}  from '../../program/FieldsFactory'
 import {init} from '../../api/Init'
+import {PrimitiveType} from "../../frontend/Type"
 let taichiExample1 = async () => {
   await init()
   let program = Program.getCurrentProgram()
   await program.materializeRuntime()
-  let x = field([10])
+  let x = field([10], PrimitiveType.i32)
   program.materializeCurrentTree()
 
   let initKernel = program.runtime!.createKernel([{

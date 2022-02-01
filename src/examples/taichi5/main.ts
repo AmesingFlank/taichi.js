@@ -6,6 +6,7 @@ import {field,Vector,Matrix}  from '../../program/FieldsFactory'
 import {init} from '../../api/Init'
 import {OneTimeCompiler} from '../../frontend/Compiler'
 import {addToKernelScope} from '../../api/Lang'
+import {PrimitiveType} from "../../frontend/Type"
 
 let taichiExample5 = async () => {
     await init()
@@ -16,7 +17,7 @@ let taichiExample5 = async () => {
     let program = Program.getCurrentProgram()
     await program.materializeRuntime()
  
-    let f = field([10])
+    let f = field([10], PrimitiveType.i32)
     addToKernelScope({f})
     program.materializeCurrentTree()
 

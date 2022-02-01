@@ -1,6 +1,7 @@
 import {Field} from './Field'
 import {nativeTaichi, NativeTaichiAny} from "../native/taichi/GetTaichi"
 import {nextPowerOf2} from "../utils/Utils"
+import {PrimitiveType, toNativePrimitiveType, Type} from "../frontend/Type"
 
 function numElements(dimensions: number[], packed:boolean = false){
     let result = 1
@@ -32,7 +33,7 @@ class SNodeTree {
         this.nativeTreeRoot = new nativeTaichi.SNode(0, nativeTaichi.SNodeType.root);
     }
 
-    addNaiveDenseField(elementSize:number, numRows:number, numCols:number, dimensions: number[]): Field{
+    addNaiveDenseField(elementType:Type, dimensions: number[]): Field{
 
         let axisVec : NativeTaichiAny = new nativeTaichi.VectorOfAxis()
         let sizesVec: NativeTaichiAny = new nativeTaichi.VectorOfInt()
@@ -43,15 +44,17 @@ class SNodeTree {
         
         let dense = this.nativeTreeRoot.dense(axisVec,sizesVec, false);
 
+        let primitivesPerElement = elementType.numCols * elementType.numRows
+
         let placeNodes: NativeTaichiAny[] = []
-        for(let i = 0;i<numCols * numRows; ++i){
+        for(let i = 0;i<primitivesPerElement; ++i){
             let place = dense.insert_children(nativeTaichi.SNodeType.place);
-            place.dt_set(nativeTaichi.PrimitiveType.i32) 
+            place.dt_set(toNativePrimitiveType(elementType.primitiveType)) 
             placeNodes.push(place)
         }
 
-        let totalSize = elementSize * numElements(dimensions)
-        let field = new Field(this,this.size, totalSize, dimensions, placeNodes, true, numRows,numCols)
+        let totalSize = 4 * primitivesPerElement * numElements(dimensions)
+        let field = new Field(this,this.size, totalSize, dimensions, placeNodes, elementType)
         
         this.size += totalSize
         this.fields.push(field)

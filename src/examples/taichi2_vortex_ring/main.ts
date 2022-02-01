@@ -9,6 +9,7 @@ import {shader as paint_1} from './paint_c60_0_k0008_vk_t01'
 import {Program} from '../../program/Program'
 import {field,Vector,Matrix}  from '../../program/FieldsFactory'
 import {init} from '../../api/Init'
+import {PrimitiveType} from "../../frontend/Type"
 
 let taichiExample2VortexRing = async (canvas:HTMLCanvasElement) => {
     await init()
@@ -18,11 +19,11 @@ let taichiExample2VortexRing = async (canvas:HTMLCanvasElement) => {
     let resolution = [512,1024]
     let n_vortex = 4
     let n_tracer = 200000
-    let image = Vector.field(4,  resolution)
-    let pos = Vector.field(2,  [n_vortex])
-    let new_pos = Vector.field(2,  [n_vortex])
-    let vort = field( [n_vortex])
-    let tracer = Vector.field(2,  [n_tracer])
+    let image = Vector.field(4,  resolution, PrimitiveType.f32)
+    let pos = Vector.field(2,  [n_vortex],PrimitiveType.f32)
+    let new_pos = Vector.field(2,  [n_vortex],PrimitiveType.f32)
+    let vort = field( [n_vortex],PrimitiveType.f32)
+    let tracer = Vector.field(2,  [n_tracer],PrimitiveType.f32)
 
     program.materializeCurrentTree()
 

@@ -9,6 +9,7 @@ import { GlobalScope } from "../program/GlobalScope";
 import { Field } from "../program/Field";
 import { Program } from "../program/Program";
 import {getStmtKind, StmtKind} from "./Stmt"
+import {Type, PrimitiveType} from "./Type"
 
 export class CompilerContext {
     private host: InMemoryHost
@@ -21,21 +22,88 @@ export class CompilerContext {
         this.host.writeFile(tempFileName,source)
         return ts.createProgram([tempFileName], options, this.host);
     }
+}      
+
+
+class Value {
+    public constructor(
+        public type:Type,
+        public stmts:NativeTaichiAny[] = []
+    ){
+
+    }
+
+    static makeInt32Scalar(stmt:NativeTaichiAny) : Value{
+        return new Value(new Type(PrimitiveType.i32),[stmt])
+    }
+    static makeFloat32Scalar(stmt:NativeTaichiAny) : Value{
+        return new Value(new Type(PrimitiveType.f32),[stmt])
+    }
+    static apply1ElementWise(val:Value, f: (stmt :NativeTaichiAny) => NativeTaichiAny ):Value{
+        let result = new Value(val.type, [])
+        for(let stmt of val.stmts){
+            result.stmts.push(f(stmt))
+        }
+        return result
+    }
+    static apply2<T>(left:Value, right:Value,allowBroadcastLeftToRight:boolean, allowBroadcastRightToLeft:boolean, 
+                     f: (left :NativeTaichiAny, right :NativeTaichiAny) => T):Value{
+        let broadcastLeftToRight = false
+        let broadcastRightToLeft = false
+        if(left.type.isScalar && !right.type.isScalar){
+            assert(allowBroadcastRightToLeft, "broadcast right to left not allowed")
+            broadcastRightToLeft = true     
+        }
+        if(!left.type.isScalar && right.type.isScalar){
+            assert(allowBroadcastLeftToRight, "broadcast left to right not allowed") 
+            broadcastLeftToRight = true      
+        }
+        if(!left.type.isScalar && !right.type.isScalar){
+            assert(left.type.numRows == right.type.numRows && left.type.numRows == right.type.numRows, "matrix shape mismatch") 
+        }
+        if (broadcastLeftToRight){
+            let result = new Value(left.type)
+            for(let stmt of left.stmts){
+                let resultStmt = f(stmt,right.stmts[0])
+                if(resultStmt !== undefined){
+                    result.stmts.push(resultStmt)
+                }
+            }
+            return result
+        }
+        else if (broadcastRightToLeft){
+            let result = new Value(right.type)
+            for(let stmt of right.stmts){
+                let resultStmt = f(left.stmts[0],stmt)
+                if(resultStmt !== undefined){
+                    result.stmts.push(resultStmt)
+                }
+            }
+            return result
+        }
+        else{
+            let result = new Value(right.type)
+            for(let i = 0; i< left.stmts.length; ++ i ){
+                let resultStmt = f(left.stmts[i],right.stmts[i])
+                result.stmts.push(resultStmt)
+            }
+            return result
+        }
+    }
 }
 
-export class OneTimeCompiler extends ASTVisitor<NativeTaichiAny>{ // It's actually a ASTVisitor<Stmt>, but we don't have the types yet
+export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVisitor<Stmt>, but we don't have the types yet
     constructor(private scope: GlobalScope){
         super()
         this.context = new CompilerContext()
-        this.symbolStmtMap = new Map<ts.Symbol,NativeTaichiAny>()
+        this.symbolTable = new Map<ts.Symbol,Value>()
     }
     private context: CompilerContext
     private tsProgram?: ts.Program
     private typeChecker? : ts.TypeChecker
 
-    private symbolStmtMap : Map<ts.Symbol, NativeTaichiAny>;
-
-    private nativeTaichi: NativeTaichiAny
+    private symbolTable : Map<ts.Symbol, Value>;
+ 
     private irBuilder : NativeTaichiAny
     public kernelName:string|null = null
 
@@ -90,99 +158,109 @@ export class OneTimeCompiler extends ASTVisitor<NativeTaichiAny>{ // It's actual
         return result
     }
 
-    private getStmtValue(stmt:NativeTaichiAny) : NativeTaichiAny{
-        let kind = getStmtKind(stmt)
+    private evaluate(val:Value) : Value{
+        assert(val.stmts.length > 0, "val is empty")
+        let kind = getStmtKind(val.stmts[0])
         switch(kind){
             case StmtKind.GlobalPtrStmt: {
-                return this.irBuilder.create_global_ptr_global_load(stmt); 
+                return Value.apply1ElementWise(val, (ptr) => this.irBuilder.create_global_ptr_global_load(ptr))
             }
             default: {
-                return stmt
+                return val
             }
         }
     }
 
-    protected override visitNumericLiteral(node: ts.NumericLiteral) : VisitorResult<NativeTaichiAny> {
+
+    protected override visitNumericLiteral(node: ts.NumericLiteral) : VisitorResult<Value> {
         let value = Number(node.text)
         if(node.text.includes(".")){
-            return this.irBuilder.get_float32(value)
+            return Value.makeFloat32Scalar(this.irBuilder.get_float32(value))
         }
         else{
-            return this.irBuilder.get_int32(value)
+            return Value.makeInt32Scalar(this.irBuilder.get_int32(value))
         }
     }
 
-    protected override visitBinaryExpression(node: ts.BinaryExpression): VisitorResult<NativeTaichiAny> {
+    protected override visitBinaryExpression(node: ts.BinaryExpression): VisitorResult<Value> {
         let left = this.extractVisitorResult(this.dispatchVisit(node.left))
         let right = this.extractVisitorResult(this.dispatchVisit(node.right))
-        let rightValue = this.getStmtValue(right)
+        let rightValue = this.evaluate(right)
         let op = node.operatorToken
         switch(op.kind){
             case (ts.SyntaxKind.EqualsToken): {
-                this.irBuilder.create_global_ptr_global_store(left,rightValue);
+                Value.apply2(left,rightValue,false,true,(l, r) => this.irBuilder.create_global_ptr_global_store(l,r))
                 return right
             }
             case (ts.SyntaxKind.PlusToken): {
-                let leftValue = this.getStmtValue(left)
-                return this.irBuilder.create_add(leftValue,rightValue)
+                let leftValue = this.evaluate(left)
+                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_add(l,r))
             }
             case (ts.SyntaxKind.MinusToken): {
-                let leftValue = this.getStmtValue(left)
-                return this.irBuilder.create_sub(leftValue,rightValue)
+                let leftValue = this.evaluate(left)
+                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_sub(l,r))
             }
             case (ts.SyntaxKind.AsteriskToken): {
-                let leftValue = this.getStmtValue(left)
-                return this.irBuilder.create_mul(leftValue,rightValue)
+                let leftValue = this.evaluate(left)
+                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_mul(l,r))
             }
             case (ts.SyntaxKind.SlashToken): {
-                let leftValue = this.getStmtValue(left)
-                return this.irBuilder.create_div(leftValue,rightValue)
+                let leftValue = this.evaluate(left)
+                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_div(l,r))
             }
             default:
                 error("Unrecognized binary operator")
         }
     }
 
-    protected visitElementAccessExpression(node: ts.ElementAccessExpression): VisitorResult<NativeTaichiAny> {
+    protected visitElementAccessExpression(node: ts.ElementAccessExpression): VisitorResult<Value> {
         let base = node.expression
         let argument = node.argumentExpression
         if(base.kind === ts.SyntaxKind.Identifier){
             let baseName = base.getText()
             if(this.scope.hasStored(baseName)){
-                if(!(this.scope.getStored(baseName) instanceof Field)){
-                    error("only supports indexing a field")
+                let hostSideValue:any = this.scope.getStored(baseName)
+                if( hostSideValue instanceof Field){
+                    let field = hostSideValue as Field
+
+                    let resultType = field.elementType
+                    let result = new Value(resultType)
+
+                    let argumentValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(argument)))
+                    assert(argumentValue.stmts.length === field.dimensions.length, "field access dimension mismatch ",argumentValue.stmts.length , field.dimensions.length)
+                    let accessVec : NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
+                    for(let stmt of argumentValue.stmts){
+                        accessVec.push_back(stmt)
+                    }
+
+                    for(let place of field.placeNodes){
+                        let ptr = this.irBuilder.create_global_ptr(place,accessVec);
+                        result.stmts.push(ptr)
+                    }
+              
+                    return result
                 }
-                let field = this.scope.getStored(baseName) as Field
-                //field.addToAotBuilder(Program.getCurrentProgram().nativeAotBuilder, baseName)
-
-                let place = field.placeNodes[0]
-                let argumentStmt = this.getStmtValue(this.extractVisitorResult(this.dispatchVisit(argument)))
-
-                let accessVec : NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
-                accessVec.push_back(argumentStmt)
-          
-                let ptr = this.irBuilder.create_global_ptr(place,accessVec);
-                return ptr
-            }
-            else{
-                error("Variable not found in global scope: ", baseName)
+                else if(Array.isArray(hostSideValue)){
+                    // todo ...
+                } 
+               
             }
         }
-        else{
-            error("matrices and vectors not supported yet")
-        }
+        error("malformed element access")
         
     }
 
-    protected override visitIdentifier(node: ts.Identifier): VisitorResult<NativeTaichiAny> {
+    protected override visitIdentifier(node: ts.Identifier): VisitorResult<Value> {
         let symbol = this.typeChecker!.getSymbolAtLocation(node)!
-        if(!this.symbolStmtMap.has(symbol)){
+        if(!this.symbolTable.has(symbol)){
             error("Symbol not found: ",node,node.text,symbol)
         }
-        return this.symbolStmtMap.get(symbol)
+        let result = this.symbolTable.get(symbol)
+        console.log(result)
+        return result
     }
     
-    protected override visitForOfStatement(node: ts.ForOfStatement): VisitorResult<NativeTaichiAny> {
+    protected override visitForOfStatement(node: ts.ForOfStatement): VisitorResult<Value> {
         assert(node.initializer.kind === ts.SyntaxKind.VariableDeclarationList, "Expecting variable declaration list, got",node.initializer.kind)
         let declarationList = node.initializer as ts.VariableDeclarationList
         assert(declarationList.declarations.length === 1, "Expecting exactly 1 delcaration")
@@ -214,8 +292,9 @@ export class OneTimeCompiler extends ASTVisitor<NativeTaichiAny>{ // It's actual
 
         let loopGuard = this.irBuilder.get_range_loop_guard(loop);
         let indexStmt = this.irBuilder.get_loop_index(loop,0);
+        let indexValue = Value.makeInt32Scalar(indexStmt)
         
-        this.symbolStmtMap.set(loopIndexSymbol, indexStmt)
+        this.symbolTable.set(loopIndexSymbol, indexValue)
 
         this.dispatchVisit(node.statement)
 

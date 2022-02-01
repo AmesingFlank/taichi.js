@@ -1,5 +1,6 @@
 import type {SNodeTree} from './SNodeTree'
 import {NativeTaichiAny, nativeTaichi} from "../native/taichi/GetTaichi"
+import {PrimitiveType, Type} from "../frontend/Type"
 class Field {
     constructor(
         public snodeTree: SNodeTree ,
@@ -7,9 +8,7 @@ class Field {
         public size: number,
         public dimensions: number[],
         public placeNodes: NativeTaichiAny[],
-        public isScalar: boolean,
-        public numRows: number,
-        public numCols: number,
+        public elementType:Type
     ){
 
     }

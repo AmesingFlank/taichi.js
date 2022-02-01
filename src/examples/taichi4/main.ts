@@ -3,6 +3,8 @@ import {nativeTint} from '../../native/tint/GetTint'
 import {Program} from '../../program/Program'
 import {field,Vector,Matrix}  from '../../program/FieldsFactory'
 import {init} from '../../api/Init'
+import {PrimitiveType} from "../../frontend/Type"
+
 
 let taichiExample4 = async () => {
     await init()
@@ -13,7 +15,7 @@ let taichiExample4 = async () => {
     let program = Program.getCurrentProgram()
     await program.materializeRuntime()
 
-    let f = field([10])
+    let f = field([10],PrimitiveType.i32)
     //f.addToAotBuilder(program.nativeAotBuilder,"f") // This is crashing for somne readon. but i guess this isn't really needed..
 
     program.materializeCurrentTree()
