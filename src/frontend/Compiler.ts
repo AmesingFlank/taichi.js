@@ -208,6 +208,39 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
                 let leftValue = this.evaluate(left)
                 return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_div(l,r))
             }
+            case (ts.SyntaxKind.CommaToken): {
+                let leftValue = this.evaluate(left)
+                assert(leftValue.type.primitiveType === rightValue.type.primitiveType,"primitive type mismatch")
+                let resultStmts = leftValue.stmts.concat(rightValue.stmts)
+                let type = new Type(leftValue.type.primitiveType,false,leftValue.type.numRows,leftValue.type.numCols)
+                if(leftValue.type.isScalar && rightValue.type.isScalar){
+                    type.numRows = 2
+                }
+                else if(leftValue.type.isVector() && rightValue.type.isScalar){
+                    type.numRows += 1
+                }
+                else{
+                    error("malformed comma")
+                }
+                // More advanced concats: need to revisit
+                // else if(leftValue.type.isScalar && rightValue.type.isVector()){
+                //     type.numRows += rightValue.type.numRows
+                // }
+                // else if(leftValue.type.isVector() && rightValue.type.isVector()){
+                //     assert(leftValue.type.numRows === rightValue.type.numRows,"numRows mismatch")
+                //     type.numCols = leftValue.type.numRows
+                //     type.numRows = 2
+                // }
+                // else if(leftValue.type.isMatrix() && rightValue.type.isVector()){
+                //     assert(leftValue.type.numCols === rightValue.type.numRows,"numRows mismatch")
+                //     type.numRows += 1
+                // }
+                // else if(leftValue.type.isVector() && rightValue.type.isMatrix()){
+                //     assert(leftValue.type.numCols === rightValue.type.numRows,"numRows mismatch")
+                //     type.numRows += 1
+                // }
+                return new Value(type,resultStmts)
+            }
             default:
                 error("Unrecognized binary operator")
         }
@@ -237,13 +270,8 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
                         let ptr = this.irBuilder.create_global_ptr(place,accessVec);
                         result.stmts.push(ptr)
                     }
-              
                     return result
                 }
-                else if(Array.isArray(hostSideValue)){
-                    // todo ...
-                } 
-               
             }
         }
         error("malformed element access")

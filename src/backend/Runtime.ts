@@ -56,14 +56,7 @@ class Runtime {
             if(task.bindGroup === null){
                 task.bindGroup = this.device!.createBindGroup({
                     layout: task.pipeline!.getBindGroupLayout(0),
-                    entries: [
-                        {
-                            binding: 0,
-                            resource: {
-                                buffer: this.materialzedTrees[0].rootBuffer!,
-                            },
-                        },
-                    ],
+                    entries: this.getBindings()
                 })
             }
             passEncoder.setPipeline(task.pipeline!);
@@ -73,6 +66,19 @@ class Runtime {
         }
         passEncoder.endPass();
         this.device!.queue.submit([commandEncoder.finish()]);
+    }
+
+    getBindings(): GPUBindGroupEntry[] {
+        let entries: GPUBindGroupEntry[] = []
+        for(let i = 0;i<this.materialzedTrees.length;++i){
+            entries.push({
+                binding: i,
+                resource:{
+                    buffer: this.materialzedTrees[i].rootBuffer!,
+                }
+            })
+        }
+        return entries
     }
 
     materializeTree(tree:SNodeTree){

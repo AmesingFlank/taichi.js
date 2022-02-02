@@ -26,6 +26,12 @@ class Type {
     ){
 
     }
+    isVector(){
+        return !this.isScalar && this.numCols === 1;
+    }
+    isMatrix(){
+        return !this.isScalar && this.numCols > 1;
+    }
 }
 
 export {Type, PrimitiveType, toNativePrimitiveType}
