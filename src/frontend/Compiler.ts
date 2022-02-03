@@ -1,7 +1,7 @@
 import * as ts from "typescript";
 import { InMemoryHost } from "./InMemoryHost";
 import {ASTVisitor, VisitorResult} from "./ast/Visiter"
-import { CompiledKernel, TaskParams } from "../backend/Kernel";
+import { CompiledKernel, TaskParams, BufferBinding, BufferType } from "../backend/Kernel";
 import { nativeTaichi, NativeTaichiAny} from '../native/taichi/GetTaichi' 
 import { nativeTint} from '../native/tint/GetTint' 
 import {error, assert} from '../utils/Logging'
@@ -104,6 +104,8 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
 
     private symbolTable : Map<ts.Symbol, Value>;
  
+    private bindings: BufferBinding[] = []
+
     private irBuilder : NativeTaichiAny
     public kernelName:string|null = null
 
@@ -153,9 +155,22 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
             let wgsl = nativeTint.tintSpvToWgsl(spv)
             let rangeHint:string = task.get_range_hint()
             let invocations = Number(rangeHint)
-            result.push({code:wgsl,invocations})
+            result.push({
+                code:wgsl,
+                invocations,
+                bindings: this.bindings
+            })
         }
         return result
+    }
+
+    private addBinding(binding:BufferBinding) {
+        for(let b of this.bindings){
+            if(b.equals(binding)){
+                return
+            }
+        }
+        this.bindings.push(binding)
     }
 
     private evaluate(val:Value) : Value{
@@ -255,6 +270,8 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
                 let hostSideValue:any = this.scope.getStored(baseName)
                 if( hostSideValue instanceof Field){
                     let field = hostSideValue as Field
+                    let binding = new BufferBinding(BufferType.Root, field.snodeTree.treeId, field.snodeTree.treeId)
+                    this.addBinding(binding)
 
                     let resultType = field.elementType
                     let result = new Value(resultType)

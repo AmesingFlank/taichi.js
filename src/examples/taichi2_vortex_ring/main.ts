@@ -10,6 +10,8 @@ import {Program} from '../../program/Program'
 import {field,Vector,Matrix}  from '../../program/FieldsFactory'
 import {init} from '../../api/Init'
 import {PrimitiveType} from "../../frontend/Type"
+import {BufferType, BufferBinding} from "../../backend/Kernel"
+
 
 let taichiExample2VortexRing = async (canvas:HTMLCanvasElement) => {
     await init()
@@ -27,40 +29,49 @@ let taichiExample2VortexRing = async (canvas:HTMLCanvasElement) => {
 
     program.materializeCurrentTree()
 
+    let bindings = [new BufferBinding(BufferType.Root,0,0)]
+
     let initTracersKernel = program.runtime!.createKernel([
         {
             code: init_tracers_0,
-            invocations: 1
+            invocations: 1,
+            bindings
         },
         {
             code: init_tracers_1,
-            invocations: n_tracer
+            invocations: n_tracer,
+            bindings
         }
     ])
     let advectKernel = program.runtime!.createKernel([
         {
             code: advect_0,
-            invocations: n_tracer
+            invocations: n_tracer,
+            bindings
         }
     ])
     let integrateVortexKernel = program.runtime!.createKernel([
         {
             code: integrate_vortex_0,
-            invocations: n_vortex
+            invocations: n_vortex,
+            bindings
         },
         {
             code: integrate_vortex_1,
-            invocations: n_vortex
+            invocations: n_vortex,
+            bindings
         }
     ])
     let paintKernel = program.runtime!.createKernel([
         {
             code: paint_0,
-            invocations: resolution[0] * resolution[1]
+            invocations: resolution[0] * resolution[1],
+            bindings
         },
         {
             code: paint_1,
-            invocations: resolution[0] * resolution[1]
+            invocations: resolution[0] * resolution[1],
+            bindings
         }
     ])
 

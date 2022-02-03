@@ -1,6 +1,24 @@
+
+enum BufferType {
+    Root
+}
+
+class BufferBinding{
+    constructor(
+        public bufferType:BufferType,
+        public rootID: number | null,
+        public binding: number
+    ){}
+
+    equals(that:BufferBinding):boolean {
+        return this.bufferType === that.bufferType && this.rootID === that.rootID && this.binding === that.binding
+    }
+}
+
 class TaskParams {
     code:string = ""
     invocations: number = 0
+    bindings: BufferBinding[] = []
 }
 
 class CompiledTask {
@@ -34,4 +52,4 @@ class CompiledKernel {
     }
 }
 
-export {CompiledTask, CompiledKernel, TaskParams}
+export {CompiledTask, CompiledKernel, TaskParams, BufferType, BufferBinding}

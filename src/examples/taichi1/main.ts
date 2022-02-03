@@ -3,6 +3,8 @@ import {Program} from '../../program/Program'
 import {field,Vector,Matrix}  from '../../program/FieldsFactory'
 import {init} from '../../api/Init'
 import {PrimitiveType} from "../../frontend/Type"
+import {BufferType, BufferBinding} from "../../backend/Kernel"
+
 let taichiExample1 = async () => {
   await init()
   let program = Program.getCurrentProgram()
@@ -10,9 +12,11 @@ let taichiExample1 = async () => {
   let x = field([10], PrimitiveType.i32)
   program.materializeCurrentTree()
 
+  let bindings = [new BufferBinding(BufferType.Root,0,0)]
   let initKernel = program.runtime!.createKernel([{
     code: init0,
-    invocations: 10
+    invocations: 10,
+    bindings
   }])
 
   program.runtime!.launchKernel(initKernel)

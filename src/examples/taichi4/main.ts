@@ -4,7 +4,7 @@ import {Program} from '../../program/Program'
 import {field,Vector,Matrix}  from '../../program/FieldsFactory'
 import {init} from '../../api/Init'
 import {PrimitiveType} from "../../frontend/Type"
-
+import {BufferType, BufferBinding} from "../../backend/Kernel"
 
 let taichiExample4 = async () => {
     await init()
@@ -73,7 +73,8 @@ let taichiExample4 = async () => {
     let initKernel = program.runtime!.createKernel([
         {
             code:code,
-            invocations: 10
+            invocations: 10,
+            bindings: [new BufferBinding(BufferType.Root,0,0)]
         },
     ])
     

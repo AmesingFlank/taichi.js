@@ -1,8 +1,8 @@
-import { CompiledTask, CompiledKernel, TaskParams } from './Kernel'
+import { CompiledTask, CompiledKernel, TaskParams, BufferType } from './Kernel'
 import { SNodeTree } from '../program/SNodeTree'
 import { divUp } from '../utils/Utils'
 import {RootBufferRenderer} from './RenderRootBuffer'
-
+import {assert} from "../utils/Logging"
 class MaterializedTree {
     tree?: SNodeTree
     rootBuffer?: GPUBuffer
@@ -13,7 +13,7 @@ class Runtime {
     adapter: GPUAdapter|null = null
     device: GPUDevice|null = null
     kernels: CompiledKernel[] = []
-    private materialzedTrees: MaterializedTree[] = []
+    private materializedTrees: MaterializedTree[] = []
 
     constructor(){}
 
@@ -56,7 +56,7 @@ class Runtime {
             if(task.bindGroup === null){
                 task.bindGroup = this.device!.createBindGroup({
                     layout: task.pipeline!.getBindGroupLayout(0),
-                    entries: this.getBindings()
+                    entries: this.getBindings(task.params)
                 })
             }
             passEncoder.setPipeline(task.pipeline!);
@@ -68,13 +68,21 @@ class Runtime {
         this.device!.queue.submit([commandEncoder.finish()]);
     }
 
-    getBindings(): GPUBindGroupEntry[] {
+    getBindings(task:TaskParams): GPUBindGroupEntry[] {
         let entries: GPUBindGroupEntry[] = []
-        for(let i = 0;i<this.materialzedTrees.length;++i){
+        for(let binding of task.bindings){
+            let buffer:GPUBuffer|null = null
+            switch(binding.bufferType){
+                case BufferType.Root:{
+                    buffer = this.materializedTrees[binding.rootID!].rootBuffer!
+                    break;
+                }
+            }
+            assert(buffer !== null, "couldn't find buffer to bind")
             entries.push({
-                binding: i,
+                binding:binding.binding,
                 resource:{
-                    buffer: this.materialzedTrees[i].rootBuffer!,
+                    buffer:buffer
                 }
             })
         }
@@ -93,17 +101,17 @@ class Runtime {
             rootBuffer,
             device
         }
-        this.materialzedTrees.push(materialized)
+        this.materializedTrees.push(materialized)
     }
 
     async copyRootBufferToHost(treeId: number): Promise<Int32Array> {
-        let size = this.materialzedTrees[treeId].tree!.size
+        let size = this.materializedTrees[treeId].tree!.size
         const rootBufferCopy = this.device!.createBuffer({
             size: size,
             usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
         });
         let commandEncoder = this.device!.createCommandEncoder();
-        commandEncoder.copyBufferToBuffer(this.materialzedTrees[treeId].rootBuffer!,0,rootBufferCopy,0,size)
+        commandEncoder.copyBufferToBuffer(this.materializedTrees[treeId].rootBuffer!,0,rootBufferCopy,0,size)
         this.device!.queue.submit([commandEncoder.finish()]);
         await this.device!.queue.onSubmittedWorkDone()
     
@@ -116,7 +124,7 @@ class Runtime {
     }
 
     async getRootBufferRenderer(canvas:HTMLCanvasElement):Promise<RootBufferRenderer> {
-        let renderer = new RootBufferRenderer(this.adapter!,this.device!,this.materialzedTrees[0].rootBuffer!)
+        let renderer = new RootBufferRenderer(this.adapter!,this.device!,this.materializedTrees[0].rootBuffer!)
         await renderer.initForCanvas(canvas)
         return renderer
     }

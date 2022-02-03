@@ -12,6 +12,8 @@ import {Program} from '../../program/Program'
 import {field,Vector,Matrix}  from '../../program/FieldsFactory'
 import {init} from '../../api/Init'
 import {PrimitiveType} from "../../frontend/Type"
+import {BufferType, BufferBinding} from "../../backend/Kernel"
+
 let taichiExample3VortexRingSpv = async (canvas:HTMLCanvasElement) => {
     await init()
 
@@ -30,41 +32,48 @@ let taichiExample3VortexRingSpv = async (canvas:HTMLCanvasElement) => {
 
     program.materializeCurrentTree()
 
-
+    let bindings = [new BufferBinding(BufferType.Root,0,0)]
     let initTracersKernel = program.runtime!.createKernel([
         {
             code: spvToWgsl(init_tracers_0),
-            invocations: 1
+            invocations: 1,
+            bindings
         },
         {
             code: spvToWgsl(init_tracers_1),
-            invocations: n_tracer
+            invocations: n_tracer,
+            bindings
         }
     ])
     let advectKernel = program.runtime!.createKernel([
         {
             code: spvToWgsl(advect_0),
-            invocations: n_tracer
+            invocations: n_tracer,
+            bindings
         }
     ])
     let integrateVortexKernel = program.runtime!.createKernel([
         {
             code: spvToWgsl(integrate_vortex_0),
-            invocations: n_vortex
+            invocations: n_vortex,
+            bindings
         },
         {
             code: spvToWgsl(integrate_vortex_1),
-            invocations: n_vortex
+            invocations: n_vortex,
+            bindings
         }
     ])
     let paintKernel = program.runtime!.createKernel([
         {
             code: spvToWgsl(paint_0),
-            invocations: resolution[0] * resolution[1]
+            invocations: resolution[0] * resolution[1],
+            bindings
         },
         {
             code: spvToWgsl(paint_1),
-            invocations: resolution[0] * resolution[1]
+            invocations: resolution[0] * resolution[1],
+            bindings
         }
     ])
 
