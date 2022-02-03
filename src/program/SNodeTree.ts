@@ -53,7 +53,7 @@ class SNodeTree {
             placeNodes.push(place)
         }
 
-        let totalSize = 4 * primitivesPerElement * numElements(dimensions)
+        let totalSize = 4 * primitivesPerElement * numElements(dimensions, true)
         let field = new Field(this,this.size, totalSize, dimensions, placeNodes, elementType)
         
         this.size += totalSize
