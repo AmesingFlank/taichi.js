@@ -19,7 +19,7 @@ export class InMemoryHost implements tsCompilerHost {
     private fs: VirtualFileSystem
 
 	public getSourceFile(fileName: string, languageVersion: tsScriptTarget, onError?: (message: string) => void): tsSourceFile | undefined{
-		log("getSourceFile ", fileName)
+		// log("getSourceFile ", fileName)
 		let fileContent: string|null = null;
 		if (this.fs.fileExists(fileName)) {
 			fileContent = this.fs.readFile(fileName);

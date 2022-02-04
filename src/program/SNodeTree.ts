@@ -41,8 +41,10 @@ class SNodeTree {
             axisVec.push_back(new nativeTaichi.Axis(i))
             sizesVec.push_back(dimensions[i])
         }
+
+        let packed = true
         
-        let dense = this.nativeTreeRoot.dense(axisVec,sizesVec, false);
+        let dense = this.nativeTreeRoot.dense(axisVec,sizesVec, packed);
 
         let primitivesPerElement = elementType.numCols * elementType.numRows
 
@@ -53,7 +55,7 @@ class SNodeTree {
             placeNodes.push(place)
         }
 
-        let totalSize = 4 * primitivesPerElement * numElements(dimensions, true)
+        let totalSize = 4 * primitivesPerElement * numElements(dimensions, packed)
         let field = new Field(this,this.size, totalSize, dimensions, placeNodes, elementType)
         
         this.size += totalSize

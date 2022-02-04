@@ -8,6 +8,7 @@ import {taichiExample4} from './examples/taichi4/main'
 import {taichiExample5} from './examples/taichi5/main'
 
 import {typecheckerExample0} from './examples/compiler_api/typechecker0'
+import {runAllTests} from "./tests/All"
  
 const taichi = {
     triangle,
@@ -18,7 +19,8 @@ const taichi = {
     taichiExample3VortexRingSpv,
     taichiExample4,
     taichiExample5,
-    typecheckerExample0
+    typecheckerExample0,
+    runAllTests
 }
 
 export {taichi}

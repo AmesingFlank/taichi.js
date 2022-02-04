@@ -3,6 +3,8 @@ import { SNodeTree } from '../program/SNodeTree'
 import { divUp } from '../utils/Utils'
 import {RootBufferRenderer} from './RenderRootBuffer'
 import {assert} from "../utils/Logging"
+import { Field } from '../program/Field'
+import { PrimitiveType } from '../frontend/Type'
 class MaterializedTree {
     tree?: SNodeTree
     rootBuffer?: GPUBuffer
@@ -121,6 +123,29 @@ class Runtime {
         rootBufferCopy.unmap()
         rootBufferCopy.destroy()
         return copied
+    }
+
+    async copyFieldToHost(field: Field) : Promise<number[]> {
+        let size = field.size
+        const rootBufferCopy = this.device!.createBuffer({
+            size: size,
+            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+        });
+        let commandEncoder = this.device!.createCommandEncoder();
+        commandEncoder.copyBufferToBuffer(this.materializedTrees[field.snodeTree.treeId].rootBuffer!, field.offset,rootBufferCopy,0,size)
+        this.device!.queue.submit([commandEncoder.finish()]);
+        await this.device!.queue.onSubmittedWorkDone()
+    
+        await rootBufferCopy.mapAsync(GPUMapMode.READ)
+        let result1D: number[] = []
+        if(field.elementType.primitiveType === PrimitiveType.i32){
+            let hostBuffer = new Int32Array(rootBufferCopy.getMappedRange())
+            result1D = Array.from(hostBuffer)
+        }else{
+            let hostBuffer = new Float32Array(rootBufferCopy.getMappedRange())
+            result1D = Array.from(hostBuffer)
+        }
+        return result1D
     }
 
     async getRootBufferRenderer(canvas:HTMLCanvasElement):Promise<RootBufferRenderer> {

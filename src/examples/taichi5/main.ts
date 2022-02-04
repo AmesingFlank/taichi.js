@@ -47,9 +47,9 @@ let taichiExample5 = async () => {
     
     program.runtime!.launchKernel(initKernel)
     
-    let rootBufferCopy = await program.runtime!.copyRootBufferToHost(0)
+    let f1Host = await program.runtime!.copyFieldToHost(f)
     console.log("Example 5 results:")
-    console.log(rootBufferCopy)
+    console.log(f1Host)
 
     let f2 = field([10], PrimitiveType.i32)
     addToKernelScope({f2})
@@ -77,9 +77,9 @@ let taichiExample5 = async () => {
     
     program.runtime!.launchKernel(initKernel2)
     
-    let rootBufferCopy2 = await program.runtime!.copyRootBufferToHost(1)
+    let f2Host = await program.runtime!.copyFieldToHost(f2)
     console.log("Example 5 results2:")
-    console.log(rootBufferCopy2)
+    console.log(f2Host)
     
 }
 

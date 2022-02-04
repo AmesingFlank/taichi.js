@@ -301,7 +301,6 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
             error("Symbol not found: ",node,node.text,symbol)
         }
         let result = this.symbolTable.get(symbol)
-        console.log(result)
         return result
     }
     
