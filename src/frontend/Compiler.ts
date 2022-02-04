@@ -9,7 +9,7 @@ import { GlobalScope } from "../program/GlobalScope";
 import { Field } from "../program/Field";
 import { Program } from "../program/Program";
 import {getStmtKind, StmtKind} from "./Stmt"
-import {Type, PrimitiveType} from "./Type"
+import {Type, PrimitiveType, toNativePrimitiveType} from "./Type"
 
 export class CompilerContext {
     private host: InMemoryHost
@@ -164,6 +164,14 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
         return result
     }
 
+    private getNodeSymbol(node: ts.Node): ts.Symbol{
+        let symbol = this.typeChecker!.getSymbolAtLocation(node)
+        if(symbol === undefined){
+            error("symbol not found for ",node)
+        }
+        return symbol!
+    }
+
     private addBinding(binding:BufferBinding) {
         for(let b of this.bindings){
             if(b.equals(binding)){
@@ -179,6 +187,9 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
         switch(kind){
             case StmtKind.GlobalPtrStmt: {
                 return Value.apply1ElementWise(val, (ptr) => this.irBuilder.create_global_ptr_global_load(ptr))
+            }
+            case StmtKind.AllocaStmt: {
+                return Value.apply1ElementWise(val, (ptr) => this.irBuilder.create_local_load(ptr))
             }
             default: {
                 return val
@@ -204,8 +215,20 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
         let op = node.operatorToken
         switch(op.kind){
             case (ts.SyntaxKind.EqualsToken): {
-                Value.apply2(left,rightValue,false,true,(l, r) => this.irBuilder.create_global_ptr_global_store(l,r))
-                return right
+                let leftStmtKind = getStmtKind(left.stmts[0])
+                switch(leftStmtKind){
+                    case StmtKind.GlobalPtrStmt:{
+                        Value.apply2(left,rightValue,false,true,(l, r) => this.irBuilder.create_global_ptr_global_store(l,r))
+                        return right
+                    }
+                    case StmtKind.AllocaStmt:{
+                        Value.apply2(left,rightValue,false,true,(l, r) => this.irBuilder.create_local_store(l,r))
+                        return right
+                    }
+                    default:{
+                        error("Invalid assignment")
+                    }
+                }
             }
             case (ts.SyntaxKind.PlusToken): {
                 let leftValue = this.evaluate(left)
@@ -296,12 +319,31 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
     }
 
     protected override visitIdentifier(node: ts.Identifier): VisitorResult<Value> {
-        let symbol = this.typeChecker!.getSymbolAtLocation(node)!
+        let symbol = this.getNodeSymbol(node)
         if(!this.symbolTable.has(symbol)){
             error("Symbol not found: ",node,node.text,symbol)
         }
         let result = this.symbolTable.get(symbol)
         return result
+    }
+
+    protected visitVariableDeclaration(node: ts.VariableDeclaration): VisitorResult<Value> {
+        let identifier = node.name
+        if(!node.initializer){
+            error("variable declaration must have an identifier")
+        }
+        let initializer = node.initializer!
+        let initValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(initializer)))
+        let varType = initValue.type
+        let varValue = new Value(varType)
+        for(let i = 0; i < initValue.stmts.length;++i){
+            let alloca = this.irBuilder.create_local_var(toNativePrimitiveType(varType.primitiveType))
+            varValue.stmts.push(alloca)
+            this.irBuilder.create_local_store(alloca, initValue.stmts[i])
+        }
+        let varSymbol = this.getNodeSymbol(identifier)
+        this.symbolTable.set(varSymbol, varValue)
+        return varValue
     }
     
     protected override visitForOfStatement(node: ts.ForOfStatement): VisitorResult<Value> {
@@ -311,7 +353,7 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
         let loopIndexDecl = declarationList.declarations[0]
         assert(loopIndexDecl.name.kind === ts.SyntaxKind.Identifier, "Expecting identifier")
         let loopIndexIdentifer = loopIndexDecl.name as ts.Identifier
-        let loopIndexSymbol = this.typeChecker!.getSymbolAtLocation(loopIndexIdentifer)! 
+        let loopIndexSymbol = this.getNodeSymbol(loopIndexIdentifer)! 
 
         assert(node.expression.kind === ts.SyntaxKind.CallExpression, "Expecting a range() call")
         let callExpr = node.expression as ts.CallExpression
