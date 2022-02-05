@@ -17,10 +17,13 @@ class Runtime {
     kernels: CompiledKernel[] = []
     private materializedTrees: MaterializedTree[] = []
 
+    private globalTmpsBuffer: GPUBuffer | null = null
+
     constructor(){}
 
     async init(){
         await this.createDevice()
+        this.createGlobalTmpsBuffer()
     }
 
     async createDevice() {
@@ -31,6 +34,14 @@ class Runtime {
         const device = await adapter!.requestDevice();
         this.device = device
         this.adapter = adapter
+    }
+
+    private createGlobalTmpsBuffer(){
+        let size = 1024 * 1024
+        this.globalTmpsBuffer = this.device!.createBuffer({
+            size: size,
+            usage: GPUBufferUsage.STORAGE,
+        })
     }
 
     createTask(params:TaskParams): CompiledTask {
@@ -51,7 +62,7 @@ class Runtime {
         await this.device!.queue.onSubmittedWorkDone()
     }
 
-    launchKernel(kernel: CompiledKernel){
+    launchKernel(kernel: CompiledKernel, ...args:any[]){
         let commandEncoder = this.device!.createCommandEncoder();
         const passEncoder = commandEncoder.beginComputePass();
         for(let task of kernel.tasks){
@@ -63,7 +74,23 @@ class Runtime {
             }
             passEncoder.setPipeline(task.pipeline!);
             passEncoder.setBindGroup(0, task.bindGroup);
-            let numWorkGroups:number = isNaN(task.params.invocations)?512:divUp(task.params.invocations , 128);
+            // not sure if these are completely right hmm
+            let workgroupSize = task.params.workgroupSize 
+            let numWorkGroups:number = 512
+            if(workgroupSize === 1){
+                numWorkGroups = 1
+            }
+            else if(task.params.rangeHint.length > 0){
+                let invocations = 0
+                if(task.params.rangeHint.length > 4 && task.params.rangeHint.slice(0,4) === "arg "){
+                    let argIndex = Number(task.params.rangeHint.slice(4))
+                    invocations = args[argIndex]
+                }
+                else{
+                    invocations = Number(task.params.rangeHint)
+                }
+                numWorkGroups = divUp(invocations , workgroupSize)
+            }
             passEncoder.dispatch(numWorkGroups);
         }
         passEncoder.endPass();
@@ -78,6 +105,9 @@ class Runtime {
                 case BufferType.Root:{
                     buffer = this.materializedTrees[binding.rootID!].rootBuffer!
                     break;
+                }
+                case BufferType.GlobalTmps:{
+                    buffer = this.globalTmpsBuffer!
                 }
             }
             assert(buffer !== null, "couldn't find buffer to bind")

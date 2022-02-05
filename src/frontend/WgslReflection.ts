@@ -32,6 +32,13 @@ function getWgslShaderBindings(wgsl:string):BufferBinding[] {
             addBinding(new BufferBinding(BufferType.Root,bindingPoint,bindingPoint))
             continue
         }
+
+        let globalTmpsPrefix = "global_tmps_"
+        let globalTmpsBegin = stmt.indexOf(globalTmpsPrefix)
+        if(globalTmpsBegin !== -1){
+            addBinding(new BufferBinding(BufferType.GlobalTmps,null,bindingPoint))
+            continue
+        }
     }
     return bindings
 }

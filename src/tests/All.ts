@@ -22,7 +22,7 @@ async function runAllTests() {
     passed &&= await testVectorLocalVar()
     passed &&= await testMatrixLocalVar()
     passed &&= await testMultipleSNodeTree()
-    //passed &&= await testNdrange()
+    passed &&= await testNdrange()
 
     if(passed){
         console.log("All tests passed")

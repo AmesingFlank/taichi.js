@@ -34,43 +34,50 @@ let taichiExample2VortexRing = async (canvas:HTMLCanvasElement) => {
     let initTracersKernel = program.runtime!.createKernel([
         {
             code: init_tracers_0,
-            invocations: 1,
+            workgroupSize: 128,
+            rangeHint:"1",
             bindings
         },
         {
             code: init_tracers_1,
-            invocations: n_tracer,
+            workgroupSize: 128,
+            rangeHint:n_tracer.toString(),
             bindings
         }
     ])
     let advectKernel = program.runtime!.createKernel([
         {
             code: advect_0,
-            invocations: n_tracer,
+            workgroupSize: 128,
+            rangeHint:n_tracer.toString(),
             bindings
         }
     ])
     let integrateVortexKernel = program.runtime!.createKernel([
         {
             code: integrate_vortex_0,
-            invocations: n_vortex,
+            workgroupSize: 128,
+            rangeHint:n_vortex.toString(),
             bindings
         },
         {
             code: integrate_vortex_1,
-            invocations: n_vortex,
+            workgroupSize: 128,
+            rangeHint:n_vortex.toString(),
             bindings
         }
     ])
     let paintKernel = program.runtime!.createKernel([
         {
             code: paint_0,
-            invocations: resolution[0] * resolution[1],
+            workgroupSize: 128,
+            rangeHint: (resolution[0] * resolution[1]).toString(),
             bindings
         },
         {
             code: paint_1,
-            invocations: resolution[0] * resolution[1],
+            workgroupSize: 128,
+            rangeHint: (resolution[0] * resolution[1]).toString(),
             bindings
         }
     ])

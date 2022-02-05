@@ -73,7 +73,8 @@ let taichiExample4 = async () => {
     let initKernel = program.runtime!.createKernel([
         {
             code:code,
-            invocations: 10,
+            workgroupSize: 128,
+            rangeHint: "10",
             bindings: [new BufferBinding(BufferType.Root,0,0)]
         },
     ])

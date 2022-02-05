@@ -1,6 +1,6 @@
 
 enum BufferType {
-    Root
+    Root, GlobalTmps
 }
 
 class BufferBinding{
@@ -17,7 +17,8 @@ class BufferBinding{
 
 class TaskParams {
     code:string = ""
-    invocations: number = 0
+    rangeHint: string = ""
+    workgroupSize: number = 0
     bindings: BufferBinding[] = []
 }
 

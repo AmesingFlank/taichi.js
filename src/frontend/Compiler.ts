@@ -181,12 +181,12 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
             }
             let wgsl = nativeTint.tintSpvToWgsl(spv)
             let bindings = getWgslShaderBindings(wgsl)
-            //console.log(wgsl)
             let rangeHint:string = task.get_range_hint()
-            let invocations:number = Number(rangeHint)
+            let workgroupSize = task.get_gpu_block_size()
             result.push({
                 code:wgsl,
-                invocations,
+                rangeHint,
+                workgroupSize,
                 bindings
             })
         }
@@ -450,7 +450,6 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
 
         let loopGuard = this.irBuilder.get_range_loop_guard(loop);
         let flatIndexStmt = this.irBuilder.get_loop_index(loop,0);
-
 
         let indexValue = new Value(new Type(PrimitiveType.i32,false,numDimensions,1),[])
         let remainder = flatIndexStmt
