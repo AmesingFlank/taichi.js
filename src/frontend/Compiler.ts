@@ -183,7 +183,7 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
             }
             let wgsl = nativeTint.tintSpvToWgsl(spv)
             let rangeHint:string = task.get_range_hint()
-            let invocations = Number(rangeHint)
+            let invocations:number = Number(rangeHint)
             result.push({
                 code:wgsl,
                 invocations,
@@ -436,6 +436,32 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
 
         loopGuard.delete()
     }
+
+    // private visitNdrangeFor(indexSymbols:ts.Symbol[], rangeExpr:ts.NodeArray<ts.Expression>, body:ts.Statement) : VisitorResult<Value>{
+    //     assert(indexSymbols.length === 1, "Expecting exactly 1 loop index ndrange()")
+
+    //     let lengthValues: Value[] = []
+    //     for(let lengthExpr of rangeExpr){
+    //         let value = this.evaluate(this.extractVisitorResult(this.dispatchVisit(lengthExpr)))
+    //         assert(value.type.primitiveType === PrimitiveType.i32, "range must be i32")
+    //         lengthValues.push(value)
+    //     }
+    //      let rangeLengthExpr = rangeExpr[0]
+    //     let rangeLengthValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(rangeLengthExpr)))
+    //     assert(rangeLengthValue.type.primitiveType === PrimitiveType.i32, "range must be i32")
+    //     let zero = this.irBuilder.get_int32(0)
+    //     let loop = this.irBuilder.create_range_for(zero, rangeLengthValue.stmts[0], 0, 4, 0, false);
+
+    //     let loopGuard = this.irBuilder.get_range_loop_guard(loop);
+    //     let indexStmt = this.irBuilder.get_loop_index(loop,0);
+    //     let indexValue = new Value(new Type(PrimitiveType.i32),[indexStmt])
+        
+    //     this.symbolTable.set(indexSymbols[0], indexValue)
+
+    //     this.dispatchVisit(body)
+
+    //     loopGuard.delete()
+    // }
     
     protected override visitForOfStatement(node: ts.ForOfStatement): VisitorResult<Value> {
         assert(node.initializer.kind === ts.SyntaxKind.VariableDeclarationList, "Expecting variable declaration list, got",node.initializer.kind)
