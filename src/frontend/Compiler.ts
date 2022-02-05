@@ -10,7 +10,7 @@ import { Field } from "../program/Field";
 import { Program } from "../program/Program";
 import {getStmtKind, StmtKind} from "./Stmt"
 import {Type, PrimitiveType, toNativePrimitiveType} from "./Type"
-
+import {getWgslShaderBindings} from "./WgslReflection"
 export class CompilerContext {
     private host: InMemoryHost
     constructor(){
@@ -132,8 +132,6 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
     private typeChecker? : ts.TypeChecker
 
     private symbolTable : Map<ts.Symbol, Value>;
- 
-    private bindings: BufferBinding[] = []
 
     private irBuilder : NativeTaichiAny
     public kernelName:string|null = null
@@ -182,13 +180,14 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
                 spv.push(spirvUint32Vec.get(j))
             }
             let wgsl = nativeTint.tintSpvToWgsl(spv)
+            let bindings = getWgslShaderBindings(wgsl)
             //console.log(wgsl)
             let rangeHint:string = task.get_range_hint()
             let invocations:number = Number(rangeHint)
             result.push({
                 code:wgsl,
                 invocations,
-                bindings: this.bindings
+                bindings
             })
         }
         return result
@@ -200,16 +199,7 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
             error("symbol not found for ",node)
         }
         return symbol!
-    }
-
-    private addBinding(binding:BufferBinding) {
-        for(let b of this.bindings){
-            if(b.equals(binding)){
-                return
-            }
-        }
-        this.bindings.push(binding)
-    }
+    } 
 
     private evaluate(val:Value) : Value{
         assert(val.stmts.length > 0, "val is empty")
@@ -346,8 +336,6 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
                 let hostSideValue:any = this.scope.getStored(baseName)
                 if( hostSideValue instanceof Field){
                     let field = hostSideValue as Field
-                    let binding = new BufferBinding(BufferType.Root, field.snodeTree.treeId, field.snodeTree.treeId)
-                    this.addBinding(binding)
 
                     let resultType = field.elementType
                     let result = new Value(resultType)
