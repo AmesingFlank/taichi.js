@@ -11,6 +11,9 @@ import {testMatrixLocalVar} from "./TestMatrixLocalVar"
 import {testMultipleSNodeTree} from "./TestMultipleSNodeTree"
 import {testNdrange} from "./TestNdrange"
 import {testVectorArithmetic} from "./TestVectorArithmetic"
+import {testFloat} from "./TestFloat"
+import {testSerial} from "./TestSerial"
+import {testMath} from "./TestMath"
 
 async function runAllTests() {
     let passed = true
@@ -25,6 +28,9 @@ async function runAllTests() {
     passed &&= await testMultipleSNodeTree()
     passed &&= await testNdrange()
     passed &&= await testVectorArithmetic()
+    passed &&= await testFloat()
+    passed &&= await testSerial()
+    passed &&= await testMath()
 
     if(passed){
         console.log("All tests passed")

@@ -327,6 +327,61 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
         return this.extractVisitorResult(this.dispatchVisit(node.expression))
     }
 
+    protected override visitCallExpression(node: ts.CallExpression): VisitorResult<Value> {
+        let funcText = node.expression.getText()
+        let argumentValues:Value[] = []
+        for(let arg of node.arguments){
+            argumentValues.push(this.evaluate(this.extractVisitorResult(this.dispatchVisit(arg))))
+        }
+        let checkNumArgs = (n:number)=>{
+            assert(argumentValues.length === n, funcText+" requires "+n.toString()+" args")
+        }
+        class BuiltinUnaryOp {
+            name:string = ""
+            numArgs:number = 1
+            irBuilderFunc: ((stmt:NativeTaichiAny) => NativeTaichiAny) | ((l:NativeTaichiAny, r:NativeTaichiAny) => NativeTaichiAny) = (x:NativeTaichiAny)=>x
+        }
+        let builtinOps:BuiltinUnaryOp[] = [
+            {name:"sin",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_sin(stmt)},
+            {name:"cos",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_cos(stmt)},
+            {name:"asin",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_asin(stmt)},
+            {name:"acos",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_acos(stmt)},
+            {name:"tan",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_tan(stmt)},
+            {name:"tanh",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_tanh(stmt)},
+            {name:"exp",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_exp(stmt)},
+            {name:"log",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_log(stmt)},
+            {name:"neg",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_neg(stmt)},
+            {name:"not",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_not(stmt)},
+            {name:"logical_not",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.logical_not(stmt)},
+            {name:"abs",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_abs(stmt)},
+            {name:"floor",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_floor(stmt)},
+            {name:"sgn",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_sgn(stmt)},
+            {name:"sqrt",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_sqrt(stmt)},
+            {name:"i32",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_cast(stmt, toNativePrimitiveType(PrimitiveType.i32))},
+            {name:"f32",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_cast(stmt, toNativePrimitiveType(PrimitiveType.f32))},
+            {name:"sin",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_sin(stmt)},
+            {name:"cos",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_cos(stmt)},
+            {name:"asin",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_asin(stmt)},
+            {name:"max",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_max(l,r)},
+            {name:"min",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_min(l,r)},
+            {name:"pow",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_pow(l,r)},
+            {name:"atan2",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_atan2(l,r)},
+        ]
+        for(let op of builtinOps){
+            if(funcText === op.name || funcText === "ti."+op.name){
+                checkNumArgs(op.numArgs)
+                if(op.numArgs === 1){
+                    return Value.apply1ElementWise(argumentValues[0],op.irBuilderFunc as (stmt:NativeTaichiAny) => NativeTaichiAny)
+                }
+                else if(op.numArgs === 2){
+                    return Value.apply2(argumentValues[0],argumentValues[1],true,true,op.irBuilderFunc as (l:NativeTaichiAny, r:NativeTaichiAny) => NativeTaichiAny)
+                }
+            }
+        }
+
+        error("ti.func not suported yet")
+    }
+
     protected override visitElementAccessExpression(node: ts.ElementAccessExpression): VisitorResult<Value> {
         let base = node.expression
         let argument = node.argumentExpression
