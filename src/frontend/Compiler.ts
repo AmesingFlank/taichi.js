@@ -299,7 +299,12 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
             }
             case (ts.SyntaxKind.SlashToken): {
                 let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_div(l,r), (l,r)=>l/r)
+                if(leftValue.type.primitiveType === PrimitiveType.i32 && rightValue.type.primitiveType === PrimitiveType.i32){
+                    return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_floordiv(l,r), (l,r)=>l/r)
+                }
+                else{
+                    return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_truediv(l,r), (l,r)=>l/r)
+                }
             }
             case (ts.SyntaxKind.CommaToken): {
                 let leftValue = this.evaluate(left)
@@ -419,10 +424,10 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
 
     private visitRangeFor(indexSymbols:ts.Symbol[], rangeExpr:ts.NodeArray<ts.Expression>, body:ts.Statement) : VisitorResult<Value>{
         assert(rangeExpr.length === 1, "Expecting exactly 1 argument in range()")
-        assert(indexSymbols.length === 1, "Expecting exactly 1 loop index range()")
+        assert(indexSymbols.length === 1, "Expecting exactly 1 loop index in range()")
         let rangeLengthExpr = rangeExpr[0]
         let rangeLengthValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(rangeLengthExpr)))
-        assert(rangeLengthValue.type.primitiveType === PrimitiveType.i32, "range must be i32")
+        assert(rangeLengthValue.type.primitiveType === PrimitiveType.i32 && rangeLengthValue.type.isScalar , "range must be i32 scalar")
         let zero = this.irBuilder.get_int32(0)
         let loop = this.irBuilder.create_range_for(zero, rangeLengthValue.stmts[0], 0, 4, 0, false);
 
@@ -438,23 +443,33 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
     }
 
     // private visitNdrangeFor(indexSymbols:ts.Symbol[], rangeExpr:ts.NodeArray<ts.Expression>, body:ts.Statement) : VisitorResult<Value>{
-    //     assert(indexSymbols.length === 1, "Expecting exactly 1 loop index ndrange()")
-
+    //     let numDimensions = rangeExpr.length
+    //     assert(indexSymbols.length === 1, "Expecting exactly 1 (grouped) loop index in ndrange()")
+    //     assert(numDimensions > 0, "ndrange() arg list cannot be empty")
     //     let lengthValues: Value[] = []
     //     for(let lengthExpr of rangeExpr){
     //         let value = this.evaluate(this.extractVisitorResult(this.dispatchVisit(lengthExpr)))
-    //         assert(value.type.primitiveType === PrimitiveType.i32, "range must be i32")
+    //         assert(value.type.primitiveType === PrimitiveType.i32 && value.type.isScalar, "each arg to ndrange() must be i32 scalar")
     //         lengthValues.push(value)
     //     }
-    //      let rangeLengthExpr = rangeExpr[0]
-    //     let rangeLengthValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(rangeLengthExpr)))
-    //     assert(rangeLengthValue.type.primitiveType === PrimitiveType.i32, "range must be i32")
+    //     let product = lengthValues[0].stmts[0]
+    //     for(let i = 1;i < numDimensions ;++i){
+    //         product  = this.irBuilder.create_mul(product, lengthValues[i].stmts[0])
+    //     } 
     //     let zero = this.irBuilder.get_int32(0)
-    //     let loop = this.irBuilder.create_range_for(zero, rangeLengthValue.stmts[0], 0, 4, 0, false);
+    //     let loop = this.irBuilder.create_range_for(zero, product, 0, 4, 0, false);
 
     //     let loopGuard = this.irBuilder.get_range_loop_guard(loop);
-    //     let indexStmt = this.irBuilder.get_loop_index(loop,0);
-    //     let indexValue = new Value(new Type(PrimitiveType.i32),[indexStmt])
+    //     let flatIndexStmt = this.irBuilder.get_loop_index(loop,0);
+
+
+    //     let indexValue = new Value(new Type(PrimitiveType.i32,false,numDimensions,1),[])
+    //     let remainder = flatIndexStmt
+
+    //     for(let i  = numDimensions-1; i>=0 ; --i){
+    //         let thisDimStmt = lengthValues[i].stmts[0]
+    //         let thisIndex = this.irBuilder.create_mod(remainder,)
+    //     }
         
     //     this.symbolTable.set(indexSymbols[0], indexValue)
 
