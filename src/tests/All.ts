@@ -14,7 +14,7 @@ async function runAllTests() {
     passed &&= await testLocalVar()
 
     if(passed){
-        log("All tests passed")
+        console.log("All tests passed")
     }
     else{
         error("TESTS FAILED")

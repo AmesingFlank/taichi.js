@@ -1,6 +1,3 @@
-let ti = taichi
-
-
 console.log("heyy")
 
 let main = async () => {

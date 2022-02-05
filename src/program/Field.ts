@@ -1,6 +1,7 @@
 import type {SNodeTree} from './SNodeTree'
 import {NativeTaichiAny, nativeTaichi} from "../native/taichi/GetTaichi"
 import {PrimitiveType, Type} from "../frontend/Type"
+import {Program} from "./Program"
 class Field {
     constructor(
         public snodeTree: SNodeTree ,
@@ -13,24 +14,9 @@ class Field {
 
     }
 
-    // No need to call aot.add_field
-    // private addedToAotBuilder: boolean = false
-    // public name: string|null = null
-
-    // addToAotBuilder(builder: NativeTaichiAny, name: string){
-    //     console.log("addingToAOT")
-    //     if(this.addedToAotBuilder){
-    //         return
-    //     }
-    //     this.name = name
-
-    //     let dimensions : NativeTaichiAny = new nativeTaichi.VectorOfInt()
-    //     for(let d of this.dimensions){
-    //         dimensions.push_back(d)
-    //     }
-    //     builder.add_field("place", this.placeNode, this.isScalar, this.placeNode.dt_get(), dimensions, this.numRows, this.numCols);
-    //     this.addedToAotBuilder = true
-    // }
+    async toArray1D() : Promise<number[]>{
+        return Program.getCurrentProgram().runtime!.copyFieldToHost(this);
+    }
 }
 
 export {Field}

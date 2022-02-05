@@ -1,30 +1,16 @@
 //@ts-nocheck
-import {nativeTint} from '../native/tint/GetTint' 
-import {nativeTaichi, NativeTaichiAny} from '../native/taichi/GetTaichi' 
-import {Program} from '../program/Program'
-import {field,Vector,Matrix}  from '../program/FieldsFactory'
-import {init} from '../api/Init'
-import {OneTimeCompiler} from '../frontend/Compiler'
-import {addToKernelScope} from '../api/Lang'
-import {PrimitiveType} from "../frontend/Type"
+import {ti} from "../taichi"
 import {assertArrayEqual} from "./Utils"
-import {log} from "../utils/Logging"
 
 async function test2DField(): Promise<boolean> {
-    log("test2DField")
+    console.log("test2DField")
      
-    await init()
- 
-    let program = Program.getCurrentProgram()
-    await program.materializeRuntime()
- 
-    let f = field([3,3], PrimitiveType.i32)
-    addToKernelScope({f})
-    program.materializeCurrentTree()
+    await ti.init() 
 
-    let compiler = new OneTimeCompiler(Program.getCurrentProgram().globalScopeObj)
+    let f = ti.field([3,3], ti.i32)
+    ti.addToKernelScope({f}) 
 
-    let kernelCode = compiler.compileKernel(
+    let kernel = ti.kernel(
         function k() {
             //@ts-ignore
             for(let i of range(3)){
@@ -35,12 +21,11 @@ async function test2DField(): Promise<boolean> {
         }
     )
 
-    let kernel = program.runtime!.createKernel(kernelCode)
-    
-    program.runtime!.launchKernel(kernel)
-    
-    let fHost = await program.runtime!.copyFieldToHost(f)
-    log(fHost)
+    kernel()
+
+    let fHost = await f.toArray1D()
+     
+    console.log(fHost)
     return assertArrayEqual(fHost,[0,1,2,10,11,12,20,21,22])
     
 }

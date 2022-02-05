@@ -8,7 +8,7 @@ async function init() {
     if(!initialized){
         await createNativeTaichi()
         await createNativeTint()
-        Program.getCurrentProgram()
+        await Program.getCurrentProgram().materializeRuntime()
         initialized = true
     }
 }
