@@ -36,6 +36,10 @@ class ASTVisitor<T> {
                 return this.visitCallExpression(node as ts.CallExpression)
             case ts.SyntaxKind.ElementAccessExpression:
                 return this.visitElementAccessExpression(node as ts.ElementAccessExpression)
+            case ts.SyntaxKind.ParenthesizedExpression:
+                return this.visitParenthesizedExpression(node as ts.ParenthesizedExpression)
+            case ts.SyntaxKind.ArrayLiteralExpression:
+                return this.visitArrayLiteralExpression(node as ts.ArrayLiteralExpression)
             default:
                 return this.visitUnknown(node)
         }
@@ -105,6 +109,14 @@ class ASTVisitor<T> {
     }
 
     protected visitElementAccessExpression(node: ts.ElementAccessExpression): VisitorResult<T> {
+        return this.visitEachChild(node)
+    }
+
+    protected visitParenthesizedExpression(node: ts.ParenthesizedExpression): VisitorResult<T> {
+        return this.visitEachChild(node)
+    }
+
+    protected visitArrayLiteralExpression(node: ts.ArrayLiteralExpression): VisitorResult<T> {
         return this.visitEachChild(node)
     }
 }

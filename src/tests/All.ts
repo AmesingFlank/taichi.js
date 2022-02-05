@@ -6,6 +6,8 @@ import {test2DField} from "./Test2DField"
 import {testLocalVar} from "./testLocalVar"
 import {testVector} from "./TestVector"
 import {testMatrix} from "./TestMatrix"
+import {testVectorLocalVar} from "./TestVectorLocalVar"
+import {testMatrixLocalVar} from "./TestMatrixLocalVar"
 
 
 async function runAllTests() {
@@ -16,6 +18,8 @@ async function runAllTests() {
     passed &&= await testLocalVar()
     passed &&= await testVector()
     passed &&= await testMatrix()
+    passed &&= await testVectorLocalVar()
+    passed &&= await testMatrixLocalVar()
 
     if(passed){
         console.log("All tests passed")

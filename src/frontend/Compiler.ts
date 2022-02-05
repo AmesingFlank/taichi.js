@@ -69,7 +69,8 @@ class Value {
             broadcastLeftToRight = true      
         }
         if(!left.type.isScalar && !right.type.isScalar){
-            assert(left.type.numRows == right.type.numRows && left.type.numRows == right.type.numRows, "matrix shape mismatch") 
+            assert(left.type.numRows === right.type.numRows && left.type.numCols === right.type.numCols, 
+                "matrix shape mismatch ",left.type, right.type) 
         }
         if (broadcastLeftToRight){
             let result = new Value(left.type)
@@ -225,6 +226,32 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
         }
     }
 
+    private comma(leftValue:Value, rightValue:Value):Value{
+        assert(leftValue.type.primitiveType === rightValue.type.primitiveType,"primitive type mismatch")
+        let resultStmts = leftValue.stmts.concat(rightValue.stmts)
+        let resultConstexprs = leftValue.compileTimeConstants.concat(rightValue.compileTimeConstants)
+        let type = new Type(leftValue.type.primitiveType,false,leftValue.type.numRows,leftValue.type.numCols)
+        if(leftValue.type.isScalar && rightValue.type.isScalar){
+            type.numRows = 2
+        }
+        else if(leftValue.type.isVector() && rightValue.type.isScalar){
+            type.numRows += 1
+        }
+        else if(leftValue.type.isVector() && rightValue.type.isVector()){
+            assert(leftValue.type.numRows === rightValue.type.numRows,"numRows mismatch")
+            type.numCols = leftValue.type.numRows
+            type.numRows = 2
+        }
+        else if(leftValue.type.isMatrix() && rightValue.type.isVector()){
+            assert(leftValue.type.numCols === rightValue.type.numRows,"numRows mismatch")
+            type.numRows += 1
+        }
+        else{
+            error("malformed comma")
+        }
+        return new Value(type,resultStmts,resultConstexprs)
+    }
+
 
     protected override visitNumericLiteral(node: ts.NumericLiteral) : VisitorResult<Value> {
         let value = Number(node.text)
@@ -276,44 +303,35 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
             }
             case (ts.SyntaxKind.CommaToken): {
                 let leftValue = this.evaluate(left)
-                assert(leftValue.type.primitiveType === rightValue.type.primitiveType,"primitive type mismatch")
-                let resultStmts = leftValue.stmts.concat(rightValue.stmts)
-                let resultConstexprs = leftValue.compileTimeConstants.concat(rightValue.compileTimeConstants)
-                let type = new Type(leftValue.type.primitiveType,false,leftValue.type.numRows,leftValue.type.numCols)
-                if(leftValue.type.isScalar && rightValue.type.isScalar){
-                    type.numRows = 2
-                }
-                else if(leftValue.type.isVector() && rightValue.type.isScalar){
-                    type.numRows += 1
-                }
-                else{
-                    error("malformed comma")
-                }
-                // More advanced concats: need to revisit
-                // else if(leftValue.type.isScalar && rightValue.type.isVector()){
-                //     type.numRows += rightValue.type.numRows
-                // }
-                // else if(leftValue.type.isVector() && rightValue.type.isVector()){
-                //     assert(leftValue.type.numRows === rightValue.type.numRows,"numRows mismatch")
-                //     type.numCols = leftValue.type.numRows
-                //     type.numRows = 2
-                // }
-                // else if(leftValue.type.isMatrix() && rightValue.type.isVector()){
-                //     assert(leftValue.type.numCols === rightValue.type.numRows,"numRows mismatch")
-                //     type.numRows += 1
-                // }
-                // else if(leftValue.type.isVector() && rightValue.type.isMatrix()){
-                //     assert(leftValue.type.numCols === rightValue.type.numRows,"numRows mismatch")
-                //     type.numRows += 1
-                // }
-                return new Value(type,resultStmts,resultConstexprs)
+                return this.comma(leftValue,rightValue)
             }
             default:
                 error("Unrecognized binary operator")
         }
     }
 
-    protected visitElementAccessExpression(node: ts.ElementAccessExpression): VisitorResult<Value> {
+    protected override visitArrayLiteralExpression(node: ts.ArrayLiteralExpression): VisitorResult<Value> {
+        let elements = node.elements
+        assert(elements.length > 0, "cannot have empty arrays")
+        let value = this.evaluate(this.extractVisitorResult(this.dispatchVisit(elements[0])))
+        if(elements.length === 1){
+            if(value.type.isScalar){
+                value.type.isScalar = false
+            }
+            return value
+        }
+        for(let i = 1; i<elements.length;++i){
+            let nextValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(elements[i])))
+            value = this.comma(value,nextValue)
+        }
+        return value
+    }
+
+    protected override visitParenthesizedExpression(node: ts.ParenthesizedExpression): VisitorResult<Value> {
+        return this.extractVisitorResult(this.dispatchVisit(node.expression))
+    }
+
+    protected override visitElementAccessExpression(node: ts.ElementAccessExpression): VisitorResult<Value> {
         let base = node.expression
         let argument = node.argumentExpression
         if(base.kind === ts.SyntaxKind.Identifier){
