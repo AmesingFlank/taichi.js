@@ -182,6 +182,7 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
                 spv.push(spirvUint32Vec.get(j))
             }
             let wgsl = nativeTint.tintSpvToWgsl(spv)
+            //console.log(wgsl)
             let rangeHint:string = task.get_range_hint()
             let invocations:number = Number(rangeHint)
             result.push({
@@ -442,41 +443,43 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
         loopGuard.delete()
     }
 
-    // private visitNdrangeFor(indexSymbols:ts.Symbol[], rangeExpr:ts.NodeArray<ts.Expression>, body:ts.Statement) : VisitorResult<Value>{
-    //     let numDimensions = rangeExpr.length
-    //     assert(indexSymbols.length === 1, "Expecting exactly 1 (grouped) loop index in ndrange()")
-    //     assert(numDimensions > 0, "ndrange() arg list cannot be empty")
-    //     let lengthValues: Value[] = []
-    //     for(let lengthExpr of rangeExpr){
-    //         let value = this.evaluate(this.extractVisitorResult(this.dispatchVisit(lengthExpr)))
-    //         assert(value.type.primitiveType === PrimitiveType.i32 && value.type.isScalar, "each arg to ndrange() must be i32 scalar")
-    //         lengthValues.push(value)
-    //     }
-    //     let product = lengthValues[0].stmts[0]
-    //     for(let i = 1;i < numDimensions ;++i){
-    //         product  = this.irBuilder.create_mul(product, lengthValues[i].stmts[0])
-    //     } 
-    //     let zero = this.irBuilder.get_int32(0)
-    //     let loop = this.irBuilder.create_range_for(zero, product, 0, 4, 0, false);
+    private visitNdrangeFor(indexSymbols:ts.Symbol[], rangeExpr:ts.NodeArray<ts.Expression>, body:ts.Statement) : VisitorResult<Value>{
+        let numDimensions = rangeExpr.length
+        assert(indexSymbols.length === 1, "Expecting exactly 1 (grouped) loop index in ndrange()")
+        assert(numDimensions > 0, "ndrange() arg list cannot be empty")
+        let lengthValues: Value[] = []
+        for(let lengthExpr of rangeExpr){
+            let value = this.evaluate(this.extractVisitorResult(this.dispatchVisit(lengthExpr)))
+            assert(value.type.primitiveType === PrimitiveType.i32 && value.type.isScalar, "each arg to ndrange() must be i32 scalar")
+            lengthValues.push(value)
+        }
+        let product = lengthValues[0].stmts[0]
+        for(let i = 1;i < numDimensions ;++i){
+            product  = this.irBuilder.create_mul(product, lengthValues[i].stmts[0])
+        } 
+        let zero = this.irBuilder.get_int32(0)
+        let loop = this.irBuilder.create_range_for(zero, product, 0, 4, 0, false);
 
-    //     let loopGuard = this.irBuilder.get_range_loop_guard(loop);
-    //     let flatIndexStmt = this.irBuilder.get_loop_index(loop,0);
+        let loopGuard = this.irBuilder.get_range_loop_guard(loop);
+        let flatIndexStmt = this.irBuilder.get_loop_index(loop,0);
 
 
-    //     let indexValue = new Value(new Type(PrimitiveType.i32,false,numDimensions,1),[])
-    //     let remainder = flatIndexStmt
+        let indexValue = new Value(new Type(PrimitiveType.i32,false,numDimensions,1),[])
+        let remainder = flatIndexStmt
 
-    //     for(let i  = numDimensions-1; i>=0 ; --i){
-    //         let thisDimStmt = lengthValues[i].stmts[0]
-    //         let thisIndex = this.irBuilder.create_mod(remainder,)
-    //     }
+        for(let i  = numDimensions-1; i>=0 ; --i){
+            let thisDimStmt = lengthValues[i].stmts[0]
+            let thisIndex = this.irBuilder.create_mod(remainder,thisDimStmt)
+            indexValue.stmts = [thisIndex].concat(indexValue.stmts)
+            remainder = this.irBuilder.create_floordiv(remainder,thisDimStmt)
+        }
         
-    //     this.symbolTable.set(indexSymbols[0], indexValue)
+        this.symbolTable.set(indexSymbols[0], indexValue)
 
-    //     this.dispatchVisit(body)
+        this.dispatchVisit(body)
 
-    //     loopGuard.delete()
-    // }
+        loopGuard.delete()
+    }
     
     protected override visitForOfStatement(node: ts.ForOfStatement): VisitorResult<Value> {
         assert(node.initializer.kind === ts.SyntaxKind.VariableDeclarationList, "Expecting variable declaration list, got",node.initializer.kind)
@@ -494,6 +497,9 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
             let calledFunctionText = calledFunctionExpr.getText()
             if(calledFunctionText === "range" || calledFunctionText === "ti.range"){
                 return this.visitRangeFor(loopIndexSymbols,callExpr.arguments, node.statement)
+            }
+            else if(calledFunctionText === "ndrange" || calledFunctionText === "ti.ndrange"){
+                return this.visitNdrangeFor(loopIndexSymbols,callExpr.arguments, node.statement)
             }
             else{
                 error("unsupported for-of initializer: ", calledFunctionText)
