@@ -439,12 +439,41 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
     }
 
     protected override visitIdentifier(node: ts.Identifier): VisitorResult<Value> {
-        let symbol = this.getNodeSymbol(node)
-        if(!this.symbolTable.has(symbol)){
-            error("Symbol not found: ",node,node.text,symbol)
+        let symbol = this.typeChecker!.getSymbolAtLocation(node)
+        if(symbol && this.symbolTable.has(symbol)){
+            return this.symbolTable.get(symbol)
         }
-        let result = this.symbolTable.get(symbol)
-        return result
+        let name = node.getText()
+        if(this.scope.hasStored(name)){
+            let getValue = (val:any): Value|undefined => {
+                let fail = () => {error("failed to evaluate "+name+" in kernel scope")}
+                if(typeof val === "number"){
+                    return Value.makeConstantScalar(val,this.irBuilder.get_float32(val),PrimitiveType.f32)
+                }
+                if(Array.isArray(val)){
+                    assert(val.length > 0, "cannot use empty array in kernel")
+                    let result = getValue(val[0])
+                    if(result === undefined){
+                        fail()
+                    }
+                    if(val.length === 1){
+                        result!.type.isScalar = false
+                        return result
+                    }
+                    for(let i = 1; i<val.length;++i){
+                        let thisValue = getValue(val[i])
+                        if(thisValue === undefined){
+                            fail()!
+                        }
+                        result = this.comma(result!,thisValue!)
+                    }
+                    return result
+                }
+            }
+            let val = this.scope.getStored(name)
+            return getValue(val)
+        }
+        error("unresolved identifier: "+node.getText())
     }
 
     protected visitVariableDeclaration(node: ts.VariableDeclaration): VisitorResult<Value> {

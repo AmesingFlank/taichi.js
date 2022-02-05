@@ -14,6 +14,7 @@ import {testVectorArithmetic} from "./TestVectorArithmetic"
 import {testFloat} from "./TestFloat"
 import {testSerial} from "./TestSerial"
 import {testMath} from "./TestMath"
+import {testKernelScope} from "./TestKernelScope"
 
 async function runAllTests() {
     let passed = true
@@ -31,6 +32,7 @@ async function runAllTests() {
     passed &&= await testFloat()
     passed &&= await testSerial()
     passed &&= await testMath()
+    passed &&= await testKernelScope()
 
     if(passed){
         console.log("All tests passed")
