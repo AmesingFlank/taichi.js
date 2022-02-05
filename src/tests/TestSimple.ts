@@ -24,7 +24,6 @@ async function testSimple(): Promise<boolean> {
             for(let i of range(10)){
                 f[i+1-1] = f[i-1+1] / 3
             }
-            
         }
     )
 

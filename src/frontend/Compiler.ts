@@ -454,6 +454,9 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
             if(calledFunctionText === "range" || calledFunctionText === "ti.range"){
                 return this.visitRangeFor(loopIndexSymbols,callExpr.arguments, node.statement)
             }
+            else{
+                error("unsupported for-of initializer: ", calledFunctionText)
+            }
         }
         else{
             error("range for not supported yet")
