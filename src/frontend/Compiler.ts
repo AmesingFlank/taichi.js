@@ -416,45 +416,47 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
         this.symbolTable.set(varSymbol, varValue)
         return varValue
     }
-    
-    protected override visitForOfStatement(node: ts.ForOfStatement): VisitorResult<Value> {
-        assert(node.initializer.kind === ts.SyntaxKind.VariableDeclarationList, "Expecting variable declaration list, got",node.initializer.kind)
-        let declarationList = node.initializer as ts.VariableDeclarationList
-        assert(declarationList.declarations.length === 1, "Expecting exactly 1 delcaration")
-        let loopIndexDecl = declarationList.declarations[0]
-        assert(loopIndexDecl.name.kind === ts.SyntaxKind.Identifier, "Expecting identifier")
-        let loopIndexIdentifer = loopIndexDecl.name as ts.Identifier
-        let loopIndexSymbol = this.getNodeSymbol(loopIndexIdentifer)! 
 
-        assert(node.expression.kind === ts.SyntaxKind.CallExpression, "Expecting a range() call")
-        let callExpr = node.expression as ts.CallExpression
-        let calledFuntionExpr = callExpr.expression
-        assert(calledFuntionExpr.kind === ts.SyntaxKind.Identifier, "Expecting a range() call")
-        let calledFunctionName = (calledFuntionExpr as ts.Identifier).text
-        assert(calledFunctionName === "range", "Expecting a range() call")
-
-        assert(callExpr.arguments.length === 1, "Expecting exactly 1 argument in range()")
-        let rangeLengthExpr = callExpr.arguments[0]
-        assert(rangeLengthExpr.kind === ts.SyntaxKind.NumericLiteral)
-        let rangeLengthLiteral = rangeLengthExpr as ts.NumericLiteral
-
-        let rangeLength = Number(rangeLengthLiteral.text)
-
-        assert(Number.isInteger(rangeLength), "range length must be an integer")
-
-        let zero = this.irBuilder.get_int32(0)    
-        let nStmt = this.irBuilder.get_int32(rangeLength)
-    
-        let loop = this.irBuilder.create_range_for(zero, nStmt, 0, 4, 0, false);
+    private visitRangeFor(indexSymbols:ts.Symbol[], rangeExpr:ts.NodeArray<ts.Expression>, body:ts.Statement) : VisitorResult<Value>{
+        assert(rangeExpr.length === 1, "Expecting exactly 1 argument in range()")
+        assert(indexSymbols.length === 1, "Expecting exactly 1 loop index range()")
+        let rangeLengthExpr = rangeExpr[0]
+        let rangeLengthValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(rangeLengthExpr)))
+        assert(rangeLengthValue.type.primitiveType === PrimitiveType.i32, "range must be i32")
+        let zero = this.irBuilder.get_int32(0)
+        let loop = this.irBuilder.create_range_for(zero, rangeLengthValue.stmts[0], 0, 4, 0, false);
 
         let loopGuard = this.irBuilder.get_range_loop_guard(loop);
         let indexStmt = this.irBuilder.get_loop_index(loop,0);
         let indexValue = new Value(new Type(PrimitiveType.i32),[indexStmt])
         
-        this.symbolTable.set(loopIndexSymbol, indexValue)
+        this.symbolTable.set(indexSymbols[0], indexValue)
 
-        this.dispatchVisit(node.statement)
+        this.dispatchVisit(body)
 
         loopGuard.delete()
+    }
+    
+    protected override visitForOfStatement(node: ts.ForOfStatement): VisitorResult<Value> {
+        assert(node.initializer.kind === ts.SyntaxKind.VariableDeclarationList, "Expecting variable declaration list, got",node.initializer.kind)
+        let declarationList = node.initializer as ts.VariableDeclarationList
+        let loopIndexSymbols:ts.Symbol[] = []
+        for(let decl of declarationList.declarations){
+            let ident = decl.name as ts.Identifier
+            let symbol = this.getNodeSymbol(ident)
+            loopIndexSymbols.push(symbol)
+        }
+
+        if(node.expression.kind === ts.SyntaxKind.CallExpression){
+            let callExpr = node.expression as ts.CallExpression
+            let calledFunctionExpr = callExpr.expression
+            let calledFunctionText = calledFunctionExpr.getText()
+            if(calledFunctionText === "range" || calledFunctionText === "ti.range"){
+                return this.visitRangeFor(loopIndexSymbols,callExpr.arguments, node.statement)
+            }
+        }
+        else{
+            error("range for not supported yet")
+        }
     }
 }
