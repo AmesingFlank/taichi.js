@@ -23,31 +23,41 @@ export class CompilerContext {
         return ts.createProgram([tempFileName], options, this.host);
     }
 }      
-
-
 class Value {
     public constructor(
         public type:Type,
-        public stmts:NativeTaichiAny[] = []
+        public stmts:NativeTaichiAny[] = [],
+        public compileTimeConstants: number [] = []
     ){
 
     }
 
-    static makeInt32Scalar(stmt:NativeTaichiAny) : Value{
-        return new Value(new Type(PrimitiveType.i32),[stmt])
+    public isCompileTimeConstant():boolean{
+        assert(this.compileTimeConstants.length === this.stmts.length || this.compileTimeConstants.length === 0, "invalid amount of constants")
+        return this.compileTimeConstants.length === this.stmts.length
     }
-    static makeFloat32Scalar(stmt:NativeTaichiAny) : Value{
-        return new Value(new Type(PrimitiveType.f32),[stmt])
-    }
-    static apply1ElementWise(val:Value, f: (stmt :NativeTaichiAny) => NativeTaichiAny ):Value{
+
+    static makeConstantScalar(val:number, stmt:NativeTaichiAny, primitiveType:PrimitiveType) : Value{
+        return new Value(new Type(primitiveType),[stmt],[val])
+    } 
+    static apply1ElementWise(val:Value, 
+                             f: (stmt :NativeTaichiAny) => NativeTaichiAny, 
+                             fConst: ((val:number) => number)|null = null):Value{
         let result = new Value(val.type, [])
         for(let stmt of val.stmts){
             result.stmts.push(f(stmt))
         }
+        if(fConst && val.isCompileTimeConstant()){
+            for(let x of val.compileTimeConstants){
+                result.compileTimeConstants.push(fConst(x))
+            }
+        }
         return result
     }
     static apply2<T>(left:Value, right:Value,allowBroadcastLeftToRight:boolean, allowBroadcastRightToLeft:boolean, 
-                     f: (left :NativeTaichiAny, right :NativeTaichiAny) => T):Value{
+                     f: (left :NativeTaichiAny, right :NativeTaichiAny) => T,
+                     fConst: ((left:number, right:number) => number)|null = null
+                     ):Value{
         let broadcastLeftToRight = false
         let broadcastRightToLeft = false
         if(left.type.isScalar && !right.type.isScalar){
@@ -69,6 +79,12 @@ class Value {
                     result.stmts.push(resultStmt)
                 }
             }
+            if(fConst && left.isCompileTimeConstant() && right.isCompileTimeConstant()){
+                for(let leftVal of left.compileTimeConstants){
+                    let resultVal = fConst(leftVal,right.compileTimeConstants[0])
+                    result.compileTimeConstants.push(resultVal)
+                }
+            }
             return result
         }
         else if (broadcastRightToLeft){
@@ -79,6 +95,12 @@ class Value {
                     result.stmts.push(resultStmt)
                 }
             }
+            if(fConst && left.isCompileTimeConstant() && right.isCompileTimeConstant()){
+                for(let rightVal of right.compileTimeConstants){
+                    let resultVal = fConst(left.compileTimeConstants[0], rightVal)
+                    result.compileTimeConstants.push(resultVal)
+                }
+            }
             return result
         }
         else{
@@ -86,6 +108,12 @@ class Value {
             for(let i = 0; i< left.stmts.length; ++ i ){
                 let resultStmt = f(left.stmts[i],right.stmts[i])
                 result.stmts.push(resultStmt)
+            }
+            if(fConst && left.isCompileTimeConstant() && right.isCompileTimeConstant()){
+                for(let i = 0; i< left.stmts.length; ++ i ){
+                    let resultVal = fConst(left.compileTimeConstants[i],right.compileTimeConstants[i])
+                    result.compileTimeConstants.push(resultVal)
+                }
             }
             return result
         }
@@ -201,10 +229,10 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
     protected override visitNumericLiteral(node: ts.NumericLiteral) : VisitorResult<Value> {
         let value = Number(node.text)
         if(node.text.includes(".")){
-            return Value.makeFloat32Scalar(this.irBuilder.get_float32(value))
+            return Value.makeConstantScalar(value,this.irBuilder.get_float32(value),PrimitiveType.f32)
         }
         else{
-            return Value.makeInt32Scalar(this.irBuilder.get_int32(value))
+            return Value.makeConstantScalar(value,this.irBuilder.get_int32(value),PrimitiveType.i32)
         }
     }
 
@@ -226,30 +254,31 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
                         return right
                     }
                     default:{
-                        error("Invalid assignment")
+                        error("Invalid assignment ",leftStmtKind)
                     }
                 }
             }
             case (ts.SyntaxKind.PlusToken): {
                 let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_add(l,r))
+                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_add(l,r), (l,r)=>l+r)
             }
             case (ts.SyntaxKind.MinusToken): {
                 let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_sub(l,r))
+                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_sub(l,r), (l,r)=>l-r)
             }
             case (ts.SyntaxKind.AsteriskToken): {
                 let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_mul(l,r))
+                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_mul(l,r), (l,r)=>l*r)
             }
             case (ts.SyntaxKind.SlashToken): {
                 let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_div(l,r))
+                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_div(l,r), (l,r)=>l/r)
             }
             case (ts.SyntaxKind.CommaToken): {
                 let leftValue = this.evaluate(left)
                 assert(leftValue.type.primitiveType === rightValue.type.primitiveType,"primitive type mismatch")
                 let resultStmts = leftValue.stmts.concat(rightValue.stmts)
+                let resultConstexprs = leftValue.compileTimeConstants.concat(rightValue.compileTimeConstants)
                 let type = new Type(leftValue.type.primitiveType,false,leftValue.type.numRows,leftValue.type.numCols)
                 if(leftValue.type.isScalar && rightValue.type.isScalar){
                     type.numRows = 2
@@ -277,7 +306,7 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
                 //     assert(leftValue.type.numCols === rightValue.type.numRows,"numRows mismatch")
                 //     type.numRows += 1
                 // }
-                return new Value(type,resultStmts)
+                return new Value(type,resultStmts,resultConstexprs)
             }
             default:
                 error("Unrecognized binary operator")
@@ -314,8 +343,32 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
                 }
             }
         }
-        error("malformed element access")
-        
+        let baseValue = this.extractVisitorResult(this.dispatchVisit(base))
+        let argumentValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(argument)))
+        assert(!argumentValue.type.isMatrix(), "index cannot be a matrix")
+        assert(!baseValue.type.isScalar, "cannot index a scalar")
+        assert(argumentValue.isCompileTimeConstant())
+
+        let type = new Type( baseValue.type.primitiveType)
+        let result = new Value(type)
+        let indices = argumentValue.compileTimeConstants
+        if(baseValue.type.isVector()){
+            assert(indices.length === 1, "vector can only have 1 index")
+            result.stmts.push(baseValue.stmts[indices[0]])
+            if(baseValue.isCompileTimeConstant()){
+                result.compileTimeConstants.push(baseValue.stmts[indices[0]])
+            }
+        }
+        else if(baseValue.type.isMatrix()){
+            assert(indices.length == 2, "matrix can only have at most 2 indices")
+            let index = indices[0]*baseValue.type.numCols+indices[1]
+            result.stmts.push(baseValue.stmts[index])
+            if(baseValue.isCompileTimeConstant()){
+                result.compileTimeConstants.push(baseValue.stmts[index])
+            } 
+        }
+
+        return result
     }
 
     protected override visitIdentifier(node: ts.Identifier): VisitorResult<Value> {
@@ -378,7 +431,7 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
 
         let loopGuard = this.irBuilder.get_range_loop_guard(loop);
         let indexStmt = this.irBuilder.get_loop_index(loop,0);
-        let indexValue = Value.makeInt32Scalar(indexStmt)
+        let indexValue = new Value(new Type(PrimitiveType.i32),[indexStmt])
         
         this.symbolTable.set(loopIndexSymbol, indexValue)
 
