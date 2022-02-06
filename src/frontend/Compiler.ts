@@ -23,6 +23,15 @@ export class CompilerContext {
         return ts.createProgram([tempFileName], options, this.host);
     }
 }      
+
+enum DatatypeTransform {
+    PromoteToMatch, //binary only
+    Unchanged, // unary only
+    AlwaysF32,
+    AlwaysI32,
+    DontCare
+}
+
 class Value {
     public constructor(
         public type:Type,
@@ -39,7 +48,7 @@ class Value {
     static makeConstantScalar(val:number, stmt:NativeTaichiAny, primitiveType:PrimitiveType) : Value{
         return new Value(new Type(primitiveType),[stmt],[val])
     } 
-    static apply1ElementWise(val:Value, 
+    static apply1ElementWise(val:Value, datatypeTransform:DatatypeTransform,
                              f: (stmt :NativeTaichiAny) => NativeTaichiAny, 
                              fConst: ((val:number) => number)|null = null):Value{
         let result = new Value(val.type, [])
@@ -51,28 +60,40 @@ class Value {
                 result.compileTimeConstants.push(fConst(x))
             }
         }
+        switch(datatypeTransform){
+            case DatatypeTransform.AlwaysF32: {
+                result.type.primitiveType = PrimitiveType.f32
+                break;
+            }
+            case DatatypeTransform.AlwaysI32: {
+                result.type.primitiveType = PrimitiveType.i32
+                break;
+            }
+        }
         return result
     }
     static apply2<T>(left:Value, right:Value,allowBroadcastLeftToRight:boolean, allowBroadcastRightToLeft:boolean, 
+                     datatypeTransform:DatatypeTransform,
                      f: (left :NativeTaichiAny, right :NativeTaichiAny) => T,
                      fConst: ((left:number, right:number) => number)|null = null
                      ):Value{
         let broadcastLeftToRight = false
         let broadcastRightToLeft = false
         if(left.type.isScalar && !right.type.isScalar){
-            assert(allowBroadcastRightToLeft, "broadcast right to left not allowed")
-            broadcastRightToLeft = true     
+            assert(allowBroadcastLeftToRight, "broadcast left to right not allowed")
+            broadcastLeftToRight = true     
         }
         if(!left.type.isScalar && right.type.isScalar){
-            assert(allowBroadcastLeftToRight, "broadcast left to right not allowed") 
-            broadcastLeftToRight = true      
+            assert(allowBroadcastRightToLeft, "broadcast right to left not allowed") 
+            broadcastRightToLeft = true      
         }
         if(!left.type.isScalar && !right.type.isScalar){
             assert(left.type.numRows === right.type.numRows && left.type.numCols === right.type.numCols, 
                 "matrix shape mismatch ",left.type, right.type) 
         }
-        if (broadcastLeftToRight){
-            let result = new Value(left.type)
+        let result:Value
+        if (broadcastRightToLeft){
+            result = new Value(left.type)
             for(let stmt of left.stmts){
                 let resultStmt = f(stmt,right.stmts[0])
                 if(resultStmt !== undefined){
@@ -85,10 +106,9 @@ class Value {
                     result.compileTimeConstants.push(resultVal)
                 }
             }
-            return result
         }
-        else if (broadcastRightToLeft){
-            let result = new Value(right.type)
+        else if (broadcastLeftToRight){
+            result = new Value(right.type)
             for(let stmt of right.stmts){
                 let resultStmt = f(left.stmts[0],stmt)
                 if(resultStmt !== undefined){
@@ -101,10 +121,9 @@ class Value {
                     result.compileTimeConstants.push(resultVal)
                 }
             }
-            return result
         }
         else{
-            let result = new Value(right.type)
+            result = new Value(right.type)
             for(let i = 0; i< left.stmts.length; ++ i ){
                 let resultStmt = f(left.stmts[i],right.stmts[i])
                 result.stmts.push(resultStmt)
@@ -115,8 +134,27 @@ class Value {
                     result.compileTimeConstants.push(resultVal)
                 }
             }
-            return result
         }
+        switch(datatypeTransform){
+            case DatatypeTransform.PromoteToMatch: {
+                if(left.type.primitiveType === PrimitiveType.f32 || right.type.primitiveType === PrimitiveType.f32){
+                    result.type.primitiveType = PrimitiveType.f32
+                }
+                else{
+                    result.type.primitiveType = PrimitiveType.i32
+                }
+                break
+            }
+            case DatatypeTransform.AlwaysF32: {
+                result.type.primitiveType = PrimitiveType.f32
+                break;
+            }
+            case DatatypeTransform.AlwaysI32: {
+                result.type.primitiveType = PrimitiveType.i32
+                break;
+            }
+        }
+        return result
     }
 }
 
@@ -124,6 +162,7 @@ class Value {
 enum LoopKind {
     For, While
 }
+
 
 export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVisitor<Stmt>, but we don't have the types yet
     constructor(private scope: GlobalScope){
@@ -212,10 +251,10 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
         let kind = getStmtKind(val.stmts[0])
         switch(kind){
             case StmtKind.GlobalPtrStmt: {
-                return Value.apply1ElementWise(val, (ptr) => this.irBuilder.create_global_ptr_global_load(ptr))
+                return Value.apply1ElementWise(val, DatatypeTransform.Unchanged, (ptr) => this.irBuilder.create_global_ptr_global_load(ptr))
             }
             case StmtKind.AllocaStmt: {
-                return Value.apply1ElementWise(val, (ptr) => this.irBuilder.create_local_load(ptr))
+                return Value.apply1ElementWise(val, DatatypeTransform.Unchanged, (ptr) => this.irBuilder.create_local_load(ptr))
             }
             default: {
                 return val
@@ -224,7 +263,7 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
     }
 
     private comma(leftValue:Value, rightValue:Value):Value{
-        assert(leftValue.type.primitiveType === rightValue.type.primitiveType,"primitive type mismatch")
+        //assert(leftValue.type.primitiveType === rightValue.type.primitiveType,"primitive type mismatch")
         let resultStmts = leftValue.stmts.concat(rightValue.stmts)
         let resultConstexprs = leftValue.compileTimeConstants.concat(rightValue.compileTimeConstants)
         let type = new Type(leftValue.type.primitiveType,false,leftValue.type.numRows,leftValue.type.numCols)
@@ -267,13 +306,13 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
                 return val
             }
             case ts.SyntaxKind.MinusToken:{
-                return Value.apply1ElementWise(val,(stmt)=>this.irBuilder.create_neg(stmt),(x)=>-x)
+                return Value.apply1ElementWise(val, DatatypeTransform.Unchanged,(stmt)=>this.irBuilder.create_neg(stmt),(x)=>-x)
             }
             case ts.SyntaxKind.ExclamationToken:{
-                return Value.apply1ElementWise(val,(stmt)=>this.irBuilder.create_logical_not(stmt))
+                return Value.apply1ElementWise(val, DatatypeTransform.Unchanged,(stmt)=>this.irBuilder.create_logical_not(stmt))
             }
             case ts.SyntaxKind.TildeToken:{
-                return Value.apply1ElementWise(val,(stmt)=>this.irBuilder.create_not(stmt))
+                return Value.apply1ElementWise(val, DatatypeTransform.Unchanged, (stmt)=>this.irBuilder.create_not(stmt))
             }
             default:
                 error("unsupported prefix unary operator:"+node.getText())
@@ -290,11 +329,11 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
                 let leftStmtKind = getStmtKind(left.stmts[0])
                 switch(leftStmtKind){
                     case StmtKind.GlobalPtrStmt:{
-                        Value.apply2(left,rightValue,false,true,(l, r) => this.irBuilder.create_global_ptr_global_store(l,r))
+                        Value.apply2(left,rightValue,false,true, DatatypeTransform.DontCare,(l, r) => this.irBuilder.create_global_ptr_global_store(l,r))
                         return right
                     }
                     case StmtKind.AllocaStmt:{
-                        Value.apply2(left,rightValue,false,true,(l, r) => this.irBuilder.create_local_store(l,r))
+                        Value.apply2(left,rightValue,false,true,DatatypeTransform.DontCare,(l, r) => this.irBuilder.create_local_store(l,r))
                         return right
                     }
                     default:{
@@ -304,59 +343,59 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
             }
             case (ts.SyntaxKind.PlusToken): {
                 let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_add(l,r), (l,r)=>l+r)
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_add(l,r), (l,r)=>l+r)
             }
             case (ts.SyntaxKind.MinusToken): {
                 let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_sub(l,r), (l,r)=>l-r)
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_sub(l,r), (l,r)=>l-r)
             }
             case (ts.SyntaxKind.AsteriskToken): {
                 let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_mul(l,r), (l,r)=>l*r)
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_mul(l,r), (l,r)=>l*r)
             }
             case (ts.SyntaxKind.SlashToken): {
                 let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_truediv(l,r), (l,r)=>l/r)
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysF32, (l, r) => this.irBuilder.create_truediv(l,r), (l,r)=>l/r)
             }
             case (ts.SyntaxKind.AsteriskAsteriskToken): {
                 let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_pow(l,r))
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_pow(l,r))
             }
             case (ts.SyntaxKind.LessThanToken): {
                 let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_cmp_lt(l,r))
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_lt(l,r))
             }
             case (ts.SyntaxKind.LessThanEqualsToken): {
                 let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_cmp_le(l,r))
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_le(l,r))
             }
             case (ts.SyntaxKind.GreaterThanToken): {
                 let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_cmp_gt(l,r))
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_gt(l,r))
             }
             case (ts.SyntaxKind.GreaterThanEqualsToken): {
                 let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_cmp_ge(l,r))
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_ge(l,r))
             }
             case (ts.SyntaxKind.EqualsEqualsEqualsToken):
             case (ts.SyntaxKind.EqualsEqualsToken): {
                 let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_cmp_eq(l,r))
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_eq(l,r))
             }
             case (ts.SyntaxKind.ExclamationEqualsEqualsToken):
             case (ts.SyntaxKind.ExclamationEqualsToken): {
                 let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_cmp_ne(l,r))
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_ne(l,r))
             }
             case (ts.SyntaxKind.AmpersandToken):
             case (ts.SyntaxKind.AmpersandAmpersandToken): {
                 let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_and(l,r))
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_and(l,r))
             }
             case (ts.SyntaxKind.BarToken):
             case (ts.SyntaxKind.BarBarToken): {
                 let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_or(l,r))
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_or(l,r))
             }
             case (ts.SyntaxKind.CommaToken): {
                 let leftValue = this.evaluate(left)
@@ -401,46 +440,46 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
             name:string = ""
             numArgs:number = 1
             irBuilderFunc: ((stmt:NativeTaichiAny) => NativeTaichiAny) | ((l:NativeTaichiAny, r:NativeTaichiAny) => NativeTaichiAny) = (x:NativeTaichiAny)=>x
+            transform:DatatypeTransform = DatatypeTransform.Unchanged
         }
         let builtinOps:BuiltinUnaryOp[] = [
-            {name:"sin",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_sin(stmt)},
-            {name:"cos",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_cos(stmt)},
-            {name:"asin",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_asin(stmt)},
-            {name:"acos",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_acos(stmt)},
-            {name:"tan",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_tan(stmt)},
-            {name:"tanh",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_tanh(stmt)},
-            {name:"exp",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_exp(stmt)},
-            {name:"log",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_log(stmt)},
-            {name:"neg",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_neg(stmt)},
-            {name:"not",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_not(stmt)},
-            {name:"logical_not",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.logical_not(stmt)},
-            {name:"abs",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_abs(stmt)},
-            {name:"floor",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_floor(stmt)},
-            {name:"sgn",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_sgn(stmt)},
-            {name:"sqrt",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_sqrt(stmt)},
-            {name:"i32",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_cast(stmt, toNativePrimitiveType(PrimitiveType.i32))},
-            {name:"f32",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_cast(stmt, toNativePrimitiveType(PrimitiveType.f32))},
-            {name:"sin",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_sin(stmt)},
-            {name:"cos",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_cos(stmt)},
-            {name:"asin",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_asin(stmt)},
-            {name:"max",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_max(l,r)},
-            {name:"min",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_min(l,r)},
-            {name:"pow",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_pow(l,r)},
-            {name:"atan2",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_atan2(l,r)},
+            {name:"sin",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_sin(stmt), transform:DatatypeTransform.AlwaysF32},
+            {name:"cos",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_cos(stmt), transform:DatatypeTransform.AlwaysF32},
+            {name:"asin",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_asin(stmt), transform:DatatypeTransform.AlwaysF32},
+            {name:"acos",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_acos(stmt), transform:DatatypeTransform.AlwaysF32},
+            {name:"tan",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_tan(stmt), transform:DatatypeTransform.AlwaysF32},
+            {name:"tanh",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_tanh(stmt), transform:DatatypeTransform.AlwaysF32},
+            {name:"exp",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_exp(stmt), transform:DatatypeTransform.AlwaysF32},
+            {name:"log",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_log(stmt), transform:DatatypeTransform.AlwaysF32},
+            {name:"neg",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_neg(stmt),transform: DatatypeTransform.Unchanged  },
+            {name:"not",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_not(stmt), transform:DatatypeTransform.AlwaysI32},
+            {name:"logical_not",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.logical_not(stmt), transform:DatatypeTransform.AlwaysI32},
+            {name:"abs",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_abs(stmt),transform: DatatypeTransform.Unchanged  },
+            {name:"floor",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_floor(stmt), transform:DatatypeTransform.AlwaysI32},
+            {name:"sgn",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_sgn(stmt), transform:DatatypeTransform.AlwaysI32}, 
+            {name:"sqrt",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_sqrt(stmt), transform:DatatypeTransform.AlwaysF32},
+            {name:"i32",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_cast(stmt, toNativePrimitiveType(PrimitiveType.i32)), transform:DatatypeTransform.AlwaysI32},
+            {name:"f32",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_cast(stmt, toNativePrimitiveType(PrimitiveType.f32)), transform:DatatypeTransform.AlwaysF32},
+            {name:"max",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_max(l,r) ,transform: DatatypeTransform.Unchanged},
+            {name:"min",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_min(l,r),transform: DatatypeTransform.Unchanged},
+            {name:"pow",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_pow(l,r),transform: DatatypeTransform.Unchanged},
+            {name:"atan2",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_atan2(l,r), transform:DatatypeTransform.AlwaysF32},
         ]
         for(let op of builtinOps){
-            if(funcText === op.name || funcText === "ti."+op.name){
+            if(funcText === op.name || funcText === "ti."+op.name || funcText === "Math."+op.name ){
                 checkNumArgs(op.numArgs)
+                let result:Value
                 if(op.numArgs === 1){
-                    return Value.apply1ElementWise(argumentValues[0],op.irBuilderFunc as (stmt:NativeTaichiAny) => NativeTaichiAny)
+                    result = Value.apply1ElementWise(argumentValues[0],op.transform, op.irBuilderFunc as (stmt:NativeTaichiAny) => NativeTaichiAny)
                 }
-                else if(op.numArgs === 2){
-                    return Value.apply2(argumentValues[0],argumentValues[1],true,true,op.irBuilderFunc as (l:NativeTaichiAny, r:NativeTaichiAny) => NativeTaichiAny)
+                else{// if(op.numArgs === 2)
+                    result = Value.apply2(argumentValues[0],argumentValues[1],true,true,op.transform,op.irBuilderFunc as (l:NativeTaichiAny, r:NativeTaichiAny) => NativeTaichiAny)
                 }
+                return result
             }
         }
 
-        error("ti.func not suported yet")
+        error("unresolved function: "+funcText)
     }
 
     protected override visitElementAccessExpression(node: ts.ElementAccessExpression): VisitorResult<Value> {
