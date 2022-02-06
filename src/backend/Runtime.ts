@@ -178,8 +178,8 @@ class Runtime {
         return result1D
     }
 
-    async getRootBufferRenderer(canvas:HTMLCanvasElement):Promise<RootBufferRenderer> {
-        let renderer = new RootBufferRenderer(this.adapter!,this.device!,this.materializedTrees[0].rootBuffer!)
+    async getRootBufferRenderer(canvas:HTMLCanvasElement, treeId:number):Promise<RootBufferRenderer> {
+        let renderer = new RootBufferRenderer(this.adapter!,this.device!,this.materializedTrees[treeId].rootBuffer!)
         await renderer.initForCanvas(canvas)
         return renderer
     }

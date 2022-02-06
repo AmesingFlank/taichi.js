@@ -10,6 +10,7 @@ let main = async () => {
     //await ti.taichiExample4()
     //await ti.taichiExample5()
     await ti.runAllTests()
+    await ti.taichiExample6Fractal(document.getElementById("fractal_canvas"))
 }
 main()
 

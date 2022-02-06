@@ -33,7 +33,6 @@ class Value {
     }
 
     public isCompileTimeConstant():boolean{
-        assert(this.compileTimeConstants.length === this.stmts.length || this.compileTimeConstants.length === 0, "invalid amount of constants")
         return this.compileTimeConstants.length === this.stmts.length
     }
 
@@ -448,7 +447,12 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
             let getValue = (val:any): Value|undefined => {
                 let fail = () => {error("failed to evaluate "+name+" in kernel scope")}
                 if(typeof val === "number"){
-                    return Value.makeConstantScalar(val,this.irBuilder.get_float32(val),PrimitiveType.f32)
+                    if(val % 1 === 0){
+                        return Value.makeConstantScalar(val,this.irBuilder.get_int32(val),PrimitiveType.i32)
+                    }
+                    else{
+                        return Value.makeConstantScalar(val,this.irBuilder.get_float32(val),PrimitiveType.f32)
+                    }
                 }
                 if(Array.isArray(val)){
                     assert(val.length > 0, "cannot use empty array in kernel")

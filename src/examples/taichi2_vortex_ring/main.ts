@@ -82,7 +82,7 @@ let taichiExample2VortexRing = async (canvas:HTMLCanvasElement) => {
         }
     ])
 
-    let renderer = await program.runtime!.getRootBufferRenderer(canvas)
+    let renderer = await program.runtime!.getRootBufferRenderer(canvas,image.snodeTree.treeId)
     program.runtime!.launchKernel(initTracersKernel)
 
     async function frame() {
