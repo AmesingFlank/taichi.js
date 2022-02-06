@@ -6,8 +6,8 @@ async function testCopyFieldToHost1D(): Promise<boolean> {
      
     await ti.init() 
 
-    let f1 = ti.field([7], ti.i32)
-    let f2 = ti.field([5], ti.i32)
+    let f1 = ti.field(ti.i32, [7])
+    let f2 = ti.field(ti.i32, [5])
     ti.addToKernelScope({f1, f2}) 
 
     let kernel = ti.kernel(

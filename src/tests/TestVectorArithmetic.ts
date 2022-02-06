@@ -7,7 +7,7 @@ async function testVectorArithmetic(): Promise<boolean> {
      
     await ti.init() 
 
-    let f = ti.Vector.field(2, [3,3], ti.i32)
+    let f = ti.Vector.field(2, ti.i32, [3,3])
     ti.addToKernelScope({f}) 
 
     let kernel = ti.kernel(

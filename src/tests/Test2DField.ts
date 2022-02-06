@@ -7,7 +7,7 @@ async function test2DField(): Promise<boolean> {
      
     await ti.init() 
 
-    let f = ti.field([3,3], ti.i32)
+    let f = ti.field(ti.i32, [3,3])
     ti.addToKernelScope({f}) 
 
     let kernel = ti.kernel(

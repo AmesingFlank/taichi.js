@@ -7,7 +7,7 @@ async function testFloat(): Promise<boolean> {
      
     await ti.init() 
 
-    let f = ti.Vector.field(2, [3,3], ti.f32)
+    let f = ti.Vector.field(2, ti.f32, [3,3])
     ti.addToKernelScope({f}) 
 
     let kernel = ti.kernel(

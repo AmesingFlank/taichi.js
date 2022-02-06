@@ -2,7 +2,7 @@
 import {nativeTint} from '../../native/tint/GetTint' 
 import {nativeTaichi, NativeTaichiAny} from '../../native/taichi/GetTaichi' 
 import {Program} from '../../program/Program'
-import {field,Vector,Matrix}  from '../../program/FieldsFactory'
+import {field,Vector,Matrix}  from '../../api/Fields'
 import {init} from '../../api/Init'
 import {OneTimeCompiler} from '../../frontend/Compiler'
 import {addToKernelScope} from '../../api/Lang'

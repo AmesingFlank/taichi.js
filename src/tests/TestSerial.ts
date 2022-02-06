@@ -7,7 +7,7 @@ async function testSerial(): Promise<boolean> {
      
     await ti.init() 
 
-    let f = ti.Vector.field(2, [1], ti.f32)
+    let f = ti.Vector.field(2, ti.f32, [1])
     ti.addToKernelScope({f}) 
 
     let kernel = ti.kernel(

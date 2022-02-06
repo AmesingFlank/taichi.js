@@ -11,9 +11,9 @@ async function testKernelScope(): Promise<boolean> {
     let b = [313, 326]
     let c = [[313, 533], [326, 799]]
 
-    let f = ti.field([1], ti.i32)
-    let v = ti.Vector.field(2, [1], ti.i32)
-    let m = ti.Matrix.field(2, 2, [1], ti.i32)
+    let f = ti.field(ti.i32, [1])
+    let v = ti.Vector.field(2, ti.i32, [1])
+    let m = ti.Matrix.field(2, 2, ti.i32, [1])
     ti.addToKernelScope({a,b,c, f,v,m}) 
 
     let kernel = ti.kernel(

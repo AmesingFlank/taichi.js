@@ -7,7 +7,7 @@ async function testMatrix(): Promise<boolean> {
      
     await ti.init() 
 
-    let f = ti.Matrix.field(2,2, [2,2], ti.i32)
+    let f = ti.Matrix.field(2,2, ti.i32, [2,2])
     ti.addToKernelScope({f}) 
 
     let kernel = ti.kernel(

@@ -7,7 +7,7 @@ async function testSimple(): Promise<boolean> {
      
     await ti.init() 
 
-    let f = ti.field([10], ti.i32)
+    let f = ti.field(ti.i32, [10])
     ti.addToKernelScope({f}) 
 
     let kernel = ti.kernel(

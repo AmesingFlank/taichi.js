@@ -12,7 +12,7 @@ import {runAllTests} from "./tests/All"
 
 import { init } from './api/Init'
 import { addToKernelScope, kernel, i32, f32 } from './api/Lang'
-import { field, Vector, Matrix } from "./program/FieldsFactory"
+import { field, Vector, Matrix } from "./api/Fields"
 import {range,ndrange} from "./api/KernelScopeBuiltin"
 
 const ti = {

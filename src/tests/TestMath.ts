@@ -7,7 +7,7 @@ async function testMath(): Promise<boolean> {
      
     await ti.init() 
 
-    let f = ti.field([3], ti.f32)
+    let f = ti.field(ti.f32, [3])
     ti.addToKernelScope({f}) 
 
     let kernel = ti.kernel(

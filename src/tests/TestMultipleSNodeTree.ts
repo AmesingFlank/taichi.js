@@ -6,7 +6,7 @@ async function testMultipleSNodeTree(): Promise<boolean> {
      
     await ti.init() 
 
-    let f1 = ti.field([7], ti.i32)
+    let f1 = ti.field(ti.i32, [7])
     ti.addToKernelScope({f1}) 
     let k1 = ti.kernel(
         function k1() {
@@ -19,7 +19,7 @@ async function testMultipleSNodeTree(): Promise<boolean> {
 
     k1()
 
-    let f2 = ti.field([7], ti.i32)
+    let f2 = ti.field(ti.i32, [7])
     ti.addToKernelScope({f1, f2}) 
 
     let k2 = ti.kernel(

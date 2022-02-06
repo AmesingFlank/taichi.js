@@ -1,6 +1,6 @@
 import {shader as init0} from './init0.wgsl'
 import {Program} from '../../program/Program'
-import {field,Vector,Matrix}  from '../../program/FieldsFactory'
+import {field,Vector,Matrix}  from '../../api/Fields'
 import {init} from '../../api/Init'
 import {PrimitiveType} from "../../frontend/Type"
 import {BufferType, BufferBinding} from "../../backend/Kernel"
@@ -9,7 +9,7 @@ let taichiExample1 = async () => {
   await init()
   let program = Program.getCurrentProgram()
   await program.materializeRuntime()
-  let x = field([10], PrimitiveType.i32)
+  let x = field( PrimitiveType.i32, [10])
   program.materializeCurrentTree()
 
   let bindings = [new BufferBinding(BufferType.Root,0,0)]
