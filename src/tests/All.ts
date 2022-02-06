@@ -17,6 +17,8 @@ import {testMath} from "./TestMath"
 import {testKernelScope} from "./TestKernelScope"
 import {testIf} from "./TestIf"
 import {testWhile} from "./TestWhile"
+import {testBreak} from "./TestBreak"
+import {testContinue} from "./TestContinue"
 
 async function runAllTests() {
     let passed = true
@@ -37,6 +39,8 @@ async function runAllTests() {
     passed &&= await testKernelScope()
     passed &&= await testIf()
     passed &&= await testWhile()
+    passed &&= await testBreak()
+    passed &&= await testContinue()
 
     if(passed){
         console.log("All tests passed")

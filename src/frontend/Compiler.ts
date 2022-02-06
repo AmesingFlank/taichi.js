@@ -120,6 +120,11 @@ class Value {
     }
 }
 
+
+enum LoopKind {
+    For, While
+}
+
 export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVisitor<Stmt>, but we don't have the types yet
     constructor(private scope: GlobalScope){
         super()
@@ -134,6 +139,8 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
 
     private irBuilder : NativeTaichiAny
     public kernelName:string|null = null
+
+    private loopStack: LoopKind[] = []
 
     compileKernel(code: any) : TaskParams[] {
         let codeString = code.toString()
@@ -544,6 +551,16 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
         }
     }
 
+    protected override visitBreakStatement(node: ts.BreakStatement): VisitorResult<Value> {
+        assert(this.loopStack.length > 0 && this.loopStack[this.loopStack.length-1] === LoopKind.While, "break can only be used in a while loop")
+        this.irBuilder.create_break()
+    }
+
+    protected override visitContinueStatement(node: ts.ContinueStatement): VisitorResult<Value> {
+        assert(this.loopStack.length > 0 , "continue must be used inside a loop")
+        this.irBuilder.create_continue()
+    }
+
     protected override visitWhileStatement(node: ts.WhileStatement): VisitorResult<Value> {
         let nativeWhileTrue = this.irBuilder.create_while_true()
         let guard = this.irBuilder.get_while_loop_guard(nativeWhileTrue)
@@ -555,8 +572,10 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
         let trueGuard = this.irBuilder.get_if_guard(nativeIfStmt,true)
         this.irBuilder.create_break()
         trueGuard.delete()
-
+        
+        this.loopStack.push(LoopKind.While)
         this.dispatchVisit(node.statement)
+        this.loopStack.pop()
         guard.delete()
     }
 
@@ -575,7 +594,11 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
         
         this.symbolTable.set(indexSymbols[0], indexValue)
 
+        this.loopStack.push(LoopKind.For)
+
         this.dispatchVisit(body)
+
+        this.loopStack.pop()
 
         loopGuard.delete()
     }
@@ -612,7 +635,11 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
         
         this.symbolTable.set(indexSymbols[0], indexValue)
 
+        this.loopStack.push(LoopKind.For)
+
         this.dispatchVisit(body)
+
+        this.loopStack.pop()
 
         loopGuard.delete()
     }

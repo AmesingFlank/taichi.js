@@ -28,6 +28,10 @@ class ASTVisitor<T> {
                 return this.visitIfStatement(node as ts.IfStatement)
             case ts.SyntaxKind.WhileStatement:
                 return this.visitWhileStatement(node as ts.WhileStatement)
+            case ts.SyntaxKind.BreakStatement:
+                return this.visitBreakStatement(node as ts.BreakStatement)
+            case ts.SyntaxKind.ContinueStatement:
+                return this.visitContinueStatement(node as ts.ContinueStatement)
             case ts.SyntaxKind.Block:
                 return this.visitBlock(node as ts.Block)
             case ts.SyntaxKind.NumericLiteral:
@@ -101,6 +105,14 @@ class ASTVisitor<T> {
     }
 
     protected visitWhileStatement(node: ts.WhileStatement): VisitorResult<T> {
+        return this.visitEachChild(node)
+    }
+
+    protected visitBreakStatement(node: ts.BreakStatement): VisitorResult<T> {
+        return this.visitEachChild(node)
+    }
+
+    protected visitContinueStatement(node: ts.ContinueStatement): VisitorResult<T> {
         return this.visitEachChild(node)
     }
 
