@@ -332,7 +332,7 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
                 return this.comma(leftValue,rightValue)
             }
             default:
-                error("Unrecognized binary operator")
+                error("Unrecognized binary operator "+op.getText())
         }
     }
 
@@ -542,6 +542,22 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
             this.dispatchVisit(node.elseStatement)
             falseGuard.delete()
         }
+    }
+
+    protected override visitWhileStatement(node: ts.WhileStatement): VisitorResult<Value> {
+        let nativeWhileTrue = this.irBuilder.create_while_true()
+        let guard = this.irBuilder.get_while_loop_guard(nativeWhileTrue)
+
+        let condValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(node.expression)))
+        assert(condValue.type.isScalar, "condition of while statement must be scalar")
+        let breakCondition = this.irBuilder.create_logical_not(condValue.stmts[0])
+        let nativeIfStmt = this.irBuilder.create_if(breakCondition)
+        let trueGuard = this.irBuilder.get_if_guard(nativeIfStmt,true)
+        this.irBuilder.create_break()
+        trueGuard.delete()
+
+        this.dispatchVisit(node.statement)
+        guard.delete()
     }
 
     private visitRangeFor(indexSymbols:ts.Symbol[], rangeExpr:ts.NodeArray<ts.Expression>, body:ts.Statement) : VisitorResult<Value>{
