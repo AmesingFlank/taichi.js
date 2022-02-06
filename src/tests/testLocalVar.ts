@@ -26,7 +26,7 @@ async function testLocalVar(): Promise<boolean> {
             //@ts-ignore
             for(let i of range(10)){
                 let j = i - 1 + 1
-                j = f[j] / 3
+                j = i32(f[j] / 3)
                 f[i+1-1] = j
             }
         }

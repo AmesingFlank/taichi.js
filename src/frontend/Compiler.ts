@@ -289,12 +289,7 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
             }
             case (ts.SyntaxKind.SlashToken): {
                 let leftValue = this.evaluate(left)
-                if(leftValue.type.primitiveType === PrimitiveType.i32 && rightValue.type.primitiveType === PrimitiveType.i32){
-                    return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_floordiv(l,r), (l,r)=>l/r)
-                }
-                else{
-                    return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_truediv(l,r), (l,r)=>l/r)
-                }
+                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_truediv(l,r), (l,r)=>l/r)
             }
             case (ts.SyntaxKind.CommaToken): {
                 let leftValue = this.evaluate(left)

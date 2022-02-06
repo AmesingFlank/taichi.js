@@ -10,7 +10,8 @@ async function taichiExample6Fractal(canvas:HTMLCanvasElement): Promise<boolean>
     let n = 320
 
     let pixels = ti.Vector.field(4, ti.f32,[2*n, n])
-    ti.addToKernelScope({pixels, n}) 
+    let t = ti.field(ti.f32,[1])
+    ti.addToKernelScope({pixels, n, t}) 
 
     let kernel = ti.kernel(
         function k() {
@@ -18,7 +19,7 @@ async function taichiExample6Fractal(canvas:HTMLCanvasElement): Promise<boolean>
             for(let I of ndrange(n*2,n)){
                 let i = I[0]
                 let j = I[1]
-                pixels[i,j] = [1,0,0,1] / (2*n)
+                pixels[i,j] = [i,j,0,2*n] / (2*n)
             }
         }
     )
