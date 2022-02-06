@@ -10,7 +10,11 @@ enum StmtKind{
     GlobalPtrStmt = "GlobalPtrStmt",
     GlobalLoadStmt = "GlobalLoadStmt",
     BinaryOpStmt = "BinaryOpStmt",
-    UnaryOpStmt = "UnaryOpStmt"
+    UnaryOpStmt = "UnaryOpStmt",
+    WhileStmt = "WhileStmt",
+    IfStmt = "IfStmt",
+    WhileControlStmt = "WhileControlStmt",
+    ContinueStmt = "ContinueStmt",
 }
 
 function getStmtKind (stmt:any): StmtKind | undefined {

@@ -24,6 +24,10 @@ class ASTVisitor<T> {
                 return this.visitIdentifier(node as ts.Identifier)
             case ts.SyntaxKind.ForOfStatement:
                 return this.visitForOfStatement(node as ts.ForOfStatement)
+            case ts.SyntaxKind.IfStatement:
+                return this.visitIfStatement(node as ts.IfStatement)
+            case ts.SyntaxKind.WhileStatement:
+                return this.visitWhileStatement(node as ts.WhileStatement)
             case ts.SyntaxKind.Block:
                 return this.visitBlock(node as ts.Block)
             case ts.SyntaxKind.NumericLiteral:
@@ -89,6 +93,14 @@ class ASTVisitor<T> {
     }
 
     protected visitForOfStatement(node: ts.ForOfStatement): VisitorResult<T> {
+        return this.visitEachChild(node)
+    }
+
+    protected visitIfStatement(node: ts.IfStatement): VisitorResult<T> {
+        return this.visitEachChild(node)
+    }
+
+    protected visitWhileStatement(node: ts.WhileStatement): VisitorResult<T> {
         return this.visitEachChild(node)
     }
 
