@@ -56,6 +56,11 @@ class Program {
             this.globalScopeObj.addStored(name,obj[name])
         }
     }
+
+    private nextAnonymousKernel = 0
+    getAnonymousKernelName():string {
+        return "anonymousKernel_"+(this.nextAnonymousKernel++).toString()
+    }
 }
   
 export {Program}

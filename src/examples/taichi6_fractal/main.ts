@@ -14,7 +14,7 @@ async function taichiExample6Fractal(canvas:HTMLCanvasElement): Promise<boolean>
     ti.addToKernelScope({pixels, n, t}) 
 
     let kernel = ti.kernel(
-        function k() {
+        () => {
             //@ts-ignore
             for(let I of ndrange(n*2,n)){
                 let i = I[0]

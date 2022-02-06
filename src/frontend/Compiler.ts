@@ -203,12 +203,18 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
         assert(sourceFiles.length === 1, "Expecting exactly 1 source file, got ",sourceFiles.length)
         let sourceFile = sourceFiles[0]
         let statements = sourceFile.statements
-        assert(statements.length === 1, "Expecting exactly 1 statement")
-        assert(statements[0].kind === ts.SyntaxKind.FunctionDeclaration, "Expecting a function declaration")
-
-        let kernelFunction = statements[0] as ts.FunctionDeclaration
-        this.kernelName = kernelFunction.name!.text
-        this.visitEachChild(kernelFunction.body!)
+        assert(statements.length === 1, "Expecting exactly 1 statement (function or arrow function)")
+        if(statements[0].kind === ts.SyntaxKind.FunctionDeclaration){
+            let kernelFunction = statements[0] as ts.FunctionDeclaration
+            this.kernelName = kernelFunction.name!.text
+            this.visitEachChild(kernelFunction.body!)
+        }
+        else if(statements[0].kind === ts.SyntaxKind.ExpressionStatement && 
+                (statements[0] as ts.ExpressionStatement).expression.kind === ts.SyntaxKind.ArrowFunction){
+            let kernelFunction = (statements[0] as ts.ExpressionStatement).expression as ts.ArrowFunction
+            this.kernelName = Program.getCurrentProgram().getAnonymousKernelName()
+            this.visitEachChild(kernelFunction.body)
+        }
 
         let kernel = nativeTaichi.Kernel.create_kernel(Program.getCurrentProgram().nativeProgram,this.irBuilder , this.kernelName, false)
         Program.getCurrentProgram().nativeAotBuilder.add(this.kernelName, kernel);
