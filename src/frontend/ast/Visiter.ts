@@ -40,6 +40,8 @@ class ASTVisitor<T> {
                 return this.visitExpressionStatement(node as ts.ExpressionStatement)
             case ts.SyntaxKind.BinaryExpression:
                 return this.visitBinaryExpression(node as ts.BinaryExpression)
+            case ts.SyntaxKind.PrefixUnaryExpression:
+                return this.visitPrefixUnaryExpression(node as ts.PrefixUnaryExpression)
             case ts.SyntaxKind.CallExpression:
                 return this.visitCallExpression(node as ts.CallExpression)
             case ts.SyntaxKind.ElementAccessExpression:
@@ -125,6 +127,10 @@ class ASTVisitor<T> {
     }
 
     protected visitBinaryExpression(node: ts.BinaryExpression): VisitorResult<T> {
+        return this.visitEachChild(node)
+    }
+
+    protected visitPrefixUnaryExpression(node: ts.PrefixUnaryExpression): VisitorResult<T> {
         return this.visitEachChild(node)
     }
 

@@ -260,6 +260,26 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
         }
     }
 
+    protected override visitPrefixUnaryExpression(node: ts.PrefixUnaryExpression): VisitorResult<Value> {
+        let val = this.evaluate(this.extractVisitorResult(this.dispatchVisit(node.operand)))
+        switch(node.operator){
+            case ts.SyntaxKind.PlusToken:{
+                return val
+            }
+            case ts.SyntaxKind.MinusToken:{
+                return Value.apply1ElementWise(val,(stmt)=>this.irBuilder.create_neg(stmt),(x)=>-x)
+            }
+            case ts.SyntaxKind.ExclamationToken:{
+                return Value.apply1ElementWise(val,(stmt)=>this.irBuilder.create_logical_not(stmt))
+            }
+            case ts.SyntaxKind.TildeToken:{
+                return Value.apply1ElementWise(val,(stmt)=>this.irBuilder.create_not(stmt))
+            }
+            default:
+                error("unsupported prefix unary operator:"+node.getText())
+        }
+    }
+
     protected override visitBinaryExpression(node: ts.BinaryExpression): VisitorResult<Value> {
         let left = this.extractVisitorResult(this.dispatchVisit(node.left))
         let right = this.extractVisitorResult(this.dispatchVisit(node.right))
@@ -297,6 +317,10 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
             case (ts.SyntaxKind.SlashToken): {
                 let leftValue = this.evaluate(left)
                 return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_truediv(l,r), (l,r)=>l/r)
+            }
+            case (ts.SyntaxKind.AsteriskAsteriskToken): {
+                let leftValue = this.evaluate(left)
+                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_pow(l,r))
             }
             case (ts.SyntaxKind.LessThanToken): {
                 let leftValue = this.evaluate(left)
