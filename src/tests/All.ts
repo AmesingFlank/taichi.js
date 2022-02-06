@@ -15,6 +15,7 @@ import {testFloat} from "./TestFloat"
 import {testSerial} from "./TestSerial"
 import {testMath} from "./TestMath"
 import {testKernelScope} from "./TestKernelScope"
+import {testIf} from "./TestIf"
 
 async function runAllTests() {
     let passed = true
@@ -33,6 +34,7 @@ async function runAllTests() {
     passed &&= await testSerial()
     passed &&= await testMath()
     passed &&= await testKernelScope()
+    passed &&= await testIf()
 
     if(passed){
         console.log("All tests passed")

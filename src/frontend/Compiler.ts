@@ -291,6 +291,42 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
                 let leftValue = this.evaluate(left)
                 return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_truediv(l,r), (l,r)=>l/r)
             }
+            case (ts.SyntaxKind.LessThanToken): {
+                let leftValue = this.evaluate(left)
+                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_cmp_lt(l,r))
+            }
+            case (ts.SyntaxKind.LessThanEqualsToken): {
+                let leftValue = this.evaluate(left)
+                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_cmp_le(l,r))
+            }
+            case (ts.SyntaxKind.GreaterThanToken): {
+                let leftValue = this.evaluate(left)
+                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_cmp_gt(l,r))
+            }
+            case (ts.SyntaxKind.GreaterThanEqualsToken): {
+                let leftValue = this.evaluate(left)
+                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_cmp_ge(l,r))
+            }
+            case (ts.SyntaxKind.EqualsEqualsEqualsToken):
+            case (ts.SyntaxKind.EqualsEqualsToken): {
+                let leftValue = this.evaluate(left)
+                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_cmp_eq(l,r))
+            }
+            case (ts.SyntaxKind.ExclamationEqualsEqualsToken):
+            case (ts.SyntaxKind.ExclamationEqualsToken): {
+                let leftValue = this.evaluate(left)
+                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_cmp_ne(l,r))
+            }
+            case (ts.SyntaxKind.AmpersandToken):
+            case (ts.SyntaxKind.AmpersandAmpersandToken): {
+                let leftValue = this.evaluate(left)
+                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_and(l,r))
+            }
+            case (ts.SyntaxKind.BarToken):
+            case (ts.SyntaxKind.BarBarToken): {
+                let leftValue = this.evaluate(left)
+                return Value.apply2(leftValue, rightValue,true,true, (l, r) => this.irBuilder.create_or(l,r))
+            }
             case (ts.SyntaxKind.CommaToken): {
                 let leftValue = this.evaluate(left)
                 return this.comma(leftValue,rightValue)
@@ -492,6 +528,20 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
         let varSymbol = this.getNodeSymbol(identifier)
         this.symbolTable.set(varSymbol, varValue)
         return varValue
+    }
+
+    protected override visitIfStatement(node: ts.IfStatement): VisitorResult<Value> {
+        let condValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(node.expression)))
+        assert(condValue.type.isScalar, "condition of if statement must be scalar")
+        let nativeIfStmt = this.irBuilder.create_if(condValue.stmts[0])
+        let trueGuard = this.irBuilder.get_if_guard(nativeIfStmt,true)
+        this.dispatchVisit(node.thenStatement)
+        trueGuard.delete()
+        if(node.elseStatement){
+            let falseGuard = this.irBuilder.get_if_guard(nativeIfStmt,false)
+            this.dispatchVisit(node.elseStatement)
+            falseGuard.delete()
+        }
     }
 
     private visitRangeFor(indexSymbols:ts.Symbol[], rangeExpr:ts.NodeArray<ts.Expression>, body:ts.Statement) : VisitorResult<Value>{
