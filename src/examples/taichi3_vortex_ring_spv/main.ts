@@ -12,7 +12,7 @@ import {Program} from '../../program/Program'
 import {field,Vector,Matrix}  from '../../api/Fields'
 import {init} from '../../api/Init'
 import {PrimitiveType} from "../../frontend/Type"
-import {BufferType, BufferBinding} from "../../backend/Kernel"
+import {BufferType, BufferBinding, KernelParams} from "../../backend/Kernel"
 
 let taichiExample3VortexRingSpv = async (canvas:HTMLCanvasElement) => {
     await init()
@@ -33,7 +33,7 @@ let taichiExample3VortexRingSpv = async (canvas:HTMLCanvasElement) => {
     program.materializeCurrentTree()
 
     let bindings = [new BufferBinding(BufferType.Root,0,0)]
-    let initTracersKernel = program.runtime!.createKernel([
+    let initTracersKernel = program.runtime!.createKernel(new KernelParams([
         {
             code: spvToWgsl(init_tracers_0),
             workgroupSize: 128,
@@ -46,16 +46,16 @@ let taichiExample3VortexRingSpv = async (canvas:HTMLCanvasElement) => {
             rangeHint:n_tracer.toString(),
             bindings
         }
-    ])
-    let advectKernel = program.runtime!.createKernel([
+    ]))
+    let advectKernel = program.runtime!.createKernel(new KernelParams([
         {
             code: spvToWgsl(advect_0),
             workgroupSize: 128,
             rangeHint:n_tracer.toString(),
             bindings
         }
-    ])
-    let integrateVortexKernel = program.runtime!.createKernel([
+    ]))
+    let integrateVortexKernel = program.runtime!.createKernel(new KernelParams([
         {
             code: spvToWgsl(integrate_vortex_0),
             workgroupSize: 128,
@@ -68,8 +68,8 @@ let taichiExample3VortexRingSpv = async (canvas:HTMLCanvasElement) => {
             rangeHint:n_vortex.toString(),
             bindings
         }
-    ])
-    let paintKernel = program.runtime!.createKernel([
+    ]))
+    let paintKernel = program.runtime!.createKernel(new KernelParams([
         {
             code: spvToWgsl(paint_0),
             workgroupSize: 128,
@@ -82,7 +82,7 @@ let taichiExample3VortexRingSpv = async (canvas:HTMLCanvasElement) => {
             rangeHint:(resolution[0] * resolution[1]).toString(),
             bindings
         }
-    ])
+    ]))
 
     let renderer = await program.runtime!.getRootBufferRenderer(canvas,image.snodeTree.treeId)
     program.runtime!.launchKernel(initTracersKernel)

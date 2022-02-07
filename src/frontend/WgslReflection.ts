@@ -39,6 +39,13 @@ function getWgslShaderBindings(wgsl:string):BufferBinding[] {
             addBinding(new BufferBinding(BufferType.GlobalTmps,null,bindingPoint))
             continue
         }
+
+        let contextPrefix = "context_buffer_struct_array"
+        let contexBegin = stmt.indexOf(contextPrefix)
+        if(contexBegin !== -1){
+            addBinding(new BufferBinding(BufferType.Context,null,bindingPoint))
+            continue
+        }
     }
     return bindings
 }

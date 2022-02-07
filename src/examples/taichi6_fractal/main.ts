@@ -39,7 +39,7 @@ async function taichiExample6Fractal(canvas:HTMLCanvasElement): Promise<boolean>
     async function frame() {
         kernel()
         //console.log("done")
-        await program.runtime!.sync()
+        await ti.sync()
         await renderer.render(2*n, n)
         requestAnimationFrame(frame)
     }

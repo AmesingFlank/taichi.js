@@ -1,4 +1,4 @@
-import { CompiledTask, CompiledKernel, TaskParams, BufferType } from './Kernel'
+import { CompiledTask, CompiledKernel, TaskParams, BufferType, KernelParams } from './Kernel'
 import { SNodeTree } from '../program/SNodeTree'
 import { divUp } from '../utils/Utils'
 import {RootBufferRenderer} from './RenderRootBuffer'
@@ -18,6 +18,7 @@ class Runtime {
     private materializedTrees: MaterializedTree[] = []
 
     private globalTmpsBuffer: GPUBuffer | null = null
+    private contextBuffers: GPUBuffer[] = []
 
     constructor(){}
 
@@ -49,22 +50,37 @@ class Runtime {
         return task
     }
 
-    createKernel(tasksParams:TaskParams[]): CompiledKernel {
+    createKernel(params:KernelParams): CompiledKernel {
         let kernel = new CompiledKernel(this.device!)
-        for(let params of tasksParams){
-            let task = this.createTask(params)
+        for(let taskParams of params.taskParams){
+            let task = this.createTask(taskParams)
             kernel.tasks.push(task)
         }
+        kernel.numArgs = params.numArgs
         return kernel
     }
 
     async sync(){
         await this.device!.queue.onSubmittedWorkDone()
+        for(let buffer of this.contextBuffers){
+            buffer.destroy()
+        }
+        this.contextBuffers = []
     }
 
     launchKernel(kernel: CompiledKernel, ...args:any[]){
+        assert(args.length === kernel.numArgs, 
+            "Kernel requires "+kernel.numArgs.toString()+" arguments, but "+args.length.toString()+" is provided")
+        
+        if(kernel.numArgs > 0){
+            let ctxBuffer = this.addContextBuffer(kernel.numArgs)
+            new Float32Array(ctxBuffer.getMappedRange()).set(new Float32Array(args))
+            ctxBuffer.unmap()
+        }
+
         let commandEncoder = this.device!.createCommandEncoder();
         const passEncoder = commandEncoder.beginComputePass();
+
         for(let task of kernel.tasks){
             if(task.bindGroup === null){
                 task.bindGroup = this.device!.createBindGroup({
@@ -97,6 +113,17 @@ class Runtime {
         this.device!.queue.submit([commandEncoder.finish()]);
     }
 
+    addContextBuffer(numArgs: number):GPUBuffer{
+        let size = numArgs * 4
+        let buffer = this.device!.createBuffer({
+            size: size,
+            usage: GPUBufferUsage.STORAGE ,
+            mappedAtCreation : true
+        })
+        this.contextBuffers.push(buffer)
+        return buffer
+    }
+
     getBindings(task:TaskParams): GPUBindGroupEntry[] {
         let entries: GPUBindGroupEntry[] = []
         for(let binding of task.bindings){
@@ -108,6 +135,11 @@ class Runtime {
                 }
                 case BufferType.GlobalTmps:{
                     buffer = this.globalTmpsBuffer!
+                    break;
+                }
+                case BufferType.Context:{
+                    buffer = this.contextBuffers[this.contextBuffers.length-1]
+                    break;
                 }
             }
             assert(buffer !== null, "couldn't find buffer to bind")
@@ -136,25 +168,6 @@ class Runtime {
         this.materializedTrees.push(materialized)
     }
 
-    async copyRootBufferToHost(treeId: number): Promise<Int32Array> {
-        let size = this.materializedTrees[treeId].tree!.size
-        const rootBufferCopy = this.device!.createBuffer({
-            size: size,
-            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-        });
-        let commandEncoder = this.device!.createCommandEncoder();
-        commandEncoder.copyBufferToBuffer(this.materializedTrees[treeId].rootBuffer!,0,rootBufferCopy,0,size)
-        this.device!.queue.submit([commandEncoder.finish()]);
-        await this.device!.queue.onSubmittedWorkDone()
-    
-        await rootBufferCopy.mapAsync(GPUMapMode.READ)
-        let result = new Int32Array(rootBufferCopy.getMappedRange())
-        let copied = result.slice()
-        rootBufferCopy.unmap()
-        rootBufferCopy.destroy()
-        return copied
-    }
-
     async copyFieldToHost(field: Field) : Promise<number[]> {
         let size = field.size
         const rootBufferCopy = this.device!.createBuffer({
@@ -164,7 +177,7 @@ class Runtime {
         let commandEncoder = this.device!.createCommandEncoder();
         commandEncoder.copyBufferToBuffer(this.materializedTrees[field.snodeTree.treeId].rootBuffer!, field.offset,rootBufferCopy,0,size)
         this.device!.queue.submit([commandEncoder.finish()]);
-        await this.device!.queue.onSubmittedWorkDone()
+        this.sync()
     
         await rootBufferCopy.mapAsync(GPUMapMode.READ)
         let result1D: number[] = []

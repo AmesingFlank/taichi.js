@@ -15,6 +15,9 @@ enum StmtKind{
     IfStmt = "IfStmt",
     WhileControlStmt = "WhileControlStmt",
     ContinueStmt = "ContinueStmt",
+    ArgLoadStmt = "ArgLoadStmt",
+    RandStmt = "RandStmt",
+    ReturnStmt = "ReturnStmt",
 }
 
 function getStmtKind (stmt:any): StmtKind | undefined {

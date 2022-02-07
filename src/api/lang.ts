@@ -14,12 +14,16 @@ function kernel(f:any) : ((...args: any[]) => void) {
     let kernelCode = compiler.compileKernel(f)
     let kernel = program.runtime!.createKernel(kernelCode)
     let result = (...args: any[]) => {
-        program.runtime!.launchKernel(kernel)
+        program.runtime!.launchKernel(kernel,...args)
     }
     return result
+}
+
+async function sync() {
+    await Program.getCurrentProgram().runtime!.sync()
 }
 
 const i32 = PrimitiveType.i32
 const f32 = PrimitiveType.f32
 
-export {addToKernelScope, kernel, i32, f32}
+export {addToKernelScope, kernel, i32, f32, sync}

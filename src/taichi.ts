@@ -12,7 +12,7 @@ import {typecheckerExample0} from './examples/compiler_api/typechecker0'
 import {runAllTests} from "./tests/All"
 
 import { init } from './api/Init'
-import { addToKernelScope, kernel, i32, f32 } from './api/Lang'
+import { addToKernelScope, kernel, i32, f32, sync } from './api/Lang'
 import { field, Vector, Matrix } from "./api/Fields"
 import {range,ndrange} from "./api/KernelScopeBuiltin"
 
@@ -35,7 +35,8 @@ const ti = {
     addToKernelScope,
     field,Vector,Matrix,
     i32,f32,
-    range,ndrange
+    range,ndrange,
+    sync
 }
 
 export {ti}

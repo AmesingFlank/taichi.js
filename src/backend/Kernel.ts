@@ -1,6 +1,6 @@
 
 enum BufferType {
-    Root, GlobalTmps
+    Root, GlobalTmps, Context
 }
 
 class BufferBinding{
@@ -20,6 +20,15 @@ class TaskParams {
     rangeHint: string = ""
     workgroupSize: number = 0
     bindings: BufferBinding[] = []
+}
+
+class KernelParams {
+    constructor(
+        public taskParams:TaskParams[],
+        public numArgs:number = 0
+    ){
+
+    }
 }
 
 class CompiledTask {
@@ -47,10 +56,9 @@ class CompiledTask {
 
 class CompiledKernel {
     tasks: CompiledTask[] = []
-    device: GPUDevice
-    constructor(device: GPUDevice){
-        this.device = device
+    numArgs:number = 0
+    constructor(public device: GPUDevice){
     }
 }
 
-export {CompiledTask, CompiledKernel, TaskParams, BufferType, BufferBinding}
+export {CompiledTask, CompiledKernel, TaskParams, BufferType, BufferBinding, KernelParams}

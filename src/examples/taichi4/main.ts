@@ -4,7 +4,8 @@ import {Program} from '../../program/Program'
 import {field,Vector,Matrix}  from '../../api/Fields'
 import {init} from '../../api/Init'
 import {PrimitiveType} from "../../frontend/Type"
-import {BufferType, BufferBinding} from "../../backend/Kernel"
+import {BufferType, BufferBinding, KernelParams} from "../../backend/Kernel"
+
 
 let taichiExample4 = async () => {
     await init()
@@ -70,18 +71,18 @@ let taichiExample4 = async () => {
     let code = nativeTint.tintSpvToWgsl(spv)
     console.log(code)
 
-    let initKernel = program.runtime!.createKernel([
+    let initKernel = program.runtime!.createKernel(new KernelParams([
         {
             code:code,
             workgroupSize: 128,
             rangeHint: "10",
             bindings: [new BufferBinding(BufferType.Root,0,0)]
         },
-    ])
+    ]))
     
     program.runtime!.launchKernel(initKernel)
     
-    let rootBufferCopy = await program.runtime!.copyRootBufferToHost(0)
+    let rootBufferCopy = await program.runtime!.copyFieldToHost(f)
     console.log("Example 4 results:")
     console.log(rootBufferCopy)
 }
