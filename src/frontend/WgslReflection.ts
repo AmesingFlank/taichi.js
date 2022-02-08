@@ -28,8 +28,10 @@ function getWgslShaderBindings(wgsl:string):BufferBinding[] {
         let rootBufferPrefix = "root_buffer_"
         let rootBufferBegin = stmt.indexOf(rootBufferPrefix)
         if(rootBufferBegin !== -1){
-            // for root buffers, root id === buffer id
-            addBinding(new BufferBinding(BufferType.Root,bindingPoint,bindingPoint))
+            let rootIndexBegin = rootBufferBegin + rootBufferPrefix.length
+            let rootIndexEnd = stmt.indexOf("_",rootIndexBegin)
+            let rootIndex = Number(stmt.slice(rootIndexBegin,rootIndexEnd))
+            addBinding(new BufferBinding(BufferType.Root,rootIndex,bindingPoint))
             continue
         }
 
@@ -40,9 +42,16 @@ function getWgslShaderBindings(wgsl:string):BufferBinding[] {
             continue
         }
 
-        let contextPrefix = "context_buffer_struct_array"
+        let contextPrefix = "context_buffer_"
         let contexBegin = stmt.indexOf(contextPrefix)
         if(contexBegin !== -1){
+            addBinding(new BufferBinding(BufferType.Context,null,bindingPoint))
+            continue
+        }
+
+        let argsPrefix = "args"
+        let argsBegin = stmt.indexOf(argsPrefix)
+        if(argsBegin !== -1){
             addBinding(new BufferBinding(BufferType.Context,null,bindingPoint))
             continue
         }

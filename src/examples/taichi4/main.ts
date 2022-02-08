@@ -10,8 +10,7 @@ import {BufferType, BufferBinding, KernelParams} from "../../backend/Kernel"
 let taichiExample4 = async () => {
     await init()
 
-    //@ts-ignore
-    window.taichi = taichi
+    //@ts-ignore 
 
     let program = Program.getCurrentProgram()
     await program.materializeRuntime()

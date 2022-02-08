@@ -241,6 +241,7 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
             let wgsl = nativeTint.tintSpvToWgsl(spv)
             //console.log(wgsl)
             let bindings = getWgslShaderBindings(wgsl)
+            //console.log(bindings)
             let rangeHint:string = task.get_range_hint()
             let workgroupSize = task.get_gpu_block_size()
             taskParams.push({

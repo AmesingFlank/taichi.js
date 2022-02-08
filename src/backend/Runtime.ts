@@ -63,7 +63,7 @@ class Runtime {
     async sync(){
         await this.device!.queue.onSubmittedWorkDone()
         for(let buffer of this.contextBuffers){
-            buffer.destroy()
+            //buffer.destroy()
         }
         this.contextBuffers = []
     }
@@ -72,9 +72,21 @@ class Runtime {
         assert(args.length === kernel.numArgs, 
             "Kernel requires "+kernel.numArgs.toString()+" arguments, but "+args.length.toString()+" is provided")
         
-        if(kernel.numArgs > 0){
-            let ctxBuffer = this.addContextBuffer(kernel.numArgs)
-            new Float32Array(ctxBuffer.getMappedRange()).set(new Float32Array(args))
+        let requiresContextBuffer = false
+        for(let task of kernel.tasks){
+            for(let binding of task.params.bindings){
+                if(binding.bufferType === BufferType.Context){
+                    requiresContextBuffer = true
+                }
+            }
+        }
+        if(requiresContextBuffer){
+            let extraArgsSize = 512 // taichi extra args... useless here
+            let actualArgsSize = 4 *  kernel.numArgs
+            let ctxBuffer = this.addContextBuffer(actualArgsSize + extraArgsSize)
+            if(kernel.numArgs > 0){
+                new Float32Array(ctxBuffer.getMappedRange()).set(new Float32Array(args))
+            }
             ctxBuffer.unmap()
         }
 
@@ -82,12 +94,11 @@ class Runtime {
         const passEncoder = commandEncoder.beginComputePass();
 
         for(let task of kernel.tasks){
-            if(task.bindGroup === null){
-                task.bindGroup = this.device!.createBindGroup({
-                    layout: task.pipeline!.getBindGroupLayout(0),
-                    entries: this.getBindings(task.params)
-                })
-            }
+            task.bindGroup = this.device!.createBindGroup({
+                layout: task.pipeline!.getBindGroupLayout(0),
+                entries: this.getBindings(task.params)
+            })
+            
             passEncoder.setPipeline(task.pipeline!);
             passEncoder.setBindGroup(0, task.bindGroup);
             // not sure if these are completely right hmm
@@ -113,8 +124,7 @@ class Runtime {
         this.device!.queue.submit([commandEncoder.finish()]);
     }
 
-    addContextBuffer(numArgs: number):GPUBuffer{
-        let size = numArgs * 4
+    addContextBuffer(size: number):GPUBuffer{
         let buffer = this.device!.createBuffer({
             size: size,
             usage: GPUBufferUsage.STORAGE ,
