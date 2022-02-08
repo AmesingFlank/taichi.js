@@ -184,41 +184,7 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
     private numArgs:number = 0
 
     compileKernel(code: any) : KernelParams {
-        let codeString = code.toString()
-        this.irBuilder  = new nativeTaichi.IRBuilder()
-
-        let tsOptions: ts.CompilerOptions = {
-            allowNonTsExtensions: true,
-            target: ts.ScriptTarget.Latest,
-            allowJs: true,
-            strict: false,
-            noImplicitUseStrict: true,
-            alwaysStrict: false,
-            strictFunctionTypes: false,
-            checkJs: true
-        };
-
-        this.tsProgram = this.context.createProgramFromSource(codeString,tsOptions)
-        this.typeChecker = this.tsProgram.getTypeChecker()
-        
-        let sourceFiles = this.tsProgram!.getSourceFiles()
-        assert(sourceFiles.length === 1, "Expecting exactly 1 source file, got ",sourceFiles.length)
-        let sourceFile = sourceFiles[0]
-        let statements = sourceFile.statements
-        assert(statements.length === 1, "Expecting exactly 1 statement (function or arrow function)")
-        if(statements[0].kind === ts.SyntaxKind.FunctionDeclaration){
-            let kernelFunction = statements[0] as ts.FunctionDeclaration
-            this.kernelName = kernelFunction.name!.text
-            this.registerArguments(kernelFunction.parameters)
-            this.visitEachChild(kernelFunction.body!)
-        }
-        else if(statements[0].kind === ts.SyntaxKind.ExpressionStatement && 
-                (statements[0] as ts.ExpressionStatement).expression.kind === ts.SyntaxKind.ArrowFunction){
-            let kernelFunction = (statements[0] as ts.ExpressionStatement).expression as ts.ArrowFunction
-            this.kernelName = Program.getCurrentProgram().getAnonymousKernelName()
-            this.registerArguments(kernelFunction.parameters)
-            this.visitEachChild(kernelFunction.body)
-        }
+        this.buildIR(code)
 
         let kernel = nativeTaichi.Kernel.create_kernel(Program.getCurrentProgram().nativeProgram,this.irBuilder , this.kernelName, false)
         for(let i = 0;i<this.numArgs;++i){
@@ -252,6 +218,44 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
             })
         }
         return new KernelParams(taskParams,this.numArgs)
+    }
+
+    buildIR(code:any){
+        let codeString = code.toString()
+        this.irBuilder  = new nativeTaichi.IRBuilder()
+
+        let tsOptions: ts.CompilerOptions = {
+            allowNonTsExtensions: true,
+            target: ts.ScriptTarget.Latest,
+            allowJs: true,
+            strict: false,
+            noImplicitUseStrict: true,
+            alwaysStrict: false,
+            strictFunctionTypes: false,
+            checkJs: true
+        };
+
+        this.tsProgram = this.context.createProgramFromSource(codeString,tsOptions)
+        this.typeChecker = this.tsProgram.getTypeChecker()
+        
+        let sourceFiles = this.tsProgram!.getSourceFiles()
+        assert(sourceFiles.length === 1, "Expecting exactly 1 source file, got ",sourceFiles.length)
+        let sourceFile = sourceFiles[0]
+        let statements = sourceFile.statements
+        assert(statements.length === 1, "Expecting exactly 1 statement (function or arrow function)")
+        if(statements[0].kind === ts.SyntaxKind.FunctionDeclaration){
+            let kernelFunction = statements[0] as ts.FunctionDeclaration
+            this.kernelName = kernelFunction.name!.text
+            this.registerArguments(kernelFunction.parameters)
+            this.visitEachChild(kernelFunction.body!)
+        }
+        else if(statements[0].kind === ts.SyntaxKind.ExpressionStatement && 
+                (statements[0] as ts.ExpressionStatement).expression.kind === ts.SyntaxKind.ArrowFunction){
+            let kernelFunction = (statements[0] as ts.ExpressionStatement).expression as ts.ArrowFunction
+            this.kernelName = Program.getCurrentProgram().getAnonymousName()
+            this.registerArguments(kernelFunction.parameters)
+            this.visitEachChild(kernelFunction.body)
+        }
     }
 
     private registerArguments(args: ts.NodeArray<ts.ParameterDeclaration>){

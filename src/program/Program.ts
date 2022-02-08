@@ -57,9 +57,9 @@ class Program {
         }
     }
 
-    private nextAnonymousKernel = 0
-    getAnonymousKernelName():string {
-        return "anonymousKernel_"+(this.nextAnonymousKernel++).toString()
+    private nextAnonymous = 0
+    getAnonymousName():string {
+        return "anonymous_"+(this.nextAnonymous++).toString()
     }
 }
   
