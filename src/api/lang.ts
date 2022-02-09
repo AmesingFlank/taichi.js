@@ -19,6 +19,18 @@ function kernel(f:any) : ((...args: any[]) => void) {
     return result
 }
 
+function func(f:any) : ((...args: any[]) => void) {
+    let program = Program.getCurrentProgram()
+    program.materializeCurrentTree()
+    let compiler = new OneTimeCompiler(program.globalScopeObj)
+    let kernelCode = compiler.compileKernel(f)
+    let kernel = program.runtime!.createKernel(kernelCode)
+    let result = (...args: any[]) => {
+        program.runtime!.launchKernel(kernel,...args)
+    }
+    return result
+}
+
 async function sync() {
     await Program.getCurrentProgram().runtime!.sync()
 }
@@ -26,4 +38,4 @@ async function sync() {
 const i32 = PrimitiveType.i32
 const f32 = PrimitiveType.f32
 
-export {addToKernelScope, kernel, i32, f32, sync}
+export {addToKernelScope, kernel, func, i32, f32, sync}

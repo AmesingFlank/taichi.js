@@ -57,9 +57,14 @@ class Program {
         }
     }
 
-    private nextAnonymous = 0
-    getAnonymousName():string {
-        return "anonymous_"+(this.nextAnonymous++).toString()
+    private nextAnonymousKernel = 0
+    getAnonymousKernelName():string {
+        return "anonymous_"+(this.nextAnonymousKernel++).toString()
+    }
+
+    private nextFunction = 0
+    getNextFunctionID():string {
+        return "anonymous_"+(this.nextAnonymousKernel++).toString()
     }
 }
   

@@ -32,6 +32,8 @@ class ASTVisitor<T> {
                 return this.visitBreakStatement(node as ts.BreakStatement)
             case ts.SyntaxKind.ContinueStatement:
                 return this.visitContinueStatement(node as ts.ContinueStatement)
+            case ts.SyntaxKind.ReturnStatement:
+                return this.visitReturnStatement(node as ts.ReturnStatement)
             case ts.SyntaxKind.Block:
                 return this.visitBlock(node as ts.Block)
             case ts.SyntaxKind.NumericLiteral:
@@ -115,6 +117,10 @@ class ASTVisitor<T> {
     }
 
     protected visitContinueStatement(node: ts.ContinueStatement): VisitorResult<T> {
+        return this.visitEachChild(node)
+    }
+
+    protected visitReturnStatement(node: ts.ReturnStatement): VisitorResult<T> {
         return this.visitEachChild(node)
     }
 

@@ -1,4 +1,4 @@
-
+import { nativeTaichi, NativeTaichiAny } from "../native/taichi/GetTaichi"
 enum BufferType {
     Root, GlobalTmps, Context
 }
@@ -61,4 +61,10 @@ class CompiledKernel {
     }
 }
 
-export {CompiledTask, CompiledKernel, TaskParams, BufferType, BufferBinding, KernelParams}
+class CompiledFunction {
+    constructor(public nativeFunction:NativeTaichiAny){
+
+    }
+}
+
+export {CompiledTask, CompiledKernel, CompiledFunction, TaskParams, BufferType, BufferBinding, KernelParams}

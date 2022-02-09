@@ -1,7 +1,7 @@
 import * as ts from "typescript";
 import { InMemoryHost } from "./InMemoryHost";
 import {ASTVisitor, VisitorResult} from "./ast/Visiter"
-import { CompiledKernel, TaskParams, BufferBinding, BufferType, KernelParams } from "../backend/Kernel";
+import { CompiledKernel, TaskParams, BufferBinding, BufferType, KernelParams, CompiledFunction } from "../backend/Kernel";
 import { nativeTaichi, NativeTaichiAny} from '../native/taichi/GetTaichi' 
 import { nativeTint} from '../native/tint/GetTint' 
 import {error, assert} from '../utils/Logging'
@@ -177,23 +177,28 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
     private symbolTable : Map<ts.Symbol, Value>;
 
     private irBuilder : NativeTaichiAny
-    public kernelName:string|null = null
+    public compilationResultName:string|null = null
 
     private loopStack: LoopKind[] = []
 
     private numArgs:number = 0
+    private hasRet:boolean = false
 
     compileKernel(code: any) : KernelParams {
         this.buildIR(code)
 
-        let kernel = nativeTaichi.Kernel.create_kernel(Program.getCurrentProgram().nativeProgram,this.irBuilder , this.kernelName, false)
+        if(!this.compilationResultName){
+            this.compilationResultName = Program.getCurrentProgram().getAnonymousKernelName()
+        }
+
+        let kernel = nativeTaichi.Kernel.create_kernel(Program.getCurrentProgram().nativeProgram,this.irBuilder , this.compilationResultName, false)
         for(let i = 0;i<this.numArgs;++i){
             kernel.insert_arg(toNativePrimitiveType(PrimitiveType.f32), false)
         }
 
-        Program.getCurrentProgram().nativeAotBuilder.add(this.kernelName, kernel);
+        Program.getCurrentProgram().nativeAotBuilder.add(this.compilationResultName, kernel);
 
-        let tasks = nativeTaichi.get_kernel_params(Program.getCurrentProgram().nativeAotBuilder,this.kernelName);
+        let tasks = nativeTaichi.get_kernel_params(Program.getCurrentProgram().nativeAotBuilder,this.compilationResultName);
         let taskParams:TaskParams[] = []
         let numTasks = tasks.size()
         for(let i = 0; i < numTasks; ++ i){
@@ -218,6 +223,20 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
             })
         }
         return new KernelParams(taskParams,this.numArgs)
+    }
+
+    compileFunction(code: any) : CompiledFunction {
+        this.buildIR(code)
+
+        let funcId = Program.getCurrentProgram().getNextFunctionID()
+
+        if(!this.compilationResultName){
+            this.compilationResultName = "function_"+funcId.toString()
+        }
+
+        let nativeFunction = nativeTaichi.Kernel.create_function(Program.getCurrentProgram().nativeProgram,this.irBuilder , this.compilationResultName, funcId)
+
+        return new CompiledFunction(nativeFunction)
     }
 
     buildIR(code:any){
@@ -245,14 +264,13 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
         assert(statements.length === 1, "Expecting exactly 1 statement (function or arrow function)")
         if(statements[0].kind === ts.SyntaxKind.FunctionDeclaration){
             let kernelFunction = statements[0] as ts.FunctionDeclaration
-            this.kernelName = kernelFunction.name!.text
+            this.compilationResultName = kernelFunction.name!.text
             this.registerArguments(kernelFunction.parameters)
             this.visitEachChild(kernelFunction.body!)
         }
         else if(statements[0].kind === ts.SyntaxKind.ExpressionStatement && 
                 (statements[0] as ts.ExpressionStatement).expression.kind === ts.SyntaxKind.ArrowFunction){
             let kernelFunction = (statements[0] as ts.ExpressionStatement).expression as ts.ArrowFunction
-            this.kernelName = Program.getCurrentProgram().getAnonymousName()
             this.registerArguments(kernelFunction.parameters)
             this.visitEachChild(kernelFunction.body)
         }
