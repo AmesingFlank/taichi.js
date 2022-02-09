@@ -164,84 +164,27 @@ enum LoopKind {
 }
 
 
-export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVisitor<Stmt>, but we don't have the types yet
-    constructor(private scope: GlobalScope){
+class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<Stmt>, but we don't have the types yet
+    constructor(protected irBuilder:NativeTaichiAny, protected scope: GlobalScope){
         super()
         this.context = new CompilerContext()
         this.symbolTable = new Map<ts.Symbol,Value>()
     }
-    private context: CompilerContext
-    private tsProgram?: ts.Program
-    private typeChecker? : ts.TypeChecker
+    protected context: CompilerContext
+    protected tsProgram?: ts.Program
+    protected typeChecker? : ts.TypeChecker
 
-    private symbolTable : Map<ts.Symbol, Value>;
-
-    private irBuilder : NativeTaichiAny
+    protected symbolTable : Map<ts.Symbol, Value>;
+ 
     public compilationResultName:string|null = null
 
-    private loopStack: LoopKind[] = []
+    protected loopStack: LoopKind[] = []
 
-    private numArgs:number = 0
-    private hasRet:boolean = false
-
-    compileKernel(code: any) : KernelParams {
-        this.buildIR(code)
-
-        if(!this.compilationResultName){
-            this.compilationResultName = Program.getCurrentProgram().getAnonymousKernelName()
-        }
-
-        let kernel = nativeTaichi.Kernel.create_kernel(Program.getCurrentProgram().nativeProgram,this.irBuilder , this.compilationResultName, false)
-        for(let i = 0;i<this.numArgs;++i){
-            kernel.insert_arg(toNativePrimitiveType(PrimitiveType.f32), false)
-        }
-
-        Program.getCurrentProgram().nativeAotBuilder.add(this.compilationResultName, kernel);
-
-        let tasks = nativeTaichi.get_kernel_params(Program.getCurrentProgram().nativeAotBuilder,this.compilationResultName);
-        let taskParams:TaskParams[] = []
-        let numTasks = tasks.size()
-        for(let i = 0; i < numTasks; ++ i){
-            let task = tasks.get(i)
-            let spirvUint32Vec = task.get_spirv_ptr()
-            let numWords = spirvUint32Vec.size()
-            let spv:number[] = []
-            for(let j = 0 ; j < numWords; ++ j){
-                spv.push(spirvUint32Vec.get(j))
-            }
-            let wgsl = nativeTint.tintSpvToWgsl(spv)
-            //console.log(wgsl)
-            let bindings = getWgslShaderBindings(wgsl)
-            //console.log(bindings)
-            let rangeHint:string = task.get_range_hint()
-            let workgroupSize = task.get_gpu_block_size()
-            taskParams.push({
-                code:wgsl,
-                rangeHint,
-                workgroupSize,
-                bindings
-            })
-        }
-        return new KernelParams(taskParams,this.numArgs)
-    }
-
-    compileFunction(code: any) : CompiledFunction {
-        this.buildIR(code)
-
-        let funcId = Program.getCurrentProgram().getNextFunctionID()
-
-        if(!this.compilationResultName){
-            this.compilationResultName = "function_"+funcId.toString()
-        }
-
-        let nativeFunction = nativeTaichi.Kernel.create_function(Program.getCurrentProgram().nativeProgram,this.irBuilder , this.compilationResultName, funcId)
-
-        return new CompiledFunction(nativeFunction)
-    }
-
+    protected numArgs:number = 0
+    protected hasRet:boolean = false
+ 
     buildIR(code:any){
         let codeString = code.toString()
-        this.irBuilder  = new nativeTaichi.IRBuilder()
 
         let tsOptions: ts.CompilerOptions = {
             allowNonTsExtensions: true,
@@ -783,5 +726,52 @@ export class OneTimeCompiler extends ASTVisitor<Value>{ // It's actually a ASTVi
         else{
             error("range for not supported yet")
         }
+    }
+}
+
+
+export class OneTimeCompiler extends CompilingVisitor {
+    constructor(scope: GlobalScope){
+        super(new nativeTaichi.IRBuilder(), scope)
+    }
+    compileKernel(code: any) : KernelParams {
+        this.buildIR(code)
+
+        if(!this.compilationResultName){
+            this.compilationResultName = Program.getCurrentProgram().getAnonymousKernelName()
+        }
+
+        let kernel = nativeTaichi.Kernel.create_kernel(Program.getCurrentProgram().nativeProgram,this.irBuilder , this.compilationResultName, false)
+        for(let i = 0;i<this.numArgs;++i){
+            kernel.insert_arg(toNativePrimitiveType(PrimitiveType.f32), false)
+        }
+
+        Program.getCurrentProgram().nativeAotBuilder.add(this.compilationResultName, kernel);
+
+        let tasks = nativeTaichi.get_kernel_params(Program.getCurrentProgram().nativeAotBuilder,this.compilationResultName);
+        let taskParams:TaskParams[] = []
+        let numTasks = tasks.size()
+        for(let i = 0; i < numTasks; ++ i){
+            let task = tasks.get(i)
+            let spirvUint32Vec = task.get_spirv_ptr()
+            let numWords = spirvUint32Vec.size()
+            let spv:number[] = []
+            for(let j = 0 ; j < numWords; ++ j){
+                spv.push(spirvUint32Vec.get(j))
+            }
+            let wgsl = nativeTint.tintSpvToWgsl(spv)
+            //console.log(wgsl)
+            let bindings = getWgslShaderBindings(wgsl)
+            //console.log(bindings)
+            let rangeHint:string = task.get_range_hint()
+            let workgroupSize = task.get_gpu_block_size()
+            taskParams.push({
+                code:wgsl,
+                rangeHint,
+                workgroupSize,
+                bindings
+            })
+        }
+        return new KernelParams(taskParams,this.numArgs)
     }
 }
