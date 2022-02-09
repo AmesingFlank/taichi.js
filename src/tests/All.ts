@@ -22,6 +22,7 @@ import {testContinue} from "./TestContinue"
 import {testUnary} from "./TestUnary"
 import {testArrowFunctionKernel} from "./TestArrowFunctionKernel"
 import {testArgs} from "./TestArgs"
+import {testFunc} from "./TestFunc"
 
 async function runAllTests() {
     let passed = true
@@ -47,6 +48,7 @@ async function runAllTests() {
     passed &&= await testUnary()
     passed &&= await testArrowFunctionKernel()
     passed &&= await testArgs()
+    passed &&= await testFunc()
 
     if(passed){
         console.log("All tests passed")

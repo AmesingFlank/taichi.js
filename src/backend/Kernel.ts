@@ -59,12 +59,6 @@ class CompiledKernel {
     numArgs:number = 0
     constructor(public device: GPUDevice){
     }
-}
+} 
 
-class CompiledFunction {
-    constructor(public nativeFunction:NativeTaichiAny){
-
-    }
-}
-
-export {CompiledTask, CompiledKernel, CompiledFunction, TaskParams, BufferType, BufferBinding, KernelParams}
+export {CompiledTask, CompiledKernel, TaskParams, BufferType, BufferBinding, KernelParams}

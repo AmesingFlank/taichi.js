@@ -1,7 +1,7 @@
 import * as ts from "typescript";
 import { InMemoryHost } from "./InMemoryHost";
 import {ASTVisitor, VisitorResult} from "./ast/Visiter"
-import { CompiledKernel, TaskParams, BufferBinding, BufferType, KernelParams, CompiledFunction } from "../backend/Kernel";
+import { CompiledKernel, TaskParams, BufferBinding, BufferType, KernelParams} from "../backend/Kernel";
 import { nativeTaichi, NativeTaichiAny} from '../native/taichi/GetTaichi' 
 import { nativeTint} from '../native/tint/GetTint' 
 import {error, assert} from '../utils/Logging'
@@ -12,7 +12,7 @@ import {getStmtKind, StmtKind} from "./Stmt"
 import {Type, PrimitiveType, toNativePrimitiveType} from "./Type"
 import {getWgslShaderBindings} from "./WgslReflection"
 export class CompilerContext {
-    private host: InMemoryHost
+    protected host: InMemoryHost
     constructor(){
         this.host = new InMemoryHost()
     }
@@ -219,7 +219,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         }
     }
 
-    private registerArguments(args: ts.NodeArray<ts.ParameterDeclaration>){
+    protected registerArguments(args: ts.NodeArray<ts.ParameterDeclaration>){
         this.numArgs = args.length
         for(let i = 0;i<this.numArgs;++i){
             // only support `number` args for ow
@@ -230,7 +230,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         }
     }
 
-    private getNodeSymbol(node: ts.Node): ts.Symbol{
+    protected getNodeSymbol(node: ts.Node): ts.Symbol{
         let symbol = this.typeChecker!.getSymbolAtLocation(node)
         if(symbol === undefined){
             error("symbol not found for ",node)
@@ -238,7 +238,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         return symbol!
     } 
 
-    private evaluate(val:Value) : Value{
+    protected evaluate(val:Value) : Value{
         assert(val.stmts.length > 0, "val is empty")
         let kind = getStmtKind(val.stmts[0])
         switch(kind){
@@ -254,7 +254,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         }
     }
 
-    private comma(leftValue:Value, rightValue:Value):Value{
+    protected comma(leftValue:Value, rightValue:Value):Value{
         //assert(leftValue.type.primitiveType === rightValue.type.primitiveType,"primitive type mismatch")
         let resultStmts = leftValue.stmts.concat(rightValue.stmts)
         let resultConstexprs = leftValue.compileTimeConstants.concat(rightValue.compileTimeConstants)
@@ -471,6 +471,18 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             }
         }
 
+        if(this.scope.hasStored(funcText)){
+            let funcObj = this.scope.getStored(funcText)
+            if(typeof funcObj == 'function'){ 
+                let compiler = new InliningCompiler(this.scope,this.irBuilder)
+                let result = compiler.runInlining(argumentValues, funcObj)
+                if(result){
+                    return result
+                }
+                return
+            }
+        }
+
         error("unresolved function: "+funcText)
     }
 
@@ -634,7 +646,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         guard.delete()
     }
 
-    private visitRangeFor(indexSymbols:ts.Symbol[], rangeExpr:ts.NodeArray<ts.Expression>, body:ts.Statement) : VisitorResult<Value>{
+    protected visitRangeFor(indexSymbols:ts.Symbol[], rangeExpr:ts.NodeArray<ts.Expression>, body:ts.Statement) : VisitorResult<Value>{
         assert(rangeExpr.length === 1, "Expecting exactly 1 argument in range()")
         assert(indexSymbols.length === 1, "Expecting exactly 1 loop index in range()")
         let rangeLengthExpr = rangeExpr[0]
@@ -658,7 +670,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         loopGuard.delete()
     }
 
-    private visitNdrangeFor(indexSymbols:ts.Symbol[], rangeExpr:ts.NodeArray<ts.Expression>, body:ts.Statement) : VisitorResult<Value>{
+    protected visitNdrangeFor(indexSymbols:ts.Symbol[], rangeExpr:ts.NodeArray<ts.Expression>, body:ts.Statement) : VisitorResult<Value>{
         let numDimensions = rangeExpr.length
         assert(indexSymbols.length === 1, "Expecting exactly 1 (grouped) loop index in ndrange()")
         assert(numDimensions > 0, "ndrange() arg list cannot be empty")
@@ -729,7 +741,39 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
     }
 }
 
+export class InliningCompiler extends CompilingVisitor {
+    constructor(scope: GlobalScope, irBuilder:NativeTaichiAny){
+        super(irBuilder, scope)
+    }
 
+    argValues:Value[] = []
+    returnValue:Value|null = null
+     
+    runInlining(argValues:Value[], code: any): Value|null{
+        this.argValues = argValues
+        this.buildIR(code)
+        return this.returnValue
+    }
+
+    protected override registerArguments(args: ts.NodeArray<ts.ParameterDeclaration>){
+        this.numArgs = args.length
+        assert(this.numArgs === this.argValues.length,"ti.func called with incorrect amount of variables")
+        for(let i = 0;i<this.numArgs;++i){
+            let val = this.argValues[i]
+            let symbol = this.getNodeSymbol(args[i].name)
+            this.symbolTable.set(symbol,val)
+        }
+    }
+
+    protected override visitReturnStatement(node: ts.ReturnStatement): VisitorResult<Value> {
+        if(this.returnValue){
+            error("ti.func can only have at most one return statements")
+        }
+        if(node.expression){
+            this.returnValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(node.expression)))
+        }
+    }
+}
 export class OneTimeCompiler extends CompilingVisitor {
     constructor(scope: GlobalScope){
         super(new nativeTaichi.IRBuilder(), scope)
