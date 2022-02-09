@@ -428,13 +428,16 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         let checkNumArgs = (n:number)=>{
             assert(argumentValues.length === n, funcText+" requires "+n.toString()+" args")
         }
-        class BuiltinUnaryOp {
+        class BuiltinOp {
             name:string = ""
             numArgs:number = 1
-            irBuilderFunc: ((stmt:NativeTaichiAny) => NativeTaichiAny) | ((l:NativeTaichiAny, r:NativeTaichiAny) => NativeTaichiAny) = (x:NativeTaichiAny)=>x
+            irBuilderFunc:  (() => NativeTaichiAny) |
+                            ((stmt:NativeTaichiAny) => NativeTaichiAny) | 
+                            ((l:NativeTaichiAny, r:NativeTaichiAny) => NativeTaichiAny) = (x:NativeTaichiAny)=>x
             transform:DatatypeTransform = DatatypeTransform.Unchanged
         }
-        let builtinOps:BuiltinUnaryOp[] = [
+        let builtinOps:BuiltinOp[] = [
+            {name:"random",numArgs:0, irBuilderFunc:()=>this.irBuilder.create_rand(toNativePrimitiveType(PrimitiveType.f32)), transform:DatatypeTransform.AlwaysF32}, // doesn't work because of race-condition in spirv :))
             {name:"sin",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_sin(stmt), transform:DatatypeTransform.AlwaysF32},
             {name:"cos",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_cos(stmt), transform:DatatypeTransform.AlwaysF32},
             {name:"asin",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_asin(stmt), transform:DatatypeTransform.AlwaysF32},
@@ -461,7 +464,21 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             if(funcText === op.name || funcText === "ti."+op.name || funcText === "Math."+op.name ){
                 checkNumArgs(op.numArgs)
                 let result:Value
-                if(op.numArgs === 1){
+                if(op.numArgs === 0){
+                    let primType = PrimitiveType.f32
+                    if(op.transform === DatatypeTransform.AlwaysF32){
+                    }
+                    else if(op.transform === DatatypeTransform.AlwaysI32){
+                        primType = PrimitiveType.i32
+                    }
+                    else{
+                        error("only allows AlwaysI32 or AlwaysF32 for 0-arg ops")
+                    }
+                    result = new Value(new Type(primType))
+                    let func = op.irBuilderFunc as () => NativeTaichiAny
+                    result.stmts.push(func())
+                }
+                else if(op.numArgs === 1){
                     result = Value.apply1ElementWise(argumentValues[0],op.transform, op.irBuilderFunc as (stmt:NativeTaichiAny) => NativeTaichiAny)
                 }
                 else{// if(op.numArgs === 2)
