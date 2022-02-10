@@ -577,7 +577,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             }
         }
         else if(baseValue.type.isMatrix()){
-            assert(indices.length == 2, "matrix can only have at most 2 indices")
+            assert(indices.length === 2, "matrix must have exactly 2 indices")
             let index = indices[0]*baseValue.type.numCols+indices[1]
             result.stmts.push(baseValue.stmts[index])
             if(baseValue.isCompileTimeConstant()){
