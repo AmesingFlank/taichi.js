@@ -174,14 +174,44 @@ enum LoopKind {
 }
 
 class BuiltinOp {
-    name:string = ""
-    numArgs:number = 1
-    irBuilderFunc:  (() => NativeTaichiAny) |
-                    ((stmt:NativeTaichiAny) => NativeTaichiAny) | 
-                    ((l:NativeTaichiAny, r:NativeTaichiAny) => NativeTaichiAny) = (x:NativeTaichiAny)=>x
-    transform:DatatypeTransform = DatatypeTransform.Unchanged
+    constructor(
+        public name:string,
+        public numArgs:number,
+        public typeTransform: DatatypeTransform,
+        public valueTransform?: (()=>Value) | ((x:Value) => Value) |  ((x:Value, y:Value) => Value),
+        public stmtTransform?: (()=>NativeTaichiAny) | ((x:NativeTaichiAny) => NativeTaichiAny) |  ((x:NativeTaichiAny, y:NativeTaichiAny) => NativeTaichiAny)
+    ){
+        if(stmtTransform){
+            if(numArgs === 0){
+                this.valueTransform = () : Value => {
+                     let primType = PrimitiveType.f32
+                    if(typeTransform === DatatypeTransform.AlwaysF32){
+                    }
+                    else if(typeTransform === DatatypeTransform.AlwaysI32){
+                        primType = PrimitiveType.i32
+                    }
+                    else{
+                        error("only allows AlwaysI32 or AlwaysF32 for 0-arg ops")
+                    }
+                    let result = new Value(new Type(primType))
+                    let func = stmtTransform as () => NativeTaichiAny
+                    result.stmts.push(func())
+                    return result
+                }
+            }
+            else if( numArgs === 1){
+                this.valueTransform = (v:Value):Value => {
+                    return Value.apply1ElementWise(v,typeTransform, stmtTransform as (stmt:NativeTaichiAny) => NativeTaichiAny)
+                } 
+            }
+            else{// if(numArgs === 2)
+                this.valueTransform = (l:Value,r:Value):Value => {
+                    return Value.apply2(l,r,true,true, typeTransform, stmtTransform as (l:NativeTaichiAny, r:NativeTaichiAny) => NativeTaichiAny)
+                } 
+            }
+        }
+    }
 }
-
 
 class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<Stmt>, but we don't have the types yet
     constructor(protected irBuilder:NativeTaichiAny, protected scope: GlobalScope){
@@ -459,28 +489,28 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
 
     protected getBuiltinOps():BuiltinOp[]{
         let builtinOps:BuiltinOp[] = [ // firstly, we have CHI IR built-ins
-            {name:"random",numArgs:0, irBuilderFunc:()=>this.irBuilder.create_rand(toNativePrimitiveType(PrimitiveType.f32)), transform:DatatypeTransform.AlwaysF32}, // doesn't work because of race-condition in spirv :))
-            {name:"sin",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_sin(stmt), transform:DatatypeTransform.AlwaysF32},
-            {name:"cos",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_cos(stmt), transform:DatatypeTransform.AlwaysF32},
-            {name:"asin",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_asin(stmt), transform:DatatypeTransform.AlwaysF32},
-            {name:"acos",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_acos(stmt), transform:DatatypeTransform.AlwaysF32},
-            {name:"tan",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_tan(stmt), transform:DatatypeTransform.AlwaysF32},
-            {name:"tanh",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_tanh(stmt), transform:DatatypeTransform.AlwaysF32},
-            {name:"exp",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_exp(stmt), transform:DatatypeTransform.AlwaysF32},
-            {name:"log",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_log(stmt), transform:DatatypeTransform.AlwaysF32},
-            {name:"neg",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_neg(stmt),transform: DatatypeTransform.Unchanged  },
-            {name:"not",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_not(stmt), transform:DatatypeTransform.AlwaysI32},
-            {name:"logical_not",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.logical_not(stmt), transform:DatatypeTransform.AlwaysI32},
-            {name:"abs",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_abs(stmt),transform: DatatypeTransform.Unchanged  },
-            {name:"floor",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_floor(stmt), transform:DatatypeTransform.AlwaysI32},
-            {name:"sgn",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_sgn(stmt), transform:DatatypeTransform.AlwaysI32}, 
-            {name:"sqrt",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_sqrt(stmt), transform:DatatypeTransform.AlwaysF32},
-            {name:"i32",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_cast(stmt, toNativePrimitiveType(PrimitiveType.i32)), transform:DatatypeTransform.AlwaysI32},
-            {name:"f32",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_cast(stmt, toNativePrimitiveType(PrimitiveType.f32)), transform:DatatypeTransform.AlwaysF32},
-            {name:"max",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_max(l,r) ,transform: DatatypeTransform.PromoteToMatch},
-            {name:"min",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_min(l,r),transform: DatatypeTransform.PromoteToMatch},
-            {name:"pow",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_pow(l,r),transform: DatatypeTransform.PromoteToMatch},
-            {name:"atan2",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_atan2(l,r), transform:DatatypeTransform.AlwaysF32},
+            new BuiltinOp("random",0,DatatypeTransform.AlwaysF32, undefined, ()=>this.irBuilder.create_rand(toNativePrimitiveType(PrimitiveType.f32))), // doesn't work because of race-condition in spirv :))
+            new BuiltinOp("sin",1, DatatypeTransform.AlwaysF32, undefined, (stmt:NativeTaichiAny)=>this.irBuilder.create_sin(stmt)),
+            new BuiltinOp("cos",1, DatatypeTransform.AlwaysF32, undefined, (stmt:NativeTaichiAny)=>this.irBuilder.create_cos(stmt)),
+            new BuiltinOp("asin",1, DatatypeTransform.AlwaysF32, undefined, (stmt:NativeTaichiAny)=>this.irBuilder.create_asin(stmt)),
+            new BuiltinOp("acos",1, DatatypeTransform.AlwaysF32, undefined, (stmt:NativeTaichiAny)=>this.irBuilder.create_acos(stmt)),
+            new BuiltinOp("tan",1, DatatypeTransform.AlwaysF32, undefined, (stmt:NativeTaichiAny)=>this.irBuilder.create_tan(stmt)),
+            new BuiltinOp("tanh",1, DatatypeTransform.AlwaysF32, undefined, (stmt:NativeTaichiAny)=>this.irBuilder.create_tanh(stmt)),
+            new BuiltinOp("exp",1, DatatypeTransform.AlwaysF32, undefined, (stmt:NativeTaichiAny)=>this.irBuilder.create_exp(stmt)),
+            new BuiltinOp("log",1, DatatypeTransform.AlwaysF32, undefined, (stmt:NativeTaichiAny)=>this.irBuilder.create_log(stmt)),
+            new BuiltinOp("neg",1, DatatypeTransform.Unchanged, undefined , (stmt:NativeTaichiAny)=>this.irBuilder.create_neg(stmt) ),
+            new BuiltinOp("not",1, DatatypeTransform.AlwaysI32, undefined, (stmt:NativeTaichiAny)=>this.irBuilder.create_not(stmt)),
+            new BuiltinOp("logical_not",1, DatatypeTransform.AlwaysI32, undefined, (stmt:NativeTaichiAny)=>this.irBuilder.logical_not(stmt)),
+            new BuiltinOp("abs",1, DatatypeTransform.Unchanged, undefined, (stmt:NativeTaichiAny)=>this.irBuilder.create_abs(stmt)),
+            new BuiltinOp("floor",1, DatatypeTransform.AlwaysI32, undefined, (stmt:NativeTaichiAny)=>this.irBuilder.create_floor(stmt)),
+            new BuiltinOp("sgn",1, DatatypeTransform.AlwaysI32, undefined, (stmt:NativeTaichiAny)=>this.irBuilder.create_sgn(stmt)), 
+            new BuiltinOp("sqrt",1, DatatypeTransform.AlwaysF32, undefined, (stmt:NativeTaichiAny)=>this.irBuilder.create_sqrt(stmt)),
+            new BuiltinOp("i32",1, DatatypeTransform.AlwaysI32, undefined, (stmt:NativeTaichiAny)=>this.irBuilder.create_cast(stmt, toNativePrimitiveType(PrimitiveType.i32))),
+            new BuiltinOp("f32",1, DatatypeTransform.AlwaysF32, undefined, (stmt:NativeTaichiAny)=>this.irBuilder.create_cast(stmt, toNativePrimitiveType(PrimitiveType.f32))),
+            new BuiltinOp("max",2, DatatypeTransform.PromoteToMatch, undefined, (l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_max(l,r) ),
+            new BuiltinOp("min",2, DatatypeTransform.PromoteToMatch, undefined, (l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_min(l,r)),
+            new BuiltinOp("pow",2, DatatypeTransform.PromoteToMatch, undefined, (l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_pow(l,r)),
+            new BuiltinOp("atan2",2, DatatypeTransform.AlwaysF32, undefined, (l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_atan2(l,r)),
         ]
         return builtinOps
     }
@@ -499,28 +529,18 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         for(let op of builtinOps){
             if(funcText === op.name || funcText === "ti."+op.name || funcText === "Math."+op.name ){
                 checkNumArgs(op.numArgs)
-                let result:Value
                 if(op.numArgs === 0){
-                    let primType = PrimitiveType.f32
-                    if(op.transform === DatatypeTransform.AlwaysF32){
-                    }
-                    else if(op.transform === DatatypeTransform.AlwaysI32){
-                        primType = PrimitiveType.i32
-                    }
-                    else{
-                        error("only allows AlwaysI32 or AlwaysF32 for 0-arg ops")
-                    }
-                    result = new Value(new Type(primType))
-                    let func = op.irBuilderFunc as () => NativeTaichiAny
-                    result.stmts.push(func())
+                    let func = op.valueTransform! as ()=>Value
+                    return func()
                 }
                 else if(op.numArgs === 1){
-                    result = Value.apply1ElementWise(argumentValues[0],op.transform, op.irBuilderFunc as (stmt:NativeTaichiAny) => NativeTaichiAny)
+                    let func = op.valueTransform! as (v:Value)=>Value
+                    return func(argumentValues[0])
                 }
                 else{// if(op.numArgs === 2)
-                    result = Value.apply2(argumentValues[0],argumentValues[1],true,true,op.transform,op.irBuilderFunc as (l:NativeTaichiAny, r:NativeTaichiAny) => NativeTaichiAny)
-                }
-                return result
+                    let func = op.valueTransform! as (l:Value, r:Value)=>Value
+                    return func(argumentValues[0], argumentValues[1])
+                } 
             }
         }
 
