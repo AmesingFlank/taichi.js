@@ -9,6 +9,7 @@ import {taichiExample5} from './examples/taichi5/main'
 import {taichiExample6Fractal} from './examples/taichi6_fractal/main'
 import {taichiExample7VortexRing} from './examples/taichi7_vortex_ring/main'
 import {typecheckerExample0} from './examples/compiler_api/typechecker0'
+import {Canvas} from "./ui/Canvas"
 
 import {runAllTests} from "./tests/All"
 
@@ -38,7 +39,9 @@ const ti = {
     field,Vector,Matrix,
     i32,f32,
     range,ndrange,
-    sync
+    sync,
+
+    Canvas
 }
 
 export {ti}

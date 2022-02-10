@@ -1,7 +1,7 @@
 //@ts-nocheck
 import {ti} from "../../taichi" 
 import {Program} from '../../program/Program' 
-async function taichiExample7VortexRing(canvas:HTMLCanvasElement): Promise<boolean> {
+async function taichiExample7VortexRing(htmlCanvas:HTMLCanvasElement): Promise<boolean> {
     console.log("taichiExample7VortexRing")
      
     await ti.init() 
@@ -110,16 +110,10 @@ async function taichiExample7VortexRing(canvas:HTMLCanvasElement): Promise<boole
         }
     )
 
-    init_tracers()
+    init_tracers() 
+    paint() 
 
-    //console.log(await tracer.toArray1D())
-
-    paint()
-
-    //console.log(await tracer.toArray1D())
-
-    let program = Program.getCurrentProgram()
-    let renderer = await program.runtime!.getRootBufferRenderer(canvas, image.snodeTree.treeId)
+    let canvas = new ti.Canvas(htmlCanvas)
 
     let tick = async () => {
         for(let i = 0; i< 4; ++i){
@@ -127,8 +121,7 @@ async function taichiExample7VortexRing(canvas:HTMLCanvasElement): Promise<boole
             integrate_vortex()
         }
         paint()
-        await ti.sync()
-        await renderer.render(resolution[0], resolution[1])
+        canvas.setImage(image)
         requestAnimationFrame(frame)
     }
   

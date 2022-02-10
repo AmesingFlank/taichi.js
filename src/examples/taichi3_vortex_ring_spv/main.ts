@@ -13,8 +13,9 @@ import {field,Vector,Matrix}  from '../../api/Fields'
 import {init} from '../../api/Init'
 import {PrimitiveType} from "../../frontend/Type"
 import {BufferType, BufferBinding, KernelParams} from "../../backend/Kernel"
+import { Canvas } from '../../ui/Canvas'
 
-let taichiExample3VortexRingSpv = async (canvas:HTMLCanvasElement) => {
+let taichiExample3VortexRingSpv = async (htmlCanvas:HTMLCanvasElement) => {
     await init()
 
     let spvToWgsl = nativeTint.tintSpvToWgsl
@@ -84,7 +85,7 @@ let taichiExample3VortexRingSpv = async (canvas:HTMLCanvasElement) => {
         }
     ]))
 
-    let renderer = await program.runtime!.getRootBufferRenderer(canvas,image.snodeTree.treeId)
+    let canvas = new Canvas(htmlCanvas)
     program.runtime!.launchKernel(initTracersKernel)
 
     async function frame() {
@@ -94,7 +95,7 @@ let taichiExample3VortexRingSpv = async (canvas:HTMLCanvasElement) => {
         }
         program.runtime!.launchKernel(paintKernel)
         await program.runtime!.sync()
-        await renderer.render(1024,512)
+        canvas.setImage(image)
         requestAnimationFrame(frame)
     }
     requestAnimationFrame(frame)

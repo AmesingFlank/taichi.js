@@ -1,3 +1,6 @@
+import { Field } from "../program/Field"
+import { Program } from "../program/Program"
+
 const vertShader = `
 struct Input {
   [[location(0)]] position: vec2<f32>;
@@ -35,6 +38,7 @@ var<storage, read_write> rootBuffer: RootBufferType;
 struct UniformBufferType {
   width : i32;
   height : i32;
+  offset: i32;
 };
 [[binding(1), group(0)]] 
 var<uniform> ubo : UniformBufferType;
@@ -54,10 +58,10 @@ fn main (input: Input) -> [[location(0)]] vec4<f32> {
     var pixelIndex = cellPos.x * ubo.height + cellPos.y;
     //pixelIndex = cellPos.y * ubo.width + cellPos.x;
     var result = vec4<f32>(
-        (rootBuffer.member[pixelIndex * 4 + 0]),
-        (rootBuffer.member[pixelIndex * 4 + 1]),
-        (rootBuffer.member[pixelIndex * 4 + 2]),
-        (rootBuffer.member[pixelIndex * 4 + 3])
+        (rootBuffer.member[ubo.offset + pixelIndex * 4 + 0]),
+        (rootBuffer.member[ubo.offset + pixelIndex * 4 + 1]),
+        (rootBuffer.member[ubo.offset + pixelIndex * 4 + 2]),
+        (rootBuffer.member[ubo.offset + pixelIndex * 4 + 3])
     );
 
     //result = vec4<f32>(f32(pixelIndex)/500000.0, 0.0,0.0, 1.0);// + 0.01 * result / (result + 0.01);
@@ -67,23 +71,31 @@ fn main (input: Input) -> [[location(0)]] vec4<f32> {
 }
 `
 
-class RootBufferRenderer {
+class SetImage {
     adapter: GPUAdapter
     device: GPUDevice
-    buffer: GPUBuffer
-
+ 
     context: GPUCanvasContext|null = null
 
     vertexBuffer:GPUBuffer|null = null
     uniformBuffer:GPUBuffer|null = null
     pipeline:GPURenderPipeline|null = null
     presentationFormat: GPUTextureFormat|null = null
-    bindGroup:GPUBindGroup|null = null
+ 
+    constructor(public htmlCanvas: HTMLCanvasElement){
+        this.adapter = Program.getCurrentProgram().runtime!.adapter!
+        this.device = Program.getCurrentProgram().runtime!.device! 
+        this.initForCanvas()
+    }
+    initForCanvas(){
+      this.context = this.htmlCanvas.getContext('webgpu') 
+      this.presentationFormat = this.context!.getPreferredFormat(this.adapter)
 
-    constructor(adapter: GPUAdapter, device: GPUDevice, buffer: GPUBuffer){
-        this.adapter = adapter
-        this.device = device
-        this.buffer = buffer
+      this.context!.configure({
+          device: this.device,
+          format: this.presentationFormat,
+      })
+      this.init()
     }
     init(){
         const vertices = new Float32Array([
@@ -144,32 +156,32 @@ class RootBufferRenderer {
             stripIndexFormat: undefined,
           },
         })
+ 
+    }
 
-        this.bindGroup = this.device.createBindGroup({
-            layout: this.pipeline.getBindGroupLayout(0),
+    render(image:Field){
+        let bindGroup = this.device.createBindGroup({
+            layout: this.pipeline!.getBindGroupLayout(0),
             entries: [
                 {
                     binding: 0,
                     resource: {
-                        buffer: this.buffer,
+                        buffer: Program.getCurrentProgram().runtime!.getRootBuffer(image.snodeTree.treeId),
                     },
                 },
                 {
                     binding: 1,
                     resource: {
-                        buffer: this.uniformBuffer
+                        buffer: this.uniformBuffer!
                     },
                 },
             ],
         })
-    }
-
-    async render(width: number, height:number){
         this.device!.queue.writeBuffer(
             this.uniformBuffer!,
             0,
             new Int32Array([
-                width,height
+                image.dimensions[0], image.dimensions[1], image.offset
             ])
         );
         const commandEncoder = this.device!.createCommandEncoder();
@@ -186,24 +198,14 @@ class RootBufferRenderer {
             const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
             passEncoder.setPipeline(this.pipeline!);
             passEncoder.setVertexBuffer(0, this.vertexBuffer!);
-            passEncoder.setBindGroup(0,this.bindGroup!)
+            passEncoder.setBindGroup(0, bindGroup)
             passEncoder.draw(6,1, 0, 0);
             passEncoder.endPass();
         }
         this.device.queue.submit([commandEncoder.finish()]);
-        await this.device.queue.onSubmittedWorkDone()
     }
 
-    async initForCanvas(canvas: HTMLCanvasElement){
-        this.context = canvas.getContext('webgpu') 
-        this.presentationFormat = this.context!.getPreferredFormat(this.adapter)
-
-        this.context!.configure({
-            device: this.device,
-            format: this.presentationFormat,
-        })
-        this.init()
-    }
+    
 }
 
-export {RootBufferRenderer}
+export {SetImage }

@@ -1,8 +1,7 @@
 import { CompiledTask, CompiledKernel, TaskParams, BufferType, KernelParams } from './Kernel'
 import { SNodeTree } from '../program/SNodeTree'
 import { divUp } from '../utils/Utils'
-import {RootBufferRenderer} from './RenderRootBuffer'
-import {assert} from "../utils/Logging"
+ import {assert} from "../utils/Logging"
 import { Field } from '../program/Field'
 import { PrimitiveType } from '../frontend/Type'
 class MaterializedTree {
@@ -125,6 +124,9 @@ class Runtime {
     }
 
     addContextBuffer(size: number):GPUBuffer{
+        if(this.contextBuffers.length > 1024){
+            this.sync().then(()=>{})
+        }
         let buffer = this.device!.createBuffer({
             size: size,
             usage: GPUBufferUsage.STORAGE ,
@@ -199,12 +201,10 @@ class Runtime {
             result1D = Array.from(hostBuffer)
         }
         return result1D
-    }
+    } 
 
-    async getRootBufferRenderer(canvas:HTMLCanvasElement, treeId:number):Promise<RootBufferRenderer> {
-        let renderer = new RootBufferRenderer(this.adapter!,this.device!,this.materializedTrees[treeId].rootBuffer!)
-        await renderer.initForCanvas(canvas)
-        return renderer
+    getRootBuffer(treeId:number):GPUBuffer{
+        return this.materializedTrees[treeId].rootBuffer!
     }
 }
 

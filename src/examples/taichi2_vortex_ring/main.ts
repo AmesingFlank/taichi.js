@@ -11,9 +11,10 @@ import {field,Vector,Matrix}  from '../../api/Fields'
 import {init} from '../../api/Init'
 import {PrimitiveType} from "../../frontend/Type"
 import {BufferType, BufferBinding, KernelParams} from "../../backend/Kernel"
+import { Canvas } from '../../ui/Canvas'
 
 
-let taichiExample2VortexRing = async (canvas:HTMLCanvasElement) => {
+let taichiExample2VortexRing = async (htmlCanvas:HTMLCanvasElement) => {
     await init()
     let program = Program.getCurrentProgram()
     await program.materializeRuntime()
@@ -82,7 +83,7 @@ let taichiExample2VortexRing = async (canvas:HTMLCanvasElement) => {
         }
     ]))
 
-    let renderer = await program.runtime!.getRootBufferRenderer(canvas,image.snodeTree.treeId)
+    let canvas = new Canvas(htmlCanvas)
     program.runtime!.launchKernel(initTracersKernel)
 
     async function frame() {
@@ -92,7 +93,7 @@ let taichiExample2VortexRing = async (canvas:HTMLCanvasElement) => {
         }
         program.runtime!.launchKernel(paintKernel)
         await program.runtime!.sync()
-        await renderer.render(1024,512)
+        canvas.setImage(image)
         requestAnimationFrame(frame)
     }
     requestAnimationFrame(frame)

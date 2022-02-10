@@ -2,7 +2,7 @@
 import {ti} from "../../taichi" 
 import {Program} from '../../program/Program'
 
-async function taichiExample6Fractal(canvas:HTMLCanvasElement): Promise<boolean> {
+async function taichiExample6Fractal(htmlCanvas:HTMLCanvasElement): Promise<boolean> {
     console.log("taichiExample6Fractal")
      
     await ti.init() 
@@ -40,15 +40,13 @@ async function taichiExample6Fractal(canvas:HTMLCanvasElement): Promise<boolean>
         }
     )
 
-    let program = Program.getCurrentProgram()
-    let renderer = await program.runtime!.getRootBufferRenderer(canvas,pixels.snodeTree.treeId)
+    let canvas = new ti.Canvas(htmlCanvas)
  
     let i = 0
     async function frame() {
         kernel(i * 0.03)
         i = i + 1
-        await ti.sync()
-        await renderer.render(2*n, n)
+        canvas.setImage(pixels)
         requestAnimationFrame(frame)
     }
     requestAnimationFrame(frame)
