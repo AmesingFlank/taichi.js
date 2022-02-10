@@ -487,7 +487,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         return this.extractVisitorResult(this.dispatchVisit(node.expression))
     }
 
-    protected getBuiltinOps():BuiltinOp[]{
+    protected getBuiltinOps():Map<string,BuiltinOp>{
         let builtinOps:BuiltinOp[] = [ // firstly, we have CHI IR built-ins
             new BuiltinOp("random",0,DatatypeTransform.AlwaysF32, undefined, ()=>this.irBuilder.create_rand(toNativePrimitiveType(PrimitiveType.f32))), // doesn't work because of race-condition in spirv :))
             new BuiltinOp("sin",1, DatatypeTransform.AlwaysF32, undefined, (stmt:NativeTaichiAny)=>this.irBuilder.create_sin(stmt)),
@@ -512,7 +512,15 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             new BuiltinOp("pow",2, DatatypeTransform.PromoteToMatch, undefined, (l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_pow(l,r)),
             new BuiltinOp("atan2",2, DatatypeTransform.AlwaysF32, undefined, (l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_atan2(l,r)),
         ]
-        return builtinOps
+
+        //let len = new BuiltinOp("len", 2, DatatypeTransform.AlwaysI32, )
+
+        let opsMap = new Map<string,BuiltinOp>()
+        for(let op of builtinOps){
+            opsMap.set(op.name,op)
+        }
+
+        return opsMap
     }
 
     protected override visitCallExpression(node: ts.CallExpression): VisitorResult<Value> {
@@ -525,8 +533,9 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             assert(argumentValues.length === n, funcText+" requires "+n.toString()+" args")
         }
         
-        let builtinOps:BuiltinOp[] = this.getBuiltinOps()
-        for(let op of builtinOps){
+        let builtinOps = this.getBuiltinOps() 
+        for(let kv of builtinOps){
+            let op = kv[1]
             if(funcText === op.name || funcText === "ti."+op.name || funcText === "Math."+op.name ){
                 checkNumArgs(op.numArgs)
                 if(op.numArgs === 0){
