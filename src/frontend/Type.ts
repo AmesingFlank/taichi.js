@@ -2,8 +2,8 @@
 import {nativeTaichi, NativeTaichiAny} from "../native/taichi/GetTaichi"
 
 enum PrimitiveType {
-    i32,
-    f32
+    i32 = "i32",
+    f32 = "f32"
 }
 
 function toNativePrimitiveType(type:PrimitiveType): NativeTaichiAny{
@@ -25,6 +25,10 @@ class Type {
         public numCols: number = 1
     ){
 
+    }
+
+    copy(){
+        return new Type(this.primitiveType, this.isScalar, this.numRows, this.numCols)
     }
     isVector(){
         return !this.isScalar && this.numCols === 1;

@@ -33,7 +33,14 @@ class SNodeTree {
         this.nativeTreeRoot = new nativeTaichi.SNode(0, nativeTaichi.SNodeType.root);
     }
 
-    addNaiveDenseField(elementType:Type, dimensions: number[]): Field{
+    addNaiveDenseField(elementType:Type, dimensionsArg: number[]|number): Field{
+        let dimensions:number[]
+        if(typeof dimensionsArg === "number"){
+            dimensions = [dimensionsArg]
+        }
+        else{
+            dimensions = dimensionsArg
+        }
 
         let axisVec : NativeTaichiAny = new nativeTaichi.VectorOfAxis()
         let sizesVec: NativeTaichiAny = new nativeTaichi.VectorOfInt()

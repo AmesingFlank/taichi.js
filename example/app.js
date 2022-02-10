@@ -11,6 +11,7 @@ let main = async () => {
     //await ti.taichiExample5()
     await ti.runAllTests()
     await ti.taichiExample6Fractal(document.getElementById("fractal_canvas"))
+    await ti.taichiExample7VortexRing(document.getElementById("vortex_ring_7_canvas"))
 }
 main()
 

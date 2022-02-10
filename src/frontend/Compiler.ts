@@ -34,11 +34,21 @@ enum DatatypeTransform {
 
 class Value {
     public constructor(
-        public type:Type,
+        type_:Type,
         public stmts:NativeTaichiAny[] = [],
         public compileTimeConstants: number [] = []
     ){
+        this.type_ = type_.copy()
+    }
 
+    private type_:Type
+
+    public get type():Type {
+        return this.type_;
+    }
+
+    public set type(newType:Type) {
+        this.type_ = newType.copy()
     }
 
     public isCompileTimeConstant():boolean{
@@ -259,6 +269,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         let resultStmts = leftValue.stmts.concat(rightValue.stmts)
         let resultConstexprs = leftValue.compileTimeConstants.concat(rightValue.compileTimeConstants)
         let type = new Type(leftValue.type.primitiveType,false,leftValue.type.numRows,leftValue.type.numCols)
+        //console.log(leftValue,rightValue,type)
         if(leftValue.type.isScalar && rightValue.type.isScalar){
             type.numRows = 2
         }
@@ -280,10 +291,23 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         return new Value(type,resultStmts,resultConstexprs)
     }
 
+    protected castTo(val:Value, primType: PrimitiveType):Value{
+        if(val.type.primitiveType === primType){
+            return val
+        }
+        if(primType === PrimitiveType.f32){
+            return Value.apply1ElementWise(val,DatatypeTransform.AlwaysF32,(x)=>this.irBuilder.create_cast(x, toNativePrimitiveType(PrimitiveType.f32)))
+        }
+        else{ //if(primType === PrimitiveType.i32){
+            return Value.apply1ElementWise(val,DatatypeTransform.AlwaysI32,(x)=>this.irBuilder.create_cast(x, toNativePrimitiveType(PrimitiveType.i32)))
+        }
+        
+    }
+
 
     protected override visitNumericLiteral(node: ts.NumericLiteral) : VisitorResult<Value> {
-        let value = Number(node.text)
-        if(node.text.includes(".")){
+        let value = Number(node.getText())
+        if(node.getText().includes(".")){
             return Value.makeConstantScalar(value,this.irBuilder.get_float32(value),PrimitiveType.f32)
         }
         else{
@@ -312,6 +336,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
     }
 
     protected override visitBinaryExpression(node: ts.BinaryExpression): VisitorResult<Value> {
+        //console.log(node.getText())
         let left = this.extractVisitorResult(this.dispatchVisit(node.left))
         let right = this.extractVisitorResult(this.dispatchVisit(node.right))
         let rightValue = this.evaluate(right)
@@ -352,6 +377,10 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             case (ts.SyntaxKind.AsteriskAsteriskToken): {
                 let leftValue = this.evaluate(left)
                 return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_pow(l,r))
+            }
+            case (ts.SyntaxKind.PercentToken): {
+                let leftValue = this.evaluate(left)
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_mod(l,r))
             }
             case (ts.SyntaxKind.LessThanToken): {
                 let leftValue = this.evaluate(left)
@@ -455,9 +484,9 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             {name:"sqrt",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_sqrt(stmt), transform:DatatypeTransform.AlwaysF32},
             {name:"i32",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_cast(stmt, toNativePrimitiveType(PrimitiveType.i32)), transform:DatatypeTransform.AlwaysI32},
             {name:"f32",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_cast(stmt, toNativePrimitiveType(PrimitiveType.f32)), transform:DatatypeTransform.AlwaysF32},
-            {name:"max",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_max(l,r) ,transform: DatatypeTransform.Unchanged},
-            {name:"min",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_min(l,r),transform: DatatypeTransform.Unchanged},
-            {name:"pow",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_pow(l,r),transform: DatatypeTransform.Unchanged},
+            {name:"max",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_max(l,r) ,transform: DatatypeTransform.PromoteToMatch},
+            {name:"min",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_min(l,r),transform: DatatypeTransform.PromoteToMatch},
+            {name:"pow",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_pow(l,r),transform: DatatypeTransform.PromoteToMatch},
             {name:"atan2",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_atan2(l,r), transform:DatatypeTransform.AlwaysF32},
         ]
         for(let op of builtinOps){
@@ -508,7 +537,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         let argument = node.argumentExpression
         if(base.kind === ts.SyntaxKind.Identifier){
             let baseName = base.getText()
-            if(this.scope.hasStored(baseName)){
+            if(this.scope.hasStored(baseName) && this.typeChecker!.getSymbolAtLocation(base) === undefined){
                 let hostSideValue:any = this.scope.getStored(baseName)
                 if( hostSideValue instanceof Field){
                     let field = hostSideValue as Field
@@ -607,6 +636,9 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         if(!node.initializer){
             error("variable declaration must have an identifier")
         }
+        // if(this.scope.hasStored(node.name.getText())){
+        //     error(node.name.getText() + " is already declared as a kernel-scope global variable")
+        // }
         let initializer = node.initializer!
         let initValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(initializer)))
         let varType = initValue.type
@@ -694,7 +726,8 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         let lengthValues: Value[] = []
         for(let lengthExpr of rangeExpr){
             let value = this.evaluate(this.extractVisitorResult(this.dispatchVisit(lengthExpr)))
-            assert(value.type.primitiveType === PrimitiveType.i32 && value.type.isScalar, "each arg to ndrange() must be i32 scalar")
+            value = this.castTo(value,PrimitiveType.i32)
+            //assert(value.type.primitiveType === PrimitiveType.i32 && value.type.isScalar, "each arg to ndrange() must be i32 scalar")
             lengthValues.push(value)
         }
         let product = lengthValues[0].stmts[0]

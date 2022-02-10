@@ -7,6 +7,7 @@ import {taichiExample3VortexRingSpv} from './examples/taichi3_vortex_ring_spv/ma
 import {taichiExample4} from './examples/taichi4/main'
 import {taichiExample5} from './examples/taichi5/main'
 import {taichiExample6Fractal} from './examples/taichi6_fractal/main'
+import {taichiExample7VortexRing} from './examples/taichi7_vortex_ring/main'
 import {typecheckerExample0} from './examples/compiler_api/typechecker0'
 
 import {runAllTests} from "./tests/All"
@@ -26,6 +27,7 @@ const ti = {
     taichiExample4,
     taichiExample5,
     taichiExample6Fractal,
+    taichiExample7VortexRing,
     typecheckerExample0,
 
     runAllTests,
