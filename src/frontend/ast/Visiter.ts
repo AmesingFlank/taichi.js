@@ -48,6 +48,8 @@ class ASTVisitor<T> {
                 return this.visitPrefixUnaryExpression(node as ts.PrefixUnaryExpression)
             case ts.SyntaxKind.CallExpression:
                 return this.visitCallExpression(node as ts.CallExpression)
+            case ts.SyntaxKind.PropertyAccessExpression:
+                return this.visitPropertyAccessExpression(node as ts.PropertyAccessExpression)
             case ts.SyntaxKind.ElementAccessExpression:
                 return this.visitElementAccessExpression(node as ts.ElementAccessExpression)
             case ts.SyntaxKind.ParenthesizedExpression:
@@ -147,6 +149,10 @@ class ASTVisitor<T> {
     }
 
     protected visitCallExpression(node: ts.CallExpression): VisitorResult<T> {
+        return this.visitEachChild(node)
+    }
+
+    protected visitPropertyAccessExpression(node: ts.PropertyAccessExpression): VisitorResult<T> {
         return this.visitEachChild(node)
     }
 

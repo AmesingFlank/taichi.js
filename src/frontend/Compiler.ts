@@ -173,6 +173,15 @@ enum LoopKind {
     For, While
 }
 
+class BuiltinOp {
+    name:string = ""
+    numArgs:number = 1
+    irBuilderFunc:  (() => NativeTaichiAny) |
+                    ((stmt:NativeTaichiAny) => NativeTaichiAny) | 
+                    ((l:NativeTaichiAny, r:NativeTaichiAny) => NativeTaichiAny) = (x:NativeTaichiAny)=>x
+    transform:DatatypeTransform = DatatypeTransform.Unchanged
+}
+
 
 class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<Stmt>, but we don't have the types yet
     constructor(protected irBuilder:NativeTaichiAny, protected scope: GlobalScope){
@@ -448,24 +457,8 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         return this.extractVisitorResult(this.dispatchVisit(node.expression))
     }
 
-    protected override visitCallExpression(node: ts.CallExpression): VisitorResult<Value> {
-        let funcText = node.expression.getText()
-        let argumentValues:Value[] = []
-        for(let arg of node.arguments){
-            argumentValues.push(this.evaluate(this.extractVisitorResult(this.dispatchVisit(arg))))
-        }
-        let checkNumArgs = (n:number)=>{
-            assert(argumentValues.length === n, funcText+" requires "+n.toString()+" args")
-        }
-        class BuiltinOp {
-            name:string = ""
-            numArgs:number = 1
-            irBuilderFunc:  (() => NativeTaichiAny) |
-                            ((stmt:NativeTaichiAny) => NativeTaichiAny) | 
-                            ((l:NativeTaichiAny, r:NativeTaichiAny) => NativeTaichiAny) = (x:NativeTaichiAny)=>x
-            transform:DatatypeTransform = DatatypeTransform.Unchanged
-        }
-        let builtinOps:BuiltinOp[] = [
+    protected getBuiltinOps():BuiltinOp[]{
+        let builtinOps:BuiltinOp[] = [ // firstly, we have CHI IR built-ins
             {name:"random",numArgs:0, irBuilderFunc:()=>this.irBuilder.create_rand(toNativePrimitiveType(PrimitiveType.f32)), transform:DatatypeTransform.AlwaysF32}, // doesn't work because of race-condition in spirv :))
             {name:"sin",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_sin(stmt), transform:DatatypeTransform.AlwaysF32},
             {name:"cos",numArgs:1, irBuilderFunc:(stmt:NativeTaichiAny)=>this.irBuilder.create_cos(stmt), transform:DatatypeTransform.AlwaysF32},
@@ -489,6 +482,20 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             {name:"pow",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_pow(l,r),transform: DatatypeTransform.PromoteToMatch},
             {name:"atan2",numArgs:2, irBuilderFunc:(l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_atan2(l,r), transform:DatatypeTransform.AlwaysF32},
         ]
+        return builtinOps
+    }
+
+    protected override visitCallExpression(node: ts.CallExpression): VisitorResult<Value> {
+        let funcText = node.expression.getText()
+        let argumentValues:Value[] = []
+        for(let arg of node.arguments){
+            argumentValues.push(this.evaluate(this.extractVisitorResult(this.dispatchVisit(arg))))
+        }
+        let checkNumArgs = (n:number)=>{
+            assert(argumentValues.length === n, funcText+" requires "+n.toString()+" args")
+        }
+        
+        let builtinOps:BuiltinOp[] = this.getBuiltinOps()
         for(let op of builtinOps){
             if(funcText === op.name || funcText === "ti."+op.name || funcText === "Math."+op.name ){
                 checkNumArgs(op.numArgs)
@@ -527,6 +534,22 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                 }
                 return
             }
+        }
+
+        if(node.expression.kind === ts.SyntaxKind.PropertyAccessExpression){
+            let access = node.expression as ts.PropertyAccessExpression
+            let obj = access.expression
+            let prop = access.name
+            let illegal_names = ["taichi", "ti", "Math"]
+            for(let name of illegal_names){
+                if(name === obj.getText()){
+                    error("unresolved function: "+funcText)
+                }
+            }
+            let propText = prop.getText()
+
+            let objValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(obj)))
+
         }
 
         error("unresolved function: "+funcText)
@@ -635,6 +658,12 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         let identifier = node.name
         if(!node.initializer){
             error("variable declaration must have an identifier")
+        }
+        let illegal_names = ["taichi", "ti", "Math"]
+        for(let name of illegal_names){
+            if(name === node.name.getText()){
+                error(name + " cannot be used as a local variable name")
+            }
         }
         // if(this.scope.hasStored(node.name.getText())){
         //     error(node.name.getText() + " is already declared as a kernel-scope global variable")
@@ -789,6 +818,8 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             error("range for not supported yet")
         }
     }
+
+    
 }
 
 export class InliningCompiler extends CompilingVisitor {
