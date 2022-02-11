@@ -24,7 +24,7 @@ async function taichiExample7VortexRing(htmlCanvas:HTMLCanvasElement): Promise<b
 
     let compute_u_single = (p, i) => {
         let r2 = (p - pos[i]).norm_sqr()
-        let uv = [pos[i][1] - p[1], p[0] - pos[i][0]]
+        let uv = [pos[i].y - p.y, p.x - pos[i].x]
         return vort[i] * uv / (r2 * pi) * 0.5 * (1.0 - exp(-r2 / eps**2))
     }
        

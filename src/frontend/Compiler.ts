@@ -319,7 +319,11 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
     }
 
     protected comma(leftValue:Value, rightValue:Value):Value{
-        //assert(leftValue.type.primitiveType === rightValue.type.primitiveType,"primitive type mismatch")
+        let hasFloat = leftValue.type.primitiveType === PrimitiveType.f32 || rightValue.type.primitiveType === PrimitiveType.f32
+        if(hasFloat){
+            leftValue = this.castTo(leftValue,PrimitiveType.f32)
+            rightValue = this.castTo(rightValue,PrimitiveType.f32)
+        }
         let resultStmts = leftValue.stmts.concat(rightValue.stmts)
         let resultConstexprs = leftValue.compileTimeConstants.concat(rightValue.compileTimeConstants)
         let type = new Type(leftValue.type.primitiveType,false,leftValue.type.numRows,leftValue.type.numCols)
@@ -623,6 +627,9 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                     let objValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(obj)))
                     return op.apply1(objValue)
                 }
+                else{
+                    error("invalid function call: "+node.getText())
+                }
             }
 
         }
@@ -684,6 +691,72 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         }
 
         return result
+    }
+
+    protected override visitPropertyAccessExpression(node: ts.PropertyAccessExpression): VisitorResult<Value> {
+        let objExpr = node.expression
+        let propExpr = node.name
+        let propText = propExpr.getText()!
+        if(objExpr.getText()==="Math"){
+            if(propText === "PI"){
+                return Value.makeConstantScalar(Math.PI,this.irBuilder.get_float32(Math.PI) ,PrimitiveType.f32)
+            }
+            if(propText === "E"){
+                return Value.makeConstantScalar(Math.E,this.irBuilder.get_float32(Math.E) ,PrimitiveType.f32)
+            }
+            error("unrecognized Math constant: "+node.getText()+". Only Math.PI and Math.E are supported")
+        }
+        let objVal = this.evaluate(this.extractVisitorResult(this.dispatchVisit(objExpr)))
+        // allow things like `let l = x.length`
+        // is this needed?
+        // let ops = this.getBuiltinOps()
+        // if(ops.has(propText)){
+        //     let op = ops.get(propText)!
+        //     if(op.numArgs === 1){
+        //         return op.apply1(objVal)
+        //     } 
+        // }
+        let supportedComponents = new Map<string,number>()
+        supportedComponents.set("x", 0)
+        supportedComponents.set("y", 1)
+        supportedComponents.set("z", 2)
+        supportedComponents.set("w", 3)
+        supportedComponents.set("r", 0)
+        supportedComponents.set("g", 1)
+        supportedComponents.set("b", 2)
+        supportedComponents.set("a", 3)
+        supportedComponents.set("u", 0)
+        supportedComponents.set("v", 1)
+
+        if(objVal.type.isVector()){
+            if(propText.length === 1 && supportedComponents.has(propText)){
+                let index = supportedComponents.get(propText)!
+                let result = new Value(new Type(objVal.type.primitiveType),[objVal.stmts[index]])
+                return result
+            }
+            if(propText.length > 1){
+                let isValidSwizzle = true
+                let indices:number[] = []
+                for(let c of propText){
+                    if(supportedComponents.has(c)){
+                        indices.push(supportedComponents.get(c)!)
+                    }
+                    else{
+                        isValidSwizzle = false
+                        break;
+                    }
+                }
+                if(isValidSwizzle){
+                    let result = new Value(new Type(objVal.type.primitiveType,false,indices.length),[])
+                    for(let i of indices){
+                        result.stmts.push(objVal.stmts[i])
+                    }
+                    return result
+                }
+            }   
+        } 
+        error("invalid propertyAccess: "+node.getText())
+
     }
 
     protected override visitIdentifier(node: ts.Identifier): VisitorResult<Value> {

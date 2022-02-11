@@ -19,7 +19,7 @@ function kernel(f:any) : ((...args: any[]) => void) {
     return result
 }
 
-function func(f:any) : ((...args: any[]) => void) {
+function func(f:any) : ((...args: any[]) => any) {
     return f
 }
 
