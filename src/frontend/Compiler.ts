@@ -374,96 +374,91 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         }
     }
 
+    protected applyBinaryOp(leftValue:Value, rightValue:Value, opToken: ts.SyntaxKind) : Value|null {
+        switch(opToken){
+            case (ts.SyntaxKind.PlusToken): {
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_add(l,r), (l,r)=>l+r)
+            }
+            case (ts.SyntaxKind.MinusToken): {
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_sub(l,r), (l,r)=>l-r)
+            }
+            case (ts.SyntaxKind.AsteriskToken): {
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_mul(l,r), (l,r)=>l*r)
+            }
+            case (ts.SyntaxKind.SlashToken): {
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysF32, (l, r) => this.irBuilder.create_truediv(l,r), (l,r)=>l/r)
+            }
+            case (ts.SyntaxKind.AsteriskAsteriskToken): {
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_pow(l,r))
+            }
+            case (ts.SyntaxKind.PercentToken): {
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_mod(l,r))
+            }
+            case (ts.SyntaxKind.LessThanToken): {
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_lt(l,r))
+            }
+            case (ts.SyntaxKind.LessThanEqualsToken): {
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_le(l,r))
+            }
+            case (ts.SyntaxKind.GreaterThanToken): {
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_gt(l,r))
+            }
+            case (ts.SyntaxKind.GreaterThanEqualsToken): {
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_ge(l,r))
+            }
+            case (ts.SyntaxKind.EqualsEqualsEqualsToken):
+            case (ts.SyntaxKind.EqualsEqualsToken): {
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_eq(l,r))
+            }
+            case (ts.SyntaxKind.ExclamationEqualsEqualsToken):
+            case (ts.SyntaxKind.ExclamationEqualsToken): {
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_ne(l,r))
+            }
+            case (ts.SyntaxKind.AmpersandToken):
+            case (ts.SyntaxKind.AmpersandAmpersandToken): {
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_and(l,r))
+            }
+            case (ts.SyntaxKind.BarToken):
+            case (ts.SyntaxKind.BarBarToken): {
+                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_or(l,r))
+            }
+            case (ts.SyntaxKind.CommaToken): {
+                return this.comma(leftValue,rightValue)
+            }
+            default:
+                return null
+        }
+    } 
+
     protected override visitBinaryExpression(node: ts.BinaryExpression): VisitorResult<Value> {
         //console.log(node.getText())
         let left = this.extractVisitorResult(this.dispatchVisit(node.left))
         let right = this.extractVisitorResult(this.dispatchVisit(node.right))
         let rightValue = this.evaluate(right)
         let op = node.operatorToken
-        switch(op.kind){
-            case (ts.SyntaxKind.EqualsToken): {
-                let leftStmtKind = getStmtKind(left.stmts[0])
-                switch(leftStmtKind){
-                    case StmtKind.GlobalPtrStmt:{
-                        Value.apply2(left,rightValue,false,true, DatatypeTransform.DontCare,(l, r) => this.irBuilder.create_global_ptr_global_store(l,r))
-                        return right
-                    }
-                    case StmtKind.AllocaStmt:{
-                        Value.apply2(left,rightValue,false,true,DatatypeTransform.DontCare,(l, r) => this.irBuilder.create_local_store(l,r))
-                        return right
-                    }
-                    default:{
-                        error("Invalid assignment ",leftStmtKind)
-                    }
+        if(op.kind === ts.SyntaxKind.EqualsToken){
+            let leftStmtKind = getStmtKind(left.stmts[0])
+            switch(leftStmtKind){
+                case StmtKind.GlobalPtrStmt:{
+                    Value.apply2(left,rightValue,false,true, DatatypeTransform.DontCare,(l, r) => this.irBuilder.create_global_ptr_global_store(l,r))
+                    return right
+                }
+                case StmtKind.AllocaStmt:{
+                    Value.apply2(left,rightValue,false,true,DatatypeTransform.DontCare,(l, r) => this.irBuilder.create_local_store(l,r))
+                    return right
+                }
+                default:{
+                    error("Invalid assignment ",leftStmtKind)
                 }
             }
-            case (ts.SyntaxKind.PlusToken): {
-                let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_add(l,r), (l,r)=>l+r)
-            }
-            case (ts.SyntaxKind.MinusToken): {
-                let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_sub(l,r), (l,r)=>l-r)
-            }
-            case (ts.SyntaxKind.AsteriskToken): {
-                let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_mul(l,r), (l,r)=>l*r)
-            }
-            case (ts.SyntaxKind.SlashToken): {
-                let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysF32, (l, r) => this.irBuilder.create_truediv(l,r), (l,r)=>l/r)
-            }
-            case (ts.SyntaxKind.AsteriskAsteriskToken): {
-                let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_pow(l,r))
-            }
-            case (ts.SyntaxKind.PercentToken): {
-                let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_mod(l,r))
-            }
-            case (ts.SyntaxKind.LessThanToken): {
-                let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_lt(l,r))
-            }
-            case (ts.SyntaxKind.LessThanEqualsToken): {
-                let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_le(l,r))
-            }
-            case (ts.SyntaxKind.GreaterThanToken): {
-                let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_gt(l,r))
-            }
-            case (ts.SyntaxKind.GreaterThanEqualsToken): {
-                let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_ge(l,r))
-            }
-            case (ts.SyntaxKind.EqualsEqualsEqualsToken):
-            case (ts.SyntaxKind.EqualsEqualsToken): {
-                let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_eq(l,r))
-            }
-            case (ts.SyntaxKind.ExclamationEqualsEqualsToken):
-            case (ts.SyntaxKind.ExclamationEqualsToken): {
-                let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_ne(l,r))
-            }
-            case (ts.SyntaxKind.AmpersandToken):
-            case (ts.SyntaxKind.AmpersandAmpersandToken): {
-                let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_and(l,r))
-            }
-            case (ts.SyntaxKind.BarToken):
-            case (ts.SyntaxKind.BarBarToken): {
-                let leftValue = this.evaluate(left)
-                return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_or(l,r))
-            }
-            case (ts.SyntaxKind.CommaToken): {
-                let leftValue = this.evaluate(left)
-                return this.comma(leftValue,rightValue)
-            }
-            default:
-                error("Unrecognized binary operator "+op.getText())
         }
+        let leftValue = this.evaluate(left)
+        let maybeResult = this.applyBinaryOp(leftValue,rightValue, op.kind)
+        if(maybeResult !== null){
+            return maybeResult
+        }
+        error("Unrecognized binary operator "+op.getText())
+        
     }
 
     protected override visitArrayLiteralExpression(node: ts.ArrayLiteralExpression): VisitorResult<Value> {
@@ -513,7 +508,20 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             new BuiltinOp("atan2",2, DatatypeTransform.AlwaysF32, undefined, (l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_atan2(l,r)),
         ]
 
-        //let len = new BuiltinOp("len", 2, DatatypeTransform.AlwaysI32, )
+        let len = new BuiltinOp("len", 1, DatatypeTransform.AlwaysI32, (v:Value) => {
+            let length = v.type.numRows
+            return Value.makeConstantScalar(length,this.irBuilder.make_int32(length),PrimitiveType.i32)
+        })
+        let length = new BuiltinOp("length", 1,DatatypeTransform.AlwaysI32,len.valueTransform!)
+
+        // let norm_sqr = new BuiltinOp("norm_sqr",1,DatatypeTransform.AlwaysF32,(v:Value) => {
+        //     assert(v.type.isVector(), "norm/norm_sqr can only be applied to vectors")
+        //     let squared = Value.apply2(v,v,true,true,DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_mul(l,r), (l,r)=>l*r)
+        //     let sum = Value.makeConstantScalar(0.0,this.irBuilder.make_float32(length),PrimitiveType.f32)
+        //     for(let stmt of squared.stmts){
+        //         sum = 
+        //     }
+        // })
 
         let opsMap = new Map<string,BuiltinOp>()
         for(let op of builtinOps){
