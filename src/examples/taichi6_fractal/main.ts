@@ -13,13 +13,9 @@ async function taichiExample6Fractal(htmlCanvas:HTMLCanvasElement): Promise<bool
 
     let complex_sqr = (z) => {
         return [z[0]**2 - z[1]**2, z[1] * z[0] * 2]
-    }
+    } 
 
-    let norm = (z) => {
-        return sqrt(z[0]*z[0]+z[1]*z[1]) // sqrt is builtin, but norm isn't yet. lol
-    }
-
-    ti.addToKernelScope({pixels, n, complex_sqr, norm}) 
+    ti.addToKernelScope({pixels, n, complex_sqr}) 
 
     let kernel = ti.kernel(
         (t) => {
@@ -30,7 +26,7 @@ async function taichiExample6Fractal(htmlCanvas:HTMLCanvasElement): Promise<bool
                 let c = [-0.8, cos(t) * 0.2]
                 let z = [i / n - 1, j / n - 0.5] * 2
                 let iterations = 0
-                while( norm(z) < 20 && iterations < 50 ){
+                while( z.norm() < 20 && iterations < 50 ){
                     z = complex_sqr(z) + c
                     iterations = iterations + 1
                 }

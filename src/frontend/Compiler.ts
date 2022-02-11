@@ -211,6 +211,21 @@ class BuiltinOp {
             }
         }
     }
+    apply0(){
+        assert(this.numArgs === 0)
+        let func = this.valueTransform! as () => Value
+        return func()
+    }
+    apply1(v:Value){
+        assert(this.numArgs === 1)
+        let func = this.valueTransform! as (v:Value) => Value
+        return func(v)
+    }
+    apply2(l:Value,r:Value){
+        assert(this.numArgs === 2)
+        let func = this.valueTransform! as (l:Value,r:Value) => Value
+        return func(l, r)
+    }
 }
 
 class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<Stmt>, but we don't have the types yet
@@ -508,24 +523,45 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             new BuiltinOp("atan2",2, DatatypeTransform.AlwaysF32, undefined, (l:NativeTaichiAny,r:NativeTaichiAny)=>this.irBuilder.create_atan2(l,r)),
         ]
 
-        let len = new BuiltinOp("len", 1, DatatypeTransform.AlwaysI32, (v:Value) => {
-            let length = v.type.numRows
-            return Value.makeConstantScalar(length,this.irBuilder.make_int32(length),PrimitiveType.i32)
-        })
-        let length = new BuiltinOp("length", 1,DatatypeTransform.AlwaysI32,len.valueTransform!)
-
-        // let norm_sqr = new BuiltinOp("norm_sqr",1,DatatypeTransform.AlwaysF32,(v:Value) => {
-        //     assert(v.type.isVector(), "norm/norm_sqr can only be applied to vectors")
-        //     let squared = Value.apply2(v,v,true,true,DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_mul(l,r), (l,r)=>l*r)
-        //     let sum = Value.makeConstantScalar(0.0,this.irBuilder.make_float32(length),PrimitiveType.f32)
-        //     for(let stmt of squared.stmts){
-        //         sum = 
-        //     }
-        // })
-
         let opsMap = new Map<string,BuiltinOp>()
         for(let op of builtinOps){
             opsMap.set(op.name,op)
+        }
+
+        let len = new BuiltinOp("len", 1, DatatypeTransform.AlwaysI32, (v:Value) => {
+            let length = v.type.numRows
+            return Value.makeConstantScalar(length,this.irBuilder.get_int32(length),PrimitiveType.i32)
+        })
+        let length = new BuiltinOp("length", 1,DatatypeTransform.AlwaysI32,len.valueTransform!)
+
+        let sum = new BuiltinOp("sum", 1,DatatypeTransform.Unchanged,(v:Value) => {
+            assert(v.type.isVector(), "sum can only be applied to vectors")
+            let sum = Value.makeConstantScalar(0.0,this.irBuilder.get_float32(0.0),PrimitiveType.f32)
+            for(let stmt of v.stmts){
+                let thisComponent = new Value(new Type(v.type.primitiveType),[stmt])
+                sum = this.applyBinaryOp(sum,thisComponent, ts.SyntaxKind.PlusToken)!
+            }
+            return sum
+        })
+
+        let norm_sqr = new BuiltinOp("norm_sqr",1,DatatypeTransform.AlwaysF32,(v:Value) => {
+            assert(v.type.isVector(), "norm/norm_sqr can only be applied to vectors")
+            let squared = Value.apply2(v,v,true,true,DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_mul(l,r), (l,r)=>l*r)
+            let result = sum.apply1(squared)
+            return result
+        })
+
+        let norm = new BuiltinOp("norm",1,DatatypeTransform.AlwaysF32,(v:Value) => {
+            assert(v.type.isVector(), "norm/norm_sqr can only be applied to vectors")
+            let result_sqr = norm_sqr.apply1(v)
+            let sqrt_func = opsMap.get("sqrt")!
+            let result = sqrt_func.apply1(result_sqr)
+            return result
+        })
+
+        let derivedOps = [len,length, sum,norm_sqr,norm]
+        for(let op of derivedOps){
+            opsMap.set(op.name, op)
         }
 
         return opsMap
@@ -547,16 +583,13 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             if(funcText === op.name || funcText === "ti."+op.name || funcText === "Math."+op.name ){
                 checkNumArgs(op.numArgs)
                 if(op.numArgs === 0){
-                    let func = op.valueTransform! as ()=>Value
-                    return func()
+                    return op.apply0()
                 }
                 else if(op.numArgs === 1){
-                    let func = op.valueTransform! as (v:Value)=>Value
-                    return func(argumentValues[0])
+                    return op.apply1(argumentValues[0])
                 }
                 else{// if(op.numArgs === 2)
-                    let func = op.valueTransform! as (l:Value, r:Value)=>Value
-                    return func(argumentValues[0], argumentValues[1])
+                    return op.apply2(argumentValues[0], argumentValues[1])
                 } 
             }
         }
@@ -584,8 +617,13 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                 }
             }
             let propText = prop.getText()
-
-            let objValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(obj)))
+            if(builtinOps.has(propText)){
+                let op = builtinOps.get(propText)!
+                if(op.numArgs === 1 && argumentValues.length === 0){
+                    let objValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(obj)))
+                    return op.apply1(objValue)
+                }
+            }
 
         }
 

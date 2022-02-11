@@ -24,6 +24,7 @@ import {testArrowFunctionKernel} from "./TestArrowFunctionKernel"
 import {testArgs} from "./TestArgs"
 import {testFunc} from "./TestFunc"
 import {testVectorComponent} from "./TestVectorComponent"
+import {testPropertyFunc} from "./TestPropertyFunc"
 
 async function runAllTests() {
     let passed = true
@@ -51,6 +52,7 @@ async function runAllTests() {
     passed &&= await testArgs()
     passed &&= await testFunc()
     passed &&= await testVectorComponent()
+    passed &&= await testPropertyFunc()
 
     if(passed){
         console.log("All tests passed")

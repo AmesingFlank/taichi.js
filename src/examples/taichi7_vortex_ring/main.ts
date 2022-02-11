@@ -20,14 +20,10 @@ async function taichiExample7VortexRing(htmlCanvas:HTMLCanvasElement): Promise<b
     let vort = ti.field(ti.f32, n_vortex)
     let tracer = ti.Vector.field(2, ti.f32, n_tracer)
 
-    let norm = (z) => {
-        return sqrt(z[0]*z[0]+z[1]*z[1]) // sqrt is builtin, but norm isn't yet. lol
-    }
-
     let pi = 3.1415926
 
     let compute_u_single = (p, i) => {
-        let r2 = norm(p - pos[i]) ** 2 
+        let r2 = (p - pos[i]).norm_sqr()
         let uv = [pos[i][1] - p[1], p[0] - pos[i][0]]
         return vort[i] * uv / (r2 * pi) * 0.5 * (1.0 - exp(-r2 / eps**2))
     }
@@ -41,7 +37,7 @@ async function taichiExample7VortexRing(htmlCanvas:HTMLCanvasElement): Promise<b
     }
 
     ti.addToKernelScope({
-        resolution, eps, dt, n_vortex, n_tracer, image,pos,new_pos,vort,tracer,norm,pi,compute_u_single,compute_u_full
+        resolution, eps, dt, n_vortex, n_tracer, image,pos,new_pos,vort,tracer,pi,compute_u_single,compute_u_full
     })
         
     let integrate_vortex = ti.kernel(
