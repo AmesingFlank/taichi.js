@@ -4,7 +4,7 @@
 
 ## Zoo
 
-On Chrome v94+, visit https://amesingflank.github.io/ti.js/zoo/index.html to see taichi.js in action. The webpage provides an interactive code editor that allows you to write, compile, and run taichi code.
+On Chrome v94+, visit https://amesingflank.github.io/taichi.js/zoo/index.html to see taichi.js in action. The webpage provides an interactive code editor that allows you to write, compile, and run taichi code.
 
 ## Sample Program
 
@@ -79,7 +79,7 @@ The canvas will show the following animation:
 
 ### Using `taichi.js` in your webpage
 
-1. Clone this github repo, or `npm install taichi.js`
+1. Clone the [github repo](https://github.com/AmesingFlank/taichi.js), or `npm install taichi.js`
 2. Locate `zoo/ti.js`, and include it in your html.
     ```html
     <script src="/path/to/ti.js"></script>
