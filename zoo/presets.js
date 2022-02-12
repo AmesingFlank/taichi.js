@@ -1,8 +1,7 @@
-let fractal = `
-await ti.init() 
+let fractal = 
+`await ti.init() 
 
 let n = 320
-
 let pixels = ti.Vector.field(4, ti.f32,[2*n, n])
 
 let complex_sqr = (z) => {
@@ -44,8 +43,8 @@ async function frame() {
 requestAnimationFrame(frame)
 `
 
-let vortex_ring = `
-await ti.init() 
+let vortex_ring = 
+`await ti.init() 
 
 let resolution = [720,360]
 
@@ -60,7 +59,6 @@ let pos = ti.Vector.field(2, ti.f32, n_vortex)
 let new_pos = ti.Vector.field(2, ti.f32, n_vortex)
 let vort = ti.field(ti.f32, n_vortex)
 let tracer = ti.Vector.field(2, ti.f32, n_tracer)
- 
 
 let compute_u_single = (p, i) => {
     let r2 = (p - pos[i]).norm_sqr()

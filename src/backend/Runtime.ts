@@ -27,11 +27,20 @@ class Runtime {
     }
 
     async createDevice() {
-        if (navigator.gpu === undefined){
-            alert("Webgpu not supported")
+        let alertWebGPUError = ()=>{
+            alert(`Webgpu not supported. Please ensure that you have Chrome 94+ with WebGPU Origin Trial Tokens, Chrome Canary, Firefox Nightly, or Safary Tech Preview`)
+        }
+        if (!navigator.gpu){
+            alertWebGPUError()
         }
         const adapter = await navigator.gpu.requestAdapter();
+        if (!adapter){
+            alertWebGPUError()
+        }
         const device = await adapter!.requestDevice();
+        if (!device){
+            alertWebGPUError()
+        }
         this.device = device
         this.adapter = adapter
     }

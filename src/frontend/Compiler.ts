@@ -90,15 +90,15 @@ class Value {
         let broadcastLeftToRight = false
         let broadcastRightToLeft = false
         if(left.type.isScalar && !right.type.isScalar){
-            assert(allowBroadcastLeftToRight, "broadcast left to right not allowed")
+            assert( allowBroadcastLeftToRight, "broadcast left to right not allowed")
             broadcastLeftToRight = true     
         }
         if(!left.type.isScalar && right.type.isScalar){
-            assert(allowBroadcastRightToLeft, "broadcast right to left not allowed") 
+            assert( allowBroadcastRightToLeft, "broadcast right to left not allowed") 
             broadcastRightToLeft = true      
         }
         if(!left.type.isScalar && !right.type.isScalar){
-            assert(left.type.numRows === right.type.numRows && left.type.numCols === right.type.numCols, 
+            assert( left.type.numRows === right.type.numRows && left.type.numCols === right.type.numCols, 
                 "matrix shape mismatch ",left.type, right.type) 
         }
         let result:Value
@@ -191,7 +191,7 @@ class BuiltinOp {
                         primType = PrimitiveType.i32
                     }
                     else{
-                        error("only allows AlwaysI32 or AlwaysF32 for 0-arg ops")
+                        error( "only allows AlwaysI32 or AlwaysF32 for 0-arg ops")
                     }
                     let result = new Value(new Type(primType))
                     let func = stmtTransform as () => NativeTaichiAny
@@ -212,17 +212,17 @@ class BuiltinOp {
         }
     }
     apply0(){
-        assert(this.numArgs === 0)
+        assert(this.numArgs === 0, "expecting 0 arguments for "+this.name)
         let func = this.valueTransform! as () => Value
         return func()
     }
     apply1(v:Value){
-        assert(this.numArgs === 1)
+        assert(this.numArgs === 1, "expecting 1 arguments for "+this.name)
         let func = this.valueTransform! as (v:Value) => Value
         return func(v)
     }
     apply2(l:Value,r:Value){
-        assert(this.numArgs === 2)
+        assert(this.numArgs === 2, "expecting 2 arguments for "+this.name)
         let func = this.valueTransform! as (l:Value,r:Value) => Value
         return func(l, r)
     }
@@ -246,6 +246,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
 
     protected numArgs:number = 0
     protected hasRet:boolean = false
+    protected lastVisitedNode: ts.Node|null = null
  
     buildIR(code:any){
         let codeString = code.toString()
@@ -268,7 +269,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         assert(sourceFiles.length === 1, "Expecting exactly 1 source file, got ",sourceFiles.length)
         let sourceFile = sourceFiles[0]
         let statements = sourceFile.statements
-        assert(statements.length === 1, "Expecting exactly 1 statement (function or arrow function)")
+        assert(statements.length === 1, "Expecting exactly 1 statement in ti.kernel (A single function or arrow function)")
         if(statements[0].kind === ts.SyntaxKind.FunctionDeclaration){
             let kernelFunction = statements[0] as ts.FunctionDeclaration
             this.compilationResultName = kernelFunction.name!.text
@@ -281,6 +282,11 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             this.registerArguments(kernelFunction.parameters)
             this.visitEachChild(kernelFunction.body)
         }
+    }
+
+    protected override dispatchVisit(node: ts.Node): VisitorResult<Value> {
+        this.lastVisitedNode = node
+        return super.dispatchVisit(node)
     }
 
     protected registerArguments(args: ts.NodeArray<ts.ParameterDeclaration>){
@@ -297,13 +303,46 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
     protected getNodeSymbol(node: ts.Node): ts.Symbol{
         let symbol = this.typeChecker!.getSymbolAtLocation(node)
         if(symbol === undefined){
-            error("symbol not found for ",node)
+            this.errorNode(node, "symbol not found for "+node.getText())
         }
         return symbol!
     } 
 
+    protected errorNode(node:ts.Node|null, ...args:any[]){
+        if(node === null){
+            if(this.lastVisitedNode!== null){
+                this.errorNode(this.lastVisitedNode,...args)
+            }
+            else{
+                error(...args)
+            }
+            return
+        }
+        let sourceFile = this.tsProgram!.getSourceFiles()[0]
+        let startPos = node.getStart()
+        let endPos = node.getEnd()
+        let startLine = sourceFile.getLineAndCharacterOfPosition(startPos).line
+        let endLine = sourceFile.getLineAndCharacterOfPosition(endPos).line
+
+        let start = sourceFile.getLineStarts()[startLine]
+        let end = sourceFile.getLineStarts()[endLine+1]
+        let code = sourceFile.getText().slice(start,end)
+        let errorMessage = "Error: "
+        for(let a of args){
+            errorMessage += String(a)
+        }
+        errorMessage += `\nat:\n ${code} `
+        error(errorMessage)
+    }
+
+    protected assertNode(node:ts.Node|null, condition:boolean, ...args:any[]){
+        if(!condition){
+            this.errorNode(node,...args)
+        }
+    }
+
     protected evaluate(val:Value) : Value{
-        assert(val.stmts.length > 0, "val is empty")
+        this.assertNode(null, val.stmts.length > 0, "val is empty")
         let kind = getStmtKind(val.stmts[0])
         switch(kind){
             case StmtKind.GlobalPtrStmt: {
@@ -318,7 +357,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         }
     }
 
-    protected comma(leftValue:Value, rightValue:Value):Value{
+    protected comma(leftValue:Value, rightValue:Value):Value|null{
         let hasFloat = leftValue.type.primitiveType === PrimitiveType.f32 || rightValue.type.primitiveType === PrimitiveType.f32
         if(hasFloat){
             leftValue = this.castTo(leftValue,PrimitiveType.f32)
@@ -334,17 +373,15 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         else if(leftValue.type.isVector() && rightValue.type.isScalar){
             type.numRows += 1
         }
-        else if(leftValue.type.isVector() && rightValue.type.isVector()){
-            assert(leftValue.type.numRows === rightValue.type.numRows,"numRows mismatch")
+        else if(leftValue.type.isVector() && rightValue.type.isVector() && leftValue.type.numRows === rightValue.type.numRows){
             type.numCols = leftValue.type.numRows
             type.numRows = 2
         }
-        else if(leftValue.type.isMatrix() && rightValue.type.isVector()){
-            assert(leftValue.type.numCols === rightValue.type.numRows,"numRows mismatch")
+        else if(leftValue.type.isMatrix() && rightValue.type.isVector() && leftValue.type.numCols === rightValue.type.numRows){
             type.numRows += 1
         }
         else{
-            error("malformed comma")
+            return null;
         }
         return new Value(type,resultStmts,resultConstexprs)
     }
@@ -389,7 +426,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                 return Value.apply1ElementWise(val, DatatypeTransform.Unchanged, (stmt)=>this.irBuilder.create_not(stmt))
             }
             default:
-                error("unsupported prefix unary operator:"+node.getText())
+                this.errorNode(node, "unsupported prefix unary operator:"+node.getText())
         }
     }
 
@@ -467,7 +504,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                     return right
                 }
                 default:{
-                    error("Invalid assignment ",leftStmtKind)
+                    this.errorNode(node, "Invalid assignment ",leftStmtKind)
                 }
             }
         }
@@ -476,13 +513,13 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         if(maybeResult !== null){
             return maybeResult
         }
-        error("Unrecognized binary operator "+op.getText())
+        this.errorNode(node, "Unrecognized binary operator "+op.getText())
         
     }
 
     protected override visitArrayLiteralExpression(node: ts.ArrayLiteralExpression): VisitorResult<Value> {
         let elements = node.elements
-        assert(elements.length > 0, "cannot have empty arrays")
+        this.assertNode(node, elements.length > 0, "cannot have empty arrays")
         let value = this.evaluate(this.extractVisitorResult(this.dispatchVisit(elements[0])))
         if(elements.length === 1){
             if(value.type.isScalar){
@@ -492,7 +529,13 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         }
         for(let i = 1; i<elements.length;++i){
             let nextValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(elements[i])))
-            value = this.comma(value,nextValue)
+            let maybeValue = this.comma(value,nextValue)
+            if(maybeValue === null){
+                this.errorNode(node, "Array element type mismatch")
+            }
+            else{
+                value = maybeValue
+            }
         }
         return value
     }
@@ -539,7 +582,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         let length = new BuiltinOp("length", 1,DatatypeTransform.AlwaysI32,len.valueTransform!)
 
         let sum = new BuiltinOp("sum", 1,DatatypeTransform.Unchanged,(v:Value) => {
-            assert(v.type.isVector(), "sum can only be applied to vectors")
+            this.assertNode(null, v.type.isVector(), "sum can only be applied to vectors")
             let sum = Value.makeConstantScalar(0.0,this.irBuilder.get_float32(0.0),PrimitiveType.f32)
             for(let stmt of v.stmts){
                 let thisComponent = new Value(new Type(v.type.primitiveType),[stmt])
@@ -549,14 +592,14 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         })
 
         let norm_sqr = new BuiltinOp("norm_sqr",1,DatatypeTransform.AlwaysF32,(v:Value) => {
-            assert(v.type.isVector(), "norm/norm_sqr can only be applied to vectors")
+            this.assertNode(null, v.type.isVector(), "norm/norm_sqr can only be applied to vectors")
             let squared = Value.apply2(v,v,true,true,DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_mul(l,r), (l,r)=>l*r)
             let result = sum.apply1(squared)
             return result
         })
 
         let norm = new BuiltinOp("norm",1,DatatypeTransform.AlwaysF32,(v:Value) => {
-            assert(v.type.isVector(), "norm/norm_sqr can only be applied to vectors")
+            this.assertNode(null, v.type.isVector(), "norm/norm_sqr can only be applied to vectors")
             let result_sqr = norm_sqr.apply1(v)
             let sqrt_func = opsMap.get("sqrt")!
             let result = sqrt_func.apply1(result_sqr)
@@ -578,7 +621,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             argumentValues.push(this.evaluate(this.extractVisitorResult(this.dispatchVisit(arg))))
         }
         let checkNumArgs = (n:number)=>{
-            assert(argumentValues.length === n, funcText+" requires "+n.toString()+" args")
+            this.assertNode(node, argumentValues.length === n, funcText+" requires "+n.toString()+" args")
         }
         
         let builtinOps = this.getBuiltinOps() 
@@ -601,7 +644,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         if(this.scope.hasStored(funcText)){
             let funcObj = this.scope.getStored(funcText)
             if(typeof funcObj == 'function'){ 
-                let compiler = new InliningCompiler(this.scope,this.irBuilder)
+                let compiler = new InliningCompiler(this.scope,this.irBuilder,funcText)
                 let result = compiler.runInlining(argumentValues, funcObj)
                 if(result){
                     return result
@@ -617,7 +660,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             let illegal_names = ["taichi", "ti", "Math"]
             for(let name of illegal_names){
                 if(name === obj.getText()){
-                    error("unresolved function: "+funcText)
+                    this.errorNode(node, "unresolved function: "+funcText)
                 }
             }
             let propText = prop.getText()
@@ -628,13 +671,13 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                     return op.apply1(objValue)
                 }
                 else{
-                    error("invalid function call: "+node.getText())
+                    this.errorNode(node, "invalid function call: "+node.getText())
                 }
             }
 
         }
 
-        error("unresolved function: "+funcText)
+        this.errorNode(node, "unresolved function: "+funcText)
     }
 
     protected override visitElementAccessExpression(node: ts.ElementAccessExpression): VisitorResult<Value> {
@@ -651,7 +694,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                     let result = new Value(resultType)
 
                     let argumentValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(argument)))
-                    assert(argumentValue.stmts.length === field.dimensions.length, "field access dimension mismatch ",argumentValue.stmts.length , field.dimensions.length)
+                    this.assertNode(node, argumentValue.stmts.length === field.dimensions.length, "field access dimension mismatch ",argumentValue.stmts.length , field.dimensions.length)
                     let accessVec : NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
                     for(let stmt of argumentValue.stmts){
                         accessVec.push_back(stmt)
@@ -667,22 +710,22 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         }
         let baseValue = this.extractVisitorResult(this.dispatchVisit(base))
         let argumentValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(argument)))
-        assert(!argumentValue.type.isMatrix(), "index cannot be a matrix")
-        assert(!baseValue.type.isScalar, "cannot index a scalar")
-        assert(argumentValue.isCompileTimeConstant())
+        this.assertNode(node, !argumentValue.type.isMatrix(), "index cannot be a matrix")
+        this.assertNode(node, !baseValue.type.isScalar, "cannot index a scalar")
+        this.assertNode(node, argumentValue.isCompileTimeConstant())
 
         let type = new Type( baseValue.type.primitiveType)
         let result = new Value(type)
         let indices = argumentValue.compileTimeConstants
         if(baseValue.type.isVector()){
-            assert(indices.length === 1, "vector can only have 1 index")
+            this.assertNode(node, indices.length === 1, "vector can only have 1 index")
             result.stmts.push(baseValue.stmts[indices[0]])
             if(baseValue.isCompileTimeConstant()){
                 result.compileTimeConstants.push(baseValue.stmts[indices[0]])
             }
         }
         else if(baseValue.type.isMatrix()){
-            assert(indices.length === 2, "matrix must have exactly 2 indices")
+            this.assertNode(node, indices.length === 2, "matrix must have exactly 2 indices")
             let index = indices[0]*baseValue.type.numCols+indices[1]
             result.stmts.push(baseValue.stmts[index])
             if(baseValue.isCompileTimeConstant()){
@@ -704,7 +747,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             if(propText === "E"){
                 return Value.makeConstantScalar(Math.E,this.irBuilder.get_float32(Math.E) ,PrimitiveType.f32)
             }
-            error("unrecognized Math constant: "+node.getText()+". Only Math.PI and Math.E are supported")
+            this.errorNode(node, "unrecognized Math constant: "+node.getText()+". Only Math.PI and Math.E are supported")
         }
         let objVal = this.evaluate(this.extractVisitorResult(this.dispatchVisit(objExpr)))
         // allow things like `let l = x.length`
@@ -755,7 +798,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                 }
             }   
         } 
-        error("invalid propertyAccess: "+node.getText())
+        this.errorNode(node, "invalid propertyAccess: "+node.getText())
 
     }
 
@@ -767,7 +810,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         let name = node.getText()
         if(this.scope.hasStored(name)){
             let getValue = (val:any): Value|undefined => {
-                let fail = () => {error("failed to evaluate "+name+" in kernel scope")}
+                let fail = () => {this.errorNode(node, "failed to evaluate "+name+" in kernel scope")}
                 if(typeof val === "number"){
                     if(val % 1 === 0){
                         return Value.makeConstantScalar(val,this.irBuilder.get_int32(val),PrimitiveType.i32)
@@ -777,7 +820,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                     }
                 }
                 if(Array.isArray(val)){
-                    assert(val.length > 0, "cannot use empty array in kernel")
+                    this.assertNode(node, val.length > 0, "cannot use empty array in kernel")
                     let result = getValue(val[0])
                     if(result === undefined){
                         fail()
@@ -791,7 +834,13 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                         if(thisValue === undefined){
                             fail()!
                         }
-                        result = this.comma(result!,thisValue!)
+                        let maybeResult = this.comma(result!,thisValue!)
+                        if(maybeResult === null){
+                            this.errorNode(node, "Array element type mistach at "+node.getText())
+                        }
+                        else{
+                            result = maybeResult
+                        }
                     }
                     return result
                 }
@@ -799,22 +848,22 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             let val = this.scope.getStored(name)
             return getValue(val)
         }
-        error("unresolved identifier: "+node.getText())
+        this.errorNode(node, "unresolved identifier: "+node.getText())
     }
 
     protected visitVariableDeclaration(node: ts.VariableDeclaration): VisitorResult<Value> {
         let identifier = node.name
         if(!node.initializer){
-            error("variable declaration must have an identifier")
+            this.errorNode(node, "variable declaration must have an identifier")
         }
         let illegal_names = ["taichi", "ti", "Math"]
         for(let name of illegal_names){
             if(name === node.name.getText()){
-                error(name + " cannot be used as a local variable name")
+                this.errorNode(node, name + " cannot be used as a local variable name")
             }
         }
         // if(this.scope.hasStored(node.name.getText())){
-        //     error(node.name.getText() + " is already declared as a kernel-scope global variable")
+        //     this.errorNode(node, node.name.getText() + " is already declared as a kernel-scope global variable")
         // }
         let initializer = node.initializer!
         let initValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(initializer)))
@@ -832,7 +881,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
 
     protected override visitIfStatement(node: ts.IfStatement): VisitorResult<Value> {
         let condValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(node.expression)))
-        assert(condValue.type.isScalar, "condition of if statement must be scalar")
+        this.assertNode(node, condValue.type.isScalar, "condition of if statement must be scalar")
         let nativeIfStmt = this.irBuilder.create_if(condValue.stmts[0])
         let trueGuard = this.irBuilder.get_if_guard(nativeIfStmt,true)
         this.dispatchVisit(node.thenStatement)
@@ -845,12 +894,12 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
     }
 
     protected override visitBreakStatement(node: ts.BreakStatement): VisitorResult<Value> {
-        assert(this.loopStack.length > 0 && this.loopStack[this.loopStack.length-1] === LoopKind.While, "break can only be used in a while loop")
+        this.assertNode(node, this.loopStack.length > 0 && this.loopStack[this.loopStack.length-1] === LoopKind.While, "break can only be used in a while loop")
         this.irBuilder.create_break()
     }
 
     protected override visitContinueStatement(node: ts.ContinueStatement): VisitorResult<Value> {
-        assert(this.loopStack.length > 0 , "continue must be used inside a loop")
+        this.assertNode(node, this.loopStack.length > 0 , "continue must be used inside a loop")
         this.irBuilder.create_continue()
     }
 
@@ -859,7 +908,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         let guard = this.irBuilder.get_while_loop_guard(nativeWhileTrue)
 
         let condValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(node.expression)))
-        assert(condValue.type.isScalar, "condition of while statement must be scalar")
+        this.assertNode(node, condValue.type.isScalar, "condition of while statement must be scalar")
         let breakCondition = this.irBuilder.create_logical_not(condValue.stmts[0])
         let nativeIfStmt = this.irBuilder.create_if(breakCondition)
         let trueGuard = this.irBuilder.get_if_guard(nativeIfStmt,true)
@@ -873,11 +922,11 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
     }
 
     protected visitRangeFor(indexSymbols:ts.Symbol[], rangeExpr:ts.NodeArray<ts.Expression>, body:ts.Statement) : VisitorResult<Value>{
-        assert(rangeExpr.length === 1, "Expecting exactly 1 argument in range()")
-        assert(indexSymbols.length === 1, "Expecting exactly 1 loop index in range()")
+        this.assertNode(null, rangeExpr.length === 1, "Expecting exactly 1 argument in range()")
+        this.assertNode(null, indexSymbols.length === 1, "Expecting exactly 1 loop index in range()")
         let rangeLengthExpr = rangeExpr[0]
         let rangeLengthValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(rangeLengthExpr)))
-        assert(rangeLengthValue.type.primitiveType === PrimitiveType.i32 && rangeLengthValue.type.isScalar , "range must be i32 scalar")
+        this.assertNode(null, rangeLengthValue.type.primitiveType === PrimitiveType.i32 && rangeLengthValue.type.isScalar , "range must be i32 scalar")
         let zero = this.irBuilder.get_int32(0)
         let loop = this.irBuilder.create_range_for(zero, rangeLengthValue.stmts[0], 0, 4, 0, false);
 
@@ -898,13 +947,13 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
 
     protected visitNdrangeFor(indexSymbols:ts.Symbol[], rangeExpr:ts.NodeArray<ts.Expression>, body:ts.Statement) : VisitorResult<Value>{
         let numDimensions = rangeExpr.length
-        assert(indexSymbols.length === 1, "Expecting exactly 1 (grouped) loop index in ndrange()")
-        assert(numDimensions > 0, "ndrange() arg list cannot be empty")
+        this.assertNode(null, indexSymbols.length === 1, "Expecting exactly 1 (grouped) loop index in ndrange()")
+        this.assertNode(null, numDimensions > 0, "ndrange() arg list cannot be empty")
         let lengthValues: Value[] = []
         for(let lengthExpr of rangeExpr){
             let value = this.evaluate(this.extractVisitorResult(this.dispatchVisit(lengthExpr)))
             value = this.castTo(value,PrimitiveType.i32)
-            //assert(value.type.primitiveType === PrimitiveType.i32 && value.type.isScalar, "each arg to ndrange() must be i32 scalar")
+            //this.assertNode(node, value.type.primitiveType === PrimitiveType.i32 && value.type.isScalar, "each arg to ndrange() must be i32 scalar")
             lengthValues.push(value)
         }
         let product = lengthValues[0].stmts[0]
@@ -939,7 +988,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
     }
     
     protected override visitForOfStatement(node: ts.ForOfStatement): VisitorResult<Value> {
-        assert(node.initializer.kind === ts.SyntaxKind.VariableDeclarationList, "Expecting variable declaration list, got",node.initializer.kind)
+        this.assertNode(node, node.initializer.kind === ts.SyntaxKind.VariableDeclarationList, "Expecting variable declaration list, got",node.initializer.kind)
         let declarationList = node.initializer as ts.VariableDeclarationList
         let loopIndexSymbols:ts.Symbol[] = []
         for(let decl of declarationList.declarations){
@@ -959,11 +1008,11 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                 return this.visitNdrangeFor(loopIndexSymbols,callExpr.arguments, node.statement)
             }
             else{
-                error("unsupported for-of initializer: ", calledFunctionText)
+                this.errorNode(node, "unsupported for-of initializer: ", calledFunctionText)
             }
         }
         else{
-            error("range for not supported yet")
+            this.errorNode(node, "range for not supported yet")
         }
     }
 
@@ -971,7 +1020,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
 }
 
 export class InliningCompiler extends CompilingVisitor {
-    constructor(scope: GlobalScope, irBuilder:NativeTaichiAny){
+    constructor(scope: GlobalScope, irBuilder:NativeTaichiAny, public funcName:string){
         super(irBuilder, scope)
     }
 
@@ -986,7 +1035,7 @@ export class InliningCompiler extends CompilingVisitor {
 
     protected override registerArguments(args: ts.NodeArray<ts.ParameterDeclaration>){
         this.numArgs = args.length
-        assert(this.numArgs === this.argValues.length,"ti.func called with incorrect amount of variables")
+        this.assertNode(null, this.numArgs === this.argValues.length,`ti.func ${this.funcName} called with incorrect amount of variables`)
         for(let i = 0;i<this.numArgs;++i){
             let val = this.argValues[i]
             let symbol = this.getNodeSymbol(args[i].name)
@@ -996,7 +1045,7 @@ export class InliningCompiler extends CompilingVisitor {
 
     protected override visitReturnStatement(node: ts.ReturnStatement): VisitorResult<Value> {
         if(this.returnValue){
-            error("ti.func can only have at most one return statements")
+            this.errorNode(node, "ti.func can only have at most one return statements")
         }
         if(node.expression){
             this.returnValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(node.expression)))
