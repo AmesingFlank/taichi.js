@@ -263,6 +263,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         };
 
         this.tsProgram = this.context.createProgramFromSource(codeString,tsOptions)
+        this.errorTsDiagnostics(this.tsProgram.getSyntacticDiagnostics())
         this.typeChecker = this.tsProgram.getTypeChecker()
         
         let sourceFiles = this.tsProgram!.getSourceFiles()
@@ -271,16 +272,24 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         let statements = sourceFile.statements
         assert(statements.length === 1, "Expecting exactly 1 statement in ti.kernel (A single function or arrow function)")
         if(statements[0].kind === ts.SyntaxKind.FunctionDeclaration){
-            let kernelFunction = statements[0] as ts.FunctionDeclaration
-            this.compilationResultName = kernelFunction.name!.text
-            this.registerArguments(kernelFunction.parameters)
-            this.visitEachChild(kernelFunction.body!)
+            let func = statements[0] as ts.FunctionDeclaration
+            this.compilationResultName = func.name!.text
+            this.registerArguments(func.parameters)
+            this.visitEachChild(func.body!)
         }
         else if(statements[0].kind === ts.SyntaxKind.ExpressionStatement && 
                 (statements[0] as ts.ExpressionStatement).expression.kind === ts.SyntaxKind.ArrowFunction){
-            let kernelFunction = (statements[0] as ts.ExpressionStatement).expression as ts.ArrowFunction
-            this.registerArguments(kernelFunction.parameters)
-            this.visitEachChild(kernelFunction.body)
+            let func = (statements[0] as ts.ExpressionStatement).expression as ts.ArrowFunction
+            this.registerArguments(func.parameters)
+            let body = func.body
+            if(body.kind === ts.SyntaxKind.Block){
+                this.visitEachChild(func.body)
+            }
+            else{
+                // then this is an immediately-returning function, e.g. (x,y) => x+y
+                let returnStmt = ts.factory.createReturnStatement(func.body as ts.Expression)
+                this.visitReturnStatement(returnStmt)
+            }
         }
     }
 
@@ -308,6 +317,36 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         return symbol!
     } 
 
+    protected getSourceCodeAt(startPos:number, endPos:number):string {
+        let sourceFile = this.tsProgram!.getSourceFiles()[0]
+        let startLine = sourceFile.getLineAndCharacterOfPosition(startPos).line
+        let endLine = sourceFile.getLineAndCharacterOfPosition(endPos).line
+
+        let start = sourceFile.getLineStarts()[startLine]
+        let end = sourceFile.getLineStarts()[endLine+1]
+        let code = sourceFile.getText().slice(start,end)
+        return code
+    }
+
+    protected errorTsDiagnostics(diags: readonly ts.DiagnosticWithLocation[]){
+        let message = ""
+        for(let diag of diags){
+            if(diag.category === ts.DiagnosticCategory.Error){
+                let startPos = diag.start
+                let endPos = diag.start + diag.length
+                let code = this.getSourceCodeAt(startPos,endPos)
+                message += `
+                Syntax Error: ${diag.messageText}   
+                at:  
+                ${code}
+                ` 
+            }
+        }
+        if(message !== ""){
+            error("Kernel/function code cannot be parsed as Javascript: \n"+message)
+        }
+    }
+
     protected errorNode(node:ts.Node|null, ...args:any[]){
         if(node === null){
             if(this.lastVisitedNode!== null){
@@ -318,15 +357,10 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             }
             return
         }
-        let sourceFile = this.tsProgram!.getSourceFiles()[0]
+        
         let startPos = node.getStart()
         let endPos = node.getEnd()
-        let startLine = sourceFile.getLineAndCharacterOfPosition(startPos).line
-        let endLine = sourceFile.getLineAndCharacterOfPosition(endPos).line
-
-        let start = sourceFile.getLineStarts()[startLine]
-        let end = sourceFile.getLineStarts()[endLine+1]
-        let code = sourceFile.getText().slice(start,end)
+        let code = this.getSourceCodeAt(startPos,endPos)
         let errorMessage = "Error: "
         for(let a of args){
             errorMessage += String(a)

@@ -15,7 +15,7 @@ async function testFunc(): Promise<boolean> {
     let identity = (x) => {return x}
     let plusOne = (x) => {return returnOne() + identity(x)}
 
-    let getMirrorVec = (x) => {return [x, -x]}
+    let getMirrorVec = (x) => [x, -x]
 
     ti.addToKernelScope({f1, f2, f3, returnOne, identity, plusOne, getMirrorVec})
 
