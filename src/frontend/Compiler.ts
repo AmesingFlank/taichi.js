@@ -627,7 +627,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
 
         let norm_sqr = new BuiltinOp("norm_sqr",1,DatatypeTransform.AlwaysF32,(v:Value) => {
             this.assertNode(null, v.type.isVector(), "norm/norm_sqr can only be applied to vectors")
-            let squared = Value.apply2(v,v,true,true,DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_mul(l,r), (l,r)=>l*r)
+            let squared = this.applyBinaryOp(v,v,ts.SyntaxKind.AsteriskToken)!
             let result = sum.apply1(squared)
             return result
         })
@@ -640,7 +640,14 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             return result
         })
 
-        let derivedOps = [len,length, sum,norm_sqr,norm]
+        let dot = new BuiltinOp("dot",2,DatatypeTransform.PromoteToMatch,(a:Value, b:Value) => {
+            this.assertNode(null, a.type.isVector() && b.type.isVector(), "dot can only be applied to vectors")
+            let product = this.applyBinaryOp(a,b,ts.SyntaxKind.AsteriskToken)!
+            let result = sum.apply1(product)
+            return result
+        })
+
+        let derivedOps = [len,length, sum,norm_sqr,norm, dot]
         for(let op of derivedOps){
             opsMap.set(op.name, op)
         }
@@ -700,9 +707,13 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             let propText = prop.getText()
             if(builtinOps.has(propText)){
                 let op = builtinOps.get(propText)!
-                if(op.numArgs === 1 && argumentValues.length === 0){
+                if(op.numArgs === 1 && argumentValues.length === 0){ // write x.norm() and norm(x) are both ok
                     let objValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(obj)))
                     return op.apply1(objValue)
+                }
+                if(op.numArgs === 2 && argumentValues.length === 1){ // write x.dot(y) and dot(x,y) are both ok
+                    let objValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(obj)))
+                    return op.apply2(objValue, argumentValues[0])
                 }
                 else{
                     this.errorNode(node, "invalid function call: "+node.getText())
