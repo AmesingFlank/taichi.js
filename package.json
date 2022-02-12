@@ -1,7 +1,16 @@
 {
-  "name": "ti.js",
-  "version": "1.0.0",
-  "description": "",
+  "name": "taichi.js",
+  "version": "0.0.2",
+  "description": "Modern GPU Compute Framework in Javascript",
+  "homepage": "https://github.com/AmesingFlank/ti.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AmesingFlank/ti.js"
+  },
+  "author": {
+    "name": "Dunfan Lu",
+    "email": "ldfrank533@outlook.com"
+  },
   "scripts": {
     "build_dev": "webpack --config webpack.dev.js",
     "build_prod": "webpack --config webpack.prod.js",
@@ -24,5 +33,15 @@
   "browser": {
     "fs": false,
     "child_process": false
-  }
+  },
+  "keywords": [
+    "taichi",
+    "webgpu",
+    "gpu",
+    "gpgpu",
+    "shader",
+    "graphics",
+    "simulation",
+    "render"
+  ]
 }

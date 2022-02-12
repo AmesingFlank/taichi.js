@@ -100,6 +100,7 @@ let triangle = async (canvas: HTMLCanvasElement) => {
       {
         view: textureView,
         loadValue: [0.1, 0.1, 0.1, 1.0],
+        loadOp: "clear",
         storeOp: 'store',
       },
     ],
