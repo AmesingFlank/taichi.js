@@ -9,16 +9,17 @@ async function taichiExample7VortexRing(htmlCanvas:HTMLCanvasElement): Promise<b
     let resolution = [1024, 512]
 
     let eps = 0.01
-    let dt = 0.1 
+    let dt = 0.01 
 
     let n_vortex = 4
     let n_tracer = 200000
 
-    let image = ti.Vector.field(4, ti.f32, resolution)
     let pos = ti.Vector.field(2, ti.f32, n_vortex)
     let new_pos = ti.Vector.field(2, ti.f32, n_vortex)
     let vort = ti.field(ti.f32, n_vortex)
+    
     let tracer = ti.Vector.field(2, ti.f32, n_tracer)
+    let image = ti.Vector.field(4, ti.f32, resolution)
 
     let pi = 3.1415926
 
