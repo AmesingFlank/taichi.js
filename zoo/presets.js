@@ -13,7 +13,6 @@ ti.addToKernelScope({pixels, n, complex_sqr})
 
 let kernel = ti.kernel(
     (t) => {
-        //@ts-ignore
         for(let I of ndrange(n*2,n)){
             let i = I[0]
             let j = I[1]
