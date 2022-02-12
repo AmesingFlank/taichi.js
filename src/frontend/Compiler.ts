@@ -298,6 +298,11 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         return super.dispatchVisit(node)
     }
 
+    protected override extractVisitorResult(result: VisitorResult<Value>): Value {
+        this.assertNode(null, result !== undefined, "VistorResult is undefined")
+        return super.extractVisitorResult(result)
+    }
+
     protected registerArguments(args: ts.NodeArray<ts.ParameterDeclaration>){
         this.numArgs = args.length
         for(let i = 0;i<this.numArgs;++i){
@@ -376,7 +381,8 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
     }
 
     protected evaluate(val:Value) : Value{
-        this.assertNode(null, val.stmts.length > 0, "val is empty")
+        this.assertNode(null, val.stmts.length > 0, "value is empty")
+        this.assertNode(null, val.stmts[0] !== undefined, "value is undefined")
         let kind = getStmtKind(val.stmts[0])
         switch(kind){
             case StmtKind.GlobalPtrStmt: {
@@ -580,6 +586,15 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         return this.extractVisitorResult(this.dispatchVisit(node.expression))
     }
 
+    protected getVectorComponents(vec: Value):Value[] {
+        this.assertNode(null, vec.type.isVector())
+        let components:Value[] = [] 
+        for(let i = 0;i<3;++i){
+            components.push(new Value(new Type(vec.type.primitiveType),[vec.stmts[i]])) 
+        }
+        return components
+    }
+
     protected getBuiltinOps():Map<string,BuiltinOp>{
         let builtinOps:BuiltinOp[] = [ // firstly, we have CHI IR built-ins
             new BuiltinOp("random",0,DatatypeTransform.AlwaysF32, undefined, ()=>this.irBuilder.create_rand(toNativePrimitiveType(PrimitiveType.f32))), // doesn't work because of race-condition in spirv :))
@@ -656,7 +671,30 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             return result
         })
 
-        let derivedOps = [len,length, sum,norm_sqr,norm, normalized,dot]
+        let cross = new BuiltinOp("cross",2,DatatypeTransform.PromoteToMatch,(l:Value, r:Value) => {
+            this.assertNode(null, l.type.isVector() && r.type.isVector() && l.type.numRows==3 && r.type.numRows==3 , "cross can only be applied to 3D vectors")
+            let leftComponents:Value[] = this.getVectorComponents(l)
+            let rightComponents:Value[] = this.getVectorComponents(r)
+            
+            let r0 = this.applyBinaryOp(
+                        this.applyBinaryOp(leftComponents[1],rightComponents[2],ts.SyntaxKind.AsteriskToken)!, 
+                        this.applyBinaryOp(leftComponents[2],rightComponents[1],ts.SyntaxKind.AsteriskToken)!, 
+                    ts.SyntaxKind.MinusToken)!
+            let r1 = this.applyBinaryOp(
+                        this.applyBinaryOp(leftComponents[2],rightComponents[0],ts.SyntaxKind.AsteriskToken)!, 
+                        this.applyBinaryOp(leftComponents[0],rightComponents[2],ts.SyntaxKind.AsteriskToken)!, 
+                    ts.SyntaxKind.MinusToken)! 
+            let r2 = this.applyBinaryOp(
+                        this.applyBinaryOp(leftComponents[0],rightComponents[1],ts.SyntaxKind.AsteriskToken)!, 
+                        this.applyBinaryOp(leftComponents[1],rightComponents[0],ts.SyntaxKind.AsteriskToken)!, 
+                     ts.SyntaxKind.MinusToken)! 
+            
+
+            let result = this.comma(this.comma(r0,r1)!,r2)!
+            return result
+        })
+
+        let derivedOps = [len,length, sum,norm_sqr,norm, normalized,dot, cross]
         for(let op of derivedOps){
             opsMap.set(op.name, op)
         }
@@ -1007,7 +1045,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         for(let lengthExpr of rangeExpr){
             let value = this.evaluate(this.extractVisitorResult(this.dispatchVisit(lengthExpr)))
             value = this.castTo(value,PrimitiveType.i32)
-            //this.assertNode(node, value.type.primitiveType === PrimitiveType.i32 && value.type.isScalar, "each arg to ndrange() must be i32 scalar")
+            this.assertNode(null, value.type.isScalar, "each arg to ndrange() must be a scalar")
             lengthValues.push(value)
         }
         let product = lengthValues[0].stmts[0]
