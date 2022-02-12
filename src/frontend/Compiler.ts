@@ -476,6 +476,8 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                 return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_mul(l,r), (l,r)=>l*r)
             }
             case (ts.SyntaxKind.SlashToken): {
+                leftValue = this.castTo(leftValue,PrimitiveType.f32)
+                rightValue = this.castTo(rightValue,PrimitiveType.f32)
                 return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysF32, (l, r) => this.irBuilder.create_truediv(l,r), (l,r)=>l/r)
             }
             case (ts.SyntaxKind.AsteriskAsteriskToken): {
@@ -634,9 +636,16 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
 
         let norm = new BuiltinOp("norm",1,DatatypeTransform.AlwaysF32,(v:Value) => {
             this.assertNode(null, v.type.isVector(), "norm/norm_sqr can only be applied to vectors")
-            let result_sqr = norm_sqr.apply1(v)
-            let sqrt_func = opsMap.get("sqrt")!
-            let result = sqrt_func.apply1(result_sqr)
+            let resultSqr = norm_sqr.apply1(v)
+            let sqrtFunc = opsMap.get("sqrt")!
+            let result = sqrtFunc.apply1(resultSqr)
+            return result
+        })
+
+        let normalized = new BuiltinOp("normalized",1,DatatypeTransform.AlwaysF32,(v:Value) => {
+            this.assertNode(null, v.type.isVector(), "normalized can only be applied to vectors")
+            let normValue = norm.apply1(v)
+            let result = this.applyBinaryOp(v,normValue,ts.SyntaxKind.SlashToken)!
             return result
         })
 
@@ -647,7 +656,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             return result
         })
 
-        let derivedOps = [len,length, sum,norm_sqr,norm, dot]
+        let derivedOps = [len,length, sum,norm_sqr,norm, normalized,dot]
         for(let op of derivedOps){
             opsMap.set(op.name, op)
         }
