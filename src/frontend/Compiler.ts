@@ -450,9 +450,8 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         }
     }
 
-    protected override visitPrefixUnaryExpression(node: ts.PrefixUnaryExpression): VisitorResult<Value> {
-        let val = this.evaluate(this.extractVisitorResult(this.dispatchVisit(node.operand)))
-        switch(node.operator){
+    protected applyUnaryOp(val :Value,opToken: ts.SyntaxKind ): Value|null {
+        switch(opToken){
             case ts.SyntaxKind.PlusToken:{
                 return val
             }
@@ -464,9 +463,19 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             }
             case ts.SyntaxKind.TildeToken:{
                 return Value.apply1ElementWise(val, DatatypeTransform.Unchanged, (stmt)=>this.irBuilder.create_not(stmt))
-            }
-            default:
-                this.errorNode(node, "unsupported prefix unary operator:"+node.getText())
+            } 
+        }
+        return null
+    }
+
+    protected override visitPrefixUnaryExpression(node: ts.PrefixUnaryExpression): VisitorResult<Value> {
+        let val = this.evaluate(this.extractVisitorResult(this.dispatchVisit(node.operand)))
+        let result = this.applyUnaryOp(val,node.operator)
+        if(result !== null){
+            return result
+        }
+        else{
+            this.errorNode(node, "unsupported prefix unary operator:"+node.getText())
         }
     }
 
