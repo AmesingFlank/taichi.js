@@ -1,4 +1,4 @@
-import { fractal, vortex_ring } from "./presets.js";
+import { fractal, fractal3D, vortex_ring } from "./presets.js";
 
 const editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
     mode: "javascript",
@@ -26,15 +26,30 @@ let preprocessCode = (code) => {
     let userMain = async () => {
         ${code}
     }
-    userMain()
+    userMain().catch(
+        (e) => {
+            console.error(e)
+        }
+    )
     `
 } 
 
 let compileAndRun = ()=>{
     cancelAllAnimationFrames()
+    logger.setValue("")
     let code = editor.getValue();
     code = preprocessCode(code)
-    eval(code)
+    try{
+        eval(code)
+    }
+    catch (e) {
+        if (e instanceof SyntaxError) {
+            console.error("Syntax Error in code editor: ",e)
+        }
+        else{
+            console.error("Error in code editor: ",e)
+        }
+    }
 }
  
 
@@ -60,17 +75,20 @@ compileAndRunButton.onclick = ()=>{
     compileAndRun()
 }
 
-let fractalListItem = document.getElementById("fractalHref")
-fractalListItem.onclick = ()=>{
-    editor.setValue(fractal)    
-    compileAndRun()
-}
+let examples = [
+    {listItem:"fractalHref", code:fractal},
+    {listItem:"fractal3DHref", code:fractal3D},
+    {listItem:"vortexRingHref", code:vortex_ring},
+]
 
-let vortexRingListItem = document.getElementById("vortexRingHref")
-vortexRingListItem.onclick = ()=>{
-    editor.setValue(vortex_ring)    
-    compileAndRun()
+for(let ex of examples){
+    let item = document.getElementById(ex.listItem)
+    item.onclick = ()=>{
+        editor.setValue(ex.code)
+        compileAndRun()
+    }
 }
+ 
  
 editor.setValue(fractal)    
 compileAndRun()

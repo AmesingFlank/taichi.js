@@ -32,6 +32,24 @@ enum DatatypeTransform {
     DontCare
 }
 
+
+class ResultOrError<T> {
+    private constructor(public isError:boolean, public result:T|null, public errorMessage:string|null){
+        if(isError){
+            assert(result === null && errorMessage !== null)
+        }
+        else{
+            assert(result !== null && errorMessage === null)
+        }
+    }
+    public static createResult<Y>(result:Y): ResultOrError<Y>{
+        return new ResultOrError<Y>(false,result,null)
+    } 
+    public static createError<Y>(msg:string): ResultOrError<Y>{
+        return new ResultOrError<Y>(true,null,msg)
+    } 
+}  
+
 class Value {
     public constructor(
         type_:Type,
@@ -60,7 +78,7 @@ class Value {
     } 
     static apply1ElementWise(val:Value, datatypeTransform:DatatypeTransform,
                              f: (stmt :NativeTaichiAny) => NativeTaichiAny, 
-                             fConst: ((val:number) => number)|null = null):Value{
+                             fConst: ((val:number) => number)|null = null): ResultOrError<Value>{
         let result = new Value(val.type, [])
         for(let stmt of val.stmts){
             result.stmts.push(f(stmt))
@@ -80,26 +98,34 @@ class Value {
                 break;
             }
         }
-        return result
+        return ResultOrError.createResult(result)
     }
     static apply2<T>(left:Value, right:Value,allowBroadcastLeftToRight:boolean, allowBroadcastRightToLeft:boolean, 
                      datatypeTransform:DatatypeTransform,
                      f: (left :NativeTaichiAny, right :NativeTaichiAny) => T,
                      fConst: ((left:number, right:number) => number)|null = null
-                     ):Value{
+                     ): ResultOrError<Value>{
         let broadcastLeftToRight = false
         let broadcastRightToLeft = false
         if(left.type.isScalar && !right.type.isScalar){
-            assert( allowBroadcastLeftToRight, "broadcast left to right not allowed")
+            if(!allowBroadcastLeftToRight){
+                return ResultOrError.createError("broadcast left to right not allowed")
+            }
             broadcastLeftToRight = true     
         }
         if(!left.type.isScalar && right.type.isScalar){
-            assert( allowBroadcastRightToLeft, "broadcast right to left not allowed") 
+            if (!allowBroadcastRightToLeft){
+                return ResultOrError.createError("broadcast right to left not allowed")
+            }  
             broadcastRightToLeft = true      
         }
         if(!left.type.isScalar && !right.type.isScalar){
-            assert( left.type.numRows === right.type.numRows && left.type.numCols === right.type.numCols, 
-                "matrix shape mismatch ",left.type, right.type) 
+            if(left.type.numRows !== right.type.numRows){
+                return ResultOrError.createError(`numRows mismatch ${left.type.numRows} !== ${right.type.numRows}`)
+            } 
+            if(left.type.numCols !== right.type.numCols){
+                return ResultOrError.createError(`numCols mismatch ${left.type.numCols} !== ${right.type.numCols}`)
+            }  
         }
         let result:Value
         if (broadcastRightToLeft){
@@ -164,7 +190,7 @@ class Value {
                 break;
             }
         }
-        return result
+        return ResultOrError.createResult(result)
     }
 }
 
@@ -201,27 +227,33 @@ class BuiltinOp {
             }
             else if( numArgs === 1){
                 this.valueTransform = (v:Value):Value => {
-                    return Value.apply1ElementWise(v,typeTransform, stmtTransform as (stmt:NativeTaichiAny) => NativeTaichiAny)
+                    return this.extractValueOrError( Value.apply1ElementWise(v,typeTransform, stmtTransform as (stmt:NativeTaichiAny) => NativeTaichiAny)) 
                 } 
             }
             else{// if(numArgs === 2)
                 this.valueTransform = (l:Value,r:Value):Value => {
-                    return Value.apply2(l,r,true,true, typeTransform, stmtTransform as (l:NativeTaichiAny, r:NativeTaichiAny) => NativeTaichiAny)
+                    return this.extractValueOrError( Value.apply2(l,r,true,true, typeTransform, stmtTransform as (l:NativeTaichiAny, r:NativeTaichiAny) => NativeTaichiAny))
                 } 
             }
         }
+    } 
+    protected extractValueOrError(valueOrError: ResultOrError<Value>, ...args:any): Value {
+        if(valueOrError.isError){
+             error ("Built-in op error", valueOrError.errorMessage, ...args) // this is an internal-error, likely cuased by a compiler bug
+        }
+        return valueOrError.result!
     }
-    apply0(){
+    apply0(): Value{
         assert(this.numArgs === 0, "expecting 0 arguments for "+this.name)
         let func = this.valueTransform! as () => Value
         return func()
     }
-    apply1(v:Value){
+    apply1(v:Value): Value{
         assert(this.numArgs === 1, "expecting 1 arguments for "+this.name)
         let func = this.valueTransform! as (v:Value) => Value
         return func(v)
     }
-    apply2(l:Value,r:Value){
+    apply2(l:Value,r:Value):Value{
         assert(this.numArgs === 2, "expecting 2 arguments for "+this.name)
         let func = this.valueTransform! as (l:Value,r:Value) => Value
         return func(l, r)
@@ -301,6 +333,13 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
     protected override extractVisitorResult(result: VisitorResult<Value>): Value {
         this.assertNode(null, result !== undefined, "VistorResult is undefined")
         return super.extractVisitorResult(result)
+    }
+
+    protected extractValueOrError(valueOrError: ResultOrError<Value>, node:ts.Node|null, ...args:any): Value {
+        if(valueOrError.isError){
+            this.errorNode(node, valueOrError.errorMessage, ...args)
+        }
+        return valueOrError.result!
     }
 
     protected registerArguments(args: ts.NodeArray<ts.ParameterDeclaration>){
@@ -386,10 +425,12 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         let kind = getStmtKind(val.stmts[0])
         switch(kind){
             case StmtKind.GlobalPtrStmt: {
-                return Value.apply1ElementWise(val, DatatypeTransform.Unchanged, (ptr) => this.irBuilder.create_global_ptr_global_load(ptr))
+                let resultOrError = Value.apply1ElementWise(val, DatatypeTransform.Unchanged, (ptr) => this.irBuilder.create_global_ptr_global_load(ptr))
+                return this.extractValueOrError(resultOrError, null)
             }
             case StmtKind.AllocaStmt: {
-                return Value.apply1ElementWise(val, DatatypeTransform.Unchanged, (ptr) => this.irBuilder.create_local_load(ptr))
+                let resultOrError = Value.apply1ElementWise(val, DatatypeTransform.Unchanged, (ptr) => this.irBuilder.create_local_load(ptr))
+                return this.extractValueOrError(resultOrError, null)
             }
             default: {
                 return val
@@ -397,7 +438,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         }
     }
 
-    protected comma(leftValue:Value, rightValue:Value):Value|null{
+    protected comma(leftValue:Value, rightValue:Value):  Value{
         let hasFloat = leftValue.type.primitiveType === PrimitiveType.f32 || rightValue.type.primitiveType === PrimitiveType.f32
         if(hasFloat){
             leftValue = this.castTo(leftValue,PrimitiveType.f32)
@@ -421,7 +462,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             type.numRows += 1
         }
         else{
-            return null;
+            this.errorNode(null,"Type mismatch, cannot be concatenated")
         }
         return new Value(type,resultStmts,resultConstexprs)
     }
@@ -431,10 +472,12 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             return val
         }
         if(primType === PrimitiveType.f32){
-            return Value.apply1ElementWise(val,DatatypeTransform.AlwaysF32,(x)=>this.irBuilder.create_cast(x, toNativePrimitiveType(PrimitiveType.f32)))
+            let resultOrError = Value.apply1ElementWise(val,DatatypeTransform.AlwaysF32,(x)=>this.irBuilder.create_cast(x, toNativePrimitiveType(PrimitiveType.f32)))
+            return this.extractValueOrError(resultOrError, null)
         }
         else{ //if(primType === PrimitiveType.i32){
-            return Value.apply1ElementWise(val,DatatypeTransform.AlwaysI32,(x)=>this.irBuilder.create_cast(x, toNativePrimitiveType(PrimitiveType.i32)))
+            let resultOrError = Value.apply1ElementWise(val,DatatypeTransform.AlwaysI32,(x)=>this.irBuilder.create_cast(x, toNativePrimitiveType(PrimitiveType.i32)))
+            return this.extractValueOrError(resultOrError, null)
         }
         
     }
@@ -456,13 +499,13 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                 return val
             }
             case ts.SyntaxKind.MinusToken:{
-                return Value.apply1ElementWise(val, DatatypeTransform.Unchanged,(stmt)=>this.irBuilder.create_neg(stmt),(x)=>-x)
+                return this.extractValueOrError(Value.apply1ElementWise(val, DatatypeTransform.Unchanged,(stmt)=>this.irBuilder.create_neg(stmt),(x)=>-x),null)
             }
             case ts.SyntaxKind.ExclamationToken:{
-                return Value.apply1ElementWise(val, DatatypeTransform.Unchanged,(stmt)=>this.irBuilder.create_logical_not(stmt))
+                return this.extractValueOrError(Value.apply1ElementWise(val, DatatypeTransform.Unchanged,(stmt)=>this.irBuilder.create_logical_not(stmt)),null)
             }
             case ts.SyntaxKind.TildeToken:{
-                return Value.apply1ElementWise(val, DatatypeTransform.Unchanged, (stmt)=>this.irBuilder.create_not(stmt))
+                return this.extractValueOrError(Value.apply1ElementWise(val, DatatypeTransform.Unchanged, (stmt)=>this.irBuilder.create_not(stmt)),null)
             } 
         }
         return null
@@ -479,8 +522,8 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         }
     }
 
-    protected applyBinaryOp(leftValue:Value, rightValue:Value, opToken: ts.SyntaxKind) : Value|null {
-        switch(opToken){
+    protected applyBinaryOpOrError(leftValue:Value, rightValue:Value, opToken: ts.SyntaxKind) : ResultOrError<Value> {
+         switch(opToken){
             case (ts.SyntaxKind.PlusToken): {
                 return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_add(l,r), (l,r)=>l+r)
             }
@@ -530,12 +573,17 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                 return Value.apply2(leftValue, rightValue,true,true,DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_or(l,r))
             }
             case (ts.SyntaxKind.CommaToken): {
-                return this.comma(leftValue,rightValue)
+                return ResultOrError.createResult(this.comma(leftValue,rightValue))
             }
             default:
-                return null
+                return ResultOrError.createError<Value>("Unrecognized binary op token. ")
         }
     } 
+
+    protected applyBinaryOp(leftValue:Value, rightValue:Value, opToken: ts.SyntaxKind) : Value {
+        let resultOrError = this.applyBinaryOpOrError(leftValue,rightValue,opToken)
+        return this.extractValueOrError(resultOrError,null)
+    }
 
     protected override visitBinaryExpression(node: ts.BinaryExpression): VisitorResult<Value> {
         //console.log(node.getText())
@@ -547,25 +595,22 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             let leftStmtKind = getStmtKind(left.stmts[0])
             switch(leftStmtKind){
                 case StmtKind.GlobalPtrStmt:{
-                    Value.apply2(left,rightValue,false,true, DatatypeTransform.DontCare,(l, r) => this.irBuilder.create_global_ptr_global_store(l,r))
+                    this.extractValueOrError(Value.apply2(left,rightValue,false,true, DatatypeTransform.DontCare,(l, r) => this.irBuilder.create_global_ptr_global_store(l,r)),node)
                     return right
                 }
                 case StmtKind.AllocaStmt:{
-                    Value.apply2(left,rightValue,false,true,DatatypeTransform.DontCare,(l, r) => this.irBuilder.create_local_store(l,r))
+                    this.extractValueOrError(Value.apply2(left,rightValue,false,true,DatatypeTransform.DontCare,(l, r) => this.irBuilder.create_local_store(l,r)),node)
                     return right
                 }
                 default:{
-                    this.errorNode(node, "Invalid assignment ",leftStmtKind)
+                    this.errorNode(node, "Invalid assignment "+leftStmtKind)
                 }
             }
         }
         let leftValue = this.evaluate(left)
-        let maybeResult = this.applyBinaryOp(leftValue,rightValue, op.kind)
-        if(maybeResult !== null){
-            return maybeResult
-        }
-        this.errorNode(node, "Unrecognized binary operator "+op.getText())
-        
+        let maybeResult = this.applyBinaryOpOrError(leftValue,rightValue, op.kind)
+        let result = this.extractValueOrError(maybeResult,node,"Unrecognized binary operator "+op.getText())
+        return result
     }
 
     protected override visitArrayLiteralExpression(node: ts.ArrayLiteralExpression): VisitorResult<Value> {
@@ -580,13 +625,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         }
         for(let i = 1; i<elements.length;++i){
             let nextValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(elements[i])))
-            let maybeValue = this.comma(value,nextValue)
-            if(maybeValue === null){
-                this.errorNode(node, "Array element type mismatch")
-            }
-            else{
-                value = maybeValue
-            }
+            value = this.comma(value,nextValue)
         }
         return value
     }
@@ -646,14 +685,14 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             let sum = Value.makeConstantScalar(0.0,this.irBuilder.get_float32(0.0),PrimitiveType.f32)
             for(let stmt of v.stmts){
                 let thisComponent = new Value(new Type(v.type.primitiveType),[stmt])
-                sum = this.applyBinaryOp(sum,thisComponent, ts.SyntaxKind.PlusToken)!
+                sum = this.applyBinaryOp(sum,thisComponent, ts.SyntaxKind.PlusToken)
             }
             return sum
         })
 
         let norm_sqr = new BuiltinOp("norm_sqr",1,DatatypeTransform.AlwaysF32,(v:Value) => {
             this.assertNode(null, v.type.isVector(), "norm/norm_sqr can only be applied to vectors")
-            let squared = this.applyBinaryOp(v,v,ts.SyntaxKind.AsteriskToken)!
+            let squared = this.applyBinaryOp(v,v,ts.SyntaxKind.AsteriskToken)
             let result = sum.apply1(squared)
             return result
         })
@@ -662,22 +701,19 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             this.assertNode(null, v.type.isVector(), "norm/norm_sqr can only be applied to vectors")
             let resultSqr = norm_sqr.apply1(v)
             let sqrtFunc = opsMap.get("sqrt")!
-            let result = sqrtFunc.apply1(resultSqr)
-            return result
+            return sqrtFunc.apply1(resultSqr) 
         })
 
         let normalized = new BuiltinOp("normalized",1,DatatypeTransform.AlwaysF32,(v:Value) => {
             this.assertNode(null, v.type.isVector(), "normalized can only be applied to vectors")
             let normValue = norm.apply1(v)
-            let result = this.applyBinaryOp(v,normValue,ts.SyntaxKind.SlashToken)!
-            return result
+            return this.applyBinaryOp(v,normValue,ts.SyntaxKind.SlashToken) 
         })
 
         let dot = new BuiltinOp("dot",2,DatatypeTransform.PromoteToMatch,(a:Value, b:Value) => {
             this.assertNode(null, a.type.isVector() && b.type.isVector(), "dot can only be applied to vectors")
-            let product = this.applyBinaryOp(a,b,ts.SyntaxKind.AsteriskToken)!
-            let result = sum.apply1(product)
-            return result
+            let product = this.applyBinaryOp(a,b,ts.SyntaxKind.AsteriskToken)
+            return sum.apply1(product) 
         })
 
         let cross = new BuiltinOp("cross",2,DatatypeTransform.PromoteToMatch,(l:Value, r:Value) => {
@@ -686,18 +722,17 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             let rightComponents:Value[] = this.getVectorComponents(r)
             
             let r0 = this.applyBinaryOp(
-                        this.applyBinaryOp(leftComponents[1],rightComponents[2],ts.SyntaxKind.AsteriskToken)!, 
-                        this.applyBinaryOp(leftComponents[2],rightComponents[1],ts.SyntaxKind.AsteriskToken)!, 
+                        this.applyBinaryOp(leftComponents[1],rightComponents[2],ts.SyntaxKind.AsteriskToken),
+                        this.applyBinaryOp(leftComponents[2],rightComponents[1],ts.SyntaxKind.AsteriskToken),
                     ts.SyntaxKind.MinusToken)!
             let r1 = this.applyBinaryOp(
-                        this.applyBinaryOp(leftComponents[2],rightComponents[0],ts.SyntaxKind.AsteriskToken)!, 
-                        this.applyBinaryOp(leftComponents[0],rightComponents[2],ts.SyntaxKind.AsteriskToken)!, 
+                        this.applyBinaryOp(leftComponents[2],rightComponents[0],ts.SyntaxKind.AsteriskToken),
+                        this.applyBinaryOp(leftComponents[0],rightComponents[2],ts.SyntaxKind.AsteriskToken), 
                     ts.SyntaxKind.MinusToken)! 
             let r2 = this.applyBinaryOp(
-                        this.applyBinaryOp(leftComponents[0],rightComponents[1],ts.SyntaxKind.AsteriskToken)!, 
-                        this.applyBinaryOp(leftComponents[1],rightComponents[0],ts.SyntaxKind.AsteriskToken)!, 
-                     ts.SyntaxKind.MinusToken)! 
-            
+                        this.applyBinaryOp(leftComponents[0],rightComponents[1],ts.SyntaxKind.AsteriskToken),
+                        this.applyBinaryOp(leftComponents[1],rightComponents[0],ts.SyntaxKind.AsteriskToken), 
+                     ts.SyntaxKind.MinusToken)!  
 
             let result = this.comma(this.comma(r0,r1)!,r2)!
             return result
