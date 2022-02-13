@@ -40,7 +40,7 @@ async function frame() {
     canvas.setImage(pixels)
     requestAnimationFrame(frame)
 }
-requestAnimationFrame(frame)
+await frame()
 `
 
 let fractal3D = 
@@ -188,7 +188,7 @@ async function frame() {
     canvas.setImage(image)
     requestAnimationFrame(frame)
 }
-requestAnimationFrame(frame)
+await frame()
 
 `
 
@@ -302,7 +302,7 @@ htmlCanvas.width = resolution[0]
 htmlCanvas.height = resolution[1]
 let canvas = new ti.Canvas(htmlCanvas)
 
-let tick = async () => {
+let frame = async () => {
     for(let i = 0; i< 4; ++i){
         advect()
         integrate_vortex()
@@ -311,11 +311,7 @@ let tick = async () => {
     canvas.setImage(image)
     requestAnimationFrame(frame)
 }
-
-async function frame() {
-    await tick()
-}
-requestAnimationFrame(frame)
+await frame()
 `
 
 let rasterizer = 
@@ -465,7 +461,7 @@ async function frame() {
     canvas.setImage(pixels)
     requestAnimationFrame(frame)
 }
-requestAnimationFrame(frame)
+await frame()
   
 `
 export {fractal, fractal3D, vortex_ring, rasterizer}
