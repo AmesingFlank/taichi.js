@@ -848,7 +848,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         let argumentValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(argument)))
         this.assertNode(node, !argumentValue.type.isMatrix(), "index cannot be a matrix")
         this.assertNode(node, !baseValue.type.isScalar, "cannot index a scalar")
-        this.assertNode(node, argumentValue.isCompileTimeConstant())
+        this.assertNode(node, argumentValue.isCompileTimeConstant(), "Indices of vectors/matrices must be a compile-time constant")
 
         let type = new Type( baseValue.type.primitiveType)
         let result = new Value(type)
@@ -1151,8 +1151,9 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             this.errorNode(node, "range for not supported yet")
         }
     }
-
-    
+    protected override visitForInStatement(node: ts.ForInStatement): VisitorResult<Value> {
+        this.errorNode(node, "Please use `for ... of ...` instead of  `for ... in ...`")
+    }
 }
 
 export class InliningCompiler extends CompilingVisitor {

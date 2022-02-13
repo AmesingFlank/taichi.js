@@ -318,4 +318,154 @@ async function frame() {
 requestAnimationFrame(frame)
 `
 
-export {fractal, fractal3D, vortex_ring}
+let rasterizer = 
+`await ti.init() 
+
+let tile_size = 8 
+let width = 512
+let height = 512
+let num_triangles = 60   
+let num_samples_per_pixel = 4  
+let num_spp_sqrt = Math.floor(Math.sqrt(num_samples_per_pixel)) 
+
+let samples = ti.Vector.field(3, ti.f32,
+                              [width, height, num_spp_sqrt, num_spp_sqrt])
+let pixels = ti.Vector.field(4,  ti.f32, [width, height])
+
+let A = ti.Vector.field(2, ti.f32, [num_triangles])
+let B = ti.Vector.field(2, ti.f32, [num_triangles])
+let C = ti.Vector.field(2, ti.f32, [num_triangles])
+let c0 = ti.Vector.field(3, ti.f32, [num_triangles])
+let c1 = ti.Vector.field(3, ti.f32, [num_triangles])
+let c2 = ti.Vector.field(3, ti.f32, [num_triangles])
+  
+let block_num_triangles = ti.field(ti.i32, [width/tile_size, height/tile_size])
+let block_indicies = ti.field(ti.i32, [width/tile_size, height/tile_size, num_triangles])
+
+let point_in_triangle = (P, A, B, C) => {
+    let alpha = -(P.x - B.x) * (C.y - B.y) + (P.y - B.y) * (C.x - B.x)
+    alpha = alpha / (-(A.x - B.x) * (C.y - B.y) + (A.y - B.y) * (C.x - B.x))
+    let beta = -(P.x - C.x) * (A.y - C.y) + (P.y - C.y) * (A.x - C.x)
+    beta = beta / ( -(B.x - C.x) * (A.y - C.y) + (B.y - C.y) * (A.x - C.x))
+    let gamma = 1.0 - alpha - beta
+    let result = alpha >= 0.0 && alpha <= 1.0 && beta >= 0.0 && beta <= 1.0 && gamma >= 0.0
+    return [result, alpha, beta, gamma]
+}
+    
+let bbox_intersect = (A0, A1, B0, B1) => (B0.x < A1.x && B0.y < A1.y && B1.x > A0.x && B1.y > A0.y)
+
+let num_blocks_x = width/tile_size
+let num_blocks_y = height/tile_size
+
+ti.addToKernelScope({tile_size,width,height,num_triangles,num_samples_per_pixel,num_spp_sqrt,
+                    samples,pixels,A,B,C,c0,c1,c2,block_num_triangles,block_indicies,
+                    point_in_triangle,bbox_intersect,num_blocks_x,num_blocks_y})
+
+let set_triangle = ti.kernel (
+    // ok this is bad...
+    // TODO: support of non-scalar args
+    (ii,v00,v01, v10,v11,v20,v21,c00,c01,c02,c10,c11,c12,c20,c21,c22) => { 
+        let i = i32(ii)
+        A[i] = [v00,v01] * [width,height]
+        B[i] = [v10,v11] * [width,height]
+        C[i] = [v20,v21] * [width,height]
+        c0[i] = [c00,c01,c02]
+        c1[i] = [c10,c11,c12]
+        c2[i] = [c20,c21,c22]
+    }
+)
+
+let tile_culling = ti.kernel(
+    ()=>{
+        for(let I of ndrange(num_blocks_x,num_blocks_y)){
+            let i = I[0]
+            let j = I[1]
+            let idx = 0
+            let tile_min = [i * tile_size, j * tile_size]
+            let tile_max = [(i + 1) * tile_size, (j + 1) * tile_size]
+            for(let t of range(num_triangles)){
+                let tri_min = ti.min(A[t], ti.min(B[t], C[t]))
+                let tri_max = ti.max(A[t], ti.max(B[t], C[t]))
+                if (bbox_intersect(tile_min, tile_max, tri_min, tri_max)){
+                    block_indicies[i, j, idx] = t
+                    idx = idx + 1
+                } 
+            }
+            block_num_triangles[i, j] = idx
+        } 
+    }
+)
+        
+let rasterize = ti.kernel(
+    ()=>{
+        for(let I of ndrange(width,height)){
+            let i = I[0]
+            let j = I[1]
+            let block_i = i32(i/tile_size)
+            let block_j = i32(j/tile_size)
+            let this_block_num = block_num_triangles[block_i,block_j]
+            for(let k of range(this_block_num)){
+                let idx = block_indicies[block_i, block_j, k]
+                for(let sub of ndrange(num_spp_sqrt,num_spp_sqrt)){
+                    let subi = sub[0]
+                    let subj = sub[1]
+                    let P = [
+                        i + (subi + 0.5) / num_spp_sqrt,
+                        j + (subj + 0.5) / num_spp_sqrt
+                    ]
+                    let point_info = point_in_triangle(P,A[idx],B[idx],C[idx])
+                    if(point_info[0]){
+                        samples[i, j, subi, subj] = 
+                                c0[idx]*point_info[1] + 
+                                c1[idx]*point_info[2] + 
+                                c2[idx]*point_info[3]
+                    }
+                } 
+            }
+            let samples_sum = [0.0, 0.0, 0.0]
+            for(let sub of ndrange(num_spp_sqrt,num_spp_sqrt)){
+                let subi = sub[0]
+                let subj = sub[1]
+                samples_sum = samples_sum + samples[i, j, subi, subj]
+            } 
+            pixels[i, j] = ((samples_sum / num_samples_per_pixel), 1)
+        }
+    }
+)
+let fill_all = ti.kernel(
+    ()=>{
+        for(let I of ndrange(width,height)){
+            let i = I[0]
+            let j = I[1]
+            for(let sub of ndrange(num_spp_sqrt,num_spp_sqrt)){
+                let subi = sub[0]
+                let subj = sub[1]
+                samples[i, j, subi, subj] = [1,1,1]
+            } 
+        }
+    }
+)
+
+let htmlCanvas = document.getElementById("result_canvas")
+htmlCanvas.width = width
+htmlCanvas.height = height
+let canvas = new ti.Canvas(htmlCanvas)
+
+let i = 0
+async function frame() {
+    let args = [i % num_triangles]
+    for(let i = 0; i<15;++i){
+        args.push(Math.random())
+    }
+    set_triangle(...args)
+    fill_all()
+    tile_culling()
+    rasterize()
+    i = i + 1
+    canvas.setImage(pixels)
+    requestAnimationFrame(frame)
+}
+requestAnimationFrame(frame)
+  
+`
+export {fractal, fractal3D, vortex_ring, rasterizer}

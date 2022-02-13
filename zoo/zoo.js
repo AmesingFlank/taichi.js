@@ -1,4 +1,4 @@
-import { fractal, fractal3D, vortex_ring } from "./presets.js";
+import { fractal, fractal3D, vortex_ring,rasterizer } from "./presets.js";
 
 const editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
     mode: "javascript",
@@ -34,25 +34,6 @@ let preprocessCode = (code) => {
     `
 } 
 
-let compileAndRun = ()=>{
-    cancelAllAnimationFrames()
-    logger.setValue("")
-    let code = editor.getValue();
-    code = preprocessCode(code)
-    try{
-        eval(code)
-    }
-    catch (e) {
-        if (e instanceof SyntaxError) {
-            console.error("Syntax Error in code editor: ",e)
-        }
-        else{
-            console.error("Error in code editor: ",e)
-        }
-    }
-}
- 
-
 let logs = ""
 console.log = function(...args) {
     let s = ""
@@ -71,6 +52,26 @@ console.error = function(...args){
     console.log(...args)
 }
 
+let compileAndRun = ()=>{
+    cancelAllAnimationFrames()
+    logs = ""
+    logger.setValue("")
+    let code = editor.getValue();
+    code = preprocessCode(code)
+    try{
+        eval(code)
+    }
+    catch (e) {
+        if (e instanceof SyntaxError) {
+            console.error("Syntax Error in code editor: ",e)
+        }
+        else{
+            console.error("Error in code editor: ",e)
+        }
+    }
+}
+ 
+
 compileAndRunButton.onclick = ()=>{
     compileAndRun()
 }
@@ -79,6 +80,7 @@ let examples = [
     {listItem:"fractalHref", code:fractal},
     {listItem:"fractal3DHref", code:fractal3D},
     {listItem:"vortexRingHref", code:vortex_ring},
+    {listItem:"rasterizerHref", code:rasterizer},
 ]
 
 for(let ex of examples){
