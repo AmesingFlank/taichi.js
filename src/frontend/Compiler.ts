@@ -645,7 +645,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
 
     protected getBuiltinOps():Map<string,BuiltinOp>{
         let builtinOps:BuiltinOp[] = [ // firstly, we have CHI IR built-ins
-            new BuiltinOp("random",0,DatatypeTransform.AlwaysF32, undefined, ()=>this.irBuilder.create_rand(toNativePrimitiveType(PrimitiveType.f32))), // doesn't work because of race-condition in spirv :))
+            //new BuiltinOp("random",0,DatatypeTransform.AlwaysF32, undefined, ()=>this.irBuilder.create_rand(toNativePrimitiveType(PrimitiveType.f32))), // doesn't work because of race-condition in spirv :))
             new BuiltinOp("sin",1, DatatypeTransform.AlwaysF32, undefined, (stmt:NativeTaichiAny)=>this.irBuilder.create_sin(stmt)),
             new BuiltinOp("cos",1, DatatypeTransform.AlwaysF32, undefined, (stmt:NativeTaichiAny)=>this.irBuilder.create_cos(stmt)),
             new BuiltinOp("asin",1, DatatypeTransform.AlwaysF32, undefined, (stmt:NativeTaichiAny)=>this.irBuilder.create_asin(stmt)),
