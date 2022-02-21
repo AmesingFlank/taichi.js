@@ -3,6 +3,7 @@ import {SNodeTree} from './SNodeTree'
 import {nativeTaichi, NativeTaichiAny} from '../native/taichi/GetTaichi'
 import {error} from '../utils/Logging'
 import {GlobalScope} from "./GlobalScope"
+
 class Program {
     runtime: Runtime|null = null
     materializedTrees: SNodeTree[] = []
@@ -12,10 +13,16 @@ class Program {
     nativeAotBuilder: NativeTaichiAny
     globalScopeObj: GlobalScope 
 
+    useWgslCodegen:boolean = false
+
     private static instance: Program
     private constructor(){
-        this.nativeProgram = new nativeTaichi.Program(nativeTaichi.Arch.vulkan)
-        this.nativeAotBuilder = this.nativeProgram.make_aot_module_builder(nativeTaichi.Arch.vulkan);
+        let arch = nativeTaichi.Arch.vulkan
+        if(this.useWgslCodegen){
+            arch = nativeTaichi.Arch.webgpu
+        }
+        this.nativeProgram = new nativeTaichi.Program(arch)
+        this.nativeAotBuilder = this.nativeProgram.make_aot_module_builder(arch);
         this.partialTree = new SNodeTree()
         this.partialTree.treeId = 0
         this.globalScopeObj = new GlobalScope()

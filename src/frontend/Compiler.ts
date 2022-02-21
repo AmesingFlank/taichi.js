@@ -1212,14 +1212,22 @@ export class OneTimeCompiler extends CompilingVisitor {
         let numTasks = tasks.size()
         for(let i = 0; i < numTasks; ++ i){
             let task = tasks.get(i)
-            let spirvUint32Vec = task.get_spirv_ptr()
-            let numWords = spirvUint32Vec.size()
-            let spv:number[] = []
-            for(let j = 0 ; j < numWords; ++ j){
-                spv.push(spirvUint32Vec.get(j))
+            let wgsl:string = ""
+            if(Program.getCurrentProgram().useWgslCodegen){
+                wgsl = task.get_wgsl_ptr + ""
+                console.log(wgsl)
             }
-            let wgsl = nativeTint.tintSpvToWgsl(spv)
-            //console.log(wgsl)
+            else{
+                let spirvUint32Vec = task.get_spirv_ptr()
+                let numWords = spirvUint32Vec.size()
+                let spv:number[] = []
+                for(let j = 0 ; j < numWords; ++ j){
+                    spv.push(spirvUint32Vec.get(j))
+                }
+                wgsl = nativeTint.tintSpvToWgsl(spv)
+            }
+
+            
             let bindings = getWgslShaderBindings(wgsl)
             //console.log(bindings)
             let rangeHint:string = task.get_range_hint()
