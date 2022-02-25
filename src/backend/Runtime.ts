@@ -83,7 +83,7 @@ class Runtime {
         let requiresContextBuffer = false
         for(let task of kernel.tasks){
             for(let binding of task.params.bindings){
-                if(binding.bufferType === BufferType.Context){
+                if(binding.bufferType === BufferType.Args){
                     requiresContextBuffer = true
                 }
             }
@@ -158,7 +158,7 @@ class Runtime {
                     buffer = this.globalTmpsBuffer!
                     break;
                 }
-                case BufferType.Context:{
+                case BufferType.Args:{
                     buffer = this.contextBuffers[this.contextBuffers.length-1]
                     break;
                 }

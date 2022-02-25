@@ -1215,7 +1215,7 @@ export class OneTimeCompiler extends CompilingVisitor {
             let wgsl:string = ""
             if(Program.getCurrentProgram().useWgslCodegen){
                 wgsl = task.get_wgsl() + ""
-                console.log(wgsl)
+                //console.log(wgsl)
             }
             else{
                 let spirvUint32Vec = task.get_spirv_ptr()
@@ -1229,7 +1229,7 @@ export class OneTimeCompiler extends CompilingVisitor {
 
             
             let bindings = getWgslShaderBindings(wgsl)
-            console.log(bindings)
+            //console.log(bindings)
             let rangeHint:string = task.get_range_hint()
             let workgroupSize = task.get_gpu_block_size()
             taskParams.push({

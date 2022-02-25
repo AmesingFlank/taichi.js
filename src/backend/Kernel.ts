@@ -1,6 +1,6 @@
 import { nativeTaichi, NativeTaichiAny } from "../native/taichi/GetTaichi"
 enum BufferType {
-    Root, GlobalTmps, Context
+    Root, GlobalTmps, Args
 }
 
 class BufferBinding{

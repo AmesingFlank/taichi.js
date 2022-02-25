@@ -13,7 +13,7 @@ class Program {
     nativeAotBuilder: NativeTaichiAny
     globalScopeObj: GlobalScope 
 
-    useWgslCodegen:boolean = false
+    useWgslCodegen:boolean = true
 
     private static instance: Program
     private constructor(){

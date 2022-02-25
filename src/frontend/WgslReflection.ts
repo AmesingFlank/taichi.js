@@ -45,14 +45,14 @@ function getWgslShaderBindings(wgsl:string):BufferBinding[] {
         let contextPrefix = "context_buffer_"
         let contexBegin = stmt.indexOf(contextPrefix)
         if(contexBegin !== -1){
-            addBinding(new BufferBinding(BufferType.Context,null,bindingPoint))
+            addBinding(new BufferBinding(BufferType.Args,null,bindingPoint))
             continue
         }
 
-        let argsPrefix = "args"
+        let argsPrefix = "args_"
         let argsBegin = stmt.indexOf(argsPrefix)
         if(argsBegin !== -1){
-            addBinding(new BufferBinding(BufferType.Context,null,bindingPoint))
+            addBinding(new BufferBinding(BufferType.Args,null,bindingPoint))
             continue
         }
     }
