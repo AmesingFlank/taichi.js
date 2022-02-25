@@ -19,6 +19,7 @@ enum StmtKind{
     RandStmt = "RandStmt",
     ReturnStmt = "ReturnStmt",
     FuncCallStmt = "FuncCallStmt",
+    AtomicOpStmt = "AtomicOpStmt",
 }
 
 function getStmtKind (stmt:any): StmtKind | undefined {

@@ -28,7 +28,8 @@ enum DatatypeTransform {
     Unchanged, // unary only
     AlwaysF32,
     AlwaysI32,
-    DontCare
+    DontCare,
+    ForceLeft, // binary only
 }
 
 
@@ -186,6 +187,10 @@ class Value {
             }
             case DatatypeTransform.AlwaysI32: {
                 result.type.primitiveType = PrimitiveType.i32
+                break;
+            }
+            case DatatypeTransform.ForceLeft: {
+                result.type.primitiveType = left.type.primitiveType
                 break;
             }
         }
@@ -606,6 +611,18 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                 }
             }
         }
+
+        let atomicOps = this.getAtomicOps()
+        let tokenToOp = new Map<ts.SyntaxKind,BuiltinOp>()
+        tokenToOp.set(ts.SyntaxKind.PlusEqualsToken, atomicOps.get("atomic_add")!);
+        tokenToOp.set(ts.SyntaxKind.MinusEqualsToken, atomicOps.get("atomic_sub")!);
+        tokenToOp.set(ts.SyntaxKind.AmpersandEqualsToken, atomicOps.get("atomic_and")!);
+        tokenToOp.set(ts.SyntaxKind.BarEqualsToken, atomicOps.get("atomic_or")!);
+        if(tokenToOp.has(op.kind)){
+            let atomicOp = tokenToOp.get(op.kind)!
+            return atomicOp.apply2(left,rightValue)
+        }
+ 
         let leftValue = this.evaluate(left)
         let maybeResult = this.applyBinaryOpOrError(leftValue,rightValue, op.kind)
         let result = this.extractValueOrError(maybeResult,node,"Unrecognized binary operator "+op.getText())
@@ -640,6 +657,40 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             components.push(new Value(new Type(vec.type.primitiveType),[vec.stmts[i]])) 
         }
         return components
+    }
+
+    protected getAtomicOps():Map<string,BuiltinOp>{
+        let compiler = this
+        class AtomicBuiltinOp extends BuiltinOp {
+            constructor(
+                name:string,
+                irBuilderFunc: (dest:NativeTaichiAny, val:NativeTaichiAny)=>NativeTaichiAny
+            ){
+                super(name,2,DatatypeTransform.ForceLeft,(dest:Value, val:Value) => {
+                    compiler.assertNode(null,val.type.numCols == dest.type.numCols && val.type.numRows == dest.type.numRows, "the shape of atomic operands must match")
+                    val = compiler.castTo(val,dest.type.primitiveType)
+                    let resultOrError = Value.apply2(dest,val,false,false,DatatypeTransform.ForceLeft,(destStmt:NativeTaichiAny,valStmt:NativeTaichiAny) => {
+                        return irBuilderFunc(destStmt,valStmt)
+                    })
+                    return this.extractValueOrError(resultOrError,"atomic error")
+                })
+            }
+        }
+        let atomicOps:BuiltinOp[] = [
+            new AtomicBuiltinOp("atomic_add",(dest:NativeTaichiAny,val:NativeTaichiAny)=>this.irBuilder.create_atomic_add(dest,val)),
+            new AtomicBuiltinOp("atomic_sub",(dest:NativeTaichiAny,val:NativeTaichiAny)=>this.irBuilder.create_atomic_sub(dest,val)),
+            new AtomicBuiltinOp("atomic_max",(dest:NativeTaichiAny,val:NativeTaichiAny)=>this.irBuilder.create_atomic_max(dest,val)),
+            new AtomicBuiltinOp("atomic_min",(dest:NativeTaichiAny,val:NativeTaichiAny)=>this.irBuilder.create_atomic_min(dest,val)),
+            new AtomicBuiltinOp("atomic_and",(dest:NativeTaichiAny,val:NativeTaichiAny)=>this.irBuilder.create_atomic_and(dest,val)),
+            new AtomicBuiltinOp("atomic_or",(dest:NativeTaichiAny,val:NativeTaichiAny)=>this.irBuilder.create_atomic_or(dest,val)),
+            new AtomicBuiltinOp("atomic_xor",(dest:NativeTaichiAny,val:NativeTaichiAny)=>this.irBuilder.create_atomic_xor(dest,val))
+        ]
+        
+        let opsMap = new Map<string,BuiltinOp>()
+        for(let op of atomicOps){
+            opsMap.set(op.name,op)
+        };
+        return opsMap
     }
 
     protected getBuiltinOps():Map<string,BuiltinOp>{
@@ -747,12 +798,27 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
 
     protected override visitCallExpression(node: ts.CallExpression): VisitorResult<Value> {
         let funcText = node.expression.getText()
+        
+        let checkNumArgs = (n:number)=>{
+            this.assertNode(node, node.arguments.length === n, funcText+" requires "+n.toString()+" args")
+        }
+
+        let atomicOps = this.getAtomicOps()
+        for(let kv of atomicOps){
+            let op = kv[1]
+            if(funcText === op.name || funcText === "ti."+op.name ){
+                this.assertNode(node,op.numArgs == 2,"internal error: atomic op should have exactly 2 args")
+                checkNumArgs(op.numArgs)
+                let destPtr = this.extractVisitorResult(this.dispatchVisit(node.arguments[0]))
+                let val = this.evaluate(this.extractVisitorResult(this.dispatchVisit(node.arguments[1])))
+                
+                return op.apply2(destPtr, val)
+            }
+        }
+
         let argumentValues:Value[] = []
         for(let arg of node.arguments){
             argumentValues.push(this.evaluate(this.extractVisitorResult(this.dispatchVisit(arg))))
-        }
-        let checkNumArgs = (n:number)=>{
-            this.assertNode(node, argumentValues.length === n, funcText+" requires "+n.toString()+" args")
         }
         
         let builtinOps = this.getBuiltinOps() 
