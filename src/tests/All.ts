@@ -26,6 +26,8 @@ import {testFunc} from "./TestFunc"
 import {testVectorComponent} from "./TestVectorComponent"
 import {testPropertyFunc} from "./TestPropertyFunc"
 import {testSwizzle} from "./TestSwizzle"
+import {testRandom} from "./TestRandom"
+
 
 async function runAllTests() {
     let passed = true
@@ -55,6 +57,7 @@ async function runAllTests() {
     passed &&= await testVectorComponent()
     passed &&= await testPropertyFunc()
     passed &&= await testSwizzle()
+    passed &&= await testRandom()
 
     if(passed){
         console.log("All tests passed")
