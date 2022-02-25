@@ -13,14 +13,9 @@ class Program {
     nativeAotBuilder: NativeTaichiAny
     globalScopeObj: GlobalScope 
 
-    useWgslCodegen:boolean = true
-
     private static instance: Program
     private constructor(){
-        let arch = nativeTaichi.Arch.vulkan
-        if(this.useWgslCodegen){
-            arch = nativeTaichi.Arch.webgpu
-        }
+        let arch = nativeTaichi.Arch.webgpu 
         this.nativeProgram = new nativeTaichi.Program(arch)
         this.nativeAotBuilder = this.nativeProgram.make_aot_module_builder(arch);
         this.partialTree = new SNodeTree()

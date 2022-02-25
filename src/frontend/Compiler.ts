@@ -3,7 +3,6 @@ import { InMemoryHost } from "./InMemoryHost";
 import {ASTVisitor, VisitorResult} from "./ast/Visiter"
 import { CompiledKernel, TaskParams, BufferBinding, BufferType, KernelParams} from "../backend/Kernel";
 import { nativeTaichi, NativeTaichiAny} from '../native/taichi/GetTaichi' 
-import { nativeTint} from '../native/tint/GetTint' 
 import {error, assert} from '../utils/Logging'
 import { GlobalScope } from "../program/GlobalScope";
 import { Field } from "../program/Field";
@@ -1212,21 +1211,8 @@ export class OneTimeCompiler extends CompilingVisitor {
         let numTasks = tasks.size()
         for(let i = 0; i < numTasks; ++ i){
             let task = tasks.get(i)
-            let wgsl:string = ""
-            if(Program.getCurrentProgram().useWgslCodegen){
-                wgsl = task.get_wgsl() + ""
-                //console.log(wgsl)
-            }
-            else{
-                let spirvUint32Vec = task.get_spirv_ptr()
-                let numWords = spirvUint32Vec.size()
-                let spv:number[] = []
-                for(let j = 0 ; j < numWords; ++ j){
-                    spv.push(spirvUint32Vec.get(j))
-                }
-                wgsl = nativeTint.tintSpvToWgsl(spv)
-            }
-
+            let wgsl:string =  task.get_wgsl()
+            
             
             let bindings = getWgslShaderBindings(wgsl)
             //console.log(bindings)
