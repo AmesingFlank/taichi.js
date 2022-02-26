@@ -10,6 +10,7 @@ import { Program } from "../program/Program";
 import { getStmtKind, StmtKind } from "./Stmt"
 import { Type, PrimitiveType, toNativePrimitiveType } from "./Type"
 import { getWgslShaderBindings } from "./WgslReflection"
+import { LibraryFunc } from "./Library";
 export class CompilerContext {
     protected host: InMemoryHost
     constructor() {
@@ -489,7 +490,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
 
     protected override visitNumericLiteral(node: ts.NumericLiteral): VisitorResult<Value> {
         let value = Number(node.getText())
-        if (node.getText().includes(".")) {
+        if (node.getText().includes(".") || node.getText().includes("e")) {
             return Value.makeConstantScalar(value, this.irBuilder.get_float32(value), PrimitiveType.f32)
         }
         else {
@@ -879,11 +880,25 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         }
         // function semantics: pass by ref for l-values, pass by value for r-values
 
+        // user defined funcs
         if (this.scope.hasStored(funcText)) {
             let funcObj = this.scope.getStored(funcText)
             if (typeof funcObj == 'function') {
                 let compiler = new InliningCompiler(this.scope, this.irBuilder, funcText)
                 let result = compiler.runInlining(argumentRefs, funcObj)
+                if (result) {
+                    return result
+                }
+                return
+            }
+        }
+
+        let libraryFuncs = LibraryFunc.getLibraryFuncs()
+        for (let kv of libraryFuncs) {
+            let func = kv[1]
+            if (funcText === func.name || funcText === "ti." + func.name) {
+                let compiler = new InliningCompiler(this.scope, this.irBuilder, funcText)
+                let result = compiler.runInlining(argumentRefs, func.code)
                 if (result) {
                     return result
                 }
@@ -926,11 +941,11 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             let propText = prop.getText()
             if (builtinOps.has(propText)) {
                 let op = builtinOps.get(propText)!
-                if (op.numArgs === 1 && argumentValues.length === 0) { // write x.norm() and norm(x) are both ok
+                if (op.numArgs === 1 && argumentValues.length === 0) { // writing x.norm() and norm(x) are both ok
                     let objValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(obj)))
                     return op.apply1(objValue)
                 }
-                if (op.numArgs === 2 && argumentValues.length === 1) { // write x.dot(y) and dot(x,y) are both ok
+                if (op.numArgs === 2 && argumentValues.length === 1) { // writing x.dot(y) and dot(x,y) are both ok
                     let objValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(obj)))
                     return op.apply2(objValue, argumentValues[0])
                 }

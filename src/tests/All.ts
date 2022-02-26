@@ -29,7 +29,7 @@ import {testSwizzle} from "./TestSwizzle"
 import {testRandom} from "./TestRandom"
 import {testAtomic} from "./TestAtomic"
 import {testMatrixOps} from "./TestMatrixOps"
-
+import {testLibraryFuncs} from "./TestLibraryFuncs"
 
 async function runAllTests() {
     let passed = true
@@ -62,6 +62,7 @@ async function runAllTests() {
     passed &&= await testRandom()
     passed &&= await testAtomic()
     passed &&= await testMatrixOps()
+    passed &&= await testLibraryFuncs()
 
     if(passed){
         console.log("All tests passed")

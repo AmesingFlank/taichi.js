@@ -7,7 +7,7 @@ async function testMatrixOps(): Promise<boolean> {
      
     await ti.init() 
 
-    let f = ti.Matrix.field(2,2, ti.f32, [2])
+    let f = ti.Matrix.field(2,2, ti.f32, [3])
     let v = ti.Vector.field(2, ti.f32, [1])
     ti.addToKernelScope({f, v}) 
 
@@ -19,6 +19,7 @@ async function testMatrixOps(): Promise<boolean> {
             let m3 = m1.matmul(m2)
             f[0] = m3         
             f[1] = m2.transpose()
+            f[2] = m1.transpose().transpose()
             let v1 = [9,10]
             let v2 = m1.matmul(v1)
             v[0] = v2;
@@ -30,7 +31,7 @@ async function testMatrixOps(): Promise<boolean> {
     let fHost = await f.toArray1D()
     let vHost = await v.toArray1D()
     console.log(fHost,vHost)
-    return assertArrayEqual(fHost,[19,22,43,50,5,7,6,8]) && assertArrayEqual(vHost,[29,67])
+    return assertArrayEqual(fHost,[19,22,43,50,5,7,6,8,1,2,3,4]) && assertArrayEqual(vHost,[29,67])
 }
 
 export {testMatrixOps}
