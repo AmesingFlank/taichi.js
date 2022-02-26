@@ -873,9 +873,27 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             }
         }
 
-        let argumentValues: Value[] = []
+        let argumentRefs: Value[] = []  // pointer for l-values, values for r-values
         for (let arg of node.arguments) {
-            argumentValues.push(this.evaluate(this.extractVisitorResult(this.dispatchVisit(arg))))
+            argumentRefs.push(this.extractVisitorResult(this.dispatchVisit(arg)))
+        }
+        // function semantics: pass by ref for l-values, pass by value for r-values
+
+        if (this.scope.hasStored(funcText)) {
+            let funcObj = this.scope.getStored(funcText)
+            if (typeof funcObj == 'function') {
+                let compiler = new InliningCompiler(this.scope, this.irBuilder, funcText)
+                let result = compiler.runInlining(argumentRefs, funcObj)
+                if (result) {
+                    return result
+                }
+                return
+            }
+        }
+
+        let argumentValues: Value[] = []
+        for (let ref of argumentRefs) {
+            argumentValues.push(this.evaluate(ref))
         }
 
         let builtinOps = this.getBuiltinOps()
@@ -892,18 +910,6 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                 else {// if(op.numArgs === 2)
                     return op.apply2(argumentValues[0], argumentValues[1])
                 }
-            }
-        }
-
-        if (this.scope.hasStored(funcText)) {
-            let funcObj = this.scope.getStored(funcText)
-            if (typeof funcObj == 'function') {
-                let compiler = new InliningCompiler(this.scope, this.irBuilder, funcText)
-                let result = compiler.runInlining(argumentValues, funcObj)
-                if (result) {
-                    return result
-                }
-                return
             }
         }
 
