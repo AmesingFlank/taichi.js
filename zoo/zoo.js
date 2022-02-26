@@ -77,14 +77,17 @@ compileAndRunButton.onclick = ()=>{
 }
 
 let examples = [
-    {listItem:"fractalHref", code:fractal},
-    {listItem:"fractal3DHref", code:fractal3D},
-    {listItem:"vortexRingHref", code:vortex_ring},
-    {listItem:"rasterizerHref", code:rasterizer},
-    {listItem:"mpm99Href", code:mpm99},
+    {listItem:"Fractal", code:fractal},
+    {listItem:"Fractal3D", code:fractal3D},
+    {listItem:"VortexRing", code:vortex_ring},
+    {listItem:"Rasterizer", code:rasterizer},
+    {listItem:"Mpm99", code:mpm99},
 ]
 
+let examplesMap = {}
+
 for(let ex of examples){
+    examplesMap[ex.listItem] = ex
     let item = document.getElementById(ex.listItem)
     item.onclick = ()=>{
         editor.setValue(ex.code)
@@ -92,6 +95,16 @@ for(let ex of examples){
     }
 }
  
+
+const queryString = window.location.search;
+const urlParams = new URLSearchParams(queryString);
+if(urlParams.has("preset") && examplesMap[urlParams.get("preset")]){
+    let preset = examplesMap[urlParams.get("preset")]
+    editor.setValue(preset.code)
+    compileAndRun()
+}
+else{
+    editor.setValue(fractal)    
+    compileAndRun()
+}
  
-editor.setValue(fractal)    
-compileAndRun()
