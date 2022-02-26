@@ -30,6 +30,7 @@ import {testRandom} from "./TestRandom"
 import {testAtomic} from "./TestAtomic"
 import {testMatrixOps} from "./TestMatrixOps"
 import {testLibraryFuncs} from "./TestLibraryFuncs"
+import {testStaticLoopUnroll} from "./TestStaticLoopUnroll"
 
 async function runAllTests() {
     let passed = true
@@ -63,6 +64,7 @@ async function runAllTests() {
     passed &&= await testAtomic()
     passed &&= await testMatrixOps()
     passed &&= await testLibraryFuncs()
+    passed &&= await testStaticLoopUnroll()
 
     if(passed){
         console.log("All tests passed")

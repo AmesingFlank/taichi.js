@@ -452,7 +452,6 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         let resultStmts = leftValue.stmts.concat(rightValue.stmts)
         let resultConstexprs = leftValue.compileTimeConstants.concat(rightValue.compileTimeConstants)
         let type = new Type(leftValue.type.primitiveType, false, leftValue.type.numRows, leftValue.type.numCols)
-        //console.log(leftValue,rightValue,type)
         if (leftValue.type.isScalar && rightValue.type.isScalar) {
             type.numRows = 2
         }
@@ -477,14 +476,19 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             return val
         }
         if (primType === PrimitiveType.f32) {
-            let resultOrError = Value.apply1ElementWise(val, DatatypeTransform.AlwaysF32, (x) => this.irBuilder.create_cast(x, toNativePrimitiveType(PrimitiveType.f32)))
+            let resultOrError = Value.apply1ElementWise(val, DatatypeTransform.AlwaysF32, 
+                (x) => this.irBuilder.create_cast(x, toNativePrimitiveType(PrimitiveType.f32)),
+                (x) => x
+            )
             return this.extractValueOrError(resultOrError, null)
         }
         else { //if(primType === PrimitiveType.i32){
-            let resultOrError = Value.apply1ElementWise(val, DatatypeTransform.AlwaysI32, (x) => this.irBuilder.create_cast(x, toNativePrimitiveType(PrimitiveType.i32)))
+            let resultOrError = Value.apply1ElementWise(val, DatatypeTransform.AlwaysI32, 
+                (x) => this.irBuilder.create_cast(x, toNativePrimitiveType(PrimitiveType.i32)),
+                (x) => x
+            )
             return this.extractValueOrError(resultOrError, null)
         }
-
     }
 
 
@@ -654,7 +658,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
     protected getVectorComponents(vec: Value): Value[] {
         this.assertNode(null, vec.type.isVector())
         let components: Value[] = []
-        for (let i = 0; i < 3; ++i) {
+        for (let i = 0; i < vec.type.numRows; ++i) {
             components.push(new Value(new Type(vec.type.primitiveType), [vec.stmts[i]]))
         }
         return components
@@ -802,7 +806,28 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             return result
         })
 
-        let matmal = new BuiltinOp("matmul", 2, DatatypeTransform.AlwaysF32, (l: Value, r: Value) => {
+        let outer_product = new BuiltinOp("outer_product", 2, DatatypeTransform.AlwaysF32, (l: Value, r: Value) => {
+            this.assertNode(null, l.type.isVector() && r.type.isVector(), "outer_product can only be applied to vectors")
+            let leftComponents: Value[] = this.getVectorComponents(l)
+            let rightComponents: Value[] = this.getVectorComponents(r)
+
+            let resultRows = leftComponents.length
+            let resultCols = rightComponents.length
+            let resultType = new Type(PrimitiveType.f32,false,resultRows,resultCols)
+            let resultStmts : NativeTaichiAny[] = []
+
+            for(let row = 0; row < resultRows; ++ row){
+                for(let col = 0; col < resultCols; ++ col){
+                    let this_prod = this.applyBinaryOp(leftComponents[row], rightComponents[col], ts.SyntaxKind.AsteriskToken)
+                    resultStmts.push(this_prod.stmts[0])
+                }
+            }
+
+            let result  = new Value(resultType,resultStmts)
+            return result
+        })
+
+        let matmul = new BuiltinOp("matmul", 2, DatatypeTransform.AlwaysF32, (l: Value, r: Value) => {
             this.assertNode(null, l.type.numCols == r.type.numRows , "matrix multiplication error: l.numCols != r.numRows")
             let leftMat = this.getMatrixComponents(l)
             let rightMat = this.getMatrixComponents(r)
@@ -846,7 +871,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             return result
         })
 
-        let derivedOps = [len, length, sum, norm_sqr, norm, normalized, dot, cross, matmal, transpose]
+        let derivedOps = [len, length, sum, norm_sqr, norm, normalized, dot, cross, matmul, transpose, outer_product]
         for (let op of derivedOps) {
             opsMap.set(op.name, op)
         }
@@ -1000,15 +1025,16 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             this.assertNode(node, indices.length === 1, "vector can only have 1 index")
             result.stmts.push(baseValue.stmts[indices[0]])
             if (baseValue.isCompileTimeConstant()) {
-                result.compileTimeConstants.push(baseValue.stmts[indices[0]])
+                result.compileTimeConstants.push(baseValue.compileTimeConstants[indices[0]])
             }
         }
         else if (baseValue.type.isMatrix()) {
             this.assertNode(node, indices.length === 2, "matrix must have exactly 2 indices")
             let index = indices[0] * baseValue.type.numCols + indices[1]
+            //console.log(node.getText()," index: ",index, indices,baseValue.type.numCols )
             result.stmts.push(baseValue.stmts[index])
             if (baseValue.isCompileTimeConstant()) {
-                result.compileTimeConstants.push(baseValue.stmts[index])
+                result.compileTimeConstants.push(baseValue.compileTimeConstants[index])
             }
         }
 
@@ -1200,31 +1226,40 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         guard.delete()
     }
 
-    protected visitRangeFor(indexSymbols: ts.Symbol[], rangeExpr: ts.NodeArray<ts.Expression>, body: ts.Statement): VisitorResult<Value> {
+    protected visitRangeFor(indexSymbols: ts.Symbol[], rangeExpr: ts.NodeArray<ts.Expression>, body: ts.Statement, shouldUnroll:boolean): VisitorResult<Value> {
         this.assertNode(null, rangeExpr.length === 1, "Expecting exactly 1 argument in range()")
         this.assertNode(null, indexSymbols.length === 1, "Expecting exactly 1 loop index in range()")
         let rangeLengthExpr = rangeExpr[0]
         let rangeLengthValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(rangeLengthExpr)))
         this.assertNode(null, rangeLengthValue.type.primitiveType === PrimitiveType.i32 && rangeLengthValue.type.isScalar, "range must be i32 scalar")
-        let zero = this.irBuilder.get_int32(0)
-        let loop = this.irBuilder.create_range_for(zero, rangeLengthValue.stmts[0], 0, 4, 0, false);
 
-        let loopGuard = this.irBuilder.get_range_loop_guard(loop);
-        let indexStmt = this.irBuilder.get_loop_index(loop, 0);
-        let indexValue = new Value(new Type(PrimitiveType.i32), [indexStmt])
+        if(shouldUnroll){
+            this.assertNode(null, rangeLengthValue.isCompileTimeConstant(), "for static range loops, the range must be a compile time constant")
+            let rangeLength = rangeLengthValue.compileTimeConstants[0]
+            for(let i = 0;i<rangeLength;++i){
+                let indexValue = Value.makeConstantScalar(i,this.irBuilder.get_int32(i),PrimitiveType.i32)
+                this.symbolTable.set(indexSymbols[0], indexValue)
+                this.dispatchVisit(body)
+            }
+        }
+        else{
+            let zero = this.irBuilder.get_int32(0)
+            let loop = this.irBuilder.create_range_for(zero, rangeLengthValue.stmts[0], 0, 4, 0, false);
 
-        this.symbolTable.set(indexSymbols[0], indexValue)
+            let loopGuard = this.irBuilder.get_range_loop_guard(loop);
+            let indexStmt = this.irBuilder.get_loop_index(loop, 0);
+            let indexValue = new Value(new Type(PrimitiveType.i32), [indexStmt])
+            this.symbolTable.set(indexSymbols[0], indexValue)
 
-        this.loopStack.push(LoopKind.For)
+            this.loopStack.push(LoopKind.For)
+            this.dispatchVisit(body)
+            this.loopStack.pop()
 
-        this.dispatchVisit(body)
-
-        this.loopStack.pop()
-
-        loopGuard.delete()
+            loopGuard.delete()
+        }
     }
 
-    protected visitNdrangeFor(indexSymbols: ts.Symbol[], rangeExpr: ts.NodeArray<ts.Expression>, body: ts.Statement): VisitorResult<Value> {
+    protected visitNdrangeFor(indexSymbols: ts.Symbol[], rangeExpr: ts.NodeArray<ts.Expression>, body: ts.Statement, shouldUnroll:boolean): VisitorResult<Value> {
         let numDimensions = rangeExpr.length
         this.assertNode(null, indexSymbols.length === 1, "Expecting exactly 1 (grouped) loop index in ndrange()")
         this.assertNode(null, numDimensions > 0, "ndrange() arg list cannot be empty")
@@ -1235,35 +1270,58 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             this.assertNode(null, value.type.isScalar, "each arg to ndrange() must be a scalar")
             lengthValues.push(value)
         }
-        let product = lengthValues[0].stmts[0]
-        for (let i = 1; i < numDimensions; ++i) {
-            product = this.irBuilder.create_mul(product, lengthValues[i].stmts[0])
+        if(shouldUnroll){
+            let totalLength = 1
+            for(let len of lengthValues){
+                this.assertNode(null, len.isCompileTimeConstant(), "for static ndrange loops, each range must be a compile time constant")
+                totalLength *= len.compileTimeConstants[0]
+            }
+            //console.log("total length ",totalLength)
+            for(let i = 0;i<totalLength;++i){
+                let indexValue = new Value(new Type(PrimitiveType.i32, false, numDimensions, 1), [],[])
+                let remainder = i
+
+                for (let d = numDimensions - 1; d >= 0; --d) {
+                    let thisDimLength = lengthValues[d].compileTimeConstants[0]
+                    let thisIndex = remainder % thisDimLength
+                    let thisIndexStmt = this.irBuilder.get_int32(thisIndex)
+                    indexValue.stmts.push(thisIndexStmt)
+                    indexValue.compileTimeConstants.push(thisIndex)
+                    remainder = (remainder - thisIndex) / thisDimLength
+                }
+
+                this.symbolTable.set(indexSymbols[0], indexValue)
+                this.dispatchVisit(body)
+            }
         }
-        let zero = this.irBuilder.get_int32(0)
-        let loop = this.irBuilder.create_range_for(zero, product, 0, 4, 0, false);
+        else{
+            let product = lengthValues[0].stmts[0]
+            for (let i = 1; i < numDimensions; ++i) {
+                product = this.irBuilder.create_mul(product, lengthValues[i].stmts[0])
+            }
+            let zero = this.irBuilder.get_int32(0)
+            let loop = this.irBuilder.create_range_for(zero, product, 0, 4, 0, false);
 
-        let loopGuard = this.irBuilder.get_range_loop_guard(loop);
-        let flatIndexStmt = this.irBuilder.get_loop_index(loop, 0);
+            let loopGuard = this.irBuilder.get_range_loop_guard(loop);
+            let flatIndexStmt = this.irBuilder.get_loop_index(loop, 0);
 
-        let indexValue = new Value(new Type(PrimitiveType.i32, false, numDimensions, 1), [])
-        let remainder = flatIndexStmt
+            let indexValue = new Value(new Type(PrimitiveType.i32, false, numDimensions, 1), [])
+            let remainder = flatIndexStmt
 
-        for (let i = numDimensions - 1; i >= 0; --i) {
-            let thisDimStmt = lengthValues[i].stmts[0]
-            let thisIndex = this.irBuilder.create_mod(remainder, thisDimStmt)
-            indexValue.stmts = [thisIndex].concat(indexValue.stmts)
-            remainder = this.irBuilder.create_floordiv(remainder, thisDimStmt)
+            for (let i = numDimensions - 1; i >= 0; --i) {
+                let thisDimStmt = lengthValues[i].stmts[0]
+                let thisIndex = this.irBuilder.create_mod(remainder, thisDimStmt)
+                indexValue.stmts = [thisIndex].concat(indexValue.stmts)
+                remainder = this.irBuilder.create_floordiv(remainder, thisDimStmt)
+            }
+            this.symbolTable.set(indexSymbols[0], indexValue)
+
+            this.loopStack.push(LoopKind.For)
+            this.dispatchVisit(body)
+            this.loopStack.pop()
+
+            loopGuard.delete()
         }
-
-        this.symbolTable.set(indexSymbols[0], indexValue)
-
-        this.loopStack.push(LoopKind.For)
-
-        this.dispatchVisit(body)
-
-        this.loopStack.pop()
-
-        loopGuard.delete()
     }
 
     protected override visitForOfStatement(node: ts.ForOfStatement): VisitorResult<Value> {
@@ -1281,21 +1339,33 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             let calledFunctionExpr = callExpr.expression
             let calledFunctionText = calledFunctionExpr.getText()
             if (calledFunctionText === "range" || calledFunctionText === "ti.range") {
-                return this.visitRangeFor(loopIndexSymbols, callExpr.arguments, node.statement)
+                return this.visitRangeFor(loopIndexSymbols, callExpr.arguments, node.statement, false)
             }
             else if (calledFunctionText === "ndrange" || calledFunctionText === "ti.ndrange") {
-                return this.visitNdrangeFor(loopIndexSymbols, callExpr.arguments, node.statement)
+                return this.visitNdrangeFor(loopIndexSymbols, callExpr.arguments, node.statement, false)
             }
-            else {
-                this.errorNode(node, "unsupported for-of initializer: ", calledFunctionText)
+            else if (calledFunctionText === "static" || calledFunctionText === "ti.static") {
+                let errMsg = "expecting a single range(...) or ndrange(...) within static(...)"
+                this.assertNode(node,callExpr.arguments.length === 1, errMsg)
+                let innerExpr = callExpr.arguments[0]
+                this.assertNode(node,innerExpr.kind === ts.SyntaxKind.CallExpression, errMsg)
+                let innerCallExpr = innerExpr as ts.CallExpression
+                let innerCallText = innerCallExpr.expression.getText()
+                if (innerCallText === "range" || innerCallText === "ti.range") {
+                    return this.visitRangeFor(loopIndexSymbols, innerCallExpr.arguments, node.statement,true)
+                }
+                else if (innerCallText === "ndrange" || innerCallText === "ti.ndrange") {
+                    return this.visitNdrangeFor(loopIndexSymbols, innerCallExpr.arguments, node.statement,true)
+                }
             }
         }
-        else {
-            this.errorNode(node, "range for not supported yet")
-        }
+        this.errorNode(node, "unsupported for-of initializer ")
     }
     protected override visitForInStatement(node: ts.ForInStatement): VisitorResult<Value> {
         this.errorNode(node, "Please use `for ... of ...` instead of  `for ... in ...`")
+    }
+    protected override visitForStatement(node: ts.ForStatement): VisitorResult<Value> {
+        this.errorNode(node, "Please use `for ... of ...` instead of  arbitrary for loops")
     }
 }
 
