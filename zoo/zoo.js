@@ -1,4 +1,4 @@
-import { fractal, fractal3D, vortex_ring,rasterizer } from "./presets.js";
+import { fractal, fractal3D, vortex_ring,rasterizer,mpm99 } from "./presets.js";
 
 const editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
     mode: "javascript",
@@ -81,6 +81,7 @@ let examples = [
     {listItem:"fractal3DHref", code:fractal3D},
     {listItem:"vortexRingHref", code:vortex_ring},
     {listItem:"rasterizerHref", code:rasterizer},
+    {listItem:"mpm99Href", code:mpm99},
 ]
 
 for(let ex of examples){
