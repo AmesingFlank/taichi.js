@@ -531,10 +531,10 @@ let substep = ti.kernel(
                 if(material[p]==2){
                     // Plasticity
                     new_sig = min(max(sig[d, d], 1 - 2.5e-2), 1 + 4.5e-3)  
-                    Jp[p] = Jp[p] * sig[d, d] / new_sig
-                    sig[d, d] = new_sig
-                    J = J * new_sig
                 }
+                Jp[p] = Jp[p] * sig[d, d] / new_sig
+                sig[d, d] = new_sig
+                J = J * new_sig
             }
             if(material[p]==0){
                 F[p] = [[1.0,0.0],[0.0,1.0]] * sqrt(J)
@@ -614,7 +614,7 @@ let reset = ti.kernel(
                 x_ratio * 0.2 + 0.3 + 0.10 * group_id,
                 y_ratio * 0.2 + 0.05 + 0.32 * group_id
             ]
-            material[i] = 1
+            material[i] = group_id
             v[i] = [0, 0]
             F[i] = [[1, 0], [0, 1]]
             Jp[i] = 1
