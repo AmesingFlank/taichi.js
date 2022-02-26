@@ -32,7 +32,7 @@ let svd2dCode =
     }
     else{
         let tao = 0.5 * (S[0,0] - S[1,1])
-        let w = ti.sqrt(tao * tao  + S[0,1] * S[0,1])
+        let w = ti.sqrt(tao ** 2  + S[0,1] ** 2)
         let t = 0.0
         if (tao > 0){
             t = S[0,1] / (tao + w)
