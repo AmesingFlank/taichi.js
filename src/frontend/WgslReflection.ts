@@ -42,17 +42,17 @@ function getWgslShaderBindings(wgsl:string):BufferBinding[] {
             continue
         }
 
-        let contextPrefix = "context_buffer_"
-        let contexBegin = stmt.indexOf(contextPrefix)
-        if(contexBegin !== -1){
-            addBinding(new BufferBinding(BufferType.Args,null,bindingPoint))
-            continue
-        }
-
         let argsPrefix = "args_"
         let argsBegin = stmt.indexOf(argsPrefix)
         if(argsBegin !== -1){
             addBinding(new BufferBinding(BufferType.Args,null,bindingPoint))
+            continue
+        }
+
+        let randStatesPrefix = "rand_states_"
+        let randStatesBegin = stmt.indexOf(randStatesPrefix)
+        if(randStatesBegin !== -1){
+            addBinding(new BufferBinding(BufferType.RandStates,null,bindingPoint))
             continue
         }
     }

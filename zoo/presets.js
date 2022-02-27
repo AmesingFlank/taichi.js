@@ -604,15 +604,9 @@ let reset = ti.kernel(
     () => {
         for(let i of range(n_particles)){
             let group_id = i32(ti.floor(i / group_size))
-            // hmm, ti.random() is broken. 
-            // this generates a regular grid
-            let index_in_group = i % group_size
-            let group_dim = i32(sqrt(group_size))
-            let x_ratio = (index_in_group % group_dim) / f32(group_dim)
-            let y_ratio = floor(index_in_group / group_dim) / f32(group_dim)
             x[i] = [
-                x_ratio * 0.2 + 0.3 + 0.10 * group_id,
-                y_ratio * 0.2 + 0.05 + 0.32 * group_id
+                ti.random() * 0.2 + 0.3 + 0.10 * group_id,
+                ti.random() * 0.2 + 0.05 + 0.32 * group_id
             ]
             material[i] = group_id
             v[i] = [0, 0]

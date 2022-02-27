@@ -17,13 +17,15 @@ class Runtime {
     private materializedTrees: MaterializedTree[] = []
 
     private globalTmpsBuffer: GPUBuffer | null = null
-    private contextBuffers: GPUBuffer[] = []
+    private randStatesBuffer: GPUBuffer | null = null
+    private argBuffers: GPUBuffer[] = []
 
     constructor(){}
 
     async init(){
         await this.createDevice()
         this.createGlobalTmpsBuffer()
+        this.createRandStatesBuffer()
     }
 
     async createDevice() {
@@ -45,14 +47,6 @@ class Runtime {
         this.adapter = adapter
     }
 
-    private createGlobalTmpsBuffer(){
-        let size = 1024 * 1024
-        this.globalTmpsBuffer = this.device!.createBuffer({
-            size: size,
-            usage: GPUBufferUsage.STORAGE,
-        })
-    }
-
     createTask(params:TaskParams): CompiledTask {
         let task = new CompiledTask(this.device!,params)
         return task
@@ -70,10 +64,10 @@ class Runtime {
 
     async sync(){
         await this.device!.queue.onSubmittedWorkDone()
-        for(let buffer of this.contextBuffers){
-            //buffer.destroy()
+        for(let buffer of this.argBuffers){
+            buffer.destroy()
         }
-        this.contextBuffers = []
+        this.argBuffers = []
     }
 
     launchKernel(kernel: CompiledKernel, ...args:any[]){
@@ -89,9 +83,8 @@ class Runtime {
             }
         }
         if(requiresContextBuffer){
-            let extraArgsSize = 512 // taichi extra args... useless here
-            let actualArgsSize = 4 *  kernel.numArgs
-            let ctxBuffer = this.addContextBuffer(actualArgsSize + extraArgsSize)
+            let argsSize = 4 *  kernel.numArgs
+            let ctxBuffer = this.addArgsBuffer(argsSize)
             if(kernel.numArgs > 0){
                 new Float32Array(ctxBuffer.getMappedRange()).set(new Float32Array(args))
             }
@@ -132,8 +125,8 @@ class Runtime {
         this.device!.queue.submit([commandEncoder.finish()]);
     }
 
-    addContextBuffer(size: number):GPUBuffer{
-        if(this.contextBuffers.length > 1024){
+    addArgsBuffer(size: number):GPUBuffer{
+        if(this.argBuffers.length > 1024){
             this.sync().then(()=>{})
         }
         let buffer = this.device!.createBuffer({
@@ -141,8 +134,23 @@ class Runtime {
             usage: GPUBufferUsage.STORAGE ,
             mappedAtCreation : true
         })
-        this.contextBuffers.push(buffer)
+        this.argBuffers.push(buffer)
         return buffer
+    }
+
+    private createGlobalTmpsBuffer(){
+        let size = 1024 * 1024
+        this.globalTmpsBuffer = this.device!.createBuffer({
+            size: size,
+            usage: GPUBufferUsage.STORAGE,
+        })
+    }
+
+    private createRandStatesBuffer() {
+        this.randStatesBuffer = this.device!.createBuffer({
+            size: 65536 * 4 * 4,
+            usage: GPUBufferUsage.STORAGE
+        }) 
     }
 
     getBindings(task:TaskParams): GPUBindGroupEntry[] {
@@ -159,7 +167,11 @@ class Runtime {
                     break;
                 }
                 case BufferType.Args:{
-                    buffer = this.contextBuffers[this.contextBuffers.length-1]
+                    buffer = this.argBuffers[this.argBuffers.length-1]
+                    break;
+                }
+                case BufferType.RandStates:{
+                    buffer = this.randStatesBuffer!
                     break;
                 }
             }

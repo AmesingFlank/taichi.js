@@ -31,6 +31,7 @@ async function testRandom(): Promise<boolean> {
     let mean = sum / N
     let mean_sqr = sum_sqr / N 
     console.log(mean, mean_sqr)
+    console.log(fHost)
     // E[X] and E[X^2] where X~U(0,1)
     return assertArrayEqual([mean],[0.5], 0.01) && assertArrayEqual([mean_sqr],[1.0 / 3.0], 0.01)
 }
