@@ -45,6 +45,10 @@
       .CompileRunButton{
         float: right;
       }
+      .StopButton{
+        float: right;
+        margin-left: 5%;
+      }
       .column2after {
         flex: 2%;
       }
@@ -90,11 +94,15 @@
           <li>
             <a href="#" id="Mpm99">Mpm99</a>
           </li> 
+          <li>
+            <a href="#" id="CornellBox">CornellBox</a>
+          </li> 
         </ul>
       </div>
       <div class="column2 card" >
         <p class="EditorTitle">Code Editor</p> 
-        <button class="CompileRunButton" id="btn">Compile & Run</button>
+        <button class="StopButton" id="StopButton">Stop</button>
+        <button class="CompileRunButton" id="CompileRunButton">Compile & Run</button>
         <textarea name="editor" id="editor"></textarea>
         <p>Log</p>
         <textarea name="logger" id="logger"></textarea>

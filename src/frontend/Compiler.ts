@@ -1325,7 +1325,8 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
     }
 
     protected override visitForOfStatement(node: ts.ForOfStatement): VisitorResult<Value> {
-        this.assertNode(node, node.initializer.kind === ts.SyntaxKind.VariableDeclarationList, "Expecting variable declaration list, got", node.initializer.kind)
+        this.assertNode(node, node.initializer.kind === ts.SyntaxKind.VariableDeclarationList, 
+            "Expecting a `let` variable declaration list, got ", node.initializer.getText()," ", node.initializer.kind)
         let declarationList = node.initializer as ts.VariableDeclarationList
         let loopIndexSymbols: ts.Symbol[] = []
         for (let decl of declarationList.declarations) {
@@ -1439,6 +1440,8 @@ export class OneTimeCompiler extends CompilingVisitor {
                 bindings
             })
         }
+        kernel.delete()
+        this.irBuilder.delete()
         return new KernelParams(taskParams, this.numArgs)
     }
 }

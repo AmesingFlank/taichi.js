@@ -1,4 +1,4 @@
-import { fractal, fractal3D, vortex_ring,rasterizer,mpm99 } from "./presets.js";
+import { fractal, fractal3D, vortex_ring,rasterizer,mpm99, cornell_box } from "./presets.js";
 
 const editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
     mode: "javascript",
@@ -12,7 +12,8 @@ const logger = CodeMirror.fromTextArea(document.getElementById("logger"), {
 logger.setSize("100%","18%");
 
 
-const compileAndRunButton = document.getElementById("btn")
+const compileAndRunButton = document.getElementById("CompileRunButton")
+const stopButton = document.getElementById("StopButton")
 
 let cancelAllAnimationFrames = ()=>{
     var id = window.requestAnimationFrame(()=>{});
@@ -75,6 +76,9 @@ let compileAndRun = ()=>{
 compileAndRunButton.onclick = ()=>{
     compileAndRun()
 }
+stopButton.onclick = () => {
+    cancelAllAnimationFrames()
+}
 
 let examples = [
     {listItem:"Fractal", code:fractal},
@@ -82,6 +86,7 @@ let examples = [
     {listItem:"VortexRing", code:vortex_ring},
     {listItem:"Rasterizer", code:rasterizer},
     {listItem:"Mpm99", code:mpm99},
+    {listItem:"CornellBox", code:cornell_box},
 ]
 
 let examplesMap = {}
