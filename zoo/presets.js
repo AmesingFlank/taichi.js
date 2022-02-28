@@ -1042,7 +1042,7 @@ let sample_brdf = (normal) => {
     }
     // Apply Malley's method to project disk to hemisphere
     let u = [1.0, 0.0, 0.0]
-    if (abs(normal[1] < 1 - eps)) {
+    if (abs(normal[1]) < 1 - eps) {
         u = normal.cross([0.0, 1.0, 0.0])
     }
     let v = normal.cross(u)
