@@ -1233,6 +1233,7 @@ async function frame() {
         total_samples += 1
     }
     tonemap(total_samples)
+    await ti.sync() // otherwise the time measurement is weird
     let curr_t = new Date().getTime()
     let duration_seconds = (curr_t - last_t) / 1000.0
     let samplesPerSecond = interval / duration_seconds
