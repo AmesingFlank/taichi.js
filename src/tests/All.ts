@@ -1,36 +1,37 @@
 
-import { error , log} from "../utils/Logging"
-import {testSimple} from "./TestSimple"
-import {testCopyFieldToHost1D} from "./TestCopyFieldToHost1D"
-import {test2DField} from "./Test2DField"
-import {testLocalVar} from "./testLocalVar"
-import {testVector} from "./TestVector"
-import {testMatrix} from "./TestMatrix"
-import {testVectorLocalVar} from "./TestVectorLocalVar"
-import {testMatrixLocalVar} from "./TestMatrixLocalVar"
-import {testMultipleSNodeTree} from "./TestMultipleSNodeTree"
-import {testNdrange} from "./TestNdrange"
-import {testVectorArithmetic} from "./TestVectorArithmetic"
-import {testFloat} from "./TestFloat"
-import {testSerial} from "./TestSerial"
-import {testMath} from "./TestMath"
-import {testKernelScope} from "./TestKernelScope"
-import {testIf} from "./TestIf"
-import {testWhile} from "./TestWhile"
-import {testBreak} from "./TestBreak"
-import {testContinue} from "./TestContinue"
-import {testUnary} from "./TestUnary"
-import {testArrowFunctionKernel} from "./TestArrowFunctionKernel"
-import {testArgs} from "./TestArgs"
-import {testFunc} from "./TestFunc"
-import {testVectorComponent} from "./TestVectorComponent"
-import {testPropertyFunc} from "./TestPropertyFunc"
-import {testSwizzle} from "./TestSwizzle"
-import {testRandom} from "./TestRandom"
-import {testAtomic} from "./TestAtomic"
-import {testMatrixOps} from "./TestMatrixOps"
-import {testLibraryFuncs} from "./TestLibraryFuncs"
-import {testStaticLoopUnroll} from "./TestStaticLoopUnroll"
+import { error, log } from "../utils/Logging"
+import { testSimple } from "./TestSimple"
+import { testCopyFieldToHost1D } from "./TestCopyFieldToHost1D"
+import { test2DField } from "./Test2DField"
+import { testLocalVar } from "./testLocalVar"
+import { testVector } from "./TestVector"
+import { testMatrix } from "./TestMatrix"
+import { testVectorLocalVar } from "./TestVectorLocalVar"
+import { testMatrixLocalVar } from "./TestMatrixLocalVar"
+import { testMultipleSNodeTree } from "./TestMultipleSNodeTree"
+import { testNdrange } from "./TestNdrange"
+import { testVectorArithmetic } from "./TestVectorArithmetic"
+import { testFloat } from "./TestFloat"
+import { testSerial } from "./TestSerial"
+import { testMath } from "./TestMath"
+import { testKernelScope } from "./TestKernelScope"
+import { testIf } from "./TestIf"
+import { testWhile } from "./TestWhile"
+import { testBreak } from "./TestBreak"
+import { testContinue } from "./TestContinue"
+import { testUnary } from "./TestUnary"
+import { testArrowFunctionKernel } from "./TestArrowFunctionKernel"
+import { testArgs } from "./TestArgs"
+import { testFunc } from "./TestFunc"
+import { testVectorComponent } from "./TestVectorComponent"
+import { testPropertyFunc } from "./TestPropertyFunc"
+import { testSwizzle } from "./TestSwizzle"
+import { testRandom } from "./TestRandom"
+import { testAtomic } from "./TestAtomic"
+import { testMatrixOps } from "./TestMatrixOps"
+import { testLibraryFuncs } from "./TestLibraryFuncs"
+import { testStaticLoopUnroll } from "./TestStaticLoopUnroll"
+import { testBroadcast } from "./TestBroadCast"
 
 async function runAllTests() {
     let passed = true
@@ -65,14 +66,15 @@ async function runAllTests() {
     passed &&= await testMatrixOps()
     passed &&= await testLibraryFuncs()
     passed &&= await testStaticLoopUnroll()
+    passed &&= await testBroadcast()
 
-    if(passed){
+    if (passed) {
         console.log("All tests passed")
     }
-    else{
+    else {
         error("TESTS FAILED")
     }
 }
 
 
-export {runAllTests}
+export { runAllTests }

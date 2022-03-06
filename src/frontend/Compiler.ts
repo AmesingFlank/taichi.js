@@ -8,9 +8,12 @@ import { GlobalScope } from "../program/GlobalScope";
 import { Field } from "../program/Field";
 import { Program } from "../program/Program";
 import { getStmtKind, StmtKind } from "./Stmt"
-import { Type, PrimitiveType, toNativePrimitiveType } from "./Type"
 import { getWgslShaderBindings } from "./WgslReflection"
 import { LibraryFunc } from "./Library";
+import { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, TypeUtils, PrimitiveType, toNativePrimitiveType, TypeError } from "./Type"
+import { Value, ValueUtils } from "./Value"
+import { BuiltinOp, BuiltinNullaryOp, BuiltinBinaryOp, BuiltinUnaryOp, BuiltinAtomicOp, BuiltinCustomOp, BuiltinOpFactory } from "./BuiltinOp";
+import { ResultOrError } from "./Error";
 export class CompilerContext {
     protected host: InMemoryHost
     constructor() {
@@ -24,249 +27,16 @@ export class CompilerContext {
     }
 }
 
-enum DatatypeTransform {
-    PromoteToMatch, //binary only
-    Unchanged, // unary only
-    AlwaysF32,
-    AlwaysI32,
-    DontCare,
-    ForceLeft, // binary only
-}
-
-
-class ResultOrError<T> {
-    private constructor(public isError: boolean, public result: T | null, public errorMessage: string | null) {
-        if (isError) {
-            assert(result === null && errorMessage !== null)
-        }
-        else {
-            assert(result !== null && errorMessage === null)
-        }
-    }
-    public static createResult<Y>(result: Y): ResultOrError<Y> {
-        return new ResultOrError<Y>(false, result, null)
-    }
-    public static createError<Y>(msg: string): ResultOrError<Y> {
-        return new ResultOrError<Y>(true, null, msg)
-    }
-}
-
-class Value {
-    public constructor(
-        type_: Type,
-        public stmts: NativeTaichiAny[] = [],
-        public compileTimeConstants: number[] = []
-    ) {
-        this.type_ = type_.copy()
-    }
-
-    private type_: Type
-
-    public get type(): Type {
-        return this.type_;
-    }
-
-    public set type(newType: Type) {
-        this.type_ = newType.copy()
-    }
-
-    public isCompileTimeConstant(): boolean {
-        return this.compileTimeConstants.length === this.stmts.length
-    }
-
-    static makeConstantScalar(val: number, stmt: NativeTaichiAny, primitiveType: PrimitiveType): Value {
-        return new Value(new Type(primitiveType), [stmt], [val])
-    }
-    static apply1ElementWise(val: Value, datatypeTransform: DatatypeTransform,
-        f: (stmt: NativeTaichiAny) => NativeTaichiAny,
-        fConst: ((val: number) => number) | null = null): ResultOrError<Value> {
-        let result = new Value(val.type, [])
-        for (let stmt of val.stmts) {
-            result.stmts.push(f(stmt))
-        }
-        if (fConst && val.isCompileTimeConstant()) {
-            for (let x of val.compileTimeConstants) {
-                result.compileTimeConstants.push(fConst(x))
-            }
-        }
-        switch (datatypeTransform) {
-            case DatatypeTransform.AlwaysF32: {
-                result.type.primitiveType = PrimitiveType.f32
-                break;
-            }
-            case DatatypeTransform.AlwaysI32: {
-                result.type.primitiveType = PrimitiveType.i32
-                break;
-            }
-        }
-        return ResultOrError.createResult(result)
-    }
-    static apply2<T>(left: Value, right: Value, allowBroadcastLeftToRight: boolean, allowBroadcastRightToLeft: boolean,
-        datatypeTransform: DatatypeTransform,
-        f: (left: NativeTaichiAny, right: NativeTaichiAny) => T,
-        fConst: ((left: number, right: number) => number) | null = null
-    ): ResultOrError<Value> {
-        let broadcastLeftToRight = false
-        let broadcastRightToLeft = false
-        if (left.type.isScalar && !right.type.isScalar) {
-            if (!allowBroadcastLeftToRight) {
-                return ResultOrError.createError("broadcast left to right not allowed")
-            }
-            broadcastLeftToRight = true
-        }
-        if (!left.type.isScalar && right.type.isScalar) {
-            if (!allowBroadcastRightToLeft) {
-                return ResultOrError.createError("broadcast right to left not allowed")
-            }
-            broadcastRightToLeft = true
-        }
-        if (!left.type.isScalar && !right.type.isScalar) {
-            if (left.type.numRows !== right.type.numRows) {
-                return ResultOrError.createError(`numRows mismatch ${left.type.numRows} !== ${right.type.numRows}`)
-            }
-            if (left.type.numCols !== right.type.numCols) {
-                return ResultOrError.createError(`numCols mismatch ${left.type.numCols} !== ${right.type.numCols}`)
-            }
-        }
-        let result: Value
-        if (broadcastRightToLeft) {
-            result = new Value(left.type)
-            for (let stmt of left.stmts) {
-                let resultStmt = f(stmt, right.stmts[0])
-                if (resultStmt !== undefined) {
-                    result.stmts.push(resultStmt)
-                }
-            }
-            if (fConst && left.isCompileTimeConstant() && right.isCompileTimeConstant()) {
-                for (let leftVal of left.compileTimeConstants) {
-                    let resultVal = fConst(leftVal, right.compileTimeConstants[0])
-                    result.compileTimeConstants.push(resultVal)
-                }
-            }
-        }
-        else if (broadcastLeftToRight) {
-            result = new Value(right.type)
-            for (let stmt of right.stmts) {
-                let resultStmt = f(left.stmts[0], stmt)
-                if (resultStmt !== undefined) {
-                    result.stmts.push(resultStmt)
-                }
-            }
-            if (fConst && left.isCompileTimeConstant() && right.isCompileTimeConstant()) {
-                for (let rightVal of right.compileTimeConstants) {
-                    let resultVal = fConst(left.compileTimeConstants[0], rightVal)
-                    result.compileTimeConstants.push(resultVal)
-                }
-            }
-        }
-        else {
-            result = new Value(right.type)
-            for (let i = 0; i < left.stmts.length; ++i) {
-                let resultStmt = f(left.stmts[i], right.stmts[i])
-                result.stmts.push(resultStmt)
-            }
-            if (fConst && left.isCompileTimeConstant() && right.isCompileTimeConstant()) {
-                for (let i = 0; i < left.stmts.length; ++i) {
-                    let resultVal = fConst(left.compileTimeConstants[i], right.compileTimeConstants[i])
-                    result.compileTimeConstants.push(resultVal)
-                }
-            }
-        }
-        switch (datatypeTransform) {
-            case DatatypeTransform.PromoteToMatch: {
-                if (left.type.primitiveType === PrimitiveType.f32 || right.type.primitiveType === PrimitiveType.f32) {
-                    result.type.primitiveType = PrimitiveType.f32
-                }
-                else {
-                    result.type.primitiveType = PrimitiveType.i32
-                }
-                break
-            }
-            case DatatypeTransform.AlwaysF32: {
-                result.type.primitiveType = PrimitiveType.f32
-                break;
-            }
-            case DatatypeTransform.AlwaysI32: {
-                result.type.primitiveType = PrimitiveType.i32
-                break;
-            }
-            case DatatypeTransform.ForceLeft: {
-                result.type.primitiveType = left.type.primitiveType
-                break;
-            }
-        }
-        return ResultOrError.createResult(result)
-    }
-}
-
-
 enum LoopKind {
     For, While
 }
 
-class BuiltinOp {
-    constructor(
-        public name: string,
-        public numArgs: number,
-        public typeTransform: DatatypeTransform,
-        public valueTransform?: (() => Value) | ((x: Value) => Value) | ((x: Value, y: Value) => Value),
-        public stmtTransform?: (() => NativeTaichiAny) | ((x: NativeTaichiAny) => NativeTaichiAny) | ((x: NativeTaichiAny, y: NativeTaichiAny) => NativeTaichiAny)
-    ) {
-        if (stmtTransform) {
-            if (numArgs === 0) {
-                this.valueTransform = (): Value => {
-                    let primType = PrimitiveType.f32
-                    if (typeTransform === DatatypeTransform.AlwaysF32) {
-                    }
-                    else if (typeTransform === DatatypeTransform.AlwaysI32) {
-                        primType = PrimitiveType.i32
-                    }
-                    else {
-                        error("only allows AlwaysI32 or AlwaysF32 for 0-arg ops")
-                    }
-                    let result = new Value(new Type(primType))
-                    let func = stmtTransform as () => NativeTaichiAny
-                    result.stmts.push(func())
-                    return result
-                }
-            }
-            else if (numArgs === 1) {
-                this.valueTransform = (v: Value): Value => {
-                    return this.extractValueOrError(Value.apply1ElementWise(v, typeTransform, stmtTransform as (stmt: NativeTaichiAny) => NativeTaichiAny))
-                }
-            }
-            else {// if(numArgs === 2)
-                this.valueTransform = (l: Value, r: Value): Value => {
-                    return this.extractValueOrError(Value.apply2(l, r, true, true, typeTransform, stmtTransform as (l: NativeTaichiAny, r: NativeTaichiAny) => NativeTaichiAny))
-                }
-            }
-        }
-    }
-    protected extractValueOrError(valueOrError: ResultOrError<Value>, ...args: any): Value {
-        if (valueOrError.isError) {
-            error("Built-in op error", valueOrError.errorMessage, ...args) // this is an internal-error, likely cuased by a compiler bug
-        }
-        return valueOrError.result!
-    }
-    apply0(): Value {
-        assert(this.numArgs === 0, "expecting 0 arguments for " + this.name)
-        let func = this.valueTransform! as () => Value
-        return func()
-    }
-    apply1(v: Value): Value {
-        assert(this.numArgs === 1, "expecting 1 arguments for " + this.name)
-        let func = this.valueTransform! as (v: Value) => Value
-        return func(v)
-    }
-    apply2(l: Value, r: Value): Value {
-        assert(this.numArgs === 2, "expecting 2 arguments for " + this.name)
-        let func = this.valueTransform! as (l: Value, r: Value) => Value
-        return func(l, r)
-    }
-}
-
 class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<Stmt>, but we don't have the types yet
-    constructor(protected irBuilder: NativeTaichiAny, protected scope: GlobalScope) {
+    constructor(
+        protected irBuilder: NativeTaichiAny,
+        protected builtinOps: Map<string, BuiltinOp>,
+        protected atomicOps: Map<string, BuiltinAtomicOp>,
+        protected scope: GlobalScope) {
         super()
         this.context = new CompilerContext()
         this.symbolTable = new Map<ts.Symbol, Value>()
@@ -351,7 +121,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         this.numArgs = args.length
         for (let i = 0; i < this.numArgs; ++i) {
             // only support `number` args for ow
-            let val = new Value(new Type(PrimitiveType.f32, true))
+            let val = new Value(new ScalarType(PrimitiveType.f32), [])
             val.stmts.push(this.irBuilder.create_arg_load(i, toNativePrimitiveType(PrimitiveType.f32), false))
             let symbol = this.getNodeSymbol(args[i].name)
             this.symbolTable.set(symbol, val)
@@ -424,70 +194,67 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         }
     }
 
-    protected evaluate(val: Value): Value {
+    protected derefIfPointer(val: Value): Value {
         this.assertNode(null, val.stmts.length > 0, "value is empty")
         this.assertNode(null, val.stmts[0] !== undefined, "value is undefined")
-        let kind = getStmtKind(val.stmts[0])
-        switch (kind) {
-            case StmtKind.GlobalPtrStmt: {
-                let resultOrError = Value.apply1ElementWise(val, DatatypeTransform.Unchanged, (ptr) => this.irBuilder.create_global_ptr_global_load(ptr))
-                return this.extractValueOrError(resultOrError, null)
-            }
-            case StmtKind.AllocaStmt: {
-                let resultOrError = Value.apply1ElementWise(val, DatatypeTransform.Unchanged, (ptr) => this.irBuilder.create_local_load(ptr))
-                return this.extractValueOrError(resultOrError, null)
-            }
-            default: {
-                return val
-            }
+        let type = val.getType()
+        if (type.getCategory() !== TypeCategory.Pointer) {
+            return val
         }
+        let loadOp = this.builtinOps.get("load")!
+        return loadOp.apply([val])
     }
 
     protected comma(leftValue: Value, rightValue: Value): Value {
-        let hasFloat = leftValue.type.primitiveType === PrimitiveType.f32 || rightValue.type.primitiveType === PrimitiveType.f32
+        let leftType = leftValue.getType()
+        let rightType = rightValue.getType()
+        if (!TypeUtils.isTensorType(leftType) || !TypeUtils.isTensorType(rightType)) {
+            this.errorNode(null, "Only scalar/vector/matrix types can be grouped together")
+        }
+        let leftPrim = TypeUtils.getPrimitiveType(leftType)
+        let rightPrim = TypeUtils.getPrimitiveType(rightType)
+        let hasFloat = leftPrim === PrimitiveType.f32 || rightPrim === PrimitiveType.f32
         if (hasFloat) {
             leftValue = this.castTo(leftValue, PrimitiveType.f32)
             rightValue = this.castTo(rightValue, PrimitiveType.f32)
         }
-        let resultStmts = leftValue.stmts.concat(rightValue.stmts)
-        let resultConstexprs = leftValue.compileTimeConstants.concat(rightValue.compileTimeConstants)
-        let type = new Type(leftValue.type.primitiveType, false, leftValue.type.numRows, leftValue.type.numCols)
-        if (leftValue.type.isScalar && rightValue.type.isScalar) {
-            type.numRows = 2
+        let leftCat = leftType.getCategory()
+        let rightCat = rightType.getCategory()
+        if (leftCat === TypeCategory.Scalar && rightCat === TypeCategory.Scalar) {
+            return ValueUtils.makeVectorFromScalars([leftValue, rightValue])
         }
-        else if (leftValue.type.isVector() && rightValue.type.isScalar) {
-            type.numRows += 1
+        if (leftCat === TypeCategory.Vector && rightCat === TypeCategory.Scalar) {
+            return ValueUtils.addScalarToVector(leftValue, rightValue)
         }
-        else if (leftValue.type.isVector() && rightValue.type.isVector() && leftValue.type.numRows === rightValue.type.numRows) {
-            type.numCols = leftValue.type.numRows
-            type.numRows = 2
+        if (leftCat === TypeCategory.Vector && rightCat === TypeCategory.Vector) {
+            let vec0 = leftType as VectorType
+            let vec1 = rightType as VectorType
+            this.assertNode(null, vec0.getNumRows() === vec1.getNumRows(), "vector numRows mismatch")
+            return ValueUtils.makeMatrixFromVectorsAsRows([leftValue, rightValue])
         }
-        else if (leftValue.type.isMatrix() && rightValue.type.isVector() && leftValue.type.numCols === rightValue.type.numRows) {
-            type.numRows += 1
+        if (leftCat === TypeCategory.Matrix && rightCat === TypeCategory.Vector) {
+            let mat0 = leftType as MatrixType
+            let vec1 = rightType as VectorType
+            this.assertNode(null, mat0.getNumCols() === vec1.getNumRows(), "vector numRows mismatch")
+            return ValueUtils.addRowVectorToMatrix(leftValue, rightValue)
         }
-        else {
-            this.errorNode(null, "Type mismatch, cannot be concatenated")
-        }
-        return new Value(type, resultStmts, resultConstexprs)
+        this.errorNode(null, "Invalid comma grouping")
+
+        return leftValue
     }
 
     protected castTo(val: Value, primType: PrimitiveType): Value {
-        if (val.type.primitiveType === primType) {
+        let type = val.getType()
+        this.assertNode(null, TypeUtils.isTensorType(type), "[Compiler Bug] castTo called on non-tensor types")
+        let originalPrim = TypeUtils.getPrimitiveType(type)
+        if (originalPrim === primType) {
             return val
         }
         if (primType === PrimitiveType.f32) {
-            let resultOrError = Value.apply1ElementWise(val, DatatypeTransform.AlwaysF32, 
-                (x) => this.irBuilder.create_cast(x, toNativePrimitiveType(PrimitiveType.f32)),
-                (x) => x
-            )
-            return this.extractValueOrError(resultOrError, null)
+            return this.builtinOps.get("f32")!.apply([val])
         }
         else { //if(primType === PrimitiveType.i32){
-            let resultOrError = Value.apply1ElementWise(val, DatatypeTransform.AlwaysI32, 
-                (x) => this.irBuilder.create_cast(x, toNativePrimitiveType(PrimitiveType.i32)),
-                (x) => x
-            )
-            return this.extractValueOrError(resultOrError, null)
+            return this.builtinOps.get("i32")!.apply([val])
         }
     }
 
@@ -495,388 +262,126 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
     protected override visitNumericLiteral(node: ts.NumericLiteral): VisitorResult<Value> {
         let value = Number(node.getText())
         if (node.getText().includes(".") || node.getText().includes("e")) {
-            return Value.makeConstantScalar(value, this.irBuilder.get_float32(value), PrimitiveType.f32)
+            return ValueUtils.makeConstantScalar(value, this.irBuilder.get_float32(value), PrimitiveType.f32)
         }
         else {
-            return Value.makeConstantScalar(value, this.irBuilder.get_int32(value), PrimitiveType.i32)
+            return ValueUtils.makeConstantScalar(value, this.irBuilder.get_int32(value), PrimitiveType.i32)
         }
     }
 
-    protected applyUnaryOp(val: Value, opToken: ts.SyntaxKind): Value | null {
-        switch (opToken) {
+
+    protected override visitPrefixUnaryExpression(node: ts.PrefixUnaryExpression): VisitorResult<Value> {
+        let val = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.operand)))
+        let op: BuiltinOp | null = null
+        switch (node.operator) {
             case ts.SyntaxKind.PlusToken: {
                 return val
             }
             case ts.SyntaxKind.MinusToken: {
-                return this.extractValueOrError(Value.apply1ElementWise(val, DatatypeTransform.Unchanged, (stmt) => this.irBuilder.create_neg(stmt), (x) => -x), null)
+                op = this.builtinOps.get("neg")!
+                break;
             }
             case ts.SyntaxKind.ExclamationToken: {
-                return this.extractValueOrError(Value.apply1ElementWise(val, DatatypeTransform.Unchanged, (stmt) => this.irBuilder.create_logical_not(stmt)), null)
+                op = this.builtinOps.get("logical_not")!
+                break;
             }
             case ts.SyntaxKind.TildeToken: {
-                return this.extractValueOrError(Value.apply1ElementWise(val, DatatypeTransform.Unchanged, (stmt) => this.irBuilder.create_not(stmt)), null)
-            }
-        }
-        return null
-    }
-
-    protected override visitPrefixUnaryExpression(node: ts.PrefixUnaryExpression): VisitorResult<Value> {
-        let val = this.evaluate(this.extractVisitorResult(this.dispatchVisit(node.operand)))
-        let result = this.applyUnaryOp(val, node.operator)
-        if (result !== null) {
-            return result
-        }
-        else {
-            this.errorNode(node, "unsupported prefix unary operator:" + node.getText())
-        }
-    }
-
-    protected applyBinaryOpOrError(leftValue: Value, rightValue: Value, opToken: ts.SyntaxKind): ResultOrError<Value> {
-        switch (opToken) {
-            case (ts.SyntaxKind.PlusToken): {
-                return Value.apply2(leftValue, rightValue, true, true, DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_add(l, r), (l, r) => l + r)
-            }
-            case (ts.SyntaxKind.MinusToken): {
-                return Value.apply2(leftValue, rightValue, true, true, DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_sub(l, r), (l, r) => l - r)
-            }
-            case (ts.SyntaxKind.AsteriskToken): {
-                return Value.apply2(leftValue, rightValue, true, true, DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_mul(l, r), (l, r) => l * r)
-            }
-            case (ts.SyntaxKind.SlashToken): {
-                leftValue = this.castTo(leftValue, PrimitiveType.f32)
-                rightValue = this.castTo(rightValue, PrimitiveType.f32)
-                return Value.apply2(leftValue, rightValue, true, true, DatatypeTransform.AlwaysF32, (l, r) => this.irBuilder.create_truediv(l, r), (l, r) => l / r)
-            }
-            case (ts.SyntaxKind.AsteriskAsteriskToken): {
-                return Value.apply2(leftValue, rightValue, true, true, DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_pow(l, r))
-            }
-            case (ts.SyntaxKind.PercentToken): {
-                return Value.apply2(leftValue, rightValue, true, true, DatatypeTransform.PromoteToMatch, (l, r) => this.irBuilder.create_mod(l, r))
-            }
-            case (ts.SyntaxKind.LessThanToken): {
-                return Value.apply2(leftValue, rightValue, true, true, DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_lt(l, r))
-            }
-            case (ts.SyntaxKind.LessThanEqualsToken): {
-                return Value.apply2(leftValue, rightValue, true, true, DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_le(l, r))
-            }
-            case (ts.SyntaxKind.GreaterThanToken): {
-                return Value.apply2(leftValue, rightValue, true, true, DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_gt(l, r))
-            }
-            case (ts.SyntaxKind.GreaterThanEqualsToken): {
-                return Value.apply2(leftValue, rightValue, true, true, DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_ge(l, r))
-            }
-            case (ts.SyntaxKind.EqualsEqualsEqualsToken):
-            case (ts.SyntaxKind.EqualsEqualsToken): {
-                return Value.apply2(leftValue, rightValue, true, true, DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_eq(l, r))
-            }
-            case (ts.SyntaxKind.ExclamationEqualsEqualsToken):
-            case (ts.SyntaxKind.ExclamationEqualsToken): {
-                return Value.apply2(leftValue, rightValue, true, true, DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_cmp_ne(l, r))
-            }
-            case (ts.SyntaxKind.AmpersandToken):
-            case (ts.SyntaxKind.AmpersandAmpersandToken): {
-                return Value.apply2(leftValue, rightValue, true, true, DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_and(l, r))
-            }
-            case (ts.SyntaxKind.BarToken):
-            case (ts.SyntaxKind.BarBarToken): {
-                return Value.apply2(leftValue, rightValue, true, true, DatatypeTransform.AlwaysI32, (l, r) => this.irBuilder.create_or(l, r))
-            }
-            case (ts.SyntaxKind.CommaToken): {
-                return ResultOrError.createResult(this.comma(leftValue, rightValue))
+                op = this.builtinOps.get("not")!
+                break;
             }
             default:
-                return ResultOrError.createError<Value>("Unrecognized binary op token. ")
+                this.errorNode(node, "unsupported prefix unary operator:" + node.getText())
         }
+        let typeError = op!.checkType([val])
+        if (typeError.hasError) {
+            this.errorNode(node, "type error in unary operator:" + node.getText() + "  " + typeError.msg)
+        }
+        return op!.apply([val])
     }
 
-    protected applyBinaryOp(leftValue: Value, rightValue: Value, opToken: ts.SyntaxKind): Value {
-        let resultOrError = this.applyBinaryOpOrError(leftValue, rightValue, opToken)
-        return this.extractValueOrError(resultOrError, null)
-    }
 
     protected override visitBinaryExpression(node: ts.BinaryExpression): VisitorResult<Value> {
         //console.log(node.getText())
         let left = this.extractVisitorResult(this.dispatchVisit(node.left))
         let right = this.extractVisitorResult(this.dispatchVisit(node.right))
-        let rightValue = this.evaluate(right)
-        let op = node.operatorToken
-        if (op.kind === ts.SyntaxKind.EqualsToken) {
-            let leftStmtKind = getStmtKind(left.stmts[0])
-            switch (leftStmtKind) {
-                case StmtKind.GlobalPtrStmt: {
-                    this.extractValueOrError(Value.apply2(left, rightValue, false, true, DatatypeTransform.DontCare, (l, r) => this.irBuilder.create_global_ptr_global_store(l, r)), node)
-                    return right
-                }
-                case StmtKind.AllocaStmt: {
-                    this.extractValueOrError(Value.apply2(left, rightValue, false, true, DatatypeTransform.DontCare, (l, r) => this.irBuilder.create_local_store(l, r)), node)
-                    return right
-                }
-                default: {
-                    this.errorNode(node, "Invalid assignment " + leftStmtKind)
-                }
+        let leftType = left.getType()
+        let rightValue = this.derefIfPointer(right)
+        let opToken = node.operatorToken
+        if (opToken.kind === ts.SyntaxKind.EqualsToken) {
+            if (leftType.getCategory() != TypeCategory.Pointer) {
+                this.errorNode(node, "Left hand side of assignment must be an l-value")
             }
+            let storeOp = this.builtinOps.get("=")!
+            let typeError = storeOp.checkType([left, rightValue])
+            if (typeError.hasError) {
+                this.errorNode(node, "Assignment type error: " + typeError.msg)
+            }
+            storeOp.apply([left, rightValue])
+            return
         }
 
-        let atomicOps = this.getAtomicOps()
+        let atomicOps = this.atomicOps
         let tokenToOp = new Map<ts.SyntaxKind, BuiltinOp>()
         tokenToOp.set(ts.SyntaxKind.PlusEqualsToken, atomicOps.get("atomic_add")!);
         tokenToOp.set(ts.SyntaxKind.MinusEqualsToken, atomicOps.get("atomic_sub")!);
         tokenToOp.set(ts.SyntaxKind.AmpersandEqualsToken, atomicOps.get("atomic_and")!);
         tokenToOp.set(ts.SyntaxKind.BarEqualsToken, atomicOps.get("atomic_or")!);
-        if (tokenToOp.has(op.kind)) {
-            let atomicOp = tokenToOp.get(op.kind)!
-            return atomicOp.apply2(left, rightValue)
+        if (tokenToOp.has(opToken.kind)) {
+            let atomicOp = tokenToOp.get(opToken.kind)!
+            let typeError = atomicOp.checkType([left, rightValue])
+            if (typeError.hasError) {
+                this.errorNode(node, "Atomic type error: " + typeError.msg)
+            }
+            return atomicOp.apply([left, rightValue])
         }
 
-        let leftValue = this.evaluate(left)
-        let maybeResult = this.applyBinaryOpOrError(leftValue, rightValue, op.kind)
-        let result = this.extractValueOrError(maybeResult, node, "Unrecognized binary operator " + op.getText())
-        return result
+        let leftValue = this.derefIfPointer(left)
+        let opTokenText = opToken.getText()
+        let builtinOps = this.builtinOps
+        if (builtinOps.has(opTokenText)) {
+            let op = builtinOps.get(opTokenText)!
+            let typeError = op.checkType([leftValue, rightValue])
+            if (typeError.hasError) {
+                this.errorNode(node, `Binary op ${opTokenText} type error: ` + typeError.msg)
+            }
+            return op.apply([leftValue, rightValue])
+        }
+
+        if (opToken.kind === ts.SyntaxKind.CommaToken) {
+            return this.comma(leftValue, rightValue)
+        }
+
+        this.errorNode(node, "unsupported binary operator:" + opTokenText)
     }
 
     protected override visitArrayLiteralExpression(node: ts.ArrayLiteralExpression): VisitorResult<Value> {
         let elements = node.elements
         this.assertNode(node, elements.length > 0, "cannot have empty arrays")
-        let value = this.evaluate(this.extractVisitorResult(this.dispatchVisit(elements[0])))
-        if (elements.length === 1) {
-            if (value.type.isScalar) {
-                value.type.isScalar = false
-            }
-            return value
+        let elementValues: Value[] = []
+        for (let el of elements) {
+            elementValues.push(this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(el))))
         }
+        if (elementValues.length === 1) {
+            let cat = elementValues[0].getType().getCategory()
+            if (cat === TypeCategory.Scalar) {
+                return ValueUtils.makeVectorFromScalars(elementValues)
+            }
+            else if (cat === TypeCategory.Vector) {
+                return ValueUtils.makeMatrixFromVectorsAsRows(elementValues)
+            }
+            else {
+                this.errorNode(node, "array expression can only be used to represent vectors and matrices")
+            }
+        }
+        let result = elementValues[0]
         for (let i = 1; i < elements.length; ++i) {
-            let nextValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(elements[i])))
-            value = this.comma(value, nextValue)
-        }
-        return value
-    }
-
-    protected override visitParenthesizedExpression(node: ts.ParenthesizedExpression): VisitorResult<Value> {
-        return this.extractVisitorResult(this.dispatchVisit(node.expression))
-    }
-
-    protected getVectorComponents(vec: Value): Value[] {
-        this.assertNode(null, vec.type.isVector())
-        let components: Value[] = []
-        for (let i = 0; i < vec.type.numRows; ++i) {
-            components.push(new Value(new Type(vec.type.primitiveType), [vec.stmts[i]]))
-        }
-        return components
-    }
-
-    protected getMatrixComponents(vec: Value): Value[][] {
-        let result: Value[][] = []
-        for(let r = 0; r < vec.type.numRows; ++ r){
-            let thisRow:Value[] = []
-            for(let l = 0; l < vec.type.numCols; ++ l){
-                let index = r * vec.type.numCols + l;
-                thisRow.push(new Value(new Type(vec.type.primitiveType), [vec.stmts[index]]))
-            }
-            result.push(thisRow);
+            result = this.comma(result, elementValues[i])
         }
         return result
     }
 
-    protected getAtomicOps(): Map<string, BuiltinOp> {
-        let compiler = this
-        class AtomicBuiltinOp extends BuiltinOp {
-            constructor(
-                name: string,
-                irBuilderFunc: (dest: NativeTaichiAny, val: NativeTaichiAny) => NativeTaichiAny
-            ) {
-                super(name, 2, DatatypeTransform.ForceLeft, (dest: Value, val: Value) => {
-                    compiler.assertNode(null, val.type.numCols == dest.type.numCols && val.type.numRows == dest.type.numRows, "the shape of atomic operands must match")
-                    val = compiler.castTo(val, dest.type.primitiveType)
-                    let resultOrError = Value.apply2(dest, val, false, false, DatatypeTransform.ForceLeft, (destStmt: NativeTaichiAny, valStmt: NativeTaichiAny) => {
-                        return irBuilderFunc(destStmt, valStmt)
-                    })
-                    return this.extractValueOrError(resultOrError, "atomic error")
-                })
-            }
-        }
-        let atomicOps: BuiltinOp[] = [
-            new AtomicBuiltinOp("atomic_add", (dest: NativeTaichiAny, val: NativeTaichiAny) => this.irBuilder.create_atomic_add(dest, val)),
-            new AtomicBuiltinOp("atomic_sub", (dest: NativeTaichiAny, val: NativeTaichiAny) => this.irBuilder.create_atomic_sub(dest, val)),
-            new AtomicBuiltinOp("atomic_max", (dest: NativeTaichiAny, val: NativeTaichiAny) => this.irBuilder.create_atomic_max(dest, val)),
-            new AtomicBuiltinOp("atomic_min", (dest: NativeTaichiAny, val: NativeTaichiAny) => this.irBuilder.create_atomic_min(dest, val)),
-            new AtomicBuiltinOp("atomic_and", (dest: NativeTaichiAny, val: NativeTaichiAny) => this.irBuilder.create_atomic_and(dest, val)),
-            new AtomicBuiltinOp("atomic_or", (dest: NativeTaichiAny, val: NativeTaichiAny) => this.irBuilder.create_atomic_or(dest, val)),
-            new AtomicBuiltinOp("atomic_xor", (dest: NativeTaichiAny, val: NativeTaichiAny) => this.irBuilder.create_atomic_xor(dest, val))
-        ]
-
-        let opsMap = new Map<string, BuiltinOp>()
-        for (let op of atomicOps) {
-            opsMap.set(op.name, op)
-        };
-        return opsMap
-    }
-
-    protected getBuiltinOps(): Map<string, BuiltinOp> {
-        let builtinOps: BuiltinOp[] = [ // firstly, we have CHI IR built-ins
-            new BuiltinOp("random", 0, DatatypeTransform.AlwaysF32, undefined, () => this.irBuilder.create_rand(toNativePrimitiveType(PrimitiveType.f32))),
-            new BuiltinOp("sin", 1, DatatypeTransform.AlwaysF32, undefined, (stmt: NativeTaichiAny) => this.irBuilder.create_sin(stmt)),
-            new BuiltinOp("cos", 1, DatatypeTransform.AlwaysF32, undefined, (stmt: NativeTaichiAny) => this.irBuilder.create_cos(stmt)),
-            new BuiltinOp("asin", 1, DatatypeTransform.AlwaysF32, undefined, (stmt: NativeTaichiAny) => this.irBuilder.create_asin(stmt)),
-            new BuiltinOp("acos", 1, DatatypeTransform.AlwaysF32, undefined, (stmt: NativeTaichiAny) => this.irBuilder.create_acos(stmt)),
-            new BuiltinOp("tan", 1, DatatypeTransform.AlwaysF32, undefined, (stmt: NativeTaichiAny) => this.irBuilder.create_tan(stmt)),
-            new BuiltinOp("tanh", 1, DatatypeTransform.AlwaysF32, undefined, (stmt: NativeTaichiAny) => this.irBuilder.create_tanh(stmt)),
-            new BuiltinOp("exp", 1, DatatypeTransform.AlwaysF32, undefined, (stmt: NativeTaichiAny) => this.irBuilder.create_exp(stmt)),
-            new BuiltinOp("log", 1, DatatypeTransform.AlwaysF32, undefined, (stmt: NativeTaichiAny) => this.irBuilder.create_log(stmt)),
-            new BuiltinOp("neg", 1, DatatypeTransform.Unchanged, undefined, (stmt: NativeTaichiAny) => this.irBuilder.create_neg(stmt)),
-            new BuiltinOp("not", 1, DatatypeTransform.AlwaysI32, undefined, (stmt: NativeTaichiAny) => this.irBuilder.create_not(stmt)),
-            new BuiltinOp("logical_not", 1, DatatypeTransform.AlwaysI32, undefined, (stmt: NativeTaichiAny) => this.irBuilder.logical_not(stmt)),
-            new BuiltinOp("abs", 1, DatatypeTransform.Unchanged, undefined, (stmt: NativeTaichiAny) => this.irBuilder.create_abs(stmt)),
-            new BuiltinOp("floor", 1, DatatypeTransform.AlwaysI32, undefined, (stmt: NativeTaichiAny) => this.irBuilder.create_floor(stmt)),
-            new BuiltinOp("sgn", 1, DatatypeTransform.AlwaysI32, undefined, (stmt: NativeTaichiAny) => this.irBuilder.create_sgn(stmt)),
-            new BuiltinOp("sqrt", 1, DatatypeTransform.AlwaysF32, undefined, (stmt: NativeTaichiAny) => this.irBuilder.create_sqrt(stmt)),
-            new BuiltinOp("i32", 1, DatatypeTransform.AlwaysI32, undefined, (stmt: NativeTaichiAny) => this.irBuilder.create_cast(stmt, toNativePrimitiveType(PrimitiveType.i32))),
-            new BuiltinOp("f32", 1, DatatypeTransform.AlwaysF32, undefined, (stmt: NativeTaichiAny) => this.irBuilder.create_cast(stmt, toNativePrimitiveType(PrimitiveType.f32))),
-            new BuiltinOp("max", 2, DatatypeTransform.PromoteToMatch, undefined, (l: NativeTaichiAny, r: NativeTaichiAny) => this.irBuilder.create_max(l, r)),
-            new BuiltinOp("min", 2, DatatypeTransform.PromoteToMatch, undefined, (l: NativeTaichiAny, r: NativeTaichiAny) => this.irBuilder.create_min(l, r)),
-            new BuiltinOp("pow", 2, DatatypeTransform.PromoteToMatch, undefined, (l: NativeTaichiAny, r: NativeTaichiAny) => this.irBuilder.create_pow(l, r)),
-            new BuiltinOp("atan2", 2, DatatypeTransform.AlwaysF32, undefined, (l: NativeTaichiAny, r: NativeTaichiAny) => this.irBuilder.create_atan2(l, r)),
-        ]
-
-        let opsMap = new Map<string, BuiltinOp>()
-        for (let op of builtinOps) {
-            opsMap.set(op.name, op)
-        }
-
-        let len = new BuiltinOp("len", 1, DatatypeTransform.AlwaysI32, (v: Value) => {
-            let length = v.type.numRows
-            return Value.makeConstantScalar(length, this.irBuilder.get_int32(length), PrimitiveType.i32)
-        })
-        let length = new BuiltinOp("length", 1, DatatypeTransform.AlwaysI32, len.valueTransform!)
-
-        let sum = new BuiltinOp("sum", 1, DatatypeTransform.Unchanged, (v: Value) => {
-            this.assertNode(null, v.type.isVector(), "sum can only be applied to vectors")
-            let sum = Value.makeConstantScalar(0.0, this.irBuilder.get_float32(0.0), PrimitiveType.f32)
-            for (let stmt of v.stmts) {
-                let thisComponent = new Value(new Type(v.type.primitiveType), [stmt])
-                sum = this.applyBinaryOp(sum, thisComponent, ts.SyntaxKind.PlusToken)
-            }
-            return sum
-        })
-
-        let norm_sqr = new BuiltinOp("norm_sqr", 1, DatatypeTransform.AlwaysF32, (v: Value) => {
-            this.assertNode(null, v.type.isVector(), "norm/norm_sqr can only be applied to vectors")
-            let squared = this.applyBinaryOp(v, v, ts.SyntaxKind.AsteriskToken)
-            let result = sum.apply1(squared)
-            return result
-        })
-
-        let norm = new BuiltinOp("norm", 1, DatatypeTransform.AlwaysF32, (v: Value) => {
-            this.assertNode(null, v.type.isVector(), "norm/norm_sqr can only be applied to vectors")
-            let resultSqr = norm_sqr.apply1(v)
-            let sqrtFunc = opsMap.get("sqrt")!
-            return sqrtFunc.apply1(resultSqr)
-        })
-
-        let normalized = new BuiltinOp("normalized", 1, DatatypeTransform.AlwaysF32, (v: Value) => {
-            this.assertNode(null, v.type.isVector(), "normalized can only be applied to vectors")
-            let normValue = norm.apply1(v)
-            return this.applyBinaryOp(v, normValue, ts.SyntaxKind.SlashToken)
-        })
-
-        let dot = new BuiltinOp("dot", 2, DatatypeTransform.PromoteToMatch, (a: Value, b: Value) => {
-            this.assertNode(null, a.type.isVector() && b.type.isVector(), "dot can only be applied to vectors")
-            let product = this.applyBinaryOp(a, b, ts.SyntaxKind.AsteriskToken)
-            return sum.apply1(product)
-        })
-
-        let cross = new BuiltinOp("cross", 2, DatatypeTransform.PromoteToMatch, (l: Value, r: Value) => {
-            this.assertNode(null, l.type.isVector() && r.type.isVector() && l.type.numRows == 3 && r.type.numRows == 3, "cross can only be applied to 3D vectors")
-            let leftComponents: Value[] = this.getVectorComponents(l)
-            let rightComponents: Value[] = this.getVectorComponents(r)
-
-            let r0 = this.applyBinaryOp(
-                this.applyBinaryOp(leftComponents[1], rightComponents[2], ts.SyntaxKind.AsteriskToken),
-                this.applyBinaryOp(leftComponents[2], rightComponents[1], ts.SyntaxKind.AsteriskToken),
-                ts.SyntaxKind.MinusToken)!
-            let r1 = this.applyBinaryOp(
-                this.applyBinaryOp(leftComponents[2], rightComponents[0], ts.SyntaxKind.AsteriskToken),
-                this.applyBinaryOp(leftComponents[0], rightComponents[2], ts.SyntaxKind.AsteriskToken),
-                ts.SyntaxKind.MinusToken)!
-            let r2 = this.applyBinaryOp(
-                this.applyBinaryOp(leftComponents[0], rightComponents[1], ts.SyntaxKind.AsteriskToken),
-                this.applyBinaryOp(leftComponents[1], rightComponents[0], ts.SyntaxKind.AsteriskToken),
-                ts.SyntaxKind.MinusToken)!
-
-            let result = this.comma(this.comma(r0, r1)!, r2)!
-            return result
-        })
-
-        let outer_product = new BuiltinOp("outer_product", 2, DatatypeTransform.AlwaysF32, (l: Value, r: Value) => {
-            this.assertNode(null, l.type.isVector() && r.type.isVector(), "outer_product can only be applied to vectors")
-            let leftComponents: Value[] = this.getVectorComponents(l)
-            let rightComponents: Value[] = this.getVectorComponents(r)
-
-            let resultRows = leftComponents.length
-            let resultCols = rightComponents.length
-            let resultType = new Type(PrimitiveType.f32,false,resultRows,resultCols)
-            let resultStmts : NativeTaichiAny[] = []
-
-            for(let row = 0; row < resultRows; ++ row){
-                for(let col = 0; col < resultCols; ++ col){
-                    let this_prod = this.applyBinaryOp(leftComponents[row], rightComponents[col], ts.SyntaxKind.AsteriskToken)
-                    resultStmts.push(this_prod.stmts[0])
-                }
-            }
-
-            let result  = new Value(resultType,resultStmts)
-            return result
-        })
-
-        let matmul = new BuiltinOp("matmul", 2, DatatypeTransform.AlwaysF32, (l: Value, r: Value) => {
-            this.assertNode(null, l.type.numCols == r.type.numRows , "matrix multiplication error: l.numCols != r.numRows")
-            let leftMat = this.getMatrixComponents(l)
-            let rightMat = this.getMatrixComponents(r)
-
-            let resultStmts : NativeTaichiAny[] = []
-            let resultRows = l.type.numRows;
-            let resultCols = r.type.numCols;
-            
-            for(let row = 0; row < resultRows; ++ row){
-                for(let col = 0; col < resultCols; ++ col){
-                    let this_sum = Value.makeConstantScalar(0.0, this.irBuilder.get_float32(0.0), PrimitiveType.f32)
-                    for(let k = 0; k < l.type.numRows; ++k){
-                        let this_prod = this.applyBinaryOp(leftMat[row][k], rightMat[k][col], ts.SyntaxKind.AsteriskToken)
-                        this_sum = this.applyBinaryOp(this_sum, this_prod,ts.SyntaxKind.PlusToken);
-                    }
-                    resultStmts.push(this_sum.stmts[0])
-                }
-            }
-            
-            let resultType = new Type(PrimitiveType.f32,false,resultRows,resultCols)
-            let result  = new Value(resultType,resultStmts)
-            return result
-        })
-
-        let transpose = new BuiltinOp("transpose", 1, DatatypeTransform.Unchanged, (mat:Value) => {
-            let values = this.getMatrixComponents(mat)
-
-            let numRows = mat.type.numCols
-            let numCols = mat.type.numRows
-
-            let resultStmts : NativeTaichiAny[] = []
-            
-            for(let row = 0; row < numRows; ++ row){
-                for(let col = 0; col < numCols; ++ col){
-                    resultStmts.push(values[col][row].stmts[0])
-                }
-            }
-
-            let resultType = new Type(PrimitiveType.f32,false,numRows,numCols)
-            let result  = new Value(resultType,resultStmts)
-            return result
-        })
-
-        let derivedOps = [len, length, sum, norm_sqr, norm, normalized, dot, cross, matmul, transpose, outer_product]
-        for (let op of derivedOps) {
-            opsMap.set(op.name, op)
-        }
-
-        return opsMap
+    protected override visitParenthesizedExpression(node: ts.ParenthesizedExpression): VisitorResult<Value> {
+        return this.extractVisitorResult(this.dispatchVisit(node.expression))
     }
 
     protected override visitCallExpression(node: ts.CallExpression): VisitorResult<Value> {
@@ -886,16 +391,18 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             this.assertNode(node, node.arguments.length === n, funcText + " requires " + n.toString() + " args")
         }
 
-        let atomicOps = this.getAtomicOps()
+        let atomicOps = this.atomicOps
         for (let kv of atomicOps) {
             let op = kv[1]
             if (funcText === op.name || funcText === "ti." + op.name) {
-                this.assertNode(node, op.numArgs == 2, "internal error: atomic op should have exactly 2 args")
-                checkNumArgs(op.numArgs)
+                checkNumArgs(2)
                 let destPtr = this.extractVisitorResult(this.dispatchVisit(node.arguments[0]))
-                let val = this.evaluate(this.extractVisitorResult(this.dispatchVisit(node.arguments[1])))
-
-                return op.apply2(destPtr, val)
+                let val = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.arguments[1])))
+                let typeError = op.checkType([destPtr, val])
+                if (typeError.hasError) {
+                    this.errorNode(node, "Atomic type error: ", typeError.msg)
+                }
+                return op.apply([destPtr, val])
             }
         }
 
@@ -909,7 +416,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         if (this.scope.hasStored(funcText)) {
             let funcObj = this.scope.getStored(funcText)
             if (typeof funcObj == 'function') {
-                let compiler = new InliningCompiler(this.scope, this.irBuilder, funcText)
+                let compiler = new InliningCompiler(this.scope, this.irBuilder, this.builtinOps, this.atomicOps, funcText)
                 let result = compiler.runInlining(argumentRefs, funcObj)
                 if (result) {
                     return result
@@ -922,7 +429,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         for (let kv of libraryFuncs) {
             let func = kv[1]
             if (funcText === func.name || funcText === "ti." + func.name) {
-                let compiler = new InliningCompiler(this.scope, this.irBuilder, funcText)
+                let compiler = new InliningCompiler(this.scope, this.irBuilder, this.builtinOps, this.atomicOps, funcText)
                 let result = compiler.runInlining(argumentRefs, func.code)
                 if (result) {
                     return result
@@ -933,23 +440,19 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
 
         let argumentValues: Value[] = []
         for (let ref of argumentRefs) {
-            argumentValues.push(this.evaluate(ref))
+            argumentValues.push(this.derefIfPointer(ref))
         }
 
-        let builtinOps = this.getBuiltinOps()
+        let builtinOps = this.builtinOps
         for (let kv of builtinOps) {
             let op = kv[1]
             if (funcText === op.name || funcText === "ti." + op.name || funcText === "Math." + op.name) {
-                checkNumArgs(op.numArgs)
-                if (op.numArgs === 0) {
-                    return op.apply0()
+                checkNumArgs(op.arity)
+                let typeError = op.checkType(argumentValues)
+                if (typeError.hasError) {
+                    this.errorNode(node, "Builtin op error: ", typeError.msg)
                 }
-                else if (op.numArgs === 1) {
-                    return op.apply1(argumentValues[0])
-                }
-                else {// if(op.numArgs === 2)
-                    return op.apply2(argumentValues[0], argumentValues[1])
-                }
+                return op.apply(argumentValues)
             }
         }
 
@@ -964,19 +467,18 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                 }
             }
             let propText = prop.getText()
+            // writing x.norm() and norm(x) are both ok
+            // writing x.dot(y) and dot(x,y) are both ok
             if (builtinOps.has(propText)) {
                 let op = builtinOps.get(propText)!
-                if (op.numArgs === 1 && argumentValues.length === 0) { // writing x.norm() and norm(x) are both ok
-                    let objValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(obj)))
-                    return op.apply1(objValue)
+                let objValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(obj)))
+                let allArgumentValues = [objValue].concat(argumentValues)
+
+                let typeError = op.checkType(allArgumentValues)
+                if (typeError.hasError) {
+                    this.errorNode(node, "Builtin op error: ", typeError.msg)
                 }
-                if (op.numArgs === 2 && argumentValues.length === 1) { // writing x.dot(y) and dot(x,y) are both ok
-                    let objValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(obj)))
-                    return op.apply2(objValue, argumentValues[0])
-                }
-                else {
-                    this.errorNode(node, "invalid function call: " + node.getText())
-                }
+                return op.apply(allArgumentValues)
             }
 
         }
@@ -994,10 +496,12 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                 if (hostSideValue instanceof Field) {
                     let field = hostSideValue as Field
 
-                    let resultType = field.elementType
-                    let result = new Value(resultType)
+                    let result = new Value(new PointerType(field.elementType, true), [])
 
-                    let argumentValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(argument)))
+                    let argumentValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(argument)))
+                    let argType = argumentValue.getType()
+                    this.assertNode(node, argType.getCategory() === TypeCategory.Scalar || argType.getCategory() === TypeCategory.Vector, "index must be scalar or vector")
+
                     this.assertNode(node, argumentValue.stmts.length === field.dimensions.length, "field access dimension mismatch ", argumentValue.stmts.length, field.dimensions.length)
                     let accessVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
                     for (let stmt of argumentValue.stmts) {
@@ -1013,32 +517,34 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             }
         }
         let baseValue = this.extractVisitorResult(this.dispatchVisit(base))
-        let argumentValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(argument)))
-        this.assertNode(node, !argumentValue.type.isMatrix(), "index cannot be a matrix")
-        this.assertNode(node, !baseValue.type.isScalar, "cannot index a scalar")
+        let argumentValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(argument)))
+        let baseType = baseValue.getType()
+        let argType = argumentValue.getType()
+
+        this.assertNode(node, argType.getCategory() === TypeCategory.Scalar || argType.getCategory() === TypeCategory.Vector, "index must be scalar or vector")
         this.assertNode(node, argumentValue.isCompileTimeConstant(), "Indices of vectors/matrices must be a compile-time constant")
+        this.assertNode(node, TypeUtils.getPrimitiveType(argType) === PrimitiveType.i32, "Indices of be of i32 type")
 
-        let type = new Type(baseValue.type.primitiveType)
-        let result = new Value(type)
-        let indices = argumentValue.compileTimeConstants
-        if (baseValue.type.isVector()) {
-            this.assertNode(node, indices.length === 1, "vector can only have 1 index")
-            result.stmts.push(baseValue.stmts[indices[0]])
-            if (baseValue.isCompileTimeConstant()) {
-                result.compileTimeConstants.push(baseValue.compileTimeConstants[indices[0]])
+        if (TypeUtils.isValueOrPointerOfCategory(baseType, TypeCategory.Vector)) {
+            this.assertNode(node, argType.getCategory() === TypeCategory.Scalar, "index for a vector must be a scalar")
+            let components = ValueUtils.getVectorComponents(baseValue)
+            return components[argumentValue.compileTimeConstants[0]]
+        }
+        else if (TypeUtils.isValueOrPointerOfCategory(baseType, TypeCategory.Matrix)) {
+            if (argType.getCategory() === TypeCategory.Vector) {
+                let argVecType = argType as VectorType
+                this.assertNode(node, argVecType.getNumRows() === 2, "a vector index of matrix must be a 2D vector")
+                let components = ValueUtils.getMatrixComponents(baseValue)
+                return components[argumentValue.compileTimeConstants[0]][argumentValue.compileTimeConstants[1]]
+            }
+            else if (argType.getCategory() === TypeCategory.Scalar) {
+                let rows = ValueUtils.getMatrixRowVectors(baseValue)
+                return rows[argumentValue.compileTimeConstants[0]]
             }
         }
-        else if (baseValue.type.isMatrix()) {
-            this.assertNode(node, indices.length === 2, "matrix must have exactly 2 indices")
-            let index = indices[0] * baseValue.type.numCols + indices[1]
-            //console.log(node.getText()," index: ",index, indices,baseValue.type.numCols )
-            result.stmts.push(baseValue.stmts[index])
-            if (baseValue.isCompileTimeConstant()) {
-                result.compileTimeConstants.push(baseValue.compileTimeConstants[index])
-            }
+        else {
+            this.errorNode(node, "only vectors and matrices can be indexed")
         }
-
-        return result
     }
 
     protected override visitPropertyAccessExpression(node: ts.PropertyAccessExpression): VisitorResult<Value> {
@@ -1047,14 +553,14 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         let propText = propExpr.getText()!
         if (objExpr.getText() === "Math") {
             if (propText === "PI") {
-                return Value.makeConstantScalar(Math.PI, this.irBuilder.get_float32(Math.PI), PrimitiveType.f32)
+                return ValueUtils.makeConstantScalar(Math.PI, this.irBuilder.get_float32(Math.PI), PrimitiveType.f32)
             }
             if (propText === "E") {
-                return Value.makeConstantScalar(Math.E, this.irBuilder.get_float32(Math.E), PrimitiveType.f32)
+                return ValueUtils.makeConstantScalar(Math.E, this.irBuilder.get_float32(Math.E), PrimitiveType.f32)
             }
             this.errorNode(node, "unrecognized Math constant: " + node.getText() + ". Only Math.PI and Math.E are supported")
         }
-        let objVal = this.evaluate(this.extractVisitorResult(this.dispatchVisit(objExpr)))
+        let objVal = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(objExpr)))
         // allow things like `let l = x.length`
         // is this needed?
         // let ops = this.getBuiltinOps()
@@ -1076,11 +582,11 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         supportedComponents.set("u", 0)
         supportedComponents.set("v", 1)
 
-        if (objVal.type.isVector()) {
+        if (objVal.getType().getCategory() === TypeCategory.Vector) {
+            let components = ValueUtils.getVectorComponents(objVal)
             if (propText.length === 1 && supportedComponents.has(propText)) {
                 let index = supportedComponents.get(propText)!
-                let result = new Value(new Type(objVal.type.primitiveType), [objVal.stmts[index]])
-                return result
+                return components[index]
             }
             if (propText.length > 1) {
                 let isValidSwizzle = true
@@ -1095,11 +601,11 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                     }
                 }
                 if (isValidSwizzle) {
-                    let result = new Value(new Type(objVal.type.primitiveType, false, indices.length), [])
+                    let newComponents: Value[] = []
                     for (let i of indices) {
-                        result.stmts.push(objVal.stmts[i])
+                        newComponents.push(components[i])
                     }
-                    return result
+                    return ValueUtils.makeVectorFromScalars(newComponents)
                 }
             }
         }
@@ -1118,10 +624,10 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                 let fail = () => { this.errorNode(node, "failed to evaluate " + name + " in kernel scope") }
                 if (typeof val === "number") {
                     if (val % 1 === 0) {
-                        return Value.makeConstantScalar(val, this.irBuilder.get_int32(val), PrimitiveType.i32)
+                        return ValueUtils.makeConstantScalar(val, this.irBuilder.get_int32(val), PrimitiveType.i32)
                     }
                     else {
-                        return Value.makeConstantScalar(val, this.irBuilder.get_float32(val), PrimitiveType.f32)
+                        return ValueUtils.makeConstantScalar(val, this.irBuilder.get_float32(val), PrimitiveType.f32)
                     }
                 }
                 if (Array.isArray(val)) {
@@ -1131,8 +637,15 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                         fail()
                     }
                     if (val.length === 1) {
-                        result!.type.isScalar = false
-                        return result
+                        if (result!.getType().getCategory() === TypeCategory.Scalar) {
+                            return ValueUtils.makeVectorFromScalars([result!])
+                        }
+                        else if (result!.getType().getCategory() === TypeCategory.Vector) {
+                            return ValueUtils.makeMatrixFromVectorsAsRows([result!])
+                        }
+                        else {
+                            fail()
+                        }
                     }
                     for (let i = 1; i < val.length; ++i) {
                         let thisValue = getValue(val[i])
@@ -1171,22 +684,30 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         //     this.errorNode(node, node.name.getText() + " is already declared as a kernel-scope global variable")
         // }
         let initializer = node.initializer!
-        let initValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(initializer)))
-        let varType = initValue.type
-        let varValue = new Value(varType)
-        for (let i = 0; i < initValue.stmts.length; ++i) {
-            let alloca = this.irBuilder.create_local_var(toNativePrimitiveType(varType.primitiveType))
-            varValue.stmts.push(alloca)
-            this.irBuilder.create_local_store(alloca, initValue.stmts[i])
+        let initValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(initializer)))
+        let initValueType = initValue.getType()
+        let varValue = new Value(new PointerType(initValueType, false))
+        if (TypeUtils.isTensorType(initValueType)) {
+            let prim = TypeUtils.getPrimitiveType(initValueType)
+            for (let i = 0; i < initValue.stmts.length; ++i) {
+                let alloca = this.irBuilder.create_local_var(toNativePrimitiveType(prim))
+                varValue.stmts.push(alloca)
+                this.irBuilder.create_local_store(alloca, initValue.stmts[i])
+            }
         }
+        else {
+            this.errorNode(node, "local variable must be a scalar/vector/matrix")
+        }
+
         let varSymbol = this.getNodeSymbol(identifier)
         this.symbolTable.set(varSymbol, varValue)
         return varValue
     }
 
     protected override visitIfStatement(node: ts.IfStatement): VisitorResult<Value> {
-        let condValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(node.expression)))
-        this.assertNode(node, condValue.type.isScalar, "condition of if statement must be scalar")
+        let condValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.expression)))
+        this.assertNode(node, condValue.getType().getCategory() === TypeCategory.Scalar, "condition of if statement must be scalar")
+        //this.assertNode(node, TypeUtils.getPrimitiveType(condValue.getType()) === PrimitiveType.i32, "condition of if statement must be i32")
         let nativeIfStmt = this.irBuilder.create_if(condValue.stmts[0])
         let trueGuard = this.irBuilder.get_if_guard(nativeIfStmt, true)
         this.dispatchVisit(node.thenStatement)
@@ -1212,8 +733,8 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         let nativeWhileTrue = this.irBuilder.create_while_true()
         let guard = this.irBuilder.get_while_loop_guard(nativeWhileTrue)
 
-        let condValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(node.expression)))
-        this.assertNode(node, condValue.type.isScalar, "condition of while statement must be scalar")
+        let condValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.expression)))
+        this.assertNode(node, condValue.getType().getCategory() === TypeCategory.Scalar, "condition of while statement must be scalar")
         let breakCondition = this.irBuilder.create_logical_not(condValue.stmts[0])
         let nativeIfStmt = this.irBuilder.create_if(breakCondition)
         let trueGuard = this.irBuilder.get_if_guard(nativeIfStmt, true)
@@ -1226,29 +747,30 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         guard.delete()
     }
 
-    protected visitRangeFor(indexSymbols: ts.Symbol[], rangeExpr: ts.NodeArray<ts.Expression>, body: ts.Statement, shouldUnroll:boolean): VisitorResult<Value> {
+    protected visitRangeFor(indexSymbols: ts.Symbol[], rangeExpr: ts.NodeArray<ts.Expression>, body: ts.Statement, shouldUnroll: boolean): VisitorResult<Value> {
         this.assertNode(null, rangeExpr.length === 1, "Expecting exactly 1 argument in range()")
         this.assertNode(null, indexSymbols.length === 1, "Expecting exactly 1 loop index in range()")
         let rangeLengthExpr = rangeExpr[0]
-        let rangeLengthValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(rangeLengthExpr)))
-        this.assertNode(null, rangeLengthValue.type.primitiveType === PrimitiveType.i32 && rangeLengthValue.type.isScalar, "range must be i32 scalar")
+        let rangeLengthValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(rangeLengthExpr)))
+        rangeLengthValue = this.castTo(rangeLengthValue, PrimitiveType.i32)
+        this.assertNode(null, rangeLengthValue.getType().getCategory() === TypeCategory.Scalar, "range must be scalar")
 
-        if(shouldUnroll){
+        if (shouldUnroll) {
             this.assertNode(null, rangeLengthValue.isCompileTimeConstant(), "for static range loops, the range must be a compile time constant")
             let rangeLength = rangeLengthValue.compileTimeConstants[0]
-            for(let i = 0;i<rangeLength;++i){
-                let indexValue = Value.makeConstantScalar(i,this.irBuilder.get_int32(i),PrimitiveType.i32)
+            for (let i = 0; i < rangeLength; ++i) {
+                let indexValue = ValueUtils.makeConstantScalar(i, this.irBuilder.get_int32(i), PrimitiveType.i32)
                 this.symbolTable.set(indexSymbols[0], indexValue)
                 this.dispatchVisit(body)
             }
         }
-        else{
+        else {
             let zero = this.irBuilder.get_int32(0)
             let loop = this.irBuilder.create_range_for(zero, rangeLengthValue.stmts[0], 0, 4, 0, false);
 
             let loopGuard = this.irBuilder.get_range_loop_guard(loop);
             let indexStmt = this.irBuilder.get_loop_index(loop, 0);
-            let indexValue = new Value(new Type(PrimitiveType.i32), [indexStmt])
+            let indexValue = ValueUtils.makeScalar(indexStmt, PrimitiveType.i32)
             this.symbolTable.set(indexSymbols[0], indexValue)
 
             this.loopStack.push(LoopKind.For)
@@ -1259,26 +781,27 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         }
     }
 
-    protected visitNdrangeFor(indexSymbols: ts.Symbol[], rangeExpr: ts.NodeArray<ts.Expression>, body: ts.Statement, shouldUnroll:boolean): VisitorResult<Value> {
+    protected visitNdrangeFor(indexSymbols: ts.Symbol[], rangeExpr: ts.NodeArray<ts.Expression>, body: ts.Statement, shouldUnroll: boolean): VisitorResult<Value> {
         let numDimensions = rangeExpr.length
         this.assertNode(null, indexSymbols.length === 1, "Expecting exactly 1 (grouped) loop index in ndrange()")
         this.assertNode(null, numDimensions > 0, "ndrange() arg list cannot be empty")
         let lengthValues: Value[] = []
         for (let lengthExpr of rangeExpr) {
-            let value = this.evaluate(this.extractVisitorResult(this.dispatchVisit(lengthExpr)))
+            let value = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(lengthExpr)))
             value = this.castTo(value, PrimitiveType.i32)
-            this.assertNode(null, value.type.isScalar, "each arg to ndrange() must be a scalar")
+            this.assertNode(null, value.getType().getCategory() === TypeCategory.Scalar, "each arg to ndrange() must be a scalar")
             lengthValues.push(value)
         }
-        if(shouldUnroll){
+        if (shouldUnroll) {
             let totalLength = 1
-            for(let len of lengthValues){
+            for (let len of lengthValues) {
                 this.assertNode(null, len.isCompileTimeConstant(), "for static ndrange loops, each range must be a compile time constant")
                 totalLength *= len.compileTimeConstants[0]
             }
             //console.log("total length ",totalLength)
-            for(let i = 0;i<totalLength;++i){
-                let indexValue = new Value(new Type(PrimitiveType.i32, false, numDimensions, 1), [],[])
+            for (let i = 0; i < totalLength; ++i) {
+                let indexType = new VectorType(PrimitiveType.i32, numDimensions)
+                let indexValue = new Value(indexType, [], [])
                 let remainder = i
 
                 for (let d = numDimensions - 1; d >= 0; --d) {
@@ -1294,7 +817,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                 this.dispatchVisit(body)
             }
         }
-        else{
+        else {
             let product = lengthValues[0].stmts[0]
             for (let i = 1; i < numDimensions; ++i) {
                 product = this.irBuilder.create_mul(product, lengthValues[i].stmts[0])
@@ -1305,7 +828,8 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             let loopGuard = this.irBuilder.get_range_loop_guard(loop);
             let flatIndexStmt = this.irBuilder.get_loop_index(loop, 0);
 
-            let indexValue = new Value(new Type(PrimitiveType.i32, false, numDimensions, 1), [])
+            let indexType = new VectorType(PrimitiveType.i32, numDimensions)
+            let indexValue = new Value(indexType, [])
             let remainder = flatIndexStmt
 
             for (let i = numDimensions - 1; i >= 0; --i) {
@@ -1325,8 +849,8 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
     }
 
     protected override visitForOfStatement(node: ts.ForOfStatement): VisitorResult<Value> {
-        this.assertNode(node, node.initializer.kind === ts.SyntaxKind.VariableDeclarationList, 
-            "Expecting a `let` variable declaration list, got ", node.initializer.getText()," ", node.initializer.kind)
+        this.assertNode(node, node.initializer.kind === ts.SyntaxKind.VariableDeclarationList,
+            "Expecting a `let` variable declaration list, got ", node.initializer.getText(), " ", node.initializer.kind)
         let declarationList = node.initializer as ts.VariableDeclarationList
         let loopIndexSymbols: ts.Symbol[] = []
         for (let decl of declarationList.declarations) {
@@ -1347,16 +871,16 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             }
             else if (calledFunctionText === "static" || calledFunctionText === "ti.static") {
                 let errMsg = "expecting a single range(...) or ndrange(...) within static(...)"
-                this.assertNode(node,callExpr.arguments.length === 1, errMsg)
+                this.assertNode(node, callExpr.arguments.length === 1, errMsg)
                 let innerExpr = callExpr.arguments[0]
-                this.assertNode(node,innerExpr.kind === ts.SyntaxKind.CallExpression, errMsg)
+                this.assertNode(node, innerExpr.kind === ts.SyntaxKind.CallExpression, errMsg)
                 let innerCallExpr = innerExpr as ts.CallExpression
                 let innerCallText = innerCallExpr.expression.getText()
                 if (innerCallText === "range" || innerCallText === "ti.range") {
-                    return this.visitRangeFor(loopIndexSymbols, innerCallExpr.arguments, node.statement,true)
+                    return this.visitRangeFor(loopIndexSymbols, innerCallExpr.arguments, node.statement, true)
                 }
                 else if (innerCallText === "ndrange" || innerCallText === "ti.ndrange") {
-                    return this.visitNdrangeFor(loopIndexSymbols, innerCallExpr.arguments, node.statement,true)
+                    return this.visitNdrangeFor(loopIndexSymbols, innerCallExpr.arguments, node.statement, true)
                 }
             }
         }
@@ -1371,8 +895,13 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
 }
 
 export class InliningCompiler extends CompilingVisitor {
-    constructor(scope: GlobalScope, irBuilder: NativeTaichiAny, public funcName: string) {
-        super(irBuilder, scope)
+    constructor(
+        scope: GlobalScope,
+        irBuilder: NativeTaichiAny,
+        builtinOps: Map<string, BuiltinOp>,
+        atomicOps: Map<string, BuiltinAtomicOp>,
+        public funcName: string) {
+        super(irBuilder, builtinOps, atomicOps, scope)
     }
 
     argValues: Value[] = []
@@ -1399,13 +928,16 @@ export class InliningCompiler extends CompilingVisitor {
             this.errorNode(node, "ti.func can only have at most one return statements")
         }
         if (node.expression) {
-            this.returnValue = this.evaluate(this.extractVisitorResult(this.dispatchVisit(node.expression)))
+            this.returnValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.expression)))
         }
     }
 }
 export class OneTimeCompiler extends CompilingVisitor {
     constructor(scope: GlobalScope) {
-        super(new nativeTaichi.IRBuilder(), scope)
+        let irBuilder = new nativeTaichi.IRBuilder()
+        let builtinOps = BuiltinOpFactory.getBuiltinOps(irBuilder)
+        let atomicOps = BuiltinOpFactory.getAtomicOps(irBuilder)
+        super(irBuilder, builtinOps, atomicOps, scope)
     }
     compileKernel(code: any): KernelParams {
         this.buildIR(code)

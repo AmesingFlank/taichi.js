@@ -7,7 +7,7 @@ async function testVectorComponent(): Promise<boolean> {
      
     await ti.init() 
 
-    let f = ti.Vector.field(2, ti.i32, 1)
+    let f = ti.Vector.field(2, ti.f32, 1)
     let res = [2,4]
     ti.addToKernelScope({f, res}) 
 

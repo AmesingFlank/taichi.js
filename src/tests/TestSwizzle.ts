@@ -7,7 +7,7 @@ async function testSwizzle(): Promise<boolean> {
      
     await ti.init() 
 
-    let f = ti.field(ti.i32, [10])
+    let f = ti.field(ti.f32, [10])
     ti.addToKernelScope({f}) 
     let kernel = ti.kernel(
         () => {

@@ -28,7 +28,7 @@ async function testAtomic(): Promise<boolean> {
             }
             for(let i of range(n2)){
                 let my_index = (f2[0] += 1)
-                i2[i] = my_index
+                i2[i] = i32(my_index)
             }
             for(let i of range(n3)){
                 ti.atomic_add(f3[0], 1)

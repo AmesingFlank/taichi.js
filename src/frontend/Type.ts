@@ -1,6 +1,6 @@
 
 import {nativeTaichi, NativeTaichiAny} from "../native/taichi/GetTaichi"
-import {error} from "../utils/Logging"
+import {assert, error} from "../utils/Logging"
 
 enum PrimitiveType {
     i32 = "i32",
@@ -18,62 +18,31 @@ function toNativePrimitiveType(type:PrimitiveType): NativeTaichiAny{
     }
 }
 
-class Type {
-    public constructor(
-        public primitiveType:PrimitiveType,
-        public isScalar: boolean = true,
-        public numRows: number = 1,
-        public numCols: number = 1
-    ){
-
-    }
-
-    copy(){
-        return new Type(this.primitiveType, this.isScalar, this.numRows, this.numCols)
-    }
-    isVector(){
-        return !this.isScalar && this.numCols === 1;
-    }
-    isMatrix(){
-        return !this.isScalar && this.numCols > 1;
-    }
-}
-
-enum FrontendTypeCategory {
+enum TypeCategory {
     Scalar = "Scalar",
     Vector = "Vector",
-    Matrix = "Matrix"
+    Matrix = "Matrix",
+    Pointer = "Pointer",
+    Void = "Void"
 }
 
-class FrontendType {
+class Type {
     constructor(){
 
     }
 
-    getCategory():FrontendTypeCategory{
-        error("calling getCategory from FrontendType base")
-        return FrontendTypeCategory.Scalar
+    getCategory():TypeCategory{
+        error("calling getCategory from Type2 base")
+        return TypeCategory.Scalar
     }
 
-    isScalar(): boolean {
-        return this.getCategory() == FrontendTypeCategory.Scalar
-    }
-
-    isVector(): boolean {
-        return this.getCategory() == FrontendTypeCategory.Vector
-    }
-
-    isMatrix(): boolean {
-        return this.getCategory() == FrontendTypeCategory.Matrix
-    }
-
-    public equals(that: FrontendType): boolean{
-        error("calling equlas from FrontendType base")
+    public equals(that: Type): boolean{
+        error("calling equlas from Type2 base")
         return false
     }
 }
 
-class ScalarType extends FrontendType {
+class ScalarType extends Type {
     constructor(primitiveType:PrimitiveType){
         super()
         this.primitiveType_ = primitiveType
@@ -81,15 +50,15 @@ class ScalarType extends FrontendType {
     
     private primitiveType_:PrimitiveType
 
-    override getCategory():FrontendTypeCategory{
-        return FrontendTypeCategory.Scalar
+    override getCategory():TypeCategory{
+        return TypeCategory.Scalar
     }
 
     getPrimitiveType() : PrimitiveType {
         return this.primitiveType_;
     }
 
-    public equals(that: FrontendType): boolean{
+    override equals(that: Type): boolean{
         if(that.getCategory() != this.getCategory()){
             return false;
         }
@@ -97,6 +66,213 @@ class ScalarType extends FrontendType {
     }
 }
 
+class VectorType extends Type {
+    constructor(primitiveType:PrimitiveType, numRows:number){
+        super()
+        this.primitiveType_ = primitiveType
+        this.numRows_ = numRows
+    }
+    
+    private primitiveType_:PrimitiveType
+    private numRows_:number
+
+    override getCategory():TypeCategory{
+        return TypeCategory.Vector
+    }
+
+    getPrimitiveType() : PrimitiveType {
+        return this.primitiveType_;
+    }
+
+    getNumRows() : number {
+        return this.numRows_;
+    }
+
+    override equals(that: Type): boolean{
+        if(that.getCategory() != this.getCategory()){
+            return false;
+        }
+        let thatVector = that as VectorType
+        return this.getPrimitiveType() === thatVector.getPrimitiveType() &&
+                this.getNumRows() === thatVector.getNumRows()
+    }
+}
 
 
-export {Type, PrimitiveType, toNativePrimitiveType}
+class MatrixType extends Type {
+    constructor(primitiveType:PrimitiveType, numRows:number, numCols:number){
+        super()
+        this.primitiveType_ = primitiveType
+        this.numRows_ = numRows
+        this.numCols_ = numCols
+    }
+    
+    private primitiveType_:PrimitiveType
+    private numRows_:number
+    private numCols_:number
+
+    override getCategory():TypeCategory{
+        return TypeCategory.Matrix
+    }
+
+    getPrimitiveType() : PrimitiveType {
+        return this.primitiveType_;
+    }
+
+    getNumRows() : number {
+        return this.numRows_;
+    }
+
+    getNumCols() : number {
+        return this.numCols_;
+    }
+
+    override equals(that: Type): boolean{
+        if(that.getCategory() != this.getCategory()){
+            return false;
+        }
+        let thatVector = that as MatrixType
+        return this.getPrimitiveType() === thatVector.getPrimitiveType() &&
+                this.getNumRows() === thatVector.getNumRows() &&
+                this.getNumCols() === thatVector.getNumCols()
+    }
+}
+
+class PointerType extends Type{
+    constructor(valueType: Type, isGlobal: boolean){
+        super()
+        this.valueType_ = valueType
+        this.isGlobal_ = isGlobal
+    }
+
+    private valueType_:Type
+    private isGlobal_:boolean
+
+    getValueType():Type {
+        return this.valueType_
+    }
+
+    getIsGlobal():boolean{
+        return this.isGlobal_
+    }
+
+    override getCategory():TypeCategory{
+        return TypeCategory.Pointer
+    }
+
+    override equals(that: Type): boolean{
+        if(that.getCategory() != this.getCategory()){
+            return false;
+        }
+        let thatPointer = that as PointerType
+        return this.getValueType() == thatPointer.getValueType()
+    }
+}
+
+class VoidType extends Type {
+    constructor(){
+        super()
+    }
+    override getCategory():TypeCategory{
+        return TypeCategory.Void
+    }
+
+    override equals(that: Type): boolean{
+        if(that.getCategory() != this.getCategory()){
+            return false;
+        }
+        return true
+    }
+}
+
+
+class TypeUtils {
+
+    static isTensorType(type: Type): boolean{
+        let cat = type.getCategory();
+        return cat === TypeCategory.Scalar || cat === TypeCategory.Vector || cat === TypeCategory.Matrix
+    }
+
+    static tensorTypeShapeMatch(type0: Type,type1: Type){
+        assert(TypeUtils.isTensorType(type0) && TypeUtils.isTensorType(type1), "[Compiler bug] tensorTypeShapeMatch() called on non-tensor type")
+        if(type0.getCategory()!==type1.getCategory()){
+            return false
+        }
+        if(type0.getCategory() === TypeCategory.Scalar ){
+            return true
+        }
+        else if(type0.getCategory() === TypeCategory.Vector ){
+            let vec0 = type0 as VectorType
+            let vec1 = type1 as VectorType
+            return vec0.getNumRows() === vec1.getNumRows()
+        }
+        else {// if(type0.getCategory() === TypeCategory.Matrix)
+            let mat0 = type0 as MatrixType
+            let mat1 = type1 as MatrixType
+            return mat0.getNumRows() === mat1.getNumRows() && mat0.getNumCols() === mat1.getNumCols()
+        }
+    }
+
+    static getPrimitiveType(type: Type): PrimitiveType{
+        assert(TypeUtils.isTensorType(type), "[Compiler bug] getPrimitiveType() called on non-tensor type")
+        let cat = type.getCategory();
+        if(cat ===  TypeCategory.Scalar){
+            return (type as ScalarType).getPrimitiveType()
+        }
+        else if(cat ===  TypeCategory.Vector){
+            let vecType = type as VectorType
+            return vecType.getPrimitiveType()
+        }
+        else { //if(cat ===  TypeCategory.Matrix)
+            let matType = type as MatrixType
+            return matType.getPrimitiveType()
+        }
+    }
+
+    static replacePrimitiveType(type:Type, newPrimitiveType:PrimitiveType): Type{
+        assert(TypeUtils.isTensorType(type), "[Compiler bug] replacePrimitiveType() called on non-tensor type")
+        let cat = type.getCategory();
+        if(cat ===  TypeCategory.Scalar){
+            return new ScalarType(newPrimitiveType)
+        }
+        else if(cat ===  TypeCategory.Vector){
+            let vecType = type as VectorType
+            return new VectorType(newPrimitiveType, vecType.getNumRows())
+        }
+        else { // if(cat ===  TypeCategory.Matrix){
+            let matType = type as MatrixType
+            return new MatrixType(newPrimitiveType, matType.getNumRows(), matType.getNumCols())
+        }
+    }
+
+    static isPointerOfCategory(type:Type, cat:TypeCategory){
+        return type.getCategory()===TypeCategory.Pointer && (type as PointerType).getValueType().getCategory() === cat;
+    }
+    
+    static isValueOrPointerOfCategory(type:Type, cat:TypeCategory){
+        return type.getCategory()===cat || TypeUtils.isPointerOfCategory(type,cat)
+    }
+
+    static isPointerOfTensorType(type: Type): boolean{
+        return type.getCategory()===TypeCategory.Pointer && TypeUtils.isTensorType((type as PointerType).getValueType())
+    }
+
+    static isValueOrPointerOfTensorType(type: Type): boolean{
+        return TypeUtils.isTensorType(type) || TypeUtils.isPointerOfTensorType(type)
+    }
+}
+
+class TypeError {
+    private constructor(public hasError:boolean, public msg: string = ""){
+
+    }
+    public static createNoError(){
+        return new TypeError(false)
+    }
+    public static createError(msg:string){
+        return new TypeError(true, msg)
+    }
+}
+
+export {PrimitiveType, toNativePrimitiveType}
+export {Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, TypeUtils, TypeError}
