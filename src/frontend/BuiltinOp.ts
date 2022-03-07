@@ -327,9 +327,9 @@ class BuiltinAtomicOp extends BuiltinOp {
             // so we cast explicitly
             args[1] = this.f32Caster.apply([args[1]])
         }
-        let result = new Value(destValueType,[],[])
-        for(let i = 0; i<args[0].stmts.length;++i){
-            result.stmts.push(this.irBuilderFunc(args[0].stmts[i],args[1].stmts[i]))
+        let result = new Value(destValueType, [], [])
+        for (let i = 0; i < args[0].stmts.length; ++i) {
+            result.stmts.push(this.irBuilderFunc(args[0].stmts[i], args[1].stmts[i]))
         }
         return result
     }
@@ -375,7 +375,7 @@ class BuiltinOpFactory {
             new BuiltinBinaryOp("|", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_or(l, r), (l, r) => l & r),
             new BuiltinBinaryOp("||", BinaryOpDatatypeTransform.PromoteToMatch, false, false, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_or(l, r), (l, r) => l & r),
 
-            new BuiltinBinaryOp("/", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_truediv(l, r), (l, r) => l / r),
+            new BuiltinBinaryOp("/", BinaryOpDatatypeTransform.AlwaysF32, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_truediv(l, r), (l, r) => l / r),
 
             new BuiltinUnaryOp("sin", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_sin(stmt)),
             new BuiltinUnaryOp("cos", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_cos(stmt)),
@@ -421,10 +421,11 @@ class BuiltinOpFactory {
                 if (TypeUtils.isTensorType(pointerType.getValueType()) && TypeUtils.isTensorType(type1)) {
                     let destPrim = TypeUtils.getPrimitiveType(pointerType.getValueType())
                     let valPrim = TypeUtils.getPrimitiveType(type1)
-                    if (destPrim === PrimitiveType.i32 && valPrim === PrimitiveType.f32) {
+                    if (destPrim === PrimitiveType.i32 && valPrim === PrimitiveType.f32 && !pointerType.getIsGlobal()) {
                         // in Python taichi, this will cause native taichi to trigger a warning.
-                        // instead, taichi.js directy throws an error
-                        return TypeError.createError("storing f32 into a i32 location.")
+                        // instead, taichi.js directy throws an error.
+                        // We only throw error for local i32 <- f32 because this is a much more common source of bugs.
+                        return TypeError.createError("storing f32 into a i32 local variable.")
                     }
                     if (TypeUtils.tensorTypeShapeMatch(pointerType.getValueType(), type1)) {
                         return TypeError.createNoError()
