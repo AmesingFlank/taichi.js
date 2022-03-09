@@ -3,9 +3,11 @@ import { Field } from '../program/Field'
 import { PrimitiveType, Type,ScalarType,VectorType,MatrixType }from "../frontend/Type"
 
 
-function field( primitiveType:PrimitiveType, dimensions: number[]|number) : Field{
-    let elementType = new ScalarType(primitiveType)
-    return Program.getCurrentProgram().partialTree.addNaiveDenseField(elementType,dimensions)
+function field( type:PrimitiveType|Type, dimensions: number[]|number) : Field{
+    if(type === PrimitiveType.f32 || type === PrimitiveType.i32){
+        type = new ScalarType(type)
+    }
+    return Program.getCurrentProgram().partialTree.addNaiveDenseField(type,dimensions)
 }
 
 let Vector = {

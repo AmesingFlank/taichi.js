@@ -3,7 +3,7 @@ import { error, log } from "../utils/Logging"
 import { testSimple } from "./TestSimple"
 import { testCopyFieldToHost1D } from "./TestCopyFieldToHost1D"
 import { test2DField } from "./Test2DField"
-import { testLocalVar } from "./testLocalVar"
+import { testLocalVar } from "./TestLocalVar"
 import { testVector } from "./TestVector"
 import { testMatrix } from "./TestMatrix"
 import { testVectorLocalVar } from "./TestVectorLocalVar"
@@ -32,6 +32,7 @@ import { testMatrixOps } from "./TestMatrixOps"
 import { testLibraryFuncs } from "./TestLibraryFuncs"
 import { testStaticLoopUnroll } from "./TestStaticLoopUnroll"
 import { testBroadcast } from "./TestBroadCast"
+import { testTypes } from "./TestTypes"
 
 async function runAllTests() {
     let passed = true
@@ -67,6 +68,7 @@ async function runAllTests() {
     passed &&= await testLibraryFuncs()
     passed &&= await testStaticLoopUnroll()
     passed &&= await testBroadcast()
+    passed &&= await testTypes()
 
     if (passed) {
         console.log("All tests passed")
