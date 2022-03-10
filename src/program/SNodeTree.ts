@@ -54,31 +54,15 @@ class SNodeTree {
 
         let dense = this.nativeTreeRoot.dense(axisVec, sizesVec, packed);
 
-        let primitivesPerElement = 1
-        if (elementType.getCategory() === TypeCategory.Scalar) {
-            primitivesPerElement = 1
-        }
-        else if (elementType.getCategory() === TypeCategory.Vector) {
-            let vecType = elementType as VectorType
-            primitivesPerElement = vecType.getNumRows()
-        }
-        else if (elementType.getCategory() === TypeCategory.Matrix) {
-            let matType = elementType as MatrixType
-            primitivesPerElement = matType.getNumRows() * matType.getNumCols()
-        }
-        else {
-            error("unsupported type in fields")
-        }
-
+        let primitivesList = elementType.getPrimitivesList()
         let placeNodes: NativeTaichiAny[] = []
-        for (let i = 0; i < primitivesPerElement; ++i) {
+        for (let i = 0; i < primitivesList.length; ++i) {
             let place = dense.insert_children(nativeTaichi.SNodeType.place);
-            let primitiveType = TypeUtils.getPrimitiveType(elementType)
-            place.dt_set(toNativePrimitiveType(primitiveType))
+            place.dt_set(toNativePrimitiveType(primitivesList[i]))
             placeNodes.push(place)
         }
 
-        let totalSize = 4 * primitivesPerElement * numElements(dimensions, packed)
+        let totalSize = 4 * primitivesList.length * numElements(dimensions, packed)
         let field = new Field(this, this.size, totalSize, dimensions, placeNodes, elementType)
 
         this.size += totalSize
