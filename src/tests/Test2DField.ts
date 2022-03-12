@@ -1,6 +1,6 @@
 //@ts-nocheck
 import {ti} from "../taichi"
-import {assertArrayEqual} from "./Utils"
+import {assertEqual} from "./Utils"
 
 async function test2DField(): Promise<boolean> {
     console.log("test2DField")
@@ -26,7 +26,7 @@ async function test2DField(): Promise<boolean> {
     let fHost = await f.toArray1D()
      
     console.log(fHost)
-    return assertArrayEqual(fHost,[0,1,2,10,11,12,20,21,22])
+    return assertEqual(fHost,[0,1,2,10,11,12,20,21,22])
     
 }
 

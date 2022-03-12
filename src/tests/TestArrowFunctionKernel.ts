@@ -1,6 +1,6 @@
 //@ts-nocheck
 import {ti} from "../taichi"
-import {assertArrayEqual} from "./Utils"
+import {assertEqual} from "./Utils"
 
 async function testArrowFunctionKernel(): Promise<boolean> {
     console.log("testArrowFunctionKernel")
@@ -31,7 +31,7 @@ async function testArrowFunctionKernel(): Promise<boolean> {
     
     let fHost = await f.toArray1D()
     console.log(fHost)
-    return assertArrayEqual(fHost,[0,1,2,3,4,5,6,7,8,9])
+    return assertEqual(fHost,[0,1,2,3,4,5,6,7,8,9])
 }
 
 export {testArrowFunctionKernel}

@@ -1,6 +1,6 @@
 //@ts-nocheck
 import {ti} from "../taichi"
-import {assertArrayEqual} from "./Utils"
+import {assertEqual} from "./Utils"
 
 async function testKernelScope(): Promise<boolean> {
     console.log("testKernelScope")
@@ -31,7 +31,7 @@ async function testKernelScope(): Promise<boolean> {
     let mHost = await m.toArray1D()
      
     console.log(fHost, vHost, mHost)
-    return assertArrayEqual(fHost,[a]) && assertArrayEqual(vHost,b) && assertArrayEqual(mHost,c[0].concat(c[1])) 
+    return assertEqual(fHost,[a]) && assertEqual(vHost,b) && assertEqual(mHost,c[0].concat(c[1])) 
     
 }
 

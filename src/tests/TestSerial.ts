@@ -1,6 +1,6 @@
 //@ts-nocheck
 import {ti} from "../taichi"
-import {assertArrayEqual} from "./Utils"
+import {assertEqual} from "./Utils"
 
 async function testSerial(): Promise<boolean> {
     console.log("testSerial")
@@ -22,7 +22,7 @@ async function testSerial(): Promise<boolean> {
     
     let fHost = await f.toArray1D()
     console.log(fHost)
-    return assertArrayEqual(fHost,[3, 9])
+    return assertEqual(fHost,[3, 9])
 }
 
 export {testSerial}

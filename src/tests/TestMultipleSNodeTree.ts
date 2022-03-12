@@ -1,6 +1,6 @@
 //@ts-nocheck
 import {ti} from "../taichi"
-import {assertArrayEqual} from "./Utils"
+import {assertEqual} from "./Utils"
 async function testMultipleSNodeTree(): Promise<boolean> {
     console.log("testMultipleSNodeTree")
      
@@ -37,7 +37,7 @@ async function testMultipleSNodeTree(): Promise<boolean> {
     let f2Host = await f2.toArray1D()
      
     console.log(f1Host,f2Host)
-    return assertArrayEqual(f1Host,[0,1,2,3,4,5,6]) && assertArrayEqual(f2Host,[1,2,3,4,5,6,7])
+    return assertEqual(f1Host,[0,1,2,3,4,5,6]) && assertEqual(f2Host,[1,2,3,4,5,6,7])
     
 }
 

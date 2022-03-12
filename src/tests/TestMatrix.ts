@@ -1,6 +1,6 @@
 //@ts-nocheck
 import {ti} from "../taichi"
-import {assertArrayEqual} from "./Utils"
+import {assertEqual} from "./Utils"
 
 async function testMatrix(): Promise<boolean> {
     console.log("testMatrix")
@@ -31,8 +31,8 @@ async function testMatrix(): Promise<boolean> {
     let mHost = await m.toArray1D()
     let vHost = await v.toArray1D()
     console.log(mHost, vHost)
-    return assertArrayEqual(mHost,[0, 1, 10, 11, 100, 101, 110, 111, 1000, 1001, 1010, 1011, 1100, 1101, 1110, 1111])
-            && assertArrayEqual(vHost,[1110, 1111])
+    return assertEqual(mHost,[0, 1, 10, 11, 100, 101, 110, 111, 1000, 1001, 1010, 1011, 1100, 1101, 1110, 1111])
+            && assertEqual(vHost,[1110, 1111])
 }
 
 export {testMatrix}

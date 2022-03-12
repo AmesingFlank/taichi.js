@@ -1,5 +1,5 @@
 //@ts-nocheck
-import {assertArrayEqual} from "./Utils"
+import {assertEqual} from "./Utils"
 
 async function testAtomic(): Promise<boolean> {
     console.log("testAtomic")
@@ -55,15 +55,15 @@ async function testAtomic(): Promise<boolean> {
     console.log(i3Host)
 
     let passed = true;
-    passed &&= assertArrayEqual(f1Host, [ n1 * (n1-1) / 2 ])
-    passed &&= assertArrayEqual(i1Host, [ n1 * (n1-1) / 2 ])
-    passed &&= assertArrayEqual(f3Host, [n3])
-    passed &&= assertArrayEqual(i3Host, [n3])
-    passed &&= assertArrayEqual(f2Host, [n2])
+    passed &&= assertEqual(f1Host, [ n1 * (n1-1) / 2 ])
+    passed &&= assertEqual(i1Host, [ n1 * (n1-1) / 2 ])
+    passed &&= assertEqual(f3Host, [n3])
+    passed &&= assertEqual(i3Host, [n3])
+    passed &&= assertEqual(f2Host, [n2])
     
     i2Host.sort(function(a, b){return a - b});
     for(let i = 0;i<n2; ++i){
-        passed &&= assertArrayEqual([i2Host[i]], [i])
+        passed &&= assertEqual([i2Host[i]], [i])
     }
     return passed
 }

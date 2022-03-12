@@ -1,6 +1,6 @@
 //@ts-nocheck
 import {ti} from "../taichi"
-import {assertArrayEqual} from "./Utils"
+import {assertEqual} from "./Utils"
 
 async function testMatrixLocalVar(): Promise<boolean> {
     console.log("testMatrixLocalVar")
@@ -27,7 +27,7 @@ async function testMatrixLocalVar(): Promise<boolean> {
     
     let fHost = await f.toArray1D()
     console.log(fHost)
-    return assertArrayEqual(fHost,[0, 1, 10, 11, 100, 101, 110, 111, 1000, 1001, 1010, 1011, 1100, 1101, 1110, 1111])
+    return assertEqual(fHost,[0, 1, 10, 11, 100, 101, 110, 111, 1000, 1001, 1010, 1011, 1100, 1101, 1110, 1111])
 }
 
 export {testMatrixLocalVar}

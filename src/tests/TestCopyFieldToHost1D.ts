@@ -1,6 +1,6 @@
 //@ts-nocheck
 import {ti} from "../taichi"
-import {assertArrayEqual} from "./Utils"
+import {assertEqual} from "./Utils"
 async function testCopyFieldToHost1D(): Promise<boolean> {
     console.log("testCopyFieldToHost1D")
      
@@ -29,7 +29,7 @@ async function testCopyFieldToHost1D(): Promise<boolean> {
     let f2Host = await f2.toArray1D()
      
     console.log(f1Host,f2Host)
-    return assertArrayEqual(f1Host,[0,1,2,3,4,5,6]) && assertArrayEqual(f2Host,[0,2,4,6,8])
+    return assertEqual(f1Host,[0,1,2,3,4,5,6]) && assertEqual(f2Host,[0,2,4,6,8])
     
 }
 

@@ -1,6 +1,6 @@
 //@ts-nocheck
 import {ti} from "../taichi"
-import {assertArrayEqual} from "./Utils"
+import {assertEqual} from "./Utils"
 
 async function testVectorComponent(): Promise<boolean> {
     console.log("testVectorComponent")
@@ -37,7 +37,7 @@ async function testVectorComponent(): Promise<boolean> {
     
     let fHost = await f.toArray1D()
     console.log(fHost)
-    return assertArrayEqual(fHost,[5,12])
+    return assertEqual(fHost,[5,12])
 }
 
 export {testVectorComponent}

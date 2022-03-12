@@ -1,6 +1,6 @@
 //@ts-nocheck
 import {ti} from "../taichi"
-import {assertArrayEqual} from "./Utils"
+import {assertEqual} from "./Utils"
 
 async function testSwizzle(): Promise<boolean> {
     console.log("testSwizzle")
@@ -35,7 +35,7 @@ async function testSwizzle(): Promise<boolean> {
     
     let fHost = await f.toArray1D() 
     console.log(fHost)
-    return assertArrayEqual(fHost,[0,1,2,3,2,1,0,3,1,0])  
+    return assertEqual(fHost,[0,1,2,3,2,1,0,3,1,0])  
 }
 
 export {testSwizzle}

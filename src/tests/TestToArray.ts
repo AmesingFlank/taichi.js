@@ -1,6 +1,6 @@
 //@ts-nocheck
 import { ti } from "../taichi"
-import { assertArrayEqual } from "./Utils"
+import { assertEqual } from "./Utils"
 
 async function testToArray(): Promise<boolean> {
     console.log("testToArray")
@@ -57,14 +57,14 @@ async function testToArray(): Promise<boolean> {
 
     console.log(s1Host, s2Host, s3Host, v1Host, v2Host, v3Host, m1Host, m2Host)
 
-    return assertArrayEqual(s1Host, [0, 1])
-        && assertArrayEqual(s2Host, [[0, 1], [2, 3]])
-        && assertArrayEqual(s3Host, [[[0, 1], [2, 3]], [[4, 5], [6, 7]]])
-        && assertArrayEqual(v1Host, [[0, 1], [2, 3]])
-        && assertArrayEqual(v2Host, [[[0, 1], [2, 3]], [[4, 5], [6, 7]]])
-        && assertArrayEqual(v3Host, [[[[0, 1], [2, 3]], [[4, 5], [6, 7]]], [[[8, 9], [10, 11]], [[12, 13], [14, 15]]]])
-        && assertArrayEqual(m1Host, [[[0, 1], [2, 3]], [[4, 5], [6, 7]]])
-        && assertArrayEqual(m2Host, [[[[0, 1], [2, 3]], [[4, 5], [6, 7]]], [[[8, 9], [10, 11]], [[12, 13], [14, 15]]]])
+    return assertEqual(s1Host, [0, 1])
+        && assertEqual(s2Host, [[0, 1], [2, 3]])
+        && assertEqual(s3Host, [[[0, 1], [2, 3]], [[4, 5], [6, 7]]])
+        && assertEqual(v1Host, [[0, 1], [2, 3]])
+        && assertEqual(v2Host, [[[0, 1], [2, 3]], [[4, 5], [6, 7]]])
+        && assertEqual(v3Host, [[[[0, 1], [2, 3]], [[4, 5], [6, 7]]], [[[8, 9], [10, 11]], [[12, 13], [14, 15]]]])
+        && assertEqual(m1Host, [[[0, 1], [2, 3]], [[4, 5], [6, 7]]])
+        && assertEqual(m2Host, [[[[0, 1], [2, 3]], [[4, 5], [6, 7]]], [[[8, 9], [10, 11]], [[12, 13], [14, 15]]]])
 }
 
 export { testToArray }

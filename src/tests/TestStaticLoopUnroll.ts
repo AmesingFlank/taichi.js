@@ -1,5 +1,5 @@
 //@ts-nocheck
-import {assertArrayEqual} from "./Utils"
+import {assertEqual} from "./Utils"
 
 async function testStaticLoopUnroll(): Promise<boolean> {
     console.log("testStaticLoopUnroll")
@@ -34,7 +34,7 @@ async function testStaticLoopUnroll(): Promise<boolean> {
     let vHost = await v.toArray1D()
     let mHost = await m.toArray1D()
     console.log(vHost, mHost)
-    return assertArrayEqual(vHost,[0,1,2]) && assertArrayEqual(mHost,[0,1,2, 10,11,12,20,21,22,0,1,2, 10,11,12,20,21,22 ])
+    return assertEqual(vHost,[0,1,2]) && assertEqual(mHost,[0,1,2, 10,11,12,20,21,22,0,1,2, 10,11,12,20,21,22 ])
 }
 
 export {testStaticLoopUnroll}

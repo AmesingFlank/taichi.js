@@ -1,6 +1,6 @@
 //@ts-nocheck
 import {ti} from "../taichi"
-import {assertArrayEqual} from "./Utils"
+import {assertEqual} from "./Utils"
 
 async function testUnary(): Promise<boolean> {
     console.log("testUnary")
@@ -25,7 +25,7 @@ async function testUnary(): Promise<boolean> {
     
     let fHost = await f.toArray1D()
     console.log(fHost)
-    return assertArrayEqual(fHost,[0,-1,-2,-3,-4,0,0,0,0,0])
+    return assertEqual(fHost,[0,-1,-2,-3,-4,0,0,0,0,0])
 }
 
 export {testUnary}

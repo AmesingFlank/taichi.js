@@ -1,5 +1,5 @@
 //@ts-nocheck
-import {assertArrayEqual} from "./Utils"
+import {assertEqual} from "./Utils"
 
 async function testRandom(): Promise<boolean> {
     console.log("testRandom")
@@ -33,7 +33,7 @@ async function testRandom(): Promise<boolean> {
     console.log(mean, mean_sqr)
     console.log(fHost)
     // E[X] and E[X^2] where X~U(0,1)
-    return assertArrayEqual([mean],[0.5], 0.01) && assertArrayEqual([mean_sqr],[1.0 / 3.0], 0.01)
+    return assertEqual([mean],[0.5], 0.01) && assertEqual([mean_sqr],[1.0 / 3.0], 0.01)
 }
 
 export {testRandom}

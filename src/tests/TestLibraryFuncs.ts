@@ -1,5 +1,5 @@
 //@ts-nocheck
-import {assertArrayEqual} from "./Utils"
+import {assertEqual} from "./Utils"
 
 async function testLibraryFuncs(): Promise<boolean> {
     console.log("testLibraryFuncs")
@@ -50,7 +50,7 @@ async function testLibraryFuncs(): Promise<boolean> {
         -0.57604844, 0.81741556,
         -0.81741556, -0.57604844
     ]
-    return assertArrayEqual(fHost,expected)
+    return assertEqual(fHost,expected)
 }
 
 export {testLibraryFuncs}
