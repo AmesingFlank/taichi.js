@@ -10,6 +10,15 @@ class MaterializedTree {
     device?: GPUDevice
 }
 
+class FieldHostSideCopy {
+    constructor(
+        public intArray: number[],
+        public floatArray: number[]
+    ) {
+
+    }
+}
+
 class Runtime {
     adapter: GPUAdapter | null = null
     device: GPUDevice | null = null
@@ -201,34 +210,26 @@ class Runtime {
         this.materializedTrees.push(materialized)
     }
 
-    async copyFieldToHost(field: Field): Promise<number[]> {
-        let size = field.size
+    async copyFieldToHost(field: Field, offsetBytes: number = 0, sizeBytes: number = 0): Promise<FieldHostSideCopy> {
+        if (sizeBytes === 0) {
+            sizeBytes = field.size
+        }
         const rootBufferCopy = this.device!.createBuffer({
-            size: size,
+            size: sizeBytes,
             usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
         });
         let commandEncoder = this.device!.createCommandEncoder();
-        commandEncoder.copyBufferToBuffer(this.materializedTrees[field.snodeTree.treeId].rootBuffer!, field.offset, rootBufferCopy, 0, size)
+        commandEncoder.copyBufferToBuffer(this.materializedTrees[field.snodeTree.treeId].rootBuffer!, field.offset + offsetBytes, rootBufferCopy, 0, sizeBytes)
         this.device!.queue.submit([commandEncoder.finish()]);
         this.sync()
 
         await rootBufferCopy.mapAsync(GPUMapMode.READ)
-        let result1D: number[] = []
-        if (TypeUtils.isTensorType(field.elementType)) {
-            let prim = TypeUtils.getPrimitiveType(field.elementType)
-            if (prim === PrimitiveType.i32) {
-                let hostBuffer = new Int32Array(rootBufferCopy.getMappedRange())
-                result1D = Array.from(hostBuffer)
-            } else {
-                let hostBuffer = new Float32Array(rootBufferCopy.getMappedRange())
-                result1D = Array.from(hostBuffer)
-            }
-        }
-        else {
-            error("struct fields not supported yet")
-        }
-
-        return result1D
+        let mappedRange = rootBufferCopy.getMappedRange()
+        let resultInt = Array.from(new Int32Array(mappedRange))
+        let resultFloat = Array.from(new Float32Array(mappedRange))
+        rootBufferCopy.unmap()
+        rootBufferCopy.destroy()
+        return new FieldHostSideCopy(resultInt, resultFloat)
     }
 
     getRootBuffer(treeId: number): GPUBuffer {

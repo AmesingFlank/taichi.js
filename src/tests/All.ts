@@ -33,6 +33,7 @@ import { testLibraryFuncs } from "./TestLibraryFuncs"
 import { testStaticLoopUnroll } from "./TestStaticLoopUnroll"
 import { testBroadcast } from "./TestBroadCast"
 import { testTypes } from "./TestTypes"
+import { testToArray } from "./TestToArray"
 
 async function runAllTests() {
     let passed = true
@@ -69,6 +70,7 @@ async function runAllTests() {
     passed &&= await testStaticLoopUnroll()
     passed &&= await testBroadcast()
     passed &&= await testTypes()
+    passed &&= await testToArray()
 
     if (passed) {
         console.log("All tests passed")
