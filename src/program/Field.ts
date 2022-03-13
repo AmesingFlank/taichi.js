@@ -8,8 +8,8 @@ import { MultiDimensionalArray } from '../utils/MultiDimensionalArray'
 class Field {
     constructor(
         public snodeTree: SNodeTree,
-        public offset: number,
-        public size: number,
+        public offsetBytes: number,
+        public sizeBytes: number,
         public dimensions: number[],
         public placeNodes: NativeTaichiAny[],
         public elementType: Type
@@ -19,7 +19,7 @@ class Field {
 
     async toArray1D(): Promise<number[]> {
         if (TypeUtils.isTensorType(this.elementType)) {
-            let copy = await Program.getCurrentProgram().runtime!.copyFieldToHost(this);
+            let copy = await Program.getCurrentProgram().runtime!.deviceToHost(this);
             if (TypeUtils.getPrimitiveType(this.elementType) === PrimitiveType.f32) {
                 return copy.floatArray;
             }
@@ -33,13 +33,19 @@ class Field {
         }
     }
 
+    private ensureMaterialized() {
+        Program.getCurrentProgram().materializeCurrentTree()
+    }
+
     async toArray(): Promise<any[]> {
-        let copy = await Program.getCurrentProgram().runtime!.copyFieldToHost(this);
+        this.ensureMaterialized()
+        let copy = await Program.getCurrentProgram().runtime!.deviceToHost(this);
         let elements1D = groupElements(copy.intArray, copy.floatArray, this.elementType)
         return reshape(elements1D, this.dimensions)
     }
 
     async get(indices: number[]): Promise<any> {
+        this.ensureMaterialized()
         if (indices.length !== this.dimensions.length) {
             error(`indices dimensions mismatch, expecting ${this.dimensions.length}, received ${indices.length}`,)
         }
@@ -53,8 +59,54 @@ class Field {
         index += indices[indices.length - 1]
         let elementSizeBytes = this.elementType.getPrimitivesList().length * 4
         let offsetBytes = elementSizeBytes * index
-        let copy = await Program.getCurrentProgram().runtime!.copyFieldToHost(this, offsetBytes, elementSizeBytes);
+        let copy = await Program.getCurrentProgram().runtime!.deviceToHost(this, offsetBytes, elementSizeBytes);
         return toElement(copy.intArray, copy.floatArray, this.elementType)
+    }
+
+    async fromArray1D(values: number[]) {
+        assert(TypeUtils.isTensorType(this.elementType), "fromArray1D can only be used on fields of scalar/vector/matrix types")
+        this.ensureMaterialized()
+        assert(values.length * 4 === this.sizeBytes, "size mismatch")
+
+        if (TypeUtils.getPrimitiveType(this.elementType) === PrimitiveType.i32) {
+            let intArray = Int32Array.from(values)
+            await Program.getCurrentProgram().runtime!.hostToDevice(this, intArray)
+        }
+        else {
+            let floatArray = Float32Array.from(values)
+            let intArray = new Int32Array(floatArray.buffer)
+            await Program.getCurrentProgram().runtime!.hostToDevice(this, intArray)
+        }
+    }
+
+    async fromArray(values: any) {
+        this.ensureMaterialized()
+        let curr = values
+        for (let i = 0; i < this.dimensions.length; ++i) {
+            if (!Array.isArray(curr)) {
+                error("expecting array")
+            }
+            if (curr.length !== this.dimensions[i]) {
+                error("array size mismatch")
+            }
+            curr = curr[0]
+        }
+        let values1D = values.flat(this.dimensions.length-1)
+
+        let int32Arrays: Int32Array[] = []
+        // slow. hmm. fix later
+        for (let val of values1D) {
+            int32Arrays.push(elementToInt32Array(val, this.elementType))
+        }
+
+        let elementLength = int32Arrays[0].length
+        let totalLength = int32Arrays.length * elementLength
+        let result = new Int32Array(totalLength)
+        for (let i = 0; i < int32Arrays.length; ++i) {
+            result.set(int32Arrays[i], i * elementLength)
+        }
+
+        await Program.getCurrentProgram().runtime!.hostToDevice(this, result)
     }
 }
 
@@ -155,6 +207,47 @@ function reshape<T>(elements: T[], dimensions: number[]): MultiDimensionalArray<
         result = groupByN<T>(result as ((typeof result[0])[]), thisDim)
     }
     return result
+}
+
+function tensorToNumberArray(tensorValue: number | number[] | number[][], tensorType: Type): number[] {
+    if (tensorType.getCategory() === TypeCategory.Scalar) {
+        return [tensorValue as number]
+    }
+    else if (tensorType.getCategory() === TypeCategory.Vector) {
+        return tensorValue as number[]
+    }
+    else if (tensorType.getCategory() === TypeCategory.Matrix) {
+        let result: number[] = []
+        for (let vec of (tensorValue as number[][])) {
+            result = result.concat(vec)
+        }
+        return result
+    }
+    else {
+        error("expecting tensor type")
+        return []
+    }
+}
+
+function tensorToInt32Array(tensorValue: number | number[] | number[][], tensorType: Type): Int32Array {
+    let numberArray = tensorToNumberArray(tensorValue, tensorType)
+    if (TypeUtils.getPrimitiveType(tensorType) === PrimitiveType.i32) {
+        return Int32Array.from(numberArray)
+    }
+    else { // f32, do a reinterpret cast
+        let f32Array = Float32Array.from(numberArray)
+        return new Int32Array(f32Array.buffer)
+    }
+}
+
+function elementToInt32Array(element: any, elementType: Type): Int32Array {
+    if (TypeUtils.isTensorType(elementType)) {
+        return tensorToInt32Array(element, elementType)
+    }
+    else {
+        error("unsupported field element type")
+        return Int32Array.from([])
+    }
 }
 
 

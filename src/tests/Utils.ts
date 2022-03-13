@@ -5,7 +5,7 @@ function assertEqual<T>(actual: any, expected: any, epsilon = 1e-6): boolean {
     if (typeof expected === "number") {
         assert(typeof actual === "number", "expecting number")
         if (Math.abs(actual - expected) > epsilon) {
-            error(`Mismatch: expecting ${expected}, but received ${expected}`)
+            error(`Mismatch: expecting ${expected}, but received ${actual}`)
             return false
         }
         return true

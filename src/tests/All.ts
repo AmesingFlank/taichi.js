@@ -35,6 +35,7 @@ import { testBroadcast } from "./TestBroadCast"
 import { testTypes } from "./TestTypes"
 import { testToArray } from "./TestToArray"
 import { testFieldAccessor } from "./TestFieldAccessor"
+import { testFromArray } from "./TestFromArray"
 
 async function runAllTests() {
     let passed = true
@@ -73,6 +74,7 @@ async function runAllTests() {
     passed &&= await testTypes()
     passed &&= await testToArray()
     passed &&= await testFieldAccessor()
+    passed &&= await testFromArray()
 
     if (passed) {
         console.log("All tests passed")

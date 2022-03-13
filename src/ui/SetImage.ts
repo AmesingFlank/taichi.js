@@ -181,7 +181,7 @@ class SetImage {
             this.uniformBuffer!,
             0,
             new Int32Array([
-                image.dimensions[0], image.dimensions[1], image.offset/4
+                image.dimensions[0], image.dimensions[1], image.offsetBytes/4
             ])
         );
         const commandEncoder = this.device!.createCommandEncoder();

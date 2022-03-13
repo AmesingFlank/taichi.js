@@ -210,18 +210,18 @@ class Runtime {
         this.materializedTrees.push(materialized)
     }
 
-    async copyFieldToHost(field: Field, offsetBytes: number = 0, sizeBytes: number = 0): Promise<FieldHostSideCopy> {
+    async deviceToHost(field: Field, offsetBytes: number = 0, sizeBytes: number = 0): Promise<FieldHostSideCopy> {
         if (sizeBytes === 0) {
-            sizeBytes = field.size
+            sizeBytes = field.sizeBytes
         }
         const rootBufferCopy = this.device!.createBuffer({
             size: sizeBytes,
             usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
         });
         let commandEncoder = this.device!.createCommandEncoder();
-        commandEncoder.copyBufferToBuffer(this.materializedTrees[field.snodeTree.treeId].rootBuffer!, field.offset + offsetBytes, rootBufferCopy, 0, sizeBytes)
+        commandEncoder.copyBufferToBuffer(this.materializedTrees[field.snodeTree.treeId].rootBuffer!, field.offsetBytes + offsetBytes, rootBufferCopy, 0, sizeBytes)
         this.device!.queue.submit([commandEncoder.finish()]);
-        this.sync()
+        await this.sync()
 
         await rootBufferCopy.mapAsync(GPUMapMode.READ)
         let mappedRange = rootBufferCopy.getMappedRange()
@@ -230,6 +230,24 @@ class Runtime {
         rootBufferCopy.unmap()
         rootBufferCopy.destroy()
         return new FieldHostSideCopy(resultInt, resultFloat)
+    }
+
+    async hostToDevice(field: Field, hostArray: Int32Array, offsetBytes: number = 0) {
+        const rootBufferCopy = this.device!.createBuffer({
+            size: hostArray.byteLength,
+            usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.MAP_WRITE,
+            mappedAtCreation: true,
+        });
+
+        new Int32Array(rootBufferCopy.getMappedRange()).set(hostArray)
+        rootBufferCopy.unmap()
+
+        let commandEncoder = this.device!.createCommandEncoder();
+        commandEncoder.copyBufferToBuffer(rootBufferCopy, 0, this.materializedTrees[field.snodeTree.treeId].rootBuffer!, field.offsetBytes + offsetBytes, hostArray.byteLength)
+        this.device!.queue.submit([commandEncoder.finish()]);
+        await this.sync()
+
+        rootBufferCopy.destroy()
     }
 
     getRootBuffer(treeId: number): GPUBuffer {
