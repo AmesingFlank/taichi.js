@@ -64,6 +64,30 @@ async function testFieldAccessor(): Promise<boolean> {
         && assertEqual(await m1.get([0]), [[0, 1], [2, 3]])
         && assertEqual(await m2.get([1, 1]), [[12, 13], [14, 15]])
 
+    await s1.set([0], 123)
+    passed &&= assertEqual(await s1.get([0]), 123)
+
+    await s2.set([0, 1], 456.333)
+    passed &&= assertEqual(await s2.get([0, 1]), 456.333,  1e-5)
+
+    await s3.set([0, 1, 0], 789)
+    passed &&= assertEqual(await s3.get([0, 1, 0]), 789)
+
+    await v1.set([1], [123, 456])
+    passed &&= assertEqual(await v1.get([1]), [123, 456])
+
+    await v2.set([1, 0], [456.789, 789.456])
+    passed &&= assertEqual(await v2.get([1, 0]), [456.789, 789.456], 1e-5)
+
+    await v3.set([1, 1, 1], [10, 11])
+    passed &&= assertEqual(await v3.get([1, 1, 1]), [10, 11])
+
+    await m1.set([1], [[1, 23], [4, 56]])
+    passed &&= assertEqual(await m1.get([1]), [[1, 23], [4, 56]])
+
+    await m2.set([1, 1], [[45, 6], [78, 9]])
+    passed &&= assertEqual(await m2.get([1, 1]), [[45, 6], [78, 9]])
+
     return passed
 }
 

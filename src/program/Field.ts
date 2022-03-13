@@ -91,7 +91,7 @@ class Field {
             }
             curr = curr[0]
         }
-        let values1D = values.flat(this.dimensions.length-1)
+        let values1D = values.flat(this.dimensions.length - 1)
 
         let int32Arrays: Int32Array[] = []
         // slow. hmm. fix later
@@ -107,6 +107,26 @@ class Field {
         }
 
         await Program.getCurrentProgram().runtime!.hostToDevice(this, result)
+    }
+
+    async set(indices: number[], value: any) {
+        this.ensureMaterialized()
+        if (indices.length !== this.dimensions.length) {
+            error(`indices dimensions mismatch, expecting ${this.dimensions.length}, received ${indices.length}`,)
+        }
+        for (let i = 0; i < indices.length; ++i) {
+            assert(indices[i] < this.dimensions[i], "index out of bounds")
+        }
+        let index = 0;
+        for (let i = 0; i < indices.length - 1; ++i) {
+            index = (index + indices[i]) * this.dimensions[i + 1]
+        }
+        index += indices[indices.length - 1]
+        let elementSizeBytes = this.elementType.getPrimitivesList().length * 4
+        let offsetBytes = elementSizeBytes * index
+
+        let intArray = elementToInt32Array(value, this.elementType)
+        await Program.getCurrentProgram().runtime!.hostToDevice(this, intArray, offsetBytes)
     }
 }
 
