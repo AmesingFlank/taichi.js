@@ -380,6 +380,25 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         return result
     }
 
+    protected override visitObjectLiteralExpression(node: ts.ObjectLiteralExpression): VisitorResult<Value> {
+        let keys: string[] = []
+        let memberValues = new Map<string, Value>()
+        let memberTypes: any = {}
+        for (let prop of node.properties) {
+            if (prop.kind !== ts.SyntaxKind.PropertyAssignment) {
+                this.errorNode(prop, "expecting property assignment")
+            }
+            let propAssign = prop as ts.PropertyAssignment
+            let name = propAssign.name.getText()
+            keys.push(name)
+            let val = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(propAssign.initializer)))
+            memberValues.set(name, val)
+            memberTypes[name] = val.getType()
+        }
+        let structValue = ValueUtils.makeStruct(keys, memberValues)
+        return structValue
+    }
+
     protected override visitParenthesizedExpression(node: ts.ParenthesizedExpression): VisitorResult<Value> {
         return this.extractVisitorResult(this.dispatchVisit(node.expression))
     }
@@ -560,7 +579,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             }
             this.errorNode(node, "unrecognized Math constant: " + node.getText() + ". Only Math.PI and Math.E are supported")
         }
-        let objVal = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(objExpr)))
+        let objRef = this.extractVisitorResult(this.dispatchVisit(objExpr))
         // allow things like `let l = x.length`
         // is this needed?
         // let ops = this.getBuiltinOps()
@@ -570,20 +589,22 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         //         return op.apply1(objVal)
         //     } 
         // }
-        let supportedComponents = new Map<string, number>()
-        supportedComponents.set("x", 0)
-        supportedComponents.set("y", 1)
-        supportedComponents.set("z", 2)
-        supportedComponents.set("w", 3)
-        supportedComponents.set("r", 0)
-        supportedComponents.set("g", 1)
-        supportedComponents.set("b", 2)
-        supportedComponents.set("a", 3)
-        supportedComponents.set("u", 0)
-        supportedComponents.set("v", 1)
 
-        if (objVal.getType().getCategory() === TypeCategory.Vector) {
-            let components = ValueUtils.getVectorComponents(objVal)
+
+        if (TypeUtils.isValueOrPointerOfCategory(objRef.getType(), TypeCategory.Vector)) {
+            let supportedComponents = new Map<string, number>()
+            supportedComponents.set("x", 0)
+            supportedComponents.set("y", 1)
+            supportedComponents.set("z", 2)
+            supportedComponents.set("w", 3)
+            supportedComponents.set("r", 0)
+            supportedComponents.set("g", 1)
+            supportedComponents.set("b", 2)
+            supportedComponents.set("a", 3)
+            supportedComponents.set("u", 0)
+            supportedComponents.set("v", 1)
+
+            let components = ValueUtils.getVectorComponents(objRef)
             if (propText.length === 1 && supportedComponents.has(propText)) {
                 let index = supportedComponents.get(propText)!
                 return components[index]
@@ -608,6 +629,9 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                     return ValueUtils.makeVectorFromScalars(newComponents)
                 }
             }
+        }
+        else if (TypeUtils.isValueOrPointerOfCategory(objRef.getType(), TypeCategory.Struct)) {
+
         }
         this.errorNode(node, "invalid propertyAccess: " + node.getText())
 

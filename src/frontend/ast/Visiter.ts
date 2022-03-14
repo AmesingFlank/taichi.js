@@ -1,5 +1,5 @@
 import * as ts from "typescript";
-import {assert} from "../../utils/Logging"
+import { assert } from "../../utils/Logging"
 
 type VisitorResult<T> = T | void | undefined
 
@@ -9,7 +9,7 @@ class ASTVisitor<T> {
         return result as T
     }
     protected dispatchVisit(node: ts.Node): VisitorResult<T> {
-        switch(node.kind){
+        switch (node.kind) {
             case ts.SyntaxKind.VariableDeclaration:
                 return this.visitVariableDeclaration(node as ts.VariableDeclaration)
             case ts.SyntaxKind.VariableDeclarationList:
@@ -58,31 +58,33 @@ class ASTVisitor<T> {
                 return this.visitParenthesizedExpression(node as ts.ParenthesizedExpression)
             case ts.SyntaxKind.ArrayLiteralExpression:
                 return this.visitArrayLiteralExpression(node as ts.ArrayLiteralExpression)
+            case ts.SyntaxKind.ObjectLiteralExpression:
+                return this.visitObjectLiteralExpression(node as ts.ObjectLiteralExpression)
             default:
                 return this.visitUnknown(node)
         }
     }
 
-    protected visitEachChild(node:ts.Node, combiner: ((results:VisitorResult<T>[]) => VisitorResult<T>) | null = null): VisitorResult<T> {
+    protected visitEachChild(node: ts.Node, combiner: ((results: VisitorResult<T>[]) => VisitorResult<T>) | null = null): VisitorResult<T> {
         let results: VisitorResult<T>[] = []
-        node.forEachChild((node)=>{
+        node.forEachChild((node) => {
             let thisResult = this.dispatchVisit(node)
             results.push(thisResult)
         })
-        if(combiner){
+        if (combiner) {
             return combiner(results)
         }
     }
 
-    protected visitUnknown(node: ts.Node) : VisitorResult<T> {
+    protected visitUnknown(node: ts.Node): VisitorResult<T> {
         return this.visitEachChild(node)
     }
 
-    protected visitNumericLiteral(node: ts.NumericLiteral) : VisitorResult<T> {
+    protected visitNumericLiteral(node: ts.NumericLiteral): VisitorResult<T> {
         return this.visitEachChild(node)
     }
 
-    protected visitIdentifier(node: ts.Node) : VisitorResult<T> {
+    protected visitIdentifier(node: ts.Node): VisitorResult<T> {
         return this.visitEachChild(node)
     }
 
@@ -173,7 +175,11 @@ class ASTVisitor<T> {
     protected visitArrayLiteralExpression(node: ts.ArrayLiteralExpression): VisitorResult<T> {
         return this.visitEachChild(node)
     }
+
+    protected visitObjectLiteralExpression(node: ts.ObjectLiteralExpression): VisitorResult<T> {
+        return this.visitEachChild(node)
+    }
 }
 
 
-export {ASTVisitor,VisitorResult}
+export { ASTVisitor, VisitorResult }

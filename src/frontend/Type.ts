@@ -22,6 +22,7 @@ enum TypeCategory {
     Scalar = "Scalar",
     Vector = "Vector",
     Matrix = "Matrix",
+    Struct = "Struct",
     Pointer = "Pointer",
     Void = "Void"
 }
@@ -190,12 +191,82 @@ class PointerType extends Type {
             return false;
         }
         let thatPointer = that as PointerType
-        return this.getValueType() == thatPointer.getValueType()
+        return this.getValueType().equals(thatPointer.getValueType())
     }
 
     override getPrimitivesList(): PrimitiveType[] {
         error("calling getPrimitivesList from PointerType")
         return []
+    }
+}
+
+class StructType extends Type {
+    constructor(membersMap: any) {
+        super()
+        this.keys_ = Object.keys(membersMap)
+        this.memberTypes_ = new Map<string, Type>()
+        for (let k of this.keys_) {
+            this.memberTypes_.set(k, membersMap[k])
+        }
+    }
+
+    private keys_: string[] // ordered
+    private memberTypes_: Map<string, Type>
+
+    getPropertyNames(): string[] {
+        return this.keys_;
+    }
+
+    getPropertyType(name: string): Type {
+        if (!this.memberTypes_.has(name)) {
+            error(`property ${name} does not exist on this struct`)
+        }
+        return this.memberTypes_.get(name)!
+    }
+
+    getPropertyPrimitiveOffset(name: string): number {
+        if (!this.memberTypes_.has(name)) {
+            error(`property ${name} does not exist on this struct`)
+        }
+        let offset = 0
+        for (let k of this.keys_) {
+            if (k !== name) {
+                offset += this.getPropertyType(k).getPrimitivesList().length
+            }
+        }
+        return offset
+    }
+
+    override getCategory(): TypeCategory {
+        return TypeCategory.Struct
+    }
+
+    override equals(that: Type): boolean {
+        if (that.getCategory() != this.getCategory()) {
+            return false;
+        }
+        let thatStruct = that as StructType
+        if (this.keys_.length !== thatStruct.keys_.length) {
+            return false
+        }
+        for (let i = 0; i < this.keys_.length; ++i) {
+            if (this.keys_[i] !== thatStruct.keys_[i]) {
+                return false
+            }
+            let key = this.keys_[i]
+            if (!this.memberTypes_.get(key)!.equals(thatStruct.memberTypes_.get(key)!)) {
+                return false
+            }
+        }
+        return true
+    }
+
+    override getPrimitivesList(): PrimitiveType[] {
+        let prims: PrimitiveType[] = []
+        for (let k of this.keys_) {
+            prims = prims.concat(this.getPropertyType(k).getPrimitivesList())
+        }
+        return prims
     }
 }
 
@@ -309,4 +380,4 @@ class TypeError {
 }
 
 export { PrimitiveType, toNativePrimitiveType }
-export { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, TypeUtils, TypeError }
+export { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, TypeUtils, TypeError, StructType }

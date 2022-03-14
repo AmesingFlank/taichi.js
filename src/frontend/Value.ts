@@ -1,4 +1,4 @@
-import { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, PrimitiveType, TypeUtils } from "./Type"
+import { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, PrimitiveType, TypeUtils, StructType } from "./Type"
 import { nativeTaichi, NativeTaichiAny } from "../native/taichi/GetTaichi"
 import { ResultOrError } from "./Error"
 import { assert } from "../utils/Logging"
@@ -241,6 +241,35 @@ class ValueUtils {
         let rows = ValueUtils.getMatrixRowVectors(matrix)
         rows.push(vector)
         return ValueUtils.makeMatrixFromVectorsAsRows(rows)
+    }
+
+    static makeStruct(keys: string[], valuesMap: Map<string, Value>): Value {
+        let memberTypes: any = {}
+        for (let k of keys) {
+            memberTypes[k] = valuesMap.get(k)!.getType()
+        }
+        let structType = new StructType(memberTypes)
+        let result = new Value(structType, [])
+        for (let k of keys) {
+            let stmts = valuesMap.get(k)!.stmts
+            result.stmts = result.stmts.concat(stmts)
+        }
+        return result
+    }
+
+    static getStructMembers(structValue: Value): Map<string, Value> {
+        let structType = structValue.getType() as StructType
+        let keys = structType.getPropertyNames()
+        let result = new Map<string, Value>()
+        for (let k of keys) {
+            let offset = structType.getPropertyPrimitiveOffset(k)
+            let memberType = structType.getPropertyType(k)
+            let numPrims = memberType.getPrimitivesList().length
+            let stmts = structValue.stmts.slice(offset, offset + numPrims)
+            let val = new Value(memberType, stmts)
+            result.set(k, val)
+        }
+        return result
     }
 }
 
