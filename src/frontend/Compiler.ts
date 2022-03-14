@@ -205,6 +205,18 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         return loadOp.apply([val])
     }
 
+    protected createLocalVarCopy(val: Value): Value {
+        let valueType = val.getType()
+        let primitiveTypes = valueType.getPrimitivesList()
+        let varValue = new Value(new PointerType(valueType, false))
+        for (let i = 0; i < primitiveTypes.length; ++i) {
+            let alloca = this.irBuilder.create_local_var(toNativePrimitiveType(primitiveTypes[i]))
+            varValue.stmts.push(alloca)
+            this.irBuilder.create_local_store(alloca, val.stmts[i])
+        }
+        return varValue
+    }
+
     protected comma(leftValue: Value, rightValue: Value): Value {
         let leftType = leftValue.getType()
         let rightType = rightValue.getType()
@@ -427,7 +439,15 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
 
         let argumentRefs: Value[] = []  // pointer for l-values, values for r-values
         for (let arg of node.arguments) {
-            argumentRefs.push(this.extractVisitorResult(this.dispatchVisit(arg)))
+            let argVal = this.extractVisitorResult(this.dispatchVisit(arg))
+            if (argVal.getType().getCategory() === TypeCategory.Pointer) {
+                argumentRefs.push(argVal)
+            }
+            else {
+                // passing r value. Create a local var copy, so that it can be assigned in the func
+                let copy = this.createLocalVarCopy(argVal)
+                argumentRefs.push(copy)
+            }
         }
         // function semantics: pass by ref for l-values, pass by value for r-values
 
@@ -706,28 +726,14 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                 this.errorNode(node, name + " cannot be used as a local variable name")
             }
         }
-        // if(this.scope.hasStored(node.name.getText())){
-        //     this.errorNode(node, node.name.getText() + " is already declared as a kernel-scope global variable")
-        // }
+
         let initializer = node.initializer!
         let initValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(initializer)))
-        let initValueType = initValue.getType()
-        let varValue = new Value(new PointerType(initValueType, false))
-        if (TypeUtils.isTensorType(initValueType)) {
-            let prim = TypeUtils.getPrimitiveType(initValueType)
-            for (let i = 0; i < initValue.stmts.length; ++i) {
-                let alloca = this.irBuilder.create_local_var(toNativePrimitiveType(prim))
-                varValue.stmts.push(alloca)
-                this.irBuilder.create_local_store(alloca, initValue.stmts[i])
-            }
-        }
-        else {
-            this.errorNode(node, "local variable must be a scalar/vector/matrix")
-        }
+        let localVar = this.createLocalVarCopy(initValue)
 
         let varSymbol = this.getNodeSymbol(identifier)
-        this.symbolTable.set(varSymbol, varValue)
-        return varValue
+        this.symbolTable.set(varSymbol, localVar)
+        return localVar
     }
 
     protected override visitIfStatement(node: ts.IfStatement): VisitorResult<Value> {
