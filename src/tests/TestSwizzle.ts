@@ -8,7 +8,7 @@ async function testSwizzle(): Promise<boolean> {
     await ti.init()
 
     let f = ti.field(ti.f32, [10])
-    let v = ti.Vector.field(4, ti.f32, [1])
+    let v = ti.Vector.field(4, ti.f32, [2])
     ti.addToKernelScope({ f, v })
     let kernel = ti.kernel(
         () => {
@@ -36,6 +36,10 @@ async function testSwizzle(): Promise<boolean> {
             v4.z = 3
             v4.w = 4
             v[0] = v4
+
+            let v5 = [0.0, 0.0, 0.0, 0.0]
+            v5.wzyx = [1, 2, 3, 4].wzwz
+            v[1] = v5
         }
     )
 
@@ -45,7 +49,7 @@ async function testSwizzle(): Promise<boolean> {
     let vHost = await v.toArray1D()
     console.log(fHost, vHost)
 
-    return assertEqual(fHost, [0, 1, 2, 3, 2, 1, 0, 3, 1, 0]) && assertEqual(vHost, [1, 2, 3, 4])
+    return assertEqual(fHost, [0, 1, 2, 3, 2, 1, 0, 3, 1, 0]) && assertEqual(vHost, [1, 2, 3, 4, 3, 4, 3, 4])
 }
 
 export { testSwizzle }

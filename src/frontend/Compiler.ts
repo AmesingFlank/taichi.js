@@ -631,10 +631,12 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             }
         }
         else if (TypeUtils.isValueOrPointerOfCategory(objRef.getType(), TypeCategory.Struct)) {
-
+            let memberValues = ValueUtils.getStructMembers(objRef)
+            if (memberValues.has(propText)) {
+                return memberValues.get(propText)!
+            }
         }
         this.errorNode(node, "invalid propertyAccess: " + node.getText())
-
     }
 
     protected override visitIdentifier(node: ts.Identifier): VisitorResult<Value> {

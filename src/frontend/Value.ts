@@ -258,7 +258,15 @@ class ValueUtils {
     }
 
     static getStructMembers(structValue: Value): Map<string, Value> {
-        let structType = structValue.getType() as StructType
+        assert(TypeUtils.isValueOrPointerOfCategory(structValue.getType(), TypeCategory.Struct))
+        let isPointer = structValue.getType().getCategory() === TypeCategory.Pointer
+        let structType: StructType
+        if(isPointer){
+            structType = (structValue.getType() as PointerType).getValueType() as StructType
+        }
+        else{
+            structType = structValue.getType() as StructType
+        }
         let keys = structType.getPropertyNames()
         let result = new Map<string, Value>()
         for (let k of keys) {
