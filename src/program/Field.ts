@@ -1,6 +1,6 @@
 import type { SNodeTree } from './SNodeTree'
 import { NativeTaichiAny, nativeTaichi } from "../native/taichi/GetTaichi"
-import { MatrixType, PrimitiveType, Type, TypeCategory, TypeUtils, VectorType } from "../frontend/Type"
+import { MatrixType, PrimitiveType, StructType, Type, TypeCategory, TypeUtils, VectorType } from "../frontend/Type"
 import { Program } from "./Program"
 import { assert, error } from '../utils/Logging'
 import { MultiDimensionalArray } from '../utils/MultiDimensionalArray'
@@ -165,9 +165,24 @@ function toTensorElement(intArray: number[], floatArray: number[], elementType: 
     }
 }
 
+function toStructElement(intArray: number[], floatArray: number[], elementType: StructType): any {
+    let result: any = {}
+    for (let k of elementType.getPropertyNames()) {
+        let offset = elementType.getPropertyPrimitiveOffset(k)
+        let propType = elementType.getPropertyType(k)
+        let length = propType.getPrimitivesList().length
+        let thisProp = toElement(intArray.slice(offset, offset + length), floatArray.slice(offset, offset + length), propType)
+        result[k] = thisProp
+    }
+    return result
+}
+
 function toElement(intArray: number[], floatArray: number[], elementType: Type): any {
     if (TypeUtils.isTensorType(elementType)) {
         return toTensorElement(intArray, floatArray, elementType)
+    }
+    if (elementType.getCategory() === TypeCategory.Struct) {
+        return toStructElement(intArray, floatArray, elementType as StructType)
     }
     else {
         error("unsupported element type")
@@ -175,49 +190,15 @@ function toElement(intArray: number[], floatArray: number[], elementType: Type):
     }
 }
 
-function groupVectors<T>(raw: T[], numRows: number): T[][] {
-    return groupByN(raw, numRows);
-}
-
-function groupMatrices<T>(raw: T[], numRows: number, numCols: number): T[][][] {
-    let flatMats = groupByN(raw, numCols * numRows)
-    let result: T[][][] = []
-    for (let flatMat of flatMats) {
-        result.push(groupByN(flatMat, numCols))
+function groupElements(intArray: number[], floatArray: number[], elementType: Type): any[] {
+    let N = elementType.getPrimitivesList().length
+    let intArrays = groupByN(intArray, N)
+    let floatArrays = groupByN(floatArray, N)
+    let result: any[] = []
+    for (let i = 0; i < intArrays.length; ++i) {
+        result.push(toElement(intArrays[i], floatArrays[i], elementType))
     }
     return result
-}
-
-function groupTensorElements(intArray: number[], floatArray: number[], elementType: Type): MultiDimensionalArray<number> {
-    let selectedArray = intArray
-    if (TypeUtils.getPrimitiveType(elementType) === PrimitiveType.f32) {
-        selectedArray = floatArray
-    }
-    if (elementType.getCategory() === TypeCategory.Scalar) {
-        return selectedArray
-    }
-    else if (elementType.getCategory() === TypeCategory.Vector) {
-        let vecType = elementType as VectorType
-        return groupVectors(selectedArray, vecType.getNumRows())
-    }
-    else if (elementType.getCategory() === TypeCategory.Matrix) {
-        let matType = elementType as MatrixType
-        return groupMatrices(selectedArray, matType.getNumRows(), matType.getNumCols())
-    }
-    else {
-        error("expecting tensor type")
-        return []
-    }
-}
-
-function groupElements(intArray: number[], floatArray: number[], elementType: Type): any[] {
-    if (TypeUtils.isTensorType(elementType)) {
-        return groupTensorElements(intArray, floatArray, elementType)
-    }
-    else {
-        error("unsupported field element type")
-        return []
-    }
 }
 
 function reshape<T>(elements: T[], dimensions: number[]): MultiDimensionalArray<T> {

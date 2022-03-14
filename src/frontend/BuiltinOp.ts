@@ -436,8 +436,11 @@ class BuiltinOpFactory {
                     }
                     return TypeError.createError("Shape mismatch in assignment")
                 }
-                else {
-                    // storing structs.. to be implemented
+                else if (pointerType.getValueType().getCategory() === TypeCategory.Struct && type1.getCategory() === TypeCategory.Struct) {
+                    if (!pointerType.getValueType().equals(type1)) {
+                        error("struct type mismatch")
+                    }
+                    return TypeError.createNoError()
                 }
                 error("[Compiler bug]", "invalid assignemnt")
                 return TypeError.createError("invalid assignment")
@@ -469,6 +472,11 @@ class BuiltinOpFactory {
                     }
                     else {
                         error("[Compiler bug]", "Shape mismatch in assignment")
+                    }
+                }
+                else if (pointerType.getValueType().getCategory() === TypeCategory.Struct && type1.getCategory() === TypeCategory.Struct) {
+                    for (let i = 0; i < args[0].stmts.length; ++i) {
+                        storeFunc(args[0].stmts[i], args[1].stmts[i])
                     }
                 }
                 else {
