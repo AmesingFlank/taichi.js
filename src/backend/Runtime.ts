@@ -1,9 +1,9 @@
 import { CompiledTask, CompiledKernel, TaskParams, BufferType, KernelParams } from './Kernel'
 import { SNodeTree } from '../program/SNodeTree'
-import { divUp } from '../utils/Utils'
+import { divUp, int32ArrayToElement } from '../utils/Utils'
 import { assert, error } from "../utils/Logging"
 import { Field } from '../program/Field'
-import { PrimitiveType, TypeUtils } from '../frontend/Type'
+import { PrimitiveType, TypeCategory, TypeUtils } from '../frontend/Type'
 class MaterializedTree {
     tree?: SNodeTree
     rootBuffer?: GPUBuffer
@@ -26,8 +26,7 @@ class Runtime {
     private materializedTrees: MaterializedTree[] = []
 
     private globalTmpsBuffer: GPUBuffer | null = null
-    private randStatesBuffer: GPUBuffer | null = null
-    private argBuffers: GPUBuffer[] = []
+    private randStatesBuffer: GPUBuffer | null = null 
 
     constructor() { }
 
@@ -68,40 +67,48 @@ class Runtime {
             kernel.tasks.push(task)
         }
         kernel.numArgs = params.numArgs
+        kernel.returnType = params.returnType
         return kernel
     }
 
     async sync() {
         await this.device!.queue.onSubmittedWorkDone()
-        for (let buffer of this.argBuffers) {
-            buffer.destroy()
-        }
-        this.argBuffers = []
     }
 
-    launchKernel(kernel: CompiledKernel, ...args: any[]) {
+    async launchKernel(kernel: CompiledKernel, ...args: any[]) : Promise<any>{
         assert(args.length === kernel.numArgs,
             "Kernel requires " + kernel.numArgs.toString() + " arguments, but " + args.length.toString() + " is provided")
-            
-        for(let a of args){
+
+        for (let a of args) {
             assert(typeof a === "number", "Kernel argument must be numbers")
         }
 
-        let requiresContextBuffer = false
+        let requiresArgsBuffer = false
+        let requiresRetsBuffer = false
+        let thisArgsBuffer : GPUBuffer | null = null
+        let thisRetsBuffer : GPUBuffer | null = null
         for (let task of kernel.tasks) {
             for (let binding of task.params.bindings) {
                 if (binding.bufferType === BufferType.Args) {
-                    requiresContextBuffer = true
+                    requiresArgsBuffer = true
+                }
+                if (binding.bufferType === BufferType.Rets) {
+                    requiresRetsBuffer = true
                 }
             }
         }
-        if (requiresContextBuffer) {
+        if (requiresArgsBuffer) {
             let argsSize = 4 * kernel.numArgs
-            let ctxBuffer = this.addArgsBuffer(argsSize)
+            thisArgsBuffer = this.addArgsBuffer(argsSize)
             if (kernel.numArgs > 0) {
-                new Float32Array(ctxBuffer.getMappedRange()).set(new Float32Array(args))
+                new Float32Array(thisArgsBuffer.getMappedRange()).set(new Float32Array(args))
             }
-            ctxBuffer.unmap()
+            thisArgsBuffer.unmap()
+        }
+       
+        if (requiresRetsBuffer) {
+            let argsSize = kernel.returnType.getPrimitivesList().length * 4
+            thisRetsBuffer = this.addRetsBuffer(argsSize)
         }
 
         let commandEncoder = this.device!.createCommandEncoder();
@@ -110,7 +117,7 @@ class Runtime {
         for (let task of kernel.tasks) {
             task.bindGroup = this.device!.createBindGroup({
                 layout: task.pipeline!.getBindGroupLayout(0),
-                entries: this.getBindings(task.params)
+                entries: this.getBindings(task.params,thisArgsBuffer,thisRetsBuffer)
             })
 
             passEncoder.setPipeline(task.pipeline!);
@@ -136,19 +143,44 @@ class Runtime {
         }
         passEncoder.endPass();
         this.device!.queue.submit([commandEncoder.finish()]);
+
+        /**
+         * launchKernel is an async function
+         * when the user launches a kernel by writing `k()`, we don't await on the Promise returned by launchKernel
+         * in other words, `k(); await.ti.sync();` is equivalent to `await k()`, assuming k has no return value
+         * This is pretty neat. Should C++ taichi do the same? e.g. with C++ coroutines?
+         */
+        await this.sync()
+
+        if(thisArgsBuffer){
+            thisArgsBuffer!.destroy()
+        }
+
+        if(kernel.returnType.getCategory() !== TypeCategory.Void){
+            assert(thisRetsBuffer!== null)
+            await thisRetsBuffer!.mapAsync(GPUMapMode.READ)
+            let intArray = new Int32Array(thisRetsBuffer!.getMappedRange())
+            let returnVal = int32ArrayToElement(intArray, kernel.returnType)
+            thisRetsBuffer!.destroy()
+            return returnVal
+        }
     }
 
     addArgsBuffer(size: number): GPUBuffer {
-        if (this.argBuffers.length > 1024) {
-            this.sync().then(() => { })
-        }
         let buffer = this.device!.createBuffer({
             size: size,
             usage: GPUBufferUsage.STORAGE,
             mappedAtCreation: true
-        })
-        this.argBuffers.push(buffer)
+        }) 
         return buffer
+    }
+
+    addRetsBuffer(size: number): GPUBuffer {
+        let buf = this.device!.createBuffer({
+            size: size,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.MAP_READ
+        })
+        return buf
     }
 
     private createGlobalTmpsBuffer() {
@@ -166,7 +198,7 @@ class Runtime {
         })
     }
 
-    getBindings(task: TaskParams): GPUBindGroupEntry[] {
+    getBindings(task: TaskParams, argsBuffer:GPUBuffer|null, retsBuffer:GPUBuffer | null): GPUBindGroupEntry[] {
         let entries: GPUBindGroupEntry[] = []
         for (let binding of task.bindings) {
             let buffer: GPUBuffer | null = null
@@ -180,7 +212,13 @@ class Runtime {
                     break;
                 }
                 case BufferType.Args: {
-                    buffer = this.argBuffers[this.argBuffers.length - 1]
+                    assert(argsBuffer!==null)
+                    buffer = argsBuffer!
+                    break;
+                }
+                case BufferType.Rets: {
+                    assert(retsBuffer!==null)
+                    buffer = retsBuffer!
                     break;
                 }
                 case BufferType.RandStates: {

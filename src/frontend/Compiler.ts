@@ -52,7 +52,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
     public returnValue: Value | null = null
 
     protected loopStack: LoopKind[] = []
-    protected branchDepth:number = 0
+    protected branchDepth: number = 0
 
     protected numArgs: number = 0
     protected hasRet: boolean = false
@@ -104,7 +104,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
     }
 
     protected override dispatchVisit(node: ts.Node): VisitorResult<Value> {
-        if(this.returnValue){
+        if (this.returnValue) {
             this.errorNode(node, "If there is a `return`, it must be the final statement of the function")
         }
         this.lastVisitedNode = node
@@ -765,7 +765,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
     }
 
     protected override visitContinueStatement(node: ts.ContinueStatement): VisitorResult<Value> {
-        this.assertNode(node, this.loopStack.length > 0  && this.loopStack[this.loopStack.length - 1] !== LoopKind.StaticFor, "continue must be used inside a non-static loop")
+        this.assertNode(node, this.loopStack.length > 0 && this.loopStack[this.loopStack.length - 1] !== LoopKind.StaticFor, "continue must be used inside a non-static loop")
         this.irBuilder.create_continue()
     }
 
@@ -969,11 +969,14 @@ export class InliningCompiler extends CompilingVisitor {
         if (this.returnValue) {
             this.errorNode(node, "ti.func can only have at most one return statements")
         }
-        if(this.branchDepth > 0 || this.loopStack.length > 0){
+        if (this.branchDepth > 0 || this.loopStack.length > 0) {
             this.errorNode(node, "return cannot be used inside a loop/branch")
         }
         if (node.expression) {
             this.returnValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.expression)))
+        }
+        else {
+            this.returnValue = new Value(new VoidType())
         }
     }
 }
@@ -984,6 +987,9 @@ export class OneTimeCompiler extends CompilingVisitor {
         let atomicOps = BuiltinOpFactory.getAtomicOps(irBuilder)
         super(irBuilder, builtinOps, atomicOps, scope)
     }
+
+    nativeKernel: NativeTaichiAny
+
     compileKernel(code: any): KernelParams {
         this.buildIR(code)
 
@@ -991,12 +997,12 @@ export class OneTimeCompiler extends CompilingVisitor {
             this.compilationResultName = Program.getCurrentProgram().getAnonymousKernelName()
         }
 
-        let kernel = nativeTaichi.Kernel.create_kernel(Program.getCurrentProgram().nativeProgram, this.irBuilder, this.compilationResultName, false)
+        this.nativeKernel = nativeTaichi.Kernel.create_kernel(Program.getCurrentProgram().nativeProgram, this.irBuilder, this.compilationResultName, false)
         for (let i = 0; i < this.numArgs; ++i) {
-            kernel.insert_arg(toNativePrimitiveType(PrimitiveType.f32), false)
+            this.nativeKernel.insert_arg(toNativePrimitiveType(PrimitiveType.f32), false)
         }
 
-        Program.getCurrentProgram().nativeAotBuilder.add(this.compilationResultName, kernel);
+        Program.getCurrentProgram().nativeAotBuilder.add(this.compilationResultName, this.nativeKernel);
 
         let tasks = nativeTaichi.get_kernel_params(Program.getCurrentProgram().nativeAotBuilder, this.compilationResultName);
         let taskParams: TaskParams[] = []
@@ -1017,12 +1023,38 @@ export class OneTimeCompiler extends CompilingVisitor {
                 bindings
             })
         }
-        kernel.delete()
+        this.nativeKernel.delete()
         this.irBuilder.delete()
-        return new KernelParams(taskParams, this.numArgs)
+        let returnType = new VoidType()
+        if (this.returnValue !== null) {
+            returnType = this.returnValue!.getType()
+        }
+        return new KernelParams(taskParams, this.numArgs, returnType)
     }
 
     protected override visitReturnStatement(node: ts.ReturnStatement): VisitorResult<Value> {
-        this.errorNode(node, "return not supported on kernels")
+        if (this.returnValue) {
+            this.errorNode(node, "ti.func can only have at most one return statements")
+        }
+        if (this.branchDepth > 0 || this.loopStack.length > 0) {
+            this.errorNode(node, "return cannot be used inside a loop/branch")
+        }
+        if (node.expression) {
+            this.returnValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.expression)))
+            let returnStmtsVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
+            for (let stmt of this.returnValue.stmts) {
+                returnStmtsVec.push_back(stmt)
+            }
+            this.irBuilder.create_return_vec(returnStmtsVec)
+            let prims = this.returnValue.getType().getPrimitivesList()
+            for (let i = 0; i < prims.length; ++i) {
+                this.nativeKernel.insert_ret(toNativePrimitiveType(prims[i]))
+            }
+        }
+        else {
+            this.returnValue = new Value(new VoidType())
+            let returnStmtsVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
+            this.irBuilder.create_return_vec(returnStmtsVec)
+        }
     }
 }

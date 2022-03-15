@@ -1,6 +1,7 @@
+import { Type, VoidType } from "../frontend/Type"
 import { nativeTaichi, NativeTaichiAny } from "../native/taichi/GetTaichi"
 enum BufferType {
-    Root, GlobalTmps, Args, RandStates
+    Root, GlobalTmps, Args, RandStates, Rets
 }
 
 class BufferBinding{
@@ -25,7 +26,8 @@ class TaskParams {
 class KernelParams {
     constructor(
         public taskParams:TaskParams[],
-        public numArgs:number = 0
+        public numArgs:number,
+        public returnType:Type
     ){
 
     }
@@ -57,6 +59,7 @@ class CompiledTask {
 class CompiledKernel {
     tasks: CompiledTask[] = []
     numArgs:number = 0
+    returnType: Type = new VoidType()
     constructor(public device: GPUDevice){
     }
 } 

@@ -11,10 +11,10 @@ function kernel(f:any) : ((...args: any[]) => void) {
     let program = Program.getCurrentProgram()
     program.materializeCurrentTree()
     let compiler = new OneTimeCompiler(program.globalScopeObj)
-    let kernelCode = compiler.compileKernel(f)
-    let kernel = program.runtime!.createKernel(kernelCode)
-    let result = (...args: any[]) => {
-        program.runtime!.launchKernel(kernel,...args)
+    let kernelParams = compiler.compileKernel(f)
+    let kernel = program.runtime!.createKernel(kernelParams)
+    let result = async (...args: any[]) => {
+        await program.runtime!.launchKernel(kernel,...args)
     }
     return result
 }
