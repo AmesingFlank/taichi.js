@@ -3,15 +3,15 @@ import { Program } from "../program/Program"
 
 const vertShader = `
 struct Input {
-  [[location(0)]] position: vec2<f32>;
+  @location(0) position: vec2<f32>;
 };
 
 struct Output {
-  [[builtin(position)]] Position : vec4<f32>;
-  [[location(5)]] fragPos: vec2<f32>;
+  @builtin(position) Position : vec4<f32>;
+  @location(5) fragPos: vec2<f32>;
 };
 
-[[stage(vertex)]]
+@stage(vertex)
 
 fn main (input: Input) -> Output {
   var output: Output;
@@ -24,29 +24,28 @@ fn main (input: Input) -> Output {
 
 export const fragShader = `
 struct Input {
-  [[location(5)]] fragPos: vec2<f32>;
+  @location(5) fragPos: vec2<f32>;
 };
 
-[[block]]
 struct RootBufferType {
-    member: [[stride(4)]] array<f32>;
+    member: array<f32>;
 };
-[[group(0), binding(0)]]
+
+@group(0) @binding(0)
 var<storage, read_write> rootBuffer: RootBufferType;
 
-[[block]]
 struct UniformBufferType {
   width : i32;
   height : i32;
   offset: i32;
 };
-[[binding(1), group(0)]] 
+
+@group(0) @binding(1)
 var<uniform> ubo : UniformBufferType;
 
 
-[[stage(fragment)]]
-
-fn main (input: Input) -> [[location(0)]] vec4<f32> {
+@stage(fragment)
+fn main (input: Input) -> @location(0) vec4<f32> {
     var fragPos = input.fragPos;
     fragPos = (fragPos + 1.0 ) / 2.0 ;
     if(fragPos.x == fragPos.y * 123456.0){

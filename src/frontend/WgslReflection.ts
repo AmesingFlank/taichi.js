@@ -13,7 +13,7 @@ function getWgslShaderBindings(wgsl:string):BufferBinding[] {
     }
     let stmts = wgsl.split(";")
     for(let stmt of stmts){
-        let bindingInfoPrefix = "[[group(0), binding("
+        let bindingInfoPrefix = "@group(0) @binding("
 
         let bindingInfoBegin = stmt.indexOf(bindingInfoPrefix)
         if(bindingInfoBegin === -1){
