@@ -82,6 +82,10 @@ class Runtime {
     launchKernel(kernel: CompiledKernel, ...args: any[]) {
         assert(args.length === kernel.numArgs,
             "Kernel requires " + kernel.numArgs.toString() + " arguments, but " + args.length.toString() + " is provided")
+            
+        for(let a of args){
+            assert(typeof a === "number", "Kernel argument must be numbers")
+        }
 
         let requiresContextBuffer = false
         for (let task of kernel.tasks) {

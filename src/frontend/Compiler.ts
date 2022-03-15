@@ -28,7 +28,7 @@ export class CompilerContext {
 }
 
 enum LoopKind {
-    For, While
+    For, While, StaticFor
 }
 
 class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<Stmt>, but we don't have the types yet
@@ -49,7 +49,10 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
 
     public compilationResultName: string | null = null
 
+    public returnValue: Value | null = null
+
     protected loopStack: LoopKind[] = []
+    protected branchDepth:number = 0
 
     protected numArgs: number = 0
     protected hasRet: boolean = false
@@ -101,6 +104,9 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
     }
 
     protected override dispatchVisit(node: ts.Node): VisitorResult<Value> {
+        if(this.returnValue){
+            this.errorNode(node, "If there is a `return`, it must be the final statement of the function")
+        }
         this.lastVisitedNode = node
         return super.dispatchVisit(node)
     }
@@ -741,6 +747,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         this.assertNode(node, condValue.getType().getCategory() === TypeCategory.Scalar, "condition of if statement must be scalar")
         //this.assertNode(node, TypeUtils.getPrimitiveType(condValue.getType()) === PrimitiveType.i32, "condition of if statement must be i32")
         let nativeIfStmt = this.irBuilder.create_if(condValue.stmts[0])
+        this.branchDepth += 1
         let trueGuard = this.irBuilder.get_if_guard(nativeIfStmt, true)
         this.dispatchVisit(node.thenStatement)
         trueGuard.delete()
@@ -749,6 +756,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             this.dispatchVisit(node.elseStatement)
             falseGuard.delete()
         }
+        this.branchDepth -= 1
     }
 
     protected override visitBreakStatement(node: ts.BreakStatement): VisitorResult<Value> {
@@ -757,7 +765,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
     }
 
     protected override visitContinueStatement(node: ts.ContinueStatement): VisitorResult<Value> {
-        this.assertNode(node, this.loopStack.length > 0, "continue must be used inside a loop")
+        this.assertNode(node, this.loopStack.length > 0  && this.loopStack[this.loopStack.length - 1] !== LoopKind.StaticFor, "continue must be used inside a non-static loop")
         this.irBuilder.create_continue()
     }
 
@@ -790,11 +798,13 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         if (shouldUnroll) {
             this.assertNode(null, rangeLengthValue.isCompileTimeConstant(), "for static range loops, the range must be a compile time constant")
             let rangeLength = rangeLengthValue.compileTimeConstants[0]
+            this.loopStack.push(LoopKind.StaticFor)
             for (let i = 0; i < rangeLength; ++i) {
                 let indexValue = ValueUtils.makeConstantScalar(i, this.irBuilder.get_int32(i), PrimitiveType.i32)
                 this.symbolTable.set(indexSymbols[0], indexValue)
                 this.dispatchVisit(body)
             }
+            this.loopStack.pop()
         }
         else {
             let zero = this.irBuilder.get_int32(0)
@@ -830,7 +840,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                 this.assertNode(null, len.isCompileTimeConstant(), "for static ndrange loops, each range must be a compile time constant")
                 totalLength *= len.compileTimeConstants[0]
             }
-            //console.log("total length ",totalLength)
+            this.loopStack.push(LoopKind.StaticFor)
             for (let i = 0; i < totalLength; ++i) {
                 let indexType = new VectorType(PrimitiveType.i32, numDimensions)
                 let indexValue = new Value(indexType, [], [])
@@ -848,6 +858,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                 this.symbolTable.set(indexSymbols[0], indexValue)
                 this.dispatchVisit(body)
             }
+            this.loopStack.pop()
         }
         else {
             let product = lengthValues[0].stmts[0]
@@ -937,7 +948,6 @@ export class InliningCompiler extends CompilingVisitor {
     }
 
     argValues: Value[] = []
-    returnValue: Value | null = null
 
     runInlining(argValues: Value[], code: any): Value | null {
         this.argValues = argValues
@@ -958,6 +968,9 @@ export class InliningCompiler extends CompilingVisitor {
     protected override visitReturnStatement(node: ts.ReturnStatement): VisitorResult<Value> {
         if (this.returnValue) {
             this.errorNode(node, "ti.func can only have at most one return statements")
+        }
+        if(this.branchDepth > 0 || this.loopStack.length > 0){
+            this.errorNode(node, "return cannot be used inside a loop/branch")
         }
         if (node.expression) {
             this.returnValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.expression)))
@@ -1007,5 +1020,9 @@ export class OneTimeCompiler extends CompilingVisitor {
         kernel.delete()
         this.irBuilder.delete()
         return new KernelParams(taskParams, this.numArgs)
+    }
+
+    protected override visitReturnStatement(node: ts.ReturnStatement): VisitorResult<Value> {
+        this.errorNode(node, "return not supported on kernels")
     }
 }
