@@ -21,8 +21,17 @@ function assertEqual<T>(actual: any, expected: any, epsilon = 1e-6): boolean {
         return true
     }
     else {
-        error("unsupported value in assertEqual")
-        return false
+        let keysActual = Object.keys(actual)
+        let keysExpected = Object.keys(expected)
+        assert(keysActual.length === keysExpected.length, "number of properties don't match", keysActual.length, keysExpected.length)
+        for (let i = 0; i < keysActual.length; ++i) {
+            assert(keysActual[i] === keysExpected[i], `key number ${i} don't match: ${keysActual[i]}, ${keysExpected[i]}`)
+            let key = keysActual[i]
+            if (!assertEqual(actual[key], expected[key], epsilon)) {
+                return false
+            }
+        }
+        return true
     }
 }
 

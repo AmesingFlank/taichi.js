@@ -212,12 +212,22 @@ function reshape<T>(elements: T[], dimensions: number[]): MultiDimensionalArray<
 
 function tensorToNumberArray(tensorValue: number | number[] | number[][], tensorType: Type): number[] {
     if (tensorType.getCategory() === TypeCategory.Scalar) {
+        assert(typeof tensorValue === "number", "expecting number")
         return [tensorValue as number]
     }
     else if (tensorType.getCategory() === TypeCategory.Vector) {
-        return tensorValue as number[]
+        assert(Array.isArray(tensorValue), "expecting array")
+        let vec = tensorValue as number[]
+        assert(typeof vec[0] === "number", "expecting 1d number array")
+        assert(vec.length === (tensorType as VectorType).getNumRows(), "num rows mismatch")
+        return vec
     }
     else if (tensorType.getCategory() === TypeCategory.Matrix) {
+        assert(Array.isArray(tensorValue) && Array.isArray(tensorValue[0]), "expecting 2d array")
+        let mat = tensorValue as number[][]
+        assert(typeof mat[0][0] === "number", "expecting 2d number array")
+        let matType = tensorType as MatrixType
+        assert(mat.length === matType.getNumRows() && mat[0].length === matType.getNumCols(), "matrix shape mismatch")
         let result: number[] = []
         for (let vec of (tensorValue as number[][])) {
             result = result.concat(vec)
@@ -241,9 +251,27 @@ function tensorToInt32Array(tensorValue: number | number[] | number[][], tensorT
     }
 }
 
+function structToInt32Array(val: any, structType: StructType): Int32Array {
+    let prims = structType.getPrimitivesList()
+    let result = new Int32Array(prims.length)
+    for (let k of structType.getPropertyNames()) {
+        if (val[k] === undefined) {
+            error("missing property: ", k)
+        }
+        let offset = structType.getPropertyPrimitiveOffset(k)
+        let propType = structType.getPropertyType(k)
+        let propResult = elementToInt32Array(val[k], propType)
+        result.set(propResult, offset)
+    }
+    return result
+}
+
 function elementToInt32Array(element: any, elementType: Type): Int32Array {
     if (TypeUtils.isTensorType(elementType)) {
         return tensorToInt32Array(element, elementType)
+    }
+    else if (elementType.getCategory() === TypeCategory.Struct) {
+        return structToInt32Array(element, elementType as StructType)
     }
     else {
         error("unsupported field element type")

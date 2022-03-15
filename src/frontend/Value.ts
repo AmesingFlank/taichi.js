@@ -261,18 +261,27 @@ class ValueUtils {
         assert(TypeUtils.isValueOrPointerOfCategory(structValue.getType(), TypeCategory.Struct))
         let isPointer = structValue.getType().getCategory() === TypeCategory.Pointer
         let structType: StructType
-        if(isPointer){
+        if (isPointer) {
             structType = (structValue.getType() as PointerType).getValueType() as StructType
         }
-        else{
+        else {
             structType = structValue.getType() as StructType
         }
         let keys = structType.getPropertyNames()
         let result = new Map<string, Value>()
         for (let k of keys) {
             let offset = structType.getPropertyPrimitiveOffset(k)
-            let memberType = structType.getPropertyType(k)
-            let numPrims = memberType.getPrimitivesList().length
+            let memberType: Type
+            let numPrims: number
+            if (isPointer) {
+                let memberValueType = structType.getPropertyType(k)
+                memberType = new PointerType(memberValueType, (structValue.getType() as PointerType).getIsGlobal())
+                numPrims = memberValueType.getPrimitivesList().length
+            }
+            else {
+                memberType = structType.getPropertyType(k)
+                numPrims = memberType.getPrimitivesList().length
+            }
             let stmts = structValue.stmts.slice(offset, offset + numPrims)
             let val = new Value(memberType, stmts)
             result.set(k, val)

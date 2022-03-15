@@ -321,7 +321,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         let opToken = node.operatorToken
         if (opToken.kind === ts.SyntaxKind.EqualsToken) {
             if (leftType.getCategory() != TypeCategory.Pointer) {
-                this.errorNode(node, "Left hand side of assignment must be an l-value")
+                this.errorNode(node, "Left hand side of assignment must be an l-value. ", leftType.getCategory())
             }
             let storeOp = this.builtinOps.get("=")!
             let typeError = storeOp.checkType([left, rightValue])

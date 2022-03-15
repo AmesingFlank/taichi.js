@@ -206,7 +206,11 @@ class StructType extends Type {
         this.keys_ = Object.keys(membersMap)
         this.memberTypes_ = new Map<string, Type>()
         for (let k of this.keys_) {
-            this.memberTypes_.set(k, membersMap[k])
+            let memberType = membersMap[k]
+            if (memberType === PrimitiveType.f32 || memberType === PrimitiveType.i32) {
+                memberType = new ScalarType(memberType)
+            }
+            this.memberTypes_.set(k, memberType)
         }
     }
 
@@ -232,6 +236,9 @@ class StructType extends Type {
         for (let k of this.keys_) {
             if (k !== name) {
                 offset += this.getPropertyType(k).getPrimitivesList().length
+            }
+            else{
+                break;
             }
         }
         return offset
