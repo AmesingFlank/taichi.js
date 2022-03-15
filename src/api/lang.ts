@@ -14,7 +14,7 @@ function kernel(f:any) : ((...args: any[]) => void) {
     let kernelParams = compiler.compileKernel(f)
     let kernel = program.runtime!.createKernel(kernelParams)
     let result = async (...args: any[]) => {
-        await program.runtime!.launchKernel(kernel,...args)
+        return await program.runtime!.launchKernel(kernel,...args)
     }
     return result
 }

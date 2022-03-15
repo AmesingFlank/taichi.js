@@ -49,7 +49,7 @@ function getWgslShaderBindings(wgsl:string):BufferBinding[] {
             continue
         }
 
-        let retsPrefix = "args_"
+        let retsPrefix = "rets_"
         let retsBegin = stmt.indexOf(retsPrefix)
         if(retsBegin !== -1){
             addBinding(new BufferBinding(BufferType.Rets,null,bindingPoint))

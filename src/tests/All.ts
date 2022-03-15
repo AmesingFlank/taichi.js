@@ -37,6 +37,7 @@ import { testToArray } from "./TestToArray"
 import { testFieldAccessor } from "./TestFieldAccessor"
 import { testFromArray } from "./TestFromArray"
 import { testStruct } from "./TestStruct"
+import { testRets } from "./TestRets"
 
 async function runAllTests() {
     let passed = true
@@ -77,6 +78,7 @@ async function runAllTests() {
     passed &&= await testFieldAccessor()
     passed &&= await testFromArray()
     passed &&= await testStruct()
+    passed &&= await testRets()
 
     if (passed) {
         console.log("All tests passed")

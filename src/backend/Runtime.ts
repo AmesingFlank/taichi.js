@@ -26,7 +26,7 @@ class Runtime {
     private materializedTrees: MaterializedTree[] = []
 
     private globalTmpsBuffer: GPUBuffer | null = null
-    private randStatesBuffer: GPUBuffer | null = null 
+    private randStatesBuffer: GPUBuffer | null = null
 
     constructor() { }
 
@@ -75,7 +75,7 @@ class Runtime {
         await this.device!.queue.onSubmittedWorkDone()
     }
 
-    async launchKernel(kernel: CompiledKernel, ...args: any[]) : Promise<any>{
+    async launchKernel(kernel: CompiledKernel, ...args: any[]): Promise<any> {
         assert(args.length === kernel.numArgs,
             "Kernel requires " + kernel.numArgs.toString() + " arguments, but " + args.length.toString() + " is provided")
 
@@ -85,8 +85,10 @@ class Runtime {
 
         let requiresArgsBuffer = false
         let requiresRetsBuffer = false
-        let thisArgsBuffer : GPUBuffer | null = null
-        let thisRetsBuffer : GPUBuffer | null = null
+        let thisArgsBuffer: GPUBuffer | null = null
+        let thisRetsBuffer: GPUBuffer | null = null
+        let argsSize: number = 0
+        let retsSize: number = 0
         for (let task of kernel.tasks) {
             for (let binding of task.params.bindings) {
                 if (binding.bufferType === BufferType.Args) {
@@ -98,17 +100,17 @@ class Runtime {
             }
         }
         if (requiresArgsBuffer) {
-            let argsSize = 4 * kernel.numArgs
+            argsSize = 4 * kernel.numArgs
             thisArgsBuffer = this.addArgsBuffer(argsSize)
             if (kernel.numArgs > 0) {
                 new Float32Array(thisArgsBuffer.getMappedRange()).set(new Float32Array(args))
             }
             thisArgsBuffer.unmap()
         }
-       
+
         if (requiresRetsBuffer) {
-            let argsSize = kernel.returnType.getPrimitivesList().length * 4
-            thisRetsBuffer = this.addRetsBuffer(argsSize)
+            retsSize = kernel.returnType.getPrimitivesList().length * 4
+            thisRetsBuffer = this.addRetsBuffer(retsSize)
         }
 
         let commandEncoder = this.device!.createCommandEncoder();
@@ -117,7 +119,7 @@ class Runtime {
         for (let task of kernel.tasks) {
             task.bindGroup = this.device!.createBindGroup({
                 layout: task.pipeline!.getBindGroupLayout(0),
-                entries: this.getBindings(task.params,thisArgsBuffer,thisRetsBuffer)
+                entries: this.getBindings(task.params, thisArgsBuffer, thisRetsBuffer)
             })
 
             passEncoder.setPipeline(task.pipeline!);
@@ -152,16 +154,29 @@ class Runtime {
          */
         await this.sync()
 
-        if(thisArgsBuffer){
+        if (thisArgsBuffer) {
             thisArgsBuffer!.destroy()
         }
 
-        if(kernel.returnType.getCategory() !== TypeCategory.Void){
-            assert(thisRetsBuffer!== null)
-            await thisRetsBuffer!.mapAsync(GPUMapMode.READ)
-            let intArray = new Int32Array(thisRetsBuffer!.getMappedRange())
+        if (kernel.returnType.getCategory() !== TypeCategory.Void) {
+            assert(thisRetsBuffer !== null)
+
+            let retsCopy = this.device!.createBuffer({
+                size: retsSize,
+                usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+            })
+            let commandEncoder = this.device!.createCommandEncoder();
+            commandEncoder.copyBufferToBuffer(thisRetsBuffer!,0, retsCopy, 0, retsSize)
+            this.device!.queue.submit([commandEncoder.finish()]);
+            await this.device!.queue.onSubmittedWorkDone()
+
+            await retsCopy!.mapAsync(GPUMapMode.READ)
+            let intArray = new Int32Array(retsCopy!.getMappedRange())
             let returnVal = int32ArrayToElement(intArray, kernel.returnType)
+
             thisRetsBuffer!.destroy()
+            retsCopy.destroy()
+            
             return returnVal
         }
     }
@@ -171,14 +186,14 @@ class Runtime {
             size: size,
             usage: GPUBufferUsage.STORAGE,
             mappedAtCreation: true
-        }) 
+        })
         return buffer
     }
 
     addRetsBuffer(size: number): GPUBuffer {
         let buf = this.device!.createBuffer({
             size: size,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.MAP_READ
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
         })
         return buf
     }
@@ -198,7 +213,7 @@ class Runtime {
         })
     }
 
-    getBindings(task: TaskParams, argsBuffer:GPUBuffer|null, retsBuffer:GPUBuffer | null): GPUBindGroupEntry[] {
+    getBindings(task: TaskParams, argsBuffer: GPUBuffer | null, retsBuffer: GPUBuffer | null): GPUBindGroupEntry[] {
         let entries: GPUBindGroupEntry[] = []
         for (let binding of task.bindings) {
             let buffer: GPUBuffer | null = null
@@ -212,12 +227,12 @@ class Runtime {
                     break;
                 }
                 case BufferType.Args: {
-                    assert(argsBuffer!==null)
+                    assert(argsBuffer !== null)
                     buffer = argsBuffer!
                     break;
                 }
                 case BufferType.Rets: {
-                    assert(retsBuffer!==null)
+                    assert(retsBuffer !== null)
                     buffer = retsBuffer!
                     break;
                 }

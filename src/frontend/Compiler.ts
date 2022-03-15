@@ -682,7 +682,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                         return ValueUtils.makeConstantScalar(val, this.irBuilder.get_float32(val), PrimitiveType.f32)
                     }
                 }
-                if (Array.isArray(val)) {
+                else if (Array.isArray(val)) {
                     this.assertNode(node, val.length > 0, "cannot use empty array in kernel")
                     let result = getValue(val[0])
                     if (result === undefined) {
@@ -713,6 +713,18 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                         }
                     }
                     return result
+                }
+                else{
+                    let valuesMap = new Map<string, Value>()
+                    let keys = Object.keys(val)
+                    for(let k of keys){
+                        let propVal = getValue(val[k])
+                        if (propVal === undefined) {
+                            fail()
+                        }
+                        valuesMap.set(k,propVal!)
+                    }
+                    return ValueUtils.makeStruct(keys, valuesMap)
                 }
             }
             let val = this.scope.getStored(name)
@@ -1001,6 +1013,12 @@ export class OneTimeCompiler extends CompilingVisitor {
         for (let i = 0; i < this.numArgs; ++i) {
             this.nativeKernel.insert_arg(toNativePrimitiveType(PrimitiveType.f32), false)
         }
+        if(this.returnValue !== null && this.returnValue.getType().getCategory()!==TypeCategory.Void){
+            let prims = this.returnValue.getType().getPrimitivesList()
+            for (let i = 0; i < prims.length; ++i) {
+                this.nativeKernel.insert_ret(toNativePrimitiveType(prims[i]))
+            }
+        }
 
         Program.getCurrentProgram().nativeAotBuilder.add(this.compilationResultName, this.nativeKernel);
 
@@ -1046,10 +1064,6 @@ export class OneTimeCompiler extends CompilingVisitor {
                 returnStmtsVec.push_back(stmt)
             }
             this.irBuilder.create_return_vec(returnStmtsVec)
-            let prims = this.returnValue.getType().getPrimitivesList()
-            for (let i = 0; i < prims.length; ++i) {
-                this.nativeKernel.insert_ret(toNativePrimitiveType(prims[i]))
-            }
         }
         else {
             this.returnValue = new Value(new VoidType())
