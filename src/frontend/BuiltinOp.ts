@@ -389,7 +389,7 @@ class BuiltinOpFactory {
             new BuiltinUnaryOp("not", PrimitiveType.i32, (stmt: NativeTaichiAny) => irBuilder.create_not(stmt)),
             new BuiltinUnaryOp("logical_not", PrimitiveType.i32, (stmt: NativeTaichiAny) => irBuilder.create_logical_not(stmt)),
             new BuiltinUnaryOp("abs", null, (stmt: NativeTaichiAny) => irBuilder.create_abs(stmt)),
-            new BuiltinUnaryOp("floor", PrimitiveType.i32, (stmt: NativeTaichiAny) => irBuilder.create_floor(stmt)),
+            new BuiltinUnaryOp("floor", null, (stmt: NativeTaichiAny) => irBuilder.create_floor(stmt)),
             new BuiltinUnaryOp("sgn", PrimitiveType.i32, (stmt: NativeTaichiAny) => irBuilder.create_sgn(stmt)),
             new BuiltinUnaryOp("sqrt", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_sqrt(stmt)),
 
