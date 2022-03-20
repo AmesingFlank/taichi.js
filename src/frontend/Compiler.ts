@@ -1,11 +1,11 @@
 import * as ts from "typescript";
 import { InMemoryHost } from "./InMemoryHost";
 import { ASTVisitor, VisitorResult } from "./ast/Visiter"
-import { CompiledKernel, TaskParams, BufferBinding, BufferType, KernelParams } from "../backend/Kernel";
+import { CompiledKernel, TaskParams, BufferBinding, BufferType, KernelParams, RenderPipelineParams, VertexShaderParams, FragmentShaderParams } from "../backend/Kernel";
 import { nativeTaichi, NativeTaichiAny } from '../native/taichi/GetTaichi'
 import { error, assert } from '../utils/Logging'
 import { GlobalScope } from "../program/GlobalScope";
-import { Field } from "../program/Field";
+import { Field, Texture } from "../program/Field";
 import { Program } from "../program/Program";
 import { getStmtKind, StmtKind } from "./Stmt"
 import { getWgslShaderBindings } from "./WgslReflection"
@@ -58,10 +58,13 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
     protected hasRet: boolean = false
     protected lastVisitedNode: ts.Node | null = null
 
+    // vert/frag shader compilation state
     private startedVertex = false
     private finishedVertex = false
-    private startedFragment = false
-    private finishedFragment = false
+    private startedFragment = false 
+
+    private renderPipelineParams: RenderPipelineParams[] = []
+    private currentRenderPipelineParams: RenderPipelineParams | null = null
 
     buildIR(code: any) {
         let codeString = code.toString()
@@ -108,7 +111,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         }
     }
 
-    protected visitInputFunctionBody(body:ts.Block|ts.ConciseBody){
+    protected visitInputFunctionBody(body: ts.Block | ts.ConciseBody) {
         this.visitEachChild(body)
     }
 
@@ -116,9 +119,9 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         if (this.returnValue) {
             this.errorNode(node, "If there is a `return`, it must be the final statement of the function")
         }
-        if(this.finishedVertex && !this.startedFragment){
-            if(!this.isFragmentFor(node)){
-                this.errorNode(node, "No statements allowed between the vertex shader and the fragment shader") 
+        if (this.finishedVertex && !this.startedFragment) {
+            if (!this.isFragmentFor(node)) {
+                this.errorNode(node, "No statements allowed between the vertex shader and the fragment shader")
             }
         }
         this.lastVisitedNode = node
@@ -442,54 +445,62 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             this.assertNode(node, node.arguments.length === n, funcText + " requires " + n.toString() + " args")
         }
 
-        let atomicOps = this.atomicOps
-        for (let kv of atomicOps) {
-            let op = kv[1]
-            if (funcText === op.name || funcText === "ti." + op.name) {
-                checkNumArgs(2)
-                let destPtr = this.extractVisitorResult(this.dispatchVisit(node.arguments[0]))
-                let val = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.arguments[1])))
-                let typeError = op.checkType([destPtr, val])
-                if (typeError.hasError) {
-                    this.errorNode(node, "Atomic type error: ", typeError.msg)
-                }
-                return op.apply([destPtr, val])
+
+        let argumentRefs: Value[] | null = null  // pointer for l-values, newly created alloca copies for r-values
+        let getArgumentRefs = () : Value[] => {
+            if(argumentRefs!==null){
+                return argumentRefs
             }
+            argumentRefs = []
+            for (let arg of node.arguments) {
+                let argVal = this.extractVisitorResult(this.dispatchVisit(arg))
+                if (argVal.getType().getCategory() === TypeCategory.Pointer) {
+                    argumentRefs.push(argVal)
+                }
+                else {
+                    // passing r value. Create a local var copy, so that it can be assigned in the func
+                    let copy = this.createLocalVarCopy(argVal)
+                    argumentRefs.push(copy)
+                }
+            }
+            return argumentRefs
         }
 
-        let argumentRefs: Value[] = []  // pointer for l-values, values for r-values
-        for (let arg of node.arguments) {
-            let argVal = this.extractVisitorResult(this.dispatchVisit(arg))
-            if (argVal.getType().getCategory() === TypeCategory.Pointer) {
-                argumentRefs.push(argVal)
+        let argumentValues: Value[] | null = null
+        let getArgumentValues = () : Value[] => {
+            if(argumentValues !== null){
+                return argumentValues
             }
-            else {
-                // passing r value. Create a local var copy, so that it can be assigned in the func
-                let copy = this.createLocalVarCopy(argVal)
-                argumentRefs.push(copy)
+            argumentValues = []
+            for (let ref of getArgumentRefs()) {
+                argumentValues.push(this.derefIfPointer(ref))
             }
+            return argumentValues
         }
+        
+        
         // function semantics: pass by ref for l-values, pass by value for r-values
 
         // user defined funcs
-        if (this.scope.hasStored(funcText)) {
-            let funcObj = this.scope.getStored(funcText)
+        if ( this.scope.canEvaluate(funcText)) {
+            let funcObj = this.scope.tryEvaluate(funcText)
             if (typeof funcObj == 'function') {
                 let compiler = new InliningCompiler(this.scope, this.irBuilder, this.builtinOps, this.atomicOps, funcText)
-                let result = compiler.runInlining(argumentRefs, funcObj)
+                let result = compiler.runInlining(getArgumentRefs(), funcObj)
                 if (result) {
                     return result
                 }
                 return
             }
-        }
+        } 
 
+        // Library funcs
         let libraryFuncs = LibraryFunc.getLibraryFuncs()
         for (let kv of libraryFuncs) {
             let func = kv[1]
             if (funcText === func.name || funcText === "ti." + func.name) {
                 let compiler = new InliningCompiler(this.scope, this.irBuilder, this.builtinOps, this.atomicOps, funcText)
-                let result = compiler.runInlining(argumentRefs, func.code)
+                let result = compiler.runInlining(getArgumentRefs(), func.code)
                 if (result) {
                     return result
                 }
@@ -497,21 +508,33 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             }
         }
 
-        let argumentValues: Value[] = []
-        for (let ref of argumentRefs) {
-            argumentValues.push(this.derefIfPointer(ref))
-        }
-
+        // built-in funcs (mostly math stuff)
         let builtinOps = this.builtinOps
         for (let kv of builtinOps) {
             let op = kv[1]
             if (funcText === op.name || funcText === "ti." + op.name || funcText === "Math." + op.name) {
                 checkNumArgs(op.arity)
-                let typeError = op.checkType(argumentValues)
+                let typeError = op.checkType(getArgumentValues())
                 if (typeError.hasError) {
                     this.errorNode(node, "Builtin op error: ", typeError.msg)
                 }
-                return op.apply(argumentValues)
+                return op.apply(getArgumentValues())
+            }
+        }
+
+        // atomic
+        let atomicOps = this.atomicOps
+        for (let kv of atomicOps) {
+            let op = kv[1]
+            if (funcText === op.name || funcText === "ti." + op.name) {
+                checkNumArgs(2)
+                let destPtr = getArgumentRefs()[0]
+                let val =  getArgumentValues()[1]
+                let typeError = op.checkType([destPtr, val])
+                if (typeError.hasError) {
+                    this.errorNode(node, "Atomic type error: ", typeError.msg)
+                }
+                return op.apply([destPtr, val])
             }
         }
 
@@ -531,8 +554,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             if (builtinOps.has(propText)) {
                 let op = builtinOps.get(propText)!
                 let objValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(obj)))
-                let allArgumentValues = [objValue].concat(argumentValues)
-
+                let allArgumentValues = [objValue].concat(getArgumentValues())
                 let typeError = op.checkType(allArgumentValues)
                 if (typeError.hasError) {
                     this.errorNode(node, "Builtin op error: ", typeError.msg)
@@ -540,6 +562,58 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                 return op.apply(allArgumentValues)
             }
 
+        }
+
+        if(funcText === "ti.output_vertex" || funcText === "output_vertex" ){
+            this.assertNode(node, getArgumentValues().length === 1, "output_vertex() must have exactly 1 argument")
+            let vertexOutput = getArgumentValues()[0]
+            this.assertNode(node,this.startedVertex && !this.finishedVertex, "output_vertex() can only be used inside a vertex-for")
+            this.assertNode(node, this.currentRenderPipelineParams !== null, "[Compiler bug]")
+            this.currentRenderPipelineParams!.interpolatedType = vertexOutput.getType()
+            let prims = vertexOutput.getType().getPrimitivesList()
+            for(let i = 0;i<prims.length;++i){
+                this.irBuilder.create_vertex_output(i, vertexOutput.stmts[i])
+            }
+            return
+        }
+
+        if(funcText === "ti.output_fragment" || funcText === "output_fragment" ){
+            this.assertNode(node,this.startedFragment, "output_vertex() can only be used inside a fragment-for")
+            this.assertNode(node, this.currentRenderPipelineParams !== null , "[Compiler bug]")
+
+            this.assertNode(node, getArgumentValues().length === 2, "output_fragment() must have exactly 2 arguments, one for output texture, the other for the output value")
+            let renderTargetText = node.arguments[0].getText()
+            this.assertNode(node, this.scope.canEvaluate(renderTargetText), "the first argument of output_fragment() must be a texture object that's visible in kernel scope")
+            let renderTarget = this.scope.tryEvaluate(renderTargetText)
+            this.assertNode(node, renderTarget instanceof Texture, "the first argument of output_fragment() must be a texture object that's visible in kernel scope")
+            let targetTexture = renderTarget as Texture
+            let targetLocation = -1
+            let existingTargets = this.currentRenderPipelineParams!.fragment.outputTexutres
+            for(let i = 0; i < existingTargets.length;++i){
+                if(existingTargets[i].textureId === targetTexture.textureId){
+                    targetLocation =  i
+                    break
+                }
+            }
+            if(targetLocation === -1){
+                // a new target
+                targetLocation = existingTargets.length
+                existingTargets.push(targetTexture)
+            }
+
+            let fragOutput = getArgumentValues()[1]
+            this.assertNode(node, fragOutput.getType().getCategory() === TypeCategory.Vector, "frag output must be a vector")
+            let outputVecType = fragOutput.getType() as VectorType
+            this.assertNode(node, outputVecType.getNumRows() === 1 || outputVecType.getNumRows() === 2 || outputVecType.getNumRows() === 4, "output vector component count must be 1, 2, or 4")
+
+            let stmtsVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
+
+            for(let i = 0; i < fragOutput.stmts.length;++i){
+                stmtsVec.push_back(fragOutput.stmts[i]) 
+            }
+
+            this.irBuilder.create_fragment_output(targetLocation, stmtsVec)
+            return
         }
 
         this.errorNode(node, "unresolved function: " + funcText)
@@ -550,8 +624,8 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         let argument = node.argumentExpression
         if (base.kind === ts.SyntaxKind.Identifier) {
             let baseName = base.getText()
-            if (this.scope.hasStored(baseName) && this.typeChecker!.getSymbolAtLocation(base) === undefined) {
-                let hostSideValue: any = this.scope.getStored(baseName)
+            if (this.scope.canEvaluate(baseName) && this.typeChecker!.getSymbolAtLocation(base) === undefined) {
+                let hostSideValue: any = this.scope.tryEvaluate(baseName)
                 if (hostSideValue instanceof Field) {
                     let field = hostSideValue as Field
 
@@ -685,7 +759,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             return this.symbolTable.get(symbol)
         }
         let name = node.getText()
-        if (this.scope.hasStored(name)) {
+        if (this.scope.canEvaluate(name)) {
             let getValue = (val: any): Value | undefined => {
                 let fail = () => { this.errorNode(node, "failed to evaluate " + name + " in kernel scope") }
                 if (typeof val === "number") {
@@ -728,20 +802,20 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                     }
                     return result
                 }
-                else{
+                else {
                     let valuesMap = new Map<string, Value>()
                     let keys = Object.keys(val)
-                    for(let k of keys){
+                    for (let k of keys) {
                         let propVal = getValue(val[k])
                         if (propVal === undefined) {
                             fail()
                         }
-                        valuesMap.set(k,propVal!)
+                        valuesMap.set(k, propVal!)
                     }
                     return ValueUtils.makeStruct(keys, valuesMap)
                 }
             }
-            let val = this.scope.getStored(name)
+            let val = this.scope.tryEvaluate(name)
             return getValue(val)
         }
         this.errorNode(node, "unresolved identifier: " + node.getText())
@@ -792,7 +866,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
 
     protected override visitContinueStatement(node: ts.ContinueStatement): VisitorResult<Value> {
         this.assertNode(node, this.loopStack.length > 0 && (this.loopStack[this.loopStack.length - 1] === LoopKind.For || this.loopStack[this.loopStack.length - 1] === LoopKind.While), "continue must be used inside a non-static loop")
-        if(this.loopStack[this.loopStack.length - 1] === LoopKind.VertexFor ||this.loopStack[this.loopStack.length - 1] === LoopKind.FragmentFor ){
+        if (this.loopStack[this.loopStack.length - 1] === LoopKind.VertexFor || this.loopStack[this.loopStack.length - 1] === LoopKind.FragmentFor) {
             this.errorNode(node, "continue cannot be used for Vertex-For or Fragment-For")
         }
         this.irBuilder.create_continue()
@@ -920,12 +994,12 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         }
     }
 
-    protected isAtTopLevel(){
+    protected isAtTopLevel() {
         return this.loopStack.length === 0 && this.branchDepth === 0
     }
 
-    protected isFragmentFor(node:ts.Node):boolean{
-        if(node.kind !== ts.SyntaxKind.ForOfStatement){
+    protected isFragmentFor(node: ts.Node): boolean {
+        if (node.kind !== ts.SyntaxKind.ForOfStatement) {
             return false
         }
         let forOfNode = node as ts.ForOfStatement
@@ -940,56 +1014,110 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
     }
 
     protected visitVertexFor(indexSymbols: ts.Symbol[], vertexArgs: ts.NodeArray<ts.Expression>, body: ts.Statement): VisitorResult<Value> {
-        if(!this.isAtTopLevel()){
+        if (!this.isAtTopLevel()) {
             this.errorNode(null, "Vertex-For must be top-level")
         }
+        if(this.finishedVertex){
+            this.errorNode(null, "cannot start a new render pipeline when the previous one hasn't been finioshed")
+        }
         this.assertNode(null, indexSymbols.length === 1, "Expecting exactly 1 vertex declaration")
-        if(vertexArgs.length === 0){
+
+        this.assertNode(null, this.currentRenderPipelineParams === null, "[Compiler bug]")
+        this.currentRenderPipelineParams = new RenderPipelineParams(new VertexShaderParams, new FragmentShaderParams)
+        if (vertexArgs.length === 0) {
             this.errorNode(null, "Expecting vertex buffer and optionally index buffer")
         }
-        if(vertexArgs.length >= 3){
+        if (vertexArgs.length >= 1) {
+            let argText = vertexArgs[0].getText()
+            if(!this.scope.canEvaluate(argText)){
+                let arg = this.scope.tryEvaluate(argText)
+                if(arg instanceof Field){
+                    this.currentRenderPipelineParams.vertex.VBO = arg
+                }
+            }
+        }
+        if (vertexArgs.length >= 2) {
+            let argText = vertexArgs[1].getText()
+            if(!this.scope.canEvaluate(argText)){
+                let arg = this.scope.tryEvaluate(argText)
+                if(arg instanceof Field){
+                    this.currentRenderPipelineParams.vertex.IBO = arg
+                }
+            }
+        }
+        if (vertexArgs.length >= 3) {
             this.errorNode(null, "Expecting only vertex buffer and index buffer")
         }
-        // this.assertNode(null, rangeExpr.length === 1, "Expecting exactly 1 argument in range()")
-        // let rangeLengthExpr = rangeExpr[0]
-        // let rangeLengthValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(rangeLengthExpr)))
-        // rangeLengthValue = this.castTo(rangeLengthValue, PrimitiveType.i32)
-        // this.assertNode(null, rangeLengthValue.getType().getCategory() === TypeCategory.Scalar, "range must be scalar")
+        let loop = this.irBuilder.create_vertex_for();
 
-        // if (shouldUnroll) {
-        //     this.assertNode(null, rangeLengthValue.isCompileTimeConstant(), "for static range loops, the range must be a compile time constant")
-        //     let rangeLength = rangeLengthValue.compileTimeConstants[0]
-        //     this.loopStack.push(LoopKind.StaticFor)
-        //     for (let i = 0; i < rangeLength; ++i) {
-        //         let indexValue = ValueUtils.makeConstantScalar(i, this.irBuilder.get_int32(i), PrimitiveType.i32)
-        //         this.symbolTable.set(indexSymbols[0], indexValue)
-        //         this.dispatchVisit(body)
-        //     }
-        //     this.loopStack.pop()
-        // }
-        // else {
-        //     let zero = this.irBuilder.get_int32(0)
-        //     let loop = this.irBuilder.create_range_for(zero, rangeLengthValue.stmts[0], 0, 4, 0, false);
+        let loopGuard = this.irBuilder.get_vertex_loop_guard(loop);
+        this.loopStack.push(LoopKind.VertexFor);
 
-        //     let loopGuard = this.irBuilder.get_range_loop_guard(loop);
-        //     let indexStmt = this.irBuilder.get_loop_index(loop, 0);
-        //     let indexValue = ValueUtils.makeScalar(indexStmt, PrimitiveType.i32)
-        //     this.symbolTable.set(indexSymbols[0], indexValue)
+        let vertexType = this.currentRenderPipelineParams.vertex.VBO!.elementType
+        let vertexInputValue = new Value(vertexType,[])
+        let prims = vertexType.getPrimitivesList()
+        for(let i = 0;i < prims.length;++i){
+            let stmt = this.irBuilder.create_vertex_input(i, toNativePrimitiveType(prims[i]))
+            vertexInputValue.stmts.push(stmt)
+        }
+        // avoid having to throw error when assigning to vertex attribs
+        let vertexInputCopy = this.createLocalVarCopy(vertexInputValue)
+        this.symbolTable.set(indexSymbols[0], vertexInputCopy)
+        
+        this.startedVertex = true
+        
+        this.dispatchVisit(body)
 
-        //     this.loopStack.push(LoopKind.For)
-        //     this.dispatchVisit(body)
-        //     this.loopStack.pop()
+        this.finishedVertex = true
 
-        //     loopGuard.delete()
-        // }
-        this.errorNode(null, "Vertex-For not allowed here.")
+        this.loopStack.pop()
+        loopGuard.delete()
     }
 
     protected visitFragmentFor(indexSymbols: ts.Symbol[], fragmentArgs: ts.NodeArray<ts.Expression>, body: ts.Statement): VisitorResult<Value> {
-        if(!this.isAtTopLevel()){
+        if (!this.isAtTopLevel()) {
             this.errorNode(null, "Fragment-For must be top-level")
         }
-        this.errorNode(null, "Fragment-For not allowed here.")
+        if(!this.finishedVertex){
+            this.errorNode(null, "Fragment-For must follow a complete Vertex-For")
+        }
+        this.assertNode(null, indexSymbols.length === 1, "Expecting exactly 1 fragment declaration")
+
+        this.assertNode(null, this.currentRenderPipelineParams !== null, "[Compiler bug]")
+        if (fragmentArgs.length !== 0) {
+            this.errorNode(null, "Expecting no arguments in fragment_input()")
+        } 
+
+        let loop = this.irBuilder.create_fragment_for();
+
+        let loopGuard = this.irBuilder.get_fragment_loop_guard(loop);
+        this.loopStack.push(LoopKind.FragmentFor);
+
+        this.assertNode(null, this.currentRenderPipelineParams!.interpolatedType !== null, "[Compiler bug]")
+
+        let fragmentType = this.currentRenderPipelineParams!.interpolatedType!
+        let fragmentInputValue = new Value(fragmentType,[])
+        let prims = fragmentType.getPrimitivesList()
+        for(let i = 0;i < prims.length;++i){
+            let stmt = this.irBuilder.create_fragment_input(i, toNativePrimitiveType(prims[i]))
+            fragmentInputValue.stmts.push(stmt)
+        }
+        // avoid having to throw error when assigning to fragment attribs
+        let fragmentInputCopy = this.createLocalVarCopy(fragmentInputValue)
+        this.symbolTable.set(indexSymbols[0], fragmentInputCopy)
+        
+        this.startedFragment = true
+        
+        this.dispatchVisit(body)
+
+        this.startedVertex = false
+        this.finishedVertex = false
+        this.startedFragment = false
+        this.renderPipelineParams.push(this.currentRenderPipelineParams!)
+        this.currentRenderPipelineParams = null
+
+        this.loopStack.pop()
+        loopGuard.delete()
     }
 
     protected override visitForOfStatement(node: ts.ForOfStatement): VisitorResult<Value> {
@@ -1116,7 +1244,7 @@ export class KernelCompiler extends CompilingVisitor {
         for (let i = 0; i < this.numArgs; ++i) {
             this.nativeKernel.insert_arg(toNativePrimitiveType(PrimitiveType.f32), false)
         }
-        if(this.returnValue !== null && this.returnValue.getType().getCategory()!==TypeCategory.Void){
+        if (this.returnValue !== null && this.returnValue.getType().getCategory() !== TypeCategory.Void) {
             let prims = this.returnValue.getType().getPrimitivesList()
             for (let i = 0; i < prims.length; ++i) {
                 this.nativeKernel.insert_ret(toNativePrimitiveType(prims[i]))
@@ -1137,7 +1265,7 @@ export class KernelCompiler extends CompilingVisitor {
             //console.log(bindings)
             let rangeHint: string = task.get_range_hint()
             let workgroupSize = task.get_gpu_block_size()
-            taskParams.push(new TaskParams(wgsl, rangeHint,workgroupSize,bindings))
+            taskParams.push(new TaskParams(wgsl, rangeHint, workgroupSize, bindings))
         }
         this.nativeKernel.delete()
         this.irBuilder.delete()
@@ -1170,4 +1298,3 @@ export class KernelCompiler extends CompilingVisitor {
         }
     }
 }
- 

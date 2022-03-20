@@ -1,4 +1,4 @@
-import { CompiledTask, CompiledKernel, TaskParams, BufferType, KernelParams, BufferBinding, CompiledRenderPipeline } from './Kernel'
+import { CompiledTask, CompiledKernel, TaskParams, BufferType, KernelParams, BufferBinding, CompiledRenderPipeline, RenderPipelineParams } from './Kernel'
 import { SNodeTree } from '../program/SNodeTree'
 import { divUp, int32ArrayToElement } from '../utils/Utils'
 import { assert, error } from "../utils/Logging"
@@ -56,16 +56,17 @@ class Runtime {
         this.adapter = adapter
     }
 
-    createTask(params: TaskParams): CompiledTask {
-        let task = new CompiledTask(params, this.device!)
-        return task
-    }
-
     createKernel(params: KernelParams): CompiledKernel {
         let kernel = new CompiledKernel()
-        for (let taskParams of params.taskParams) {
-            let task = this.createTask(taskParams)
-            kernel.tasks.push(task)
+        for (let taskParams of params.tasksParams) {
+            if(taskParams instanceof TaskParams){
+                let task = new CompiledTask(taskParams, this.device!)
+                kernel.tasks.push(task)
+            }
+            else if(taskParams instanceof RenderPipelineParams) {
+                let task = new CompiledRenderPipeline(taskParams, this.device!)
+                kernel.tasks.push(task)
+            }
         }
         kernel.numArgs = params.numArgs
         kernel.returnType = params.returnType
@@ -177,8 +178,10 @@ class Runtime {
                 renderEncoder!.setPipeline(task.pipeline!)
                 renderEncoder!.setBindGroup(0, task.bindGroup!)
 
-                let vboTree = this.materializedTrees[task.params.vertex.VBO.snodeTree.treeId]
-                renderEncoder!.setVertexBuffer(0, vboTree.rootBuffer!, task.params.vertex.VBO.offsetBytes, task.params.vertex.VBO.sizeBytes)
+                if(task.params.vertex.VBO){
+                    let vboTree = this.materializedTrees[task.params.vertex.VBO.snodeTree.treeId]
+                    renderEncoder!.setVertexBuffer(0, vboTree.rootBuffer!, task.params.vertex.VBO.offsetBytes, task.params.vertex.VBO.sizeBytes)
+                }
                 
                 if(task.params.vertex.IBO){
                     let iboTree = this.materializedTrees[task.params.vertex.IBO.snodeTree.treeId]

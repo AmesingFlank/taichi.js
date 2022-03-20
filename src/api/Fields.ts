@@ -1,5 +1,5 @@
 import { Program } from '../program/Program'
-import { Field } from '../program/Field'
+import { Field, Texture } from '../program/Field'
 import { PrimitiveType, Type, ScalarType, VectorType, MatrixType, StructType } from "../frontend/Type"
 
 
@@ -31,4 +31,8 @@ let Struct = {
     }
 }
 
-export { field, Vector, Matrix, Struct }
+let texture = (primitiveType: PrimitiveType, numComponents:number, dimensions: number[])=> {
+    return new Texture(primitiveType,numComponents,dimensions)
+}
+
+export { field, Vector, Matrix, Struct, texture }

@@ -133,9 +133,9 @@ class Field {
 
 class Texture {
     constructor(
-        public dimensions: number[],
         public primitiveType: PrimitiveType,
-        public numComponents:number
+        public numComponents:number,
+        public dimensions: number[],
     ){
         assert(dimensions.length <= 3 && dimensions.length >= 1, "texture dimensions must be >= 1 and <= 3")
         assert(numComponents === 1 || numComponents === 2 || numComponents === 4 , "texture dimensions must be 1, 2, or 4")
