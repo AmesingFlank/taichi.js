@@ -1,4 +1,4 @@
-import { PrimitiveType, Type, VoidType } from "../frontend/Type"
+import { PrimitiveType, StructType, Type, VoidType } from "../frontend/Type"
 import { nativeTaichi, NativeTaichiAny } from "../native/taichi/GetTaichi"
 import { Field, Texture } from "../program/Field"
 import { assert, error } from "../utils/Logging"
@@ -54,7 +54,7 @@ class RenderPipelineParams {
     constructor(
         public vertex: VertexShaderParams,
         public fragment: FragmentShaderParams,
-        public interpolatedType: Type | null = null
+        public interpolatedType: Type = new StructType({})
     ) {
         this.bindings = this.getBindings()
     }

@@ -551,15 +551,35 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             return
         }
 
-        if(funcText === "ti.output_fragment" || funcText === "output_fragment" ){
-            this.assertNode(node,this.startedFragment, "output_fragment() can only be used inside a fragment-for")
+        if(funcText === "ti.output_position" || funcText === "output_position" ){
+            this.assertNode(node, getArgumentValues().length === 1, "output_position must have exactly 1 argument")
+            let posOutput = getArgumentValues()[0]
+            this.assertNode(node,this.startedVertex && !this.finishedVertex, "output_position() can only be used inside a vertex-for")
+            this.assertNode(node, this.currentRenderPipelineParams !== null, "[Compiler bug]")
+
+            this.assertNode(node, posOutput.getType().getCategory() === TypeCategory.Vector, "position output must be a vector")
+            let outputVecType = posOutput.getType() as VectorType
+            this.assertNode(node, outputVecType.getNumRows() === 4, "position output must be a 4D vector")
+
+            let stmtsVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
+
+            for(let i = 0; i < posOutput.stmts.length;++i){
+                stmtsVec.push_back(posOutput.stmts[i]) 
+            }
+
+            this.irBuilder.create_position_output(stmtsVec)
+            return
+        }
+
+        if(funcText === "ti.output_color" || funcText === "output_color" ){
+            this.assertNode(node,this.startedFragment, "output_color() can only be used inside a fragment-for")
             this.assertNode(node, this.currentRenderPipelineParams !== null , "[Compiler bug]")
 
-            this.assertNode(node, node.arguments.length === 2, "output_fragment() must have exactly 2 arguments, one for output texture, the other for the output value")
+            this.assertNode(node, node.arguments.length === 2, "output_color() must have exactly 2 arguments, one for output texture, the other for the output value")
             let renderTargetText = node.arguments[0].getText()
-            this.assertNode(node, this.scope.canEvaluate(renderTargetText), "the first argument of output_fragment() must be a texture object that's visible in kernel scope")
+            this.assertNode(node, this.scope.canEvaluate(renderTargetText), "the first argument of output_color() must be a texture object that's visible in kernel scope")
             let renderTarget = this.scope.tryEvaluate(renderTargetText)
-            this.assertNode(node, renderTarget instanceof Texture, "the first argument of output_fragment() must be a texture object that's visible in kernel scope")
+            this.assertNode(node, renderTarget instanceof Texture, "the first argument of output_color() must be a texture object that's visible in kernel scope")
             let targetTexture = renderTarget as Texture
             let targetLocation = -1
             let existingTargets = this.currentRenderPipelineParams!.fragment.outputTexutres
@@ -586,7 +606,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                 stmtsVec.push_back(fragOutput.stmts[i]) 
             }
 
-            this.irBuilder.create_fragment_output(targetLocation, stmtsVec)
+            this.irBuilder.create_color_output(targetLocation, stmtsVec)
             return
         }
 

@@ -1,6 +1,4 @@
-//@ts-nocheck 
-
-
+//@ts-nocheck  
 
 let simpleGraphicsExample = async (htmlCanvas:HTMLCanvasElement) => {
     await ti.init()
@@ -22,9 +20,10 @@ let simpleGraphicsExample = async (htmlCanvas:HTMLCanvasElement) => {
             for(let v of ti.input_vertices(VBO)){
                 v.pos = v.pos + SSBO[0]
                 ti.output_vertex(v)
+                ti.output_position(v.pos.xyyx)
             }
             for(let f of ti.input_fragments()){
-                ti.output_fragment(target, f.pos.xyzx + SSBO[1])
+                ti.output_color(target, f.pos.xyzx + SSBO[1])
             }
         }
     )
