@@ -1,8 +1,8 @@
-import { CompiledTask, CompiledKernel, TaskParams, BufferType, KernelParams } from './Kernel'
+import { CompiledTask, CompiledKernel, TaskParams, BufferType, KernelParams, BufferBinding, CompiledRenderPipeline } from './Kernel'
 import { SNodeTree } from '../program/SNodeTree'
 import { divUp, int32ArrayToElement } from '../utils/Utils'
 import { assert, error } from "../utils/Logging"
-import { Field } from '../program/Field'
+import { Field, Texture } from '../program/Field'
 import { PrimitiveType, TypeCategory, TypeUtils } from '../frontend/Type'
 class MaterializedTree {
     tree?: SNodeTree
@@ -24,6 +24,7 @@ class Runtime {
     device: GPUDevice | null = null
     kernels: CompiledKernel[] = []
     private materializedTrees: MaterializedTree[] = []
+    private textures: Texture[] = []
 
     private globalTmpsBuffer: GPUBuffer | null = null
     private randStatesBuffer: GPUBuffer | null = null
@@ -38,7 +39,7 @@ class Runtime {
 
     async createDevice() {
         let alertWebGPUError = () => {
-            alert(`Webgpu not supported. Please ensure that you have Chrome 94+ with WebGPU Origin Trial Tokens, Chrome Canary, Firefox Nightly, or Safary Tech Preview`)
+            alert(`Webgpu not supported. Please ensure that you have Chrome 98+ with WebGPU Origin Trial Tokens, Chrome Canary, Firefox Nightly, or Safary Tech Preview`)
         }
         if (!navigator.gpu) {
             alertWebGPUError()
@@ -56,12 +57,12 @@ class Runtime {
     }
 
     createTask(params: TaskParams): CompiledTask {
-        let task = new CompiledTask(this.device!, params)
+        let task = new CompiledTask(params, this.device!)
         return task
     }
 
     createKernel(params: KernelParams): CompiledKernel {
-        let kernel = new CompiledKernel(this.device!)
+        let kernel = new CompiledKernel()
         for (let taskParams of params.taskParams) {
             let task = this.createTask(taskParams)
             kernel.tasks.push(task)
@@ -114,36 +115,81 @@ class Runtime {
         }
 
         let commandEncoder = this.device!.createCommandEncoder();
-        const passEncoder = commandEncoder.beginComputePass();
+        let computeEncoder:GPUComputePassEncoder | null = null
+        let renderEncoder:GPURenderPassEncoder | null = null
 
+        let endCompute = () => {
+            if(computeEncoder){
+                computeEncoder.endPass()
+            }
+            computeEncoder = null
+        }
+        let endRender = () => {
+            if(renderEncoder){
+                renderEncoder.endPass()
+            }
+            renderEncoder = null
+        }
+        let beginCompute = () => {
+            endRender()
+            if(!computeEncoder){
+                computeEncoder = commandEncoder.beginComputePass();
+            }
+        }
+        let beginRender = (desc: GPURenderPassDescriptor) => {
+            endCompute()
+            if(!renderEncoder){
+                renderEncoder = commandEncoder.beginRenderPass(desc)
+            }
+        }
+ 
         for (let task of kernel.tasks) {
             task.bindGroup = this.device!.createBindGroup({
                 layout: task.pipeline!.getBindGroupLayout(0),
-                entries: this.getBindings(task.params, thisArgsBuffer, thisRetsBuffer)
+                entries: this.getGPUBindGroupEntries(task.params.bindings, thisArgsBuffer, thisRetsBuffer)
             })
 
-            passEncoder.setPipeline(task.pipeline!);
-            passEncoder.setBindGroup(0, task.bindGroup);
-            // not sure if these are completely right hmm
-            let workgroupSize = task.params.workgroupSize
-            let numWorkGroups: number = 512
-            if (workgroupSize === 1) {
-                numWorkGroups = 1
-            }
-            else if (task.params.rangeHint.length > 0) {
-                let invocations = 0
-                if (task.params.rangeHint.length > 4 && task.params.rangeHint.slice(0, 4) === "arg ") {
-                    let argIndex = Number(task.params.rangeHint.slice(4))
-                    invocations = args[argIndex]
+            if(task instanceof CompiledTask){
+                beginCompute()
+                computeEncoder!.setPipeline(task.pipeline!)
+                computeEncoder!.setBindGroup(0, task.bindGroup!)
+                // not sure if these are completely right hmm
+                let workgroupSize = task.params.workgroupSize
+                let numWorkGroups: number = 512
+                if (workgroupSize === 1) {
+                    numWorkGroups = 1
                 }
-                else {
-                    invocations = Number(task.params.rangeHint)
+                else if (task.params.rangeHint.length > 0) {
+                    let invocations = 0
+                    if (task.params.rangeHint.length > 4 && task.params.rangeHint.slice(0, 4) === "arg ") {
+                        let argIndex = Number(task.params.rangeHint.slice(4))
+                        invocations = args[argIndex]
+                    }
+                    else {
+                        invocations = Number(task.params.rangeHint)
+                    }
+                    numWorkGroups = divUp(invocations, workgroupSize)
                 }
-                numWorkGroups = divUp(invocations, workgroupSize)
+                computeEncoder!.dispatch(numWorkGroups);
             }
-            passEncoder.dispatch(numWorkGroups);
+            else if(task instanceof CompiledRenderPipeline){
+                beginRender(task.getGPURenderPassDescriptor())
+                renderEncoder!.setPipeline(task.pipeline!)
+                renderEncoder!.setBindGroup(0, task.bindGroup!)
+
+                let vboTree = this.materializedTrees[task.params.vertex.VBO.snodeTree.treeId]
+                renderEncoder!.setVertexBuffer(0, vboTree.rootBuffer!, task.params.vertex.VBO.offsetBytes, task.params.vertex.VBO.sizeBytes)
+                
+                if(task.params.vertex.IBO){
+                    let iboTree = this.materializedTrees[task.params.vertex.IBO.snodeTree.treeId]
+                    renderEncoder!.setIndexBuffer(iboTree.rootBuffer!, "uint32", task.params.vertex.IBO.offsetBytes, task.params.vertex.IBO.sizeBytes)
+                }
+
+                renderEncoder!.draw(task.getVertexCount())
+            }
         }
-        passEncoder.endPass();
+        endCompute()
+        endRender()
         this.device!.queue.submit([commandEncoder.finish()]);
 
         /**
@@ -213,9 +259,9 @@ class Runtime {
         })
     }
 
-    getBindings(task: TaskParams, argsBuffer: GPUBuffer | null, retsBuffer: GPUBuffer | null): GPUBindGroupEntry[] {
+    getGPUBindGroupEntries(bindings:BufferBinding[] , argsBuffer: GPUBuffer | null, retsBuffer: GPUBuffer | null): GPUBindGroupEntry[] {
         let entries: GPUBindGroupEntry[] = []
-        for (let binding of task.bindings) {
+        for (let binding of bindings) {
             let buffer: GPUBuffer | null = null
             switch (binding.bufferType) {
                 case BufferType.Root: {
@@ -256,7 +302,7 @@ class Runtime {
         let size = tree.size
         let rootBuffer = this.device!.createBuffer({
             size: size,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
         })
         let device = this.device!
         let materialized: MaterializedTree = {
@@ -265,6 +311,47 @@ class Runtime {
             device
         }
         this.materializedTrees.push(materialized)
+    }
+
+    addTexture(texture: Texture){
+        let id = this.textures.length
+        this.textures.push(texture)
+        return id
+    }
+
+    createGPUTexture(dimensions: number[], format: GPUTextureFormat, colorAttachment:boolean): GPUTexture{
+        let getDescriptor = ():GPUTextureDescriptor => {
+            let defaultUsage = GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC | GPUTextureUsage.TEXTURE_BINDING 
+            if(dimensions.length === 1){
+                return {
+                    size: {width: dimensions[0]},
+                    dimension: "1d",
+                    format:format,
+                    usage: defaultUsage
+                }
+            }
+            else if(dimensions.length === 2){
+                let usage = defaultUsage
+                if(colorAttachment){
+                    usage = usage | GPUTextureUsage.RENDER_ATTACHMENT
+                }
+                return {
+                    size: {width: dimensions[0], height: dimensions[1]},
+                    dimension: "2d",
+                    format:format,
+                    usage: usage
+                }
+            }
+            else {// if(dimensions.length === 2){
+                return {
+                    size: {width: dimensions[0], height: dimensions[1], depthOrArrayLayers: dimensions[2]},
+                    dimension: "3d",
+                    format:format,
+                    usage: defaultUsage
+                }
+            }
+        }
+        return this.device!.createTexture(getDescriptor())
     }
 
     async deviceToHost(field: Field, offsetBytes: number = 0, sizeBytes: number = 0): Promise<FieldHostSideCopy> {

@@ -1,4 +1,4 @@
-import { OneTimeCompiler } from '../frontend/Compiler'
+import { KernelCompiler } from '../frontend/Compiler'
 import {Program} from '../program/Program'
 import {PrimitiveType} from "../frontend/Type" 
 
@@ -10,7 +10,7 @@ function addToKernelScope(obj: any){
 function kernel(f:any) : ((...args: any[]) => void) {
     let program = Program.getCurrentProgram()
     program.materializeCurrentTree()
-    let compiler = new OneTimeCompiler(program.globalScopeObj)
+    let compiler = new KernelCompiler(program.globalScopeObj)
     let kernelParams = compiler.compileKernel(f)
     let kernel = program.runtime!.createKernel(kernelParams)
     let result = async (...args: any[]) => {

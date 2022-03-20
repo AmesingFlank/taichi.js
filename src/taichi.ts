@@ -1,6 +1,8 @@
 
 import { taichiExample6Fractal } from './examples/taichi6_fractal/main'
 import { taichiExample7VortexRing } from './examples/taichi7_vortex_ring/main'
+import { simpleGraphicsExample } from './examples/graphics_simple/main'
+
 import { Canvas } from "./ui/Canvas"
 
 import { runAllTests } from "./tests/All"
@@ -15,7 +17,8 @@ const ti = {
 
     taichiExample6Fractal,
     taichiExample7VortexRing,
-
+    simpleGraphicsExample,
+    
     runAllTests,
 
     init,

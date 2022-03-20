@@ -131,6 +131,49 @@ class Field {
     }
 }
 
+class Texture {
+    constructor(
+        public dimensions: number[],
+        public primitiveType: PrimitiveType,
+        public numComponents:number
+    ){
+        assert(dimensions.length <= 3 && dimensions.length >= 1, "texture dimensions must be >= 1 and <= 3")
+        assert(numComponents === 1 || numComponents === 2 || numComponents === 4 , "texture dimensions must be 1, 2, or 4")
+        this.texture = Program.getCurrentProgram().runtime!.createGPUTexture(dimensions,this.getGPUTextureFormat(), this.canUseAsRengerTarget())
+        this.textureId = Program.getCurrentProgram().runtime!.addTexture(this)
+    }
 
+    private texture:GPUTexture
+    public textureId: number
 
-export { Field }
+    getGPUTextureFormat() : GPUTextureFormat {
+        switch(this.primitiveType){
+            case PrimitiveType.f32:{
+                switch(this.numComponents){
+                    case 1: return "r32float"
+                    case 2: return "rg32float"
+                    case 4: return "rgba32float"
+                }
+            }
+            case PrimitiveType.i32:{
+                switch(this.numComponents){
+                    case 1: return "r32sint"
+                    case 2: return "rg32sint"
+                    case 4: return "rgba32sint"
+                }
+            }
+        }
+        error("[Bug] format error")
+        return 'rgba32float'
+    }
+
+    canUseAsRengerTarget(){
+        return this.primitiveType === PrimitiveType.f32
+    }
+    
+    getGPUTexture() : GPUTexture {
+        return this.texture
+    }
+}
+
+export { Field, Texture }

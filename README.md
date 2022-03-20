@@ -4,7 +4,7 @@
 
 ## Zoo
 
-On Chrome v94+, visit https://amesingflank.github.io/taichi.js/zoo/index.html to see taichi.js in action. The webpage provides an interactive code editor that allows you to write, compile, and run taichi code.
+On Chrome v98+, visit https://amesingflank.github.io/taichi.js/zoo/index.html to see taichi.js in action. The webpage provides an interactive code editor that allows you to write, compile, and run taichi code.
 
 ## Sample Program
 
@@ -66,7 +66,7 @@ The canvas will show the following animation:
 ### Set-up WebGPU
 
 `taichi.js` is based on WebGPU, but WebGPU is not publicly available yet. To enable WebGPU, the web browser must be either
-* Chrome v94+, with a correct [WebGPU origin trial token](https://github.com/GoogleChrome/OriginTrials/blob/gh-pages/developer-guide.md) for your host.
+* Chrome v98+, with a correct [WebGPU origin trial token](https://github.com/GoogleChrome/OriginTrials/blob/gh-pages/developer-guide.md) for your host.
 
   The origin trial token should look something like
   ```html

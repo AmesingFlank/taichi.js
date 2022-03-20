@@ -28,7 +28,7 @@ export class CompilerContext {
 }
 
 enum LoopKind {
-    For, While, StaticFor
+    For, While, StaticFor, VertexFor, FragmentFor
 }
 
 class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<Stmt>, but we don't have the types yet
@@ -58,6 +58,11 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
     protected hasRet: boolean = false
     protected lastVisitedNode: ts.Node | null = null
 
+    private startedVertex = false
+    private finishedVertex = false
+    private startedFragment = false
+    private finishedFragment = false
+
     buildIR(code: any) {
         let codeString = code.toString()
 
@@ -85,7 +90,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             let func = statements[0] as ts.FunctionDeclaration
             this.compilationResultName = func.name!.text
             this.registerArguments(func.parameters)
-            this.visitEachChild(func.body!)
+            this.visitInputFunctionBody(func.body!)
         }
         else if (statements[0].kind === ts.SyntaxKind.ExpressionStatement &&
             (statements[0] as ts.ExpressionStatement).expression.kind === ts.SyntaxKind.ArrowFunction) {
@@ -93,7 +98,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             this.registerArguments(func.parameters)
             let body = func.body
             if (body.kind === ts.SyntaxKind.Block) {
-                this.visitEachChild(func.body)
+                this.visitInputFunctionBody(body)
             }
             else {
                 // then this is an immediately-returning function, e.g. (x,y) => x+y
@@ -103,9 +108,18 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         }
     }
 
+    protected visitInputFunctionBody(body:ts.Block|ts.ConciseBody){
+        this.visitEachChild(body)
+    }
+
     protected override dispatchVisit(node: ts.Node): VisitorResult<Value> {
         if (this.returnValue) {
             this.errorNode(node, "If there is a `return`, it must be the final statement of the function")
+        }
+        if(this.finishedVertex && !this.startedFragment){
+            if(!this.isFragmentFor(node)){
+                this.errorNode(node, "No statements allowed between the vertex shader and the fragment shader") 
+            }
         }
         this.lastVisitedNode = node
         return super.dispatchVisit(node)
@@ -777,7 +791,10 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
     }
 
     protected override visitContinueStatement(node: ts.ContinueStatement): VisitorResult<Value> {
-        this.assertNode(node, this.loopStack.length > 0 && this.loopStack[this.loopStack.length - 1] !== LoopKind.StaticFor, "continue must be used inside a non-static loop")
+        this.assertNode(node, this.loopStack.length > 0 && (this.loopStack[this.loopStack.length - 1] === LoopKind.For || this.loopStack[this.loopStack.length - 1] === LoopKind.While), "continue must be used inside a non-static loop")
+        if(this.loopStack[this.loopStack.length - 1] === LoopKind.VertexFor ||this.loopStack[this.loopStack.length - 1] === LoopKind.FragmentFor ){
+            this.errorNode(node, "continue cannot be used for Vertex-For or Fragment-For")
+        }
         this.irBuilder.create_continue()
     }
 
@@ -903,6 +920,78 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         }
     }
 
+    protected isAtTopLevel(){
+        return this.loopStack.length === 0 && this.branchDepth === 0
+    }
+
+    protected isFragmentFor(node:ts.Node):boolean{
+        if(node.kind !== ts.SyntaxKind.ForOfStatement){
+            return false
+        }
+        let forOfNode = node as ts.ForOfStatement
+
+        if (forOfNode.expression.kind !== ts.SyntaxKind.CallExpression) {
+            return false
+        }
+        let callExpr = forOfNode.expression as ts.CallExpression
+        let calledFunctionExpr = callExpr.expression
+        let calledFunctionText = calledFunctionExpr.getText()
+        return calledFunctionText === "fragment_input" || calledFunctionText === "ti.fragment_input"
+    }
+
+    protected visitVertexFor(indexSymbols: ts.Symbol[], vertexArgs: ts.NodeArray<ts.Expression>, body: ts.Statement): VisitorResult<Value> {
+        if(!this.isAtTopLevel()){
+            this.errorNode(null, "Vertex-For must be top-level")
+        }
+        this.assertNode(null, indexSymbols.length === 1, "Expecting exactly 1 vertex declaration")
+        if(vertexArgs.length === 0){
+            this.errorNode(null, "Expecting vertex buffer and optionally index buffer")
+        }
+        if(vertexArgs.length >= 3){
+            this.errorNode(null, "Expecting only vertex buffer and index buffer")
+        }
+        // this.assertNode(null, rangeExpr.length === 1, "Expecting exactly 1 argument in range()")
+        // let rangeLengthExpr = rangeExpr[0]
+        // let rangeLengthValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(rangeLengthExpr)))
+        // rangeLengthValue = this.castTo(rangeLengthValue, PrimitiveType.i32)
+        // this.assertNode(null, rangeLengthValue.getType().getCategory() === TypeCategory.Scalar, "range must be scalar")
+
+        // if (shouldUnroll) {
+        //     this.assertNode(null, rangeLengthValue.isCompileTimeConstant(), "for static range loops, the range must be a compile time constant")
+        //     let rangeLength = rangeLengthValue.compileTimeConstants[0]
+        //     this.loopStack.push(LoopKind.StaticFor)
+        //     for (let i = 0; i < rangeLength; ++i) {
+        //         let indexValue = ValueUtils.makeConstantScalar(i, this.irBuilder.get_int32(i), PrimitiveType.i32)
+        //         this.symbolTable.set(indexSymbols[0], indexValue)
+        //         this.dispatchVisit(body)
+        //     }
+        //     this.loopStack.pop()
+        // }
+        // else {
+        //     let zero = this.irBuilder.get_int32(0)
+        //     let loop = this.irBuilder.create_range_for(zero, rangeLengthValue.stmts[0], 0, 4, 0, false);
+
+        //     let loopGuard = this.irBuilder.get_range_loop_guard(loop);
+        //     let indexStmt = this.irBuilder.get_loop_index(loop, 0);
+        //     let indexValue = ValueUtils.makeScalar(indexStmt, PrimitiveType.i32)
+        //     this.symbolTable.set(indexSymbols[0], indexValue)
+
+        //     this.loopStack.push(LoopKind.For)
+        //     this.dispatchVisit(body)
+        //     this.loopStack.pop()
+
+        //     loopGuard.delete()
+        // }
+        this.errorNode(null, "Vertex-For not allowed here.")
+    }
+
+    protected visitFragmentFor(indexSymbols: ts.Symbol[], fragmentArgs: ts.NodeArray<ts.Expression>, body: ts.Statement): VisitorResult<Value> {
+        if(!this.isAtTopLevel()){
+            this.errorNode(null, "Fragment-For must be top-level")
+        }
+        this.errorNode(null, "Fragment-For not allowed here.")
+    }
+
     protected override visitForOfStatement(node: ts.ForOfStatement): VisitorResult<Value> {
         this.assertNode(node, node.initializer.kind === ts.SyntaxKind.VariableDeclarationList,
             "Expecting a `let` variable declaration list, got ", node.initializer.getText(), " ", node.initializer.kind)
@@ -923,6 +1012,12 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             }
             else if (calledFunctionText === "ndrange" || calledFunctionText === "ti.ndrange") {
                 return this.visitNdrangeFor(loopIndexSymbols, callExpr.arguments, node.statement, false)
+            }
+            else if (calledFunctionText === "vertex_input" || calledFunctionText === "ti.vertex_input") {
+                return this.visitVertexFor(loopIndexSymbols, callExpr.arguments, node.statement)
+            }
+            else if (calledFunctionText === "fragment_input" || calledFunctionText === "ti.fragment_input") {
+                return this.visitFragmentFor(loopIndexSymbols, callExpr.arguments, node.statement)
             }
             else if (calledFunctionText === "static" || calledFunctionText === "ti.static") {
                 let errMsg = "expecting a single range(...) or ndrange(...) within static(...)"
@@ -991,8 +1086,16 @@ export class InliningCompiler extends CompilingVisitor {
             this.returnValue = new Value(new VoidType())
         }
     }
+
+    protected override visitVertexFor(indexSymbols: ts.Symbol[], vertexArgs: ts.NodeArray<ts.Expression>, body: ts.Statement): VisitorResult<Value> {
+        this.errorNode(null, "Vertex-For not allowed in non-kernel functions")
+    }
+
+    protected override visitFragmentFor(indexSymbols: ts.Symbol[], fragmentArgs: ts.NodeArray<ts.Expression>, body: ts.Statement): VisitorResult<Value> {
+        this.errorNode(null, "Fragment-For not allowed in non-kernel functions")
+    }
 }
-export class OneTimeCompiler extends CompilingVisitor {
+export class KernelCompiler extends CompilingVisitor {
     constructor(scope: GlobalScope) {
         let irBuilder = new nativeTaichi.IRBuilder()
         let builtinOps = BuiltinOpFactory.getBuiltinOps(irBuilder)
@@ -1034,12 +1137,7 @@ export class OneTimeCompiler extends CompilingVisitor {
             //console.log(bindings)
             let rangeHint: string = task.get_range_hint()
             let workgroupSize = task.get_gpu_block_size()
-            taskParams.push({
-                code: wgsl,
-                rangeHint,
-                workgroupSize,
-                bindings
-            })
+            taskParams.push(new TaskParams(wgsl, rangeHint,workgroupSize,bindings))
         }
         this.nativeKernel.delete()
         this.irBuilder.delete()
@@ -1072,3 +1170,4 @@ export class OneTimeCompiler extends CompilingVisitor {
         }
     }
 }
+ 
