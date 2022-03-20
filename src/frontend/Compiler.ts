@@ -538,6 +538,58 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             }
         }
 
+        if(funcText === "ti.output_vertex" || funcText === "output_vertex" ){
+            this.assertNode(node, getArgumentValues().length === 1, "output_vertex() must have exactly 1 argument")
+            let vertexOutput = getArgumentValues()[0]
+            this.assertNode(node,this.startedVertex && !this.finishedVertex, "output_vertex() can only be used inside a vertex-for")
+            this.assertNode(node, this.currentRenderPipelineParams !== null, "[Compiler bug]")
+            this.currentRenderPipelineParams!.interpolatedType = vertexOutput.getType()
+            let prims = vertexOutput.getType().getPrimitivesList()
+            for(let i = 0;i<prims.length;++i){
+                this.irBuilder.create_vertex_output(i, vertexOutput.stmts[i])
+            }
+            return
+        }
+
+        if(funcText === "ti.output_fragment" || funcText === "output_fragment" ){
+            this.assertNode(node,this.startedFragment, "output_fragment() can only be used inside a fragment-for")
+            this.assertNode(node, this.currentRenderPipelineParams !== null , "[Compiler bug]")
+
+            this.assertNode(node, node.arguments.length === 2, "output_fragment() must have exactly 2 arguments, one for output texture, the other for the output value")
+            let renderTargetText = node.arguments[0].getText()
+            this.assertNode(node, this.scope.canEvaluate(renderTargetText), "the first argument of output_fragment() must be a texture object that's visible in kernel scope")
+            let renderTarget = this.scope.tryEvaluate(renderTargetText)
+            this.assertNode(node, renderTarget instanceof Texture, "the first argument of output_fragment() must be a texture object that's visible in kernel scope")
+            let targetTexture = renderTarget as Texture
+            let targetLocation = -1
+            let existingTargets = this.currentRenderPipelineParams!.fragment.outputTexutres
+            for(let i = 0; i < existingTargets.length;++i){
+                if(existingTargets[i].textureId === targetTexture.textureId){
+                    targetLocation =  i
+                    break
+                }
+            }
+            if(targetLocation === -1){
+                // a new target
+                targetLocation = existingTargets.length
+                existingTargets.push(targetTexture)
+            }
+
+            let fragOutput = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.arguments[1])))
+            this.assertNode(node, fragOutput.getType().getCategory() === TypeCategory.Vector, "frag output must be a vector")
+            let outputVecType = fragOutput.getType() as VectorType
+            this.assertNode(node, outputVecType.getNumRows() === 1 || outputVecType.getNumRows() === 2 || outputVecType.getNumRows() === 4, "output vector component count must be 1, 2, or 4")
+
+            let stmtsVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
+
+            for(let i = 0; i < fragOutput.stmts.length;++i){
+                stmtsVec.push_back(fragOutput.stmts[i]) 
+            }
+
+            this.irBuilder.create_fragment_output(targetLocation, stmtsVec)
+            return
+        }
+
         if (node.expression.kind === ts.SyntaxKind.PropertyAccessExpression) {
             let access = node.expression as ts.PropertyAccessExpression
             let obj = access.expression
@@ -561,62 +613,9 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
                 }
                 return op.apply(allArgumentValues)
             }
+        } 
 
-        }
-
-        if(funcText === "ti.output_vertex" || funcText === "output_vertex" ){
-            this.assertNode(node, getArgumentValues().length === 1, "output_vertex() must have exactly 1 argument")
-            let vertexOutput = getArgumentValues()[0]
-            this.assertNode(node,this.startedVertex && !this.finishedVertex, "output_vertex() can only be used inside a vertex-for")
-            this.assertNode(node, this.currentRenderPipelineParams !== null, "[Compiler bug]")
-            this.currentRenderPipelineParams!.interpolatedType = vertexOutput.getType()
-            let prims = vertexOutput.getType().getPrimitivesList()
-            for(let i = 0;i<prims.length;++i){
-                this.irBuilder.create_vertex_output(i, vertexOutput.stmts[i])
-            }
-            return
-        }
-
-        if(funcText === "ti.output_fragment" || funcText === "output_fragment" ){
-            this.assertNode(node,this.startedFragment, "output_vertex() can only be used inside a fragment-for")
-            this.assertNode(node, this.currentRenderPipelineParams !== null , "[Compiler bug]")
-
-            this.assertNode(node, getArgumentValues().length === 2, "output_fragment() must have exactly 2 arguments, one for output texture, the other for the output value")
-            let renderTargetText = node.arguments[0].getText()
-            this.assertNode(node, this.scope.canEvaluate(renderTargetText), "the first argument of output_fragment() must be a texture object that's visible in kernel scope")
-            let renderTarget = this.scope.tryEvaluate(renderTargetText)
-            this.assertNode(node, renderTarget instanceof Texture, "the first argument of output_fragment() must be a texture object that's visible in kernel scope")
-            let targetTexture = renderTarget as Texture
-            let targetLocation = -1
-            let existingTargets = this.currentRenderPipelineParams!.fragment.outputTexutres
-            for(let i = 0; i < existingTargets.length;++i){
-                if(existingTargets[i].textureId === targetTexture.textureId){
-                    targetLocation =  i
-                    break
-                }
-            }
-            if(targetLocation === -1){
-                // a new target
-                targetLocation = existingTargets.length
-                existingTargets.push(targetTexture)
-            }
-
-            let fragOutput = getArgumentValues()[1]
-            this.assertNode(node, fragOutput.getType().getCategory() === TypeCategory.Vector, "frag output must be a vector")
-            let outputVecType = fragOutput.getType() as VectorType
-            this.assertNode(node, outputVecType.getNumRows() === 1 || outputVecType.getNumRows() === 2 || outputVecType.getNumRows() === 4, "output vector component count must be 1, 2, or 4")
-
-            let stmtsVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
-
-            for(let i = 0; i < fragOutput.stmts.length;++i){
-                stmtsVec.push_back(fragOutput.stmts[i]) 
-            }
-
-            this.irBuilder.create_fragment_output(targetLocation, stmtsVec)
-            return
-        }
-
-        this.errorNode(node, "unresolved function: " + funcText)
+        this.errorNode(node, "unresolved function call: " + funcText)
     }
 
     protected override visitElementAccessExpression(node: ts.ElementAccessExpression): VisitorResult<Value> {
@@ -1010,7 +1009,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         let callExpr = forOfNode.expression as ts.CallExpression
         let calledFunctionExpr = callExpr.expression
         let calledFunctionText = calledFunctionExpr.getText()
-        return calledFunctionText === "fragment_input" || calledFunctionText === "ti.fragment_input"
+        return calledFunctionText === "input_fragments" || calledFunctionText === "ti.input_fragments"
     }
 
     protected visitVertexFor(indexSymbols: ts.Symbol[], vertexArgs: ts.NodeArray<ts.Expression>, body: ts.Statement): VisitorResult<Value> {
@@ -1029,20 +1028,32 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
         }
         if (vertexArgs.length >= 1) {
             let argText = vertexArgs[0].getText()
-            if(!this.scope.canEvaluate(argText)){
+            if(this.scope.canEvaluate(argText)){
                 let arg = this.scope.tryEvaluate(argText)
                 if(arg instanceof Field){
                     this.currentRenderPipelineParams.vertex.VBO = arg
                 }
+                else{
+                    this.errorNode(null, `the vertex buffer must be an instance of taichi field`)
+                }
+            }
+            else{
+                this.errorNode(null, `the vertex buffer ${argText} cannot be evaluated in kernel scope`)
             }
         }
         if (vertexArgs.length >= 2) {
             let argText = vertexArgs[1].getText()
-            if(!this.scope.canEvaluate(argText)){
+            if(this.scope.canEvaluate(argText)){
                 let arg = this.scope.tryEvaluate(argText)
                 if(arg instanceof Field){
                     this.currentRenderPipelineParams.vertex.IBO = arg
                 }
+                else{
+                    this.errorNode(null, `the index buffer must be an instance of taichi field`)
+                }
+            }
+            else{
+                this.errorNode(null, `the vertex buffer ${argText} cannot be evaluated in kernel scope`)
             }
         }
         if (vertexArgs.length >= 3) {
@@ -1085,7 +1096,7 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
 
         this.assertNode(null, this.currentRenderPipelineParams !== null, "[Compiler bug]")
         if (fragmentArgs.length !== 0) {
-            this.errorNode(null, "Expecting no arguments in fragment_input()")
+            this.errorNode(null, "Expecting no arguments in input_fragments()")
         } 
 
         let loop = this.irBuilder.create_fragment_for();
@@ -1141,10 +1152,10 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             else if (calledFunctionText === "ndrange" || calledFunctionText === "ti.ndrange") {
                 return this.visitNdrangeFor(loopIndexSymbols, callExpr.arguments, node.statement, false)
             }
-            else if (calledFunctionText === "vertex_input" || calledFunctionText === "ti.vertex_input") {
+            else if (calledFunctionText === "input_vertices" || calledFunctionText === "ti.input_vertices") {
                 return this.visitVertexFor(loopIndexSymbols, callExpr.arguments, node.statement)
             }
-            else if (calledFunctionText === "fragment_input" || calledFunctionText === "ti.fragment_input") {
+            else if (calledFunctionText === "input_fragments" || calledFunctionText === "ti.input_fragments") {
                 return this.visitFragmentFor(loopIndexSymbols, callExpr.arguments, node.statement)
             }
             else if (calledFunctionText === "static" || calledFunctionText === "ti.static") {
