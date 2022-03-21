@@ -1,6 +1,6 @@
 import { PrimitiveType, StructType, Type, VoidType } from "../frontend/Type"
 import { nativeTaichi, NativeTaichiAny } from "../native/taichi/GetTaichi"
-import { Field, Texture } from "../program/Field"
+import { Field, Texture, TextureBase } from "../program/Field"
 import { assert, error } from "../utils/Logging"
 enum BufferType {
     Root, GlobalTmps, Args, RandStates, Rets
@@ -44,7 +44,7 @@ class FragmentShaderParams {
     constructor(
         public code: string = "",
         public bindings: BufferBinding[] = [],
-        public outputTexutres: Texture[] = []
+        public outputTexutres: TextureBase [] = []
     ) {
 
     }

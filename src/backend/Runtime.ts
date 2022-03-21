@@ -2,7 +2,7 @@ import { CompiledTask, CompiledKernel, TaskParams, BufferType, KernelParams, Buf
 import { SNodeTree } from '../program/SNodeTree'
 import { divUp, int32ArrayToElement } from '../utils/Utils'
 import { assert, error } from "../utils/Logging"
-import { Field, Texture } from '../program/Field'
+import { Field, Texture, TextureBase } from '../program/Field'
 import { PrimitiveType, TypeCategory, TypeUtils } from '../frontend/Type'
 class MaterializedTree {
     tree?: SNodeTree
@@ -24,7 +24,7 @@ class Runtime {
     device: GPUDevice | null = null
     kernels: CompiledKernel[] = []
     private materializedTrees: MaterializedTree[] = []
-    private textures: Texture[] = []
+    private textures: TextureBase[] = []
 
     private globalTmpsBuffer: GPUBuffer | null = null
     private randStatesBuffer: GPUBuffer | null = null
@@ -188,7 +188,12 @@ class Runtime {
                     renderEncoder!.setIndexBuffer(iboTree.rootBuffer!, "uint32", task.params.vertex.IBO.offsetBytes, task.params.vertex.IBO.sizeBytes)
                 }
 
-                renderEncoder!.draw(task.getVertexCount())
+                if(task.params.vertex.IBO){
+                    renderEncoder!.drawIndexed(task.getVertexCount())
+                }
+                else{
+                    renderEncoder!.draw(task.getVertexCount())
+                }
             }
         }
         endCompute()
@@ -316,7 +321,7 @@ class Runtime {
         this.materializedTrees.push(materialized)
     }
 
-    addTexture(texture: Texture){
+    addTexture(texture: TextureBase){
         let id = this.textures.length
         this.textures.push(texture)
         return id
@@ -355,6 +360,20 @@ class Runtime {
             }
         }
         return this.device!.createTexture(getDescriptor())
+    }
+
+    createGPUCanvasContext(htmlCanvas: HTMLCanvasElement) : [GPUCanvasContext, GPUTextureFormat] {
+        let context = htmlCanvas.getContext('webgpu') 
+        if(context===null){
+            error("canvas webgpu context is null")
+        }
+        let presentationFormat = context!.getPreferredFormat(this.adapter!)
+
+        context!.configure({
+          device: this.device!,
+          format: presentationFormat,
+        })
+        return [context!, presentationFormat]
     }
 
     async deviceToHost(field: Field, offsetBytes: number = 0, sizeBytes: number = 0): Promise<FieldHostSideCopy> {

@@ -1,5 +1,5 @@
 import { Program } from '../program/Program'
-import { Field, Texture } from '../program/Field'
+import { CanvasTexture, Field, Texture } from '../program/Field'
 import { PrimitiveType, Type, ScalarType, VectorType, MatrixType, StructType } from "../frontend/Type"
 
 
@@ -35,4 +35,8 @@ let texture = (primitiveType: PrimitiveType, numComponents:number, dimensions: n
     return new Texture(primitiveType,numComponents,dimensions)
 }
 
-export { field, Vector, Matrix, Struct, texture }
+let canvasTexture = (canvas: HTMLCanvasElement) => {
+    return new CanvasTexture(canvas)
+}
+
+export { field, Vector, Matrix, Struct, texture, canvasTexture }

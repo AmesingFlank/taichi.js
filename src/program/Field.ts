@@ -131,7 +131,15 @@ class Field {
     }
 }
 
-class Texture {
+
+interface TextureBase {
+    getGPUTextureFormat() : GPUTextureFormat
+    canUseAsRengerTarget(): boolean;
+    getGPUTexture() : GPUTexture;
+    textureId: number
+}
+
+class Texture implements TextureBase{
     constructor(
         public primitiveType: PrimitiveType,
         public numComponents:number,
@@ -144,7 +152,7 @@ class Texture {
     }
 
     private texture:GPUTexture
-    public textureId: number
+    textureId: number
 
     getGPUTextureFormat() : GPUTextureFormat {
         switch(this.primitiveType){
@@ -176,4 +184,28 @@ class Texture {
     }
 }
 
-export { Field, Texture }
+class CanvasTexture implements TextureBase{
+    constructor(public htmlCanvas:HTMLCanvasElement){
+        let contextAndFormat = Program.getCurrentProgram().runtime!.createGPUCanvasContext(htmlCanvas)
+        this.context = contextAndFormat[0]
+        this.format = contextAndFormat[1]
+        this.textureId = Program.getCurrentProgram().runtime!.addTexture(this)
+    }
+    context:GPUCanvasContext
+    format: GPUTextureFormat
+    textureId: number
+
+    getGPUTextureFormat() : GPUTextureFormat {
+        return this.format
+    }
+
+    canUseAsRengerTarget(){
+        return true
+    }
+    
+    getGPUTexture() : GPUTexture {
+        return this.context.getCurrentTexture()
+    }
+}
+
+export { Field, TextureBase, Texture, CanvasTexture }

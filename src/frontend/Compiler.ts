@@ -5,7 +5,7 @@ import { CompiledKernel, TaskParams, BufferBinding, BufferType, KernelParams, Re
 import { nativeTaichi, NativeTaichiAny } from '../native/taichi/GetTaichi'
 import { error, assert } from '../utils/Logging'
 import { GlobalScope } from "../program/GlobalScope";
-import { Field, Texture } from "../program/Field";
+import { CanvasTexture, Field, Texture, TextureBase } from "../program/Field";
 import { Program } from "../program/Program";
 import { getStmtKind, StmtKind } from "./Stmt"
 import { getWgslShaderBindings, getWgslShaderStage, WgslShaderStage } from "./WgslReflection"
@@ -579,8 +579,8 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
             let renderTargetText = node.arguments[0].getText()
             this.assertNode(node, this.scope.canEvaluate(renderTargetText), "the first argument of output_color() must be a texture object that's visible in kernel scope")
             let renderTarget = this.scope.tryEvaluate(renderTargetText)
-            this.assertNode(node, renderTarget instanceof Texture, "the first argument of output_color() must be a texture object that's visible in kernel scope")
-            let targetTexture = renderTarget as Texture
+            this.assertNode(node, renderTarget instanceof Texture || renderTarget instanceof CanvasTexture, "the first argument of output_color() must be a texture object that's visible in kernel scope")
+            let targetTexture = renderTarget as TextureBase
             let targetLocation = -1
             let existingTargets = this.currentRenderPipelineParams!.fragment.outputTexutres
             for(let i = 0; i < existingTargets.length;++i){

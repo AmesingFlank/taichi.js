@@ -9,7 +9,7 @@ import { runAllTests } from "./tests/All"
 
 import { init } from './api/Init'
 import { addToKernelScope, kernel, func, i32, f32, sync } from './api/Lang'
-import { field, Vector, Matrix, Struct, texture } from "./api/Fields"
+import { field, Vector, Matrix, Struct, texture, canvasTexture } from "./api/Fields"
 import { range, ndrange } from "./api/KernelScopeBuiltin"
 import { types } from './api/Types'
 
@@ -24,7 +24,7 @@ const ti = {
     init,
     kernel, func,
     addToKernelScope,
-    field, Vector, Matrix, Struct, texture ,
+    field, Vector, Matrix, Struct, texture , canvasTexture,
     i32, f32,
     range, ndrange,
     sync,
