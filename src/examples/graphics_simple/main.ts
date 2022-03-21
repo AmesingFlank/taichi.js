@@ -9,8 +9,8 @@ let simpleGraphicsExample = async (htmlCanvas:HTMLCanvasElement) => {
     let VBO = ti.field(Vertex, 100)
     let target = ti.texture(ti.f32, 4, [1024,1024])
     let SSBO = ti.field(ti.f32, 100)
-    
-    ti.addToKernelScope({VBO, target, SSBO})
+     
+    ti.addToKernelScope({VBO, target, SSBO, SSBO2})
     
     let pipeline = ti.kernel(
         () => {
@@ -18,7 +18,7 @@ let simpleGraphicsExample = async (htmlCanvas:HTMLCanvasElement) => {
                 SSBO[i] = i
             }
             for(let v of ti.input_vertices(VBO)){
-                v.pos = v.pos + SSBO[0]
+                v.pos = v.pos
                 ti.output_vertex(v)
                 ti.output_position(v.pos.xyyx)
             }

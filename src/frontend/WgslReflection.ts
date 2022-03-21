@@ -1,4 +1,5 @@
 import { BufferBinding, BufferType } from "../backend/Kernel";
+import { error } from "../utils/Logging";
 
 // hacky af
 function getWgslShaderBindings(wgsl:string):BufferBinding[] {
@@ -67,4 +68,22 @@ function getWgslShaderBindings(wgsl:string):BufferBinding[] {
 }
 
 
-export { getWgslShaderBindings}
+enum WgslShaderStage {
+    Compute, Vertex, Fragment
+}
+
+function getWgslShaderStage(wgsl:string) : WgslShaderStage {
+    if(wgsl.indexOf("@stage(compute)") !== -1){
+        return WgslShaderStage.Compute
+    }
+    if(wgsl.indexOf("@stage(vertex)") !== -1){
+        return WgslShaderStage.Vertex
+    }
+    if(wgsl.indexOf("@stage(fragment)") !== -1){
+        return WgslShaderStage.Fragment
+    }
+    error("could not infer stage of wgsl shader: ", wgsl);
+    return  WgslShaderStage.Compute
+}
+
+export { getWgslShaderBindings, WgslShaderStage, getWgslShaderStage}

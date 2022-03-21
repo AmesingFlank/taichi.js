@@ -8,7 +8,7 @@ import { GlobalScope } from "../program/GlobalScope";
 import { Field, Texture } from "../program/Field";
 import { Program } from "../program/Program";
 import { getStmtKind, StmtKind } from "./Stmt"
-import { getWgslShaderBindings } from "./WgslReflection"
+import { getWgslShaderBindings, getWgslShaderStage, WgslShaderStage } from "./WgslReflection"
 import { LibraryFunc } from "./Library";
 import { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, TypeUtils, PrimitiveType, toNativePrimitiveType, TypeError } from "./Type"
 import { Value, ValueUtils } from "./Value"
@@ -59,12 +59,12 @@ class CompilingVisitor extends ASTVisitor<Value>{ // It's actually a ASTVisitor<
     protected lastVisitedNode: ts.Node | null = null
 
     // vert/frag shader compilation state
-    private startedVertex = false
-    private finishedVertex = false
-    private startedFragment = false 
+    protected startedVertex = false
+    protected finishedVertex = false
+    protected startedFragment = false 
 
-    private renderPipelineParams: RenderPipelineParams[] = []
-    private currentRenderPipelineParams: RenderPipelineParams | null = null
+    protected renderPipelineParams: RenderPipelineParams[] = []
+    protected currentRenderPipelineParams: RenderPipelineParams | null = null
 
     buildIR(code: any) {
         let codeString = code.toString()
@@ -1285,18 +1285,37 @@ export class KernelCompiler extends CompilingVisitor {
         Program.getCurrentProgram().nativeAotBuilder.add(this.compilationResultName, this.nativeKernel);
 
         let tasks = nativeTaichi.get_kernel_params(Program.getCurrentProgram().nativeAotBuilder, this.compilationResultName);
-        let taskParams: TaskParams[] = []
+        let taskParams: (TaskParams | RenderPipelineParams)[] = []
         let numTasks = tasks.size()
+        let currentRenderPipelineParamsId = 0
         for (let i = 0; i < numTasks; ++i) {
             let task = tasks.get(i)
             let wgsl: string = task.get_wgsl()
-            //console.log(wgsl)
-
+            let stage = getWgslShaderStage(wgsl)
             let bindings = getWgslShaderBindings(wgsl)
-            //console.log(bindings)
-            let rangeHint: string = task.get_range_hint()
-            let workgroupSize = task.get_gpu_block_size()
-            taskParams.push(new TaskParams(wgsl, rangeHint, workgroupSize, bindings))
+            if(stage === WgslShaderStage.Compute){
+                let rangeHint: string = task.get_range_hint()
+                let workgroupSize = task.get_gpu_block_size()
+                taskParams.push(new TaskParams(wgsl, rangeHint, workgroupSize, bindings))
+            }
+            else if(stage === WgslShaderStage.Vertex){
+                let params = this.renderPipelineParams[currentRenderPipelineParamsId]
+                params.vertex.code = wgsl
+                if(bindings.length > 0){
+                    this.errorNode(null, "the vertex-shader is not allowed to access taichi fields")
+                }
+                params.vertex.bindings = bindings
+            }
+            else if(stage === WgslShaderStage.Fragment){
+                let params = this.renderPipelineParams[currentRenderPipelineParamsId]
+                params.fragment.code = wgsl
+                params.fragment.bindings = bindings
+
+                params.bindings = params.getBindings()
+                taskParams.push(params)
+                currentRenderPipelineParamsId ++;
+            }
+            //console.log(wgsl)
         }
         this.nativeKernel.delete()
         this.irBuilder.delete()

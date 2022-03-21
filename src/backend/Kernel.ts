@@ -61,7 +61,7 @@ class RenderPipelineParams {
 
     public bindings: BufferBinding[]
 
-    private getBindings() {
+    public getBindings() {
         let bindings: BufferBinding[] = []
         let candidates = this.vertex.bindings.concat(this.fragment.bindings)
         for (let c of candidates) {

@@ -2,19 +2,19 @@ import { Field } from "../program/Field"
 import { Program } from "../program/Program"
 
 const vertShader = `
-struct Input {
+struct StageInput {
   @location(0) position: vec2<f32>;
 };
 
-struct Output {
+struct StageOutput {
   @builtin(position) Position : vec4<f32>;
   @location(5) fragPos: vec2<f32>;
 };
 
 @stage(vertex)
 
-fn main (input: Input) -> Output {
-  var output: Output;
+fn main (input: StageInput) -> StageOutput {
+  var output: StageOutput;
   
   output.Position = vec4<f32>(input.position,0.0,1.0);
   output.fragPos = vec2<f32>(input.position) ;
@@ -23,8 +23,11 @@ fn main (input: Input) -> Output {
 `
 
 export const fragShader = `
-struct Input {
+struct StageInput {
   @location(5) fragPos: vec2<f32>;
+};
+struct StageOutput {
+  @location(0) color: vec4<f32>;
 };
 
 struct RootBufferType {
@@ -45,12 +48,10 @@ var<uniform> ubo : UniformBufferType;
 
 
 @stage(fragment)
-fn main (input: Input) -> @location(0) vec4<f32> {
+fn main (input: StageInput) -> StageOutput {
     var fragPos = input.fragPos;
     fragPos = (fragPos + 1.0 ) / 2.0 ;
-    if(fragPos.x == fragPos.y * 123456.0){
-      return vec4<f32>(f32(ubo.width),f32(ubo.height),f32(rootBuffer.member[0]), 1.0);
-    }
+    
     var working = vec4<f32>(fragPos,0.0, 1.0);
 
     var cellPos = vec2<i32>(i32(fragPos.x*f32(ubo.width)), i32(fragPos.y*f32(ubo.height)));
@@ -62,11 +63,9 @@ fn main (input: Input) -> @location(0) vec4<f32> {
         (rootBuffer.member[ubo.offset + pixelIndex * 4 + 2]),
         (rootBuffer.member[ubo.offset + pixelIndex * 4 + 3])
     );
-
-    //result = vec4<f32>(f32(pixelIndex)/500000.0, 0.0,0.0, 1.0);// + 0.01 * result / (result + 0.01);
-
-    //result = working;
-    return result;
+    var output: StageOutput;
+    output.color = result;
+    return output;
 }
 `
 
