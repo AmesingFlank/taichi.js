@@ -438,11 +438,10 @@ class BuiltinOpFactory {
                 }
                 else if (pointerType.getValueType().getCategory() === TypeCategory.Struct && type1.getCategory() === TypeCategory.Struct) {
                     if (!pointerType.getValueType().equals(type1)) {
-                        error("struct type mismatch")
+                        TypeError.createError("struct type mismatch")
                     }
                     return TypeError.createNoError()
                 }
-                error("[Compiler bug]", "invalid assignemnt")
                 return TypeError.createError("invalid assignment")
             },
             (args: Value[]): Value => {

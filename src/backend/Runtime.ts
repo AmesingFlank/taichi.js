@@ -81,10 +81,6 @@ class Runtime {
         assert(args.length === kernel.argTypes.length,
             `Kernel requires ${kernel.argTypes.length} arguments, but ${args.length} is provided`)
 
-        for (let a of args) {
-            assert(typeof a === "number", "Kernel argument must be numbers")
-        }
-
         let requiresArgsBuffer = false
         let requiresRetsBuffer = false
         let thisArgsBuffer: GPUBuffer | null = null
@@ -103,17 +99,17 @@ class Runtime {
         }
         if (requiresArgsBuffer) {
             let numArgPrims = 0
-            for(let type of kernel.argTypes){
+            for (let type of kernel.argTypes) {
                 numArgPrims += type.getPrimitivesList().length
             }
 
             let argData = new Int32Array(numArgPrims)
             let offset = 0
-            for(let i = 0;i<args.length;++i){
+            for (let i = 0; i < args.length; ++i) {
                 let type = kernel.argTypes[i]
                 let thisArgData = elementToInt32Array(args[i], type)
-                argData.set(thisArgData,offset)
-                offset += type.getPrimitivesList().length 
+                argData.set(thisArgData, offset)
+                offset += type.getPrimitivesList().length
             }
             argsSize = numArgPrims * 4
             thisArgsBuffer = this.addArgsBuffer(argsSize)

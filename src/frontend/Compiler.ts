@@ -1306,10 +1306,10 @@ export class KernelCompiler extends CompilingVisitor {
         let irBuilder = new nativeTaichi.IRBuilder()
         let builtinOps = BuiltinOpFactory.getBuiltinOps(irBuilder)
         let atomicOps = BuiltinOpFactory.getAtomicOps(irBuilder)
-        
+
         super(irBuilder, builtinOps, atomicOps)
 
-        this.kernelArgTypes = [] 
+        this.kernelArgTypes = []
         this.argTypesMap = new Map<string, Type>()
         this.templateArgumentValues = null
     }
