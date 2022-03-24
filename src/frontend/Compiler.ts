@@ -145,7 +145,6 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
     protected kernelScope: Scope = new Scope()
     protected templatedValues: Scope = new Scope()
-    protected scope: Scope = new Scope()
     protected symbolTable: Map<ts.Symbol, Value> = new Map<ts.Symbol, Value>()
     protected parsedFunction: ParsedFunction | null = null
 
@@ -169,7 +168,6 @@ class CompilingVisitor extends ASTVisitor<Value>{
     buildIR(parsedFunction: ParsedFunction, kernelScope: Scope, templatedValues: Scope) {
         this.kernelScope = kernelScope
         this.templatedValues = templatedValues
-        this.scope = Scope.merge(kernelScope, templatedValues)
         this.parsedFunction = parsedFunction
         this.symbolTable = new Map<ts.Symbol, Value>()
 
@@ -197,8 +195,6 @@ class CompilingVisitor extends ASTVisitor<Value>{
             }
         }
     }
-
-
 
     protected visitInputFunctionBody(body: ts.Block | ts.ConciseBody) {
         this.visitEachChild(body)
@@ -239,6 +235,46 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
     protected getNodeSymbol(node: ts.Node): ts.Symbol {
         return this.parsedFunction!.getNodeSymbol(node)
+    }
+
+    // node: an identifier or property access epxreesion
+    // returns a JS value if the expr can be evaluated in kernel scope (i.e. the scope created by ti.addToKernelScope) or in template args
+    protected tryEvalInKernelScopeOrTemplateArgs( node:ts.Node ) : any{
+        let exprText = node.getText()
+        while(node.kind === ts.SyntaxKind.PropertyAccessExpression){
+            let access = node as ts.PropertyAccessExpression
+            node = access.expression
+        } 
+        if(this.hasNodeSymbol(node)){
+            // ts has created a symbol for this node. 
+            // This means the expr isn't "free", in the sense of https://en.wikipedia.org/wiki/Free_variables_and_bound_variables
+            // As a result, it mustn't be treated as a kernel scope expr. 
+            let symbol = this.getNodeSymbol(node)
+            let foundInArgs = false
+            for(let argNode of this.parsedFunction!.argNodes){
+                if (this.getNodeSymbol(argNode.name) === symbol){
+                    foundInArgs = true
+                    break
+                }
+            }
+            if(!foundInArgs){
+                // the node corresponds to a non-argument node, so it is a local var
+                return undefined
+            }
+            if(!this.templatedValues.canEvaluate(exprText)){
+                // a non-template argument
+                return undefined
+            }
+            return this.templatedValues.tryEvaluate(exprText)
+        } 
+        else{
+            // "free" expr. 
+            return this.kernelScope.tryEvaluate(exprText)
+        }
+    }
+
+    protected canEvalInKernelScopeOrTemplateArgs( node:ts.Node ) : boolean {
+        return this.tryEvalInKernelScopeOrTemplateArgs(node) !== undefined
     }
 
 
@@ -526,8 +562,8 @@ class CompilingVisitor extends ASTVisitor<Value>{
         // function semantics: pass by ref for l-values, pass by value for r-values
 
         // user defined funcs
-        if (this.scope.canEvaluate(funcText)) {
-            let funcObj = this.scope.tryEvaluate(funcText)
+        if (this.canEvalInKernelScopeOrTemplateArgs(node.expression)) {
+            let funcObj = this.tryEvalInKernelScopeOrTemplateArgs(node.expression)
             if (typeof funcObj == 'function') {
                 let compiler = new InliningCompiler(this.irBuilder, this.builtinOps, this.atomicOps, funcText)
                 let parsedInlinedFunction = new ParsedFunction(funcObj.toString())
@@ -622,9 +658,8 @@ class CompilingVisitor extends ASTVisitor<Value>{
             this.assertNode(node, this.currentRenderPipelineParams !== null, "[Compiler bug]")
 
             this.assertNode(node, node.arguments.length === 2, "output_color() must have exactly 2 arguments, one for output texture, the other for the output value")
-            let renderTargetText = node.arguments[0].getText()
-            this.assertNode(node, this.scope.canEvaluate(renderTargetText), "the first argument of output_color() must be a texture object that's visible in kernel scope")
-            let renderTarget = this.scope.tryEvaluate(renderTargetText)
+            this.assertNode(node, this.canEvalInKernelScopeOrTemplateArgs(node.arguments[0]), "the first argument of output_color() must be a texture object that's visible in kernel scope")
+            let renderTarget = this.tryEvalInKernelScopeOrTemplateArgs(node.arguments[0])
             this.assertNode(node, renderTarget instanceof Texture || renderTarget instanceof CanvasTexture, "the first argument of output_color() must be a texture object that's visible in kernel scope")
             let targetTexture = renderTarget as TextureBase
             let targetLocation = -1
@@ -690,8 +725,8 @@ class CompilingVisitor extends ASTVisitor<Value>{
         if (base.kind === ts.SyntaxKind.Identifier) {
             let baseName = base.getText()
             // taichi global scope function added via `ti.addToKernelScope`, or template arguments
-            if (this.scope.canEvaluate(baseName) && !this.hasNodeSymbol(base)) {
-                let hostSideValue: any = this.scope.tryEvaluate(baseName)
+            if (this.canEvalInKernelScopeOrTemplateArgs(base)) {
+                let hostSideValue: any = this.tryEvalInKernelScopeOrTemplateArgs(base)
                 if (hostSideValue instanceof Field) {
                     let field = hostSideValue as Field
 
@@ -827,7 +862,8 @@ class CompilingVisitor extends ASTVisitor<Value>{
             }
         }
         let name = node.getText()
-        if (this.scope.canEvaluate(name)) {
+        if (this.canEvalInKernelScopeOrTemplateArgs(node)) {
+            let val = this.tryEvalInKernelScopeOrTemplateArgs(node)
             let getValue = (val: any): Value | undefined => {
                 let fail = () => { this.errorNode(node, "failed to evaluate " + name + " in kernel scope") }
                 if (typeof val === "number") {
@@ -883,7 +919,6 @@ class CompilingVisitor extends ASTVisitor<Value>{
                     return ValueUtils.makeStruct(keys, valuesMap)
                 }
             }
-            let val = this.scope.tryEvaluate(name)
             return getValue(val)
         }
         this.errorNode(node, "unresolved identifier: " + node.getText())
@@ -1096,9 +1131,9 @@ class CompilingVisitor extends ASTVisitor<Value>{
             this.errorNode(null, "Expecting vertex buffer and optionally index buffer")
         }
         if (vertexArgs.length >= 1) {
-            let argText = vertexArgs[0].getText()
-            if (this.scope.canEvaluate(argText)) {
-                let arg = this.scope.tryEvaluate(argText)
+
+            if (this.canEvalInKernelScopeOrTemplateArgs(vertexArgs[0])) {
+                let arg = this.tryEvalInKernelScopeOrTemplateArgs(vertexArgs[0])
                 if (arg instanceof Field) {
                     this.currentRenderPipelineParams.vertex.VBO = arg
                 }
@@ -1107,13 +1142,12 @@ class CompilingVisitor extends ASTVisitor<Value>{
                 }
             }
             else {
-                this.errorNode(null, `the vertex buffer ${argText} cannot be evaluated in kernel scope`)
+                this.errorNode(null, `the vertex buffer ${vertexArgs[0].getText()} cannot be evaluated in kernel scope`)
             }
         }
         if (vertexArgs.length >= 2) {
-            let argText = vertexArgs[1].getText()
-            if (this.scope.canEvaluate(argText)) {
-                let arg = this.scope.tryEvaluate(argText)
+            if (this.canEvalInKernelScopeOrTemplateArgs(vertexArgs[0])) {
+                let arg = this.tryEvalInKernelScopeOrTemplateArgs(vertexArgs[0])
                 if (arg instanceof Field) {
                     this.currentRenderPipelineParams.vertex.IBO = arg
                 }
@@ -1122,7 +1156,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
                 }
             }
             else {
-                this.errorNode(null, `the vertex buffer ${argText} cannot be evaluated in kernel scope`)
+                this.errorNode(null, `the vertex buffer ${vertexArgs[1].getText()} cannot be evaluated in kernel scope`)
             }
         }
         if (vertexArgs.length >= 3) {

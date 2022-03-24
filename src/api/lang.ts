@@ -126,4 +126,4 @@ async function sync() {
 const i32 = PrimitiveType.i32
 const f32 = PrimitiveType.f32
 
-export { addToKernelScope, kernel, func, i32, f32, sync }
+export { addToKernelScope, kernel, func, i32, f32, sync, template }
