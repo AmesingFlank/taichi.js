@@ -44,7 +44,7 @@ class FragmentShaderParams {
     constructor(
         public code: string = "",
         public bindings: BufferBinding[] = [],
-        public outputTexutres: TextureBase [] = []
+        public outputTexutres: TextureBase[] = []
     ) {
 
     }
@@ -83,7 +83,7 @@ class RenderPipelineParams {
 class KernelParams {
     constructor(
         public tasksParams: (TaskParams | RenderPipelineParams)[],
-        public numArgs: number,
+        public argTypes: Type[],
         public returnType: Type
     ) {
 
@@ -208,7 +208,7 @@ class CompiledRenderPipeline {
 class CompiledKernel {
     constructor(
         public tasks: (CompiledTask | CompiledRenderPipeline)[] = [],
-        public numArgs: number = 0,
+        public argTypes: Type[] = [],
         public returnType: Type = new VoidType()
     ) {
 

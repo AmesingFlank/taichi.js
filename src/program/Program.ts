@@ -2,7 +2,7 @@ import {Runtime} from '../backend/Runtime'
 import {SNodeTree} from './SNodeTree'
 import {nativeTaichi, NativeTaichiAny} from '../native/taichi/GetTaichi'
 import {error} from '../utils/Logging'
-import {GlobalScope} from "./GlobalScope"
+import {Scope} from "./Scope"
 
 class Program {
     runtime: Runtime|null = null
@@ -11,7 +11,7 @@ class Program {
     
     nativeProgram : NativeTaichiAny
     nativeAotBuilder: NativeTaichiAny
-    globalScopeObj: GlobalScope 
+    kernelScopeObj: Scope 
 
     private static instance: Program
     private constructor(){
@@ -20,7 +20,7 @@ class Program {
         this.nativeAotBuilder = this.nativeProgram.make_aot_module_builder(arch);
         this.partialTree = new SNodeTree()
         this.partialTree.treeId = 0
-        this.globalScopeObj = new GlobalScope()
+        this.kernelScopeObj = new Scope()
      }
     
     public static getCurrentProgram(): Program{
@@ -55,7 +55,7 @@ class Program {
 
     addToKernelScope(obj: any){
         for(let name in obj){
-            this.globalScopeObj.addStored(name,obj[name])
+            this.kernelScopeObj.addStored(name,obj[name])
         }
     }
 

@@ -1,6 +1,6 @@
 import { CompiledTask, CompiledKernel, TaskParams, BufferType, KernelParams, BufferBinding, CompiledRenderPipeline, RenderPipelineParams } from './Kernel'
 import { SNodeTree } from '../program/SNodeTree'
-import { divUp, int32ArrayToElement } from '../utils/Utils'
+import { divUp, elementToInt32Array, int32ArrayToElement } from '../utils/Utils'
 import { assert, error } from "../utils/Logging"
 import { Field, Texture, TextureBase } from '../program/Field'
 import { PrimitiveType, TypeCategory, TypeUtils } from '../frontend/Type'
@@ -59,16 +59,16 @@ class Runtime {
     createKernel(params: KernelParams): CompiledKernel {
         let kernel = new CompiledKernel()
         for (let taskParams of params.tasksParams) {
-            if(taskParams instanceof TaskParams){
+            if (taskParams instanceof TaskParams) {
                 let task = new CompiledTask(taskParams, this.device!)
                 kernel.tasks.push(task)
             }
-            else if(taskParams instanceof RenderPipelineParams) {
+            else if (taskParams instanceof RenderPipelineParams) {
                 let task = new CompiledRenderPipeline(taskParams, this.device!)
                 kernel.tasks.push(task)
             }
         }
-        kernel.numArgs = params.numArgs
+        kernel.argTypes = params.argTypes
         kernel.returnType = params.returnType
         return kernel
     }
@@ -78,8 +78,8 @@ class Runtime {
     }
 
     async launchKernel(kernel: CompiledKernel, ...args: any[]): Promise<any> {
-        assert(args.length === kernel.numArgs,
-            "Kernel requires " + kernel.numArgs.toString() + " arguments, but " + args.length.toString() + " is provided")
+        assert(args.length === kernel.argTypes.length,
+            `Kernel requires ${kernel.argTypes.length} arguments, but ${args.length} is provided`)
 
         for (let a of args) {
             assert(typeof a === "number", "Kernel argument must be numbers")
@@ -102,11 +102,22 @@ class Runtime {
             }
         }
         if (requiresArgsBuffer) {
-            argsSize = 4 * kernel.numArgs
-            thisArgsBuffer = this.addArgsBuffer(argsSize)
-            if (kernel.numArgs > 0) {
-                new Float32Array(thisArgsBuffer.getMappedRange()).set(new Float32Array(args))
+            let numArgPrims = 0
+            for(let type of kernel.argTypes){
+                numArgPrims += type.getPrimitivesList().length
             }
+
+            let argData = new Int32Array(numArgPrims)
+            let offset = 0
+            for(let i = 0;i<args.length;++i){
+                let type = kernel.argTypes[i]
+                let thisArgData = elementToInt32Array(args[i], type)
+                argData.set(thisArgData,offset)
+                offset += type.getPrimitivesList().length 
+            }
+            argsSize = numArgPrims * 4
+            thisArgsBuffer = this.addArgsBuffer(argsSize)
+            new Int32Array(thisArgsBuffer.getMappedRange()).set(argData)
             thisArgsBuffer.unmap()
         }
 
@@ -116,41 +127,41 @@ class Runtime {
         }
 
         let commandEncoder = this.device!.createCommandEncoder();
-        let computeEncoder:GPUComputePassEncoder | null = null
-        let renderEncoder:GPURenderPassEncoder | null = null
+        let computeEncoder: GPUComputePassEncoder | null = null
+        let renderEncoder: GPURenderPassEncoder | null = null
 
         let endCompute = () => {
-            if(computeEncoder){
+            if (computeEncoder) {
                 computeEncoder.endPass()
             }
             computeEncoder = null
         }
         let endRender = () => {
-            if(renderEncoder){
+            if (renderEncoder) {
                 renderEncoder.endPass()
             }
             renderEncoder = null
         }
         let beginCompute = () => {
             endRender()
-            if(!computeEncoder){
+            if (!computeEncoder) {
                 computeEncoder = commandEncoder.beginComputePass();
             }
         }
         let beginRender = (desc: GPURenderPassDescriptor) => {
             endCompute()
-            if(!renderEncoder){
+            if (!renderEncoder) {
                 renderEncoder = commandEncoder.beginRenderPass(desc)
             }
         }
- 
+
         for (let task of kernel.tasks) {
             task.bindGroup = this.device!.createBindGroup({
                 layout: task.pipeline!.getBindGroupLayout(0),
                 entries: this.getGPUBindGroupEntries(task.params.bindings, thisArgsBuffer, thisRetsBuffer)
             })
 
-            if(task instanceof CompiledTask){
+            if (task instanceof CompiledTask) {
                 beginCompute()
                 computeEncoder!.setPipeline(task.pipeline!)
                 computeEncoder!.setBindGroup(0, task.bindGroup!)
@@ -173,25 +184,25 @@ class Runtime {
                 }
                 computeEncoder!.dispatch(numWorkGroups);
             }
-            else if(task instanceof CompiledRenderPipeline){
+            else if (task instanceof CompiledRenderPipeline) {
                 beginRender(task.getGPURenderPassDescriptor())
                 renderEncoder!.setPipeline(task.pipeline!)
                 renderEncoder!.setBindGroup(0, task.bindGroup!)
 
-                if(task.params.vertex.VBO){
+                if (task.params.vertex.VBO) {
                     let vboTree = this.materializedTrees[task.params.vertex.VBO.snodeTree.treeId]
                     renderEncoder!.setVertexBuffer(0, vboTree.rootBuffer!, task.params.vertex.VBO.offsetBytes, task.params.vertex.VBO.sizeBytes)
                 }
-                
-                if(task.params.vertex.IBO){
+
+                if (task.params.vertex.IBO) {
                     let iboTree = this.materializedTrees[task.params.vertex.IBO.snodeTree.treeId]
                     renderEncoder!.setIndexBuffer(iboTree.rootBuffer!, "uint32", task.params.vertex.IBO.offsetBytes, task.params.vertex.IBO.sizeBytes)
                 }
 
-                if(task.params.vertex.IBO){
+                if (task.params.vertex.IBO) {
                     renderEncoder!.drawIndexed(task.getVertexCount())
                 }
-                else{
+                else {
                     renderEncoder!.draw(task.getVertexCount())
                 }
             }
@@ -220,7 +231,7 @@ class Runtime {
                 usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
             })
             let commandEncoder = this.device!.createCommandEncoder();
-            commandEncoder.copyBufferToBuffer(thisRetsBuffer!,0, retsCopy, 0, retsSize)
+            commandEncoder.copyBufferToBuffer(thisRetsBuffer!, 0, retsCopy, 0, retsSize)
             this.device!.queue.submit([commandEncoder.finish()]);
             await this.device!.queue.onSubmittedWorkDone()
 
@@ -230,7 +241,7 @@ class Runtime {
 
             thisRetsBuffer!.destroy()
             retsCopy.destroy()
-            
+
             return returnVal
         }
     }
@@ -267,7 +278,7 @@ class Runtime {
         })
     }
 
-    getGPUBindGroupEntries(bindings:BufferBinding[] , argsBuffer: GPUBuffer | null, retsBuffer: GPUBuffer | null): GPUBindGroupEntry[] {
+    getGPUBindGroupEntries(bindings: BufferBinding[], argsBuffer: GPUBuffer | null, retsBuffer: GPUBuffer | null): GPUBindGroupEntry[] {
         let entries: GPUBindGroupEntry[] = []
         for (let binding of bindings) {
             let buffer: GPUBuffer | null = null
@@ -321,40 +332,40 @@ class Runtime {
         this.materializedTrees.push(materialized)
     }
 
-    addTexture(texture: TextureBase){
+    addTexture(texture: TextureBase) {
         let id = this.textures.length
         this.textures.push(texture)
         return id
     }
 
-    createGPUTexture(dimensions: number[], format: GPUTextureFormat, colorAttachment:boolean): GPUTexture{
-        let getDescriptor = ():GPUTextureDescriptor => {
-            let defaultUsage = GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC | GPUTextureUsage.TEXTURE_BINDING 
-            if(dimensions.length === 1){
+    createGPUTexture(dimensions: number[], format: GPUTextureFormat, colorAttachment: boolean): GPUTexture {
+        let getDescriptor = (): GPUTextureDescriptor => {
+            let defaultUsage = GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC | GPUTextureUsage.TEXTURE_BINDING
+            if (dimensions.length === 1) {
                 return {
-                    size: {width: dimensions[0]},
+                    size: { width: dimensions[0] },
                     dimension: "1d",
-                    format:format,
+                    format: format,
                     usage: defaultUsage
                 }
             }
-            else if(dimensions.length === 2){
+            else if (dimensions.length === 2) {
                 let usage = defaultUsage
-                if(colorAttachment){
+                if (colorAttachment) {
                     usage = usage | GPUTextureUsage.RENDER_ATTACHMENT
                 }
                 return {
-                    size: {width: dimensions[0], height: dimensions[1]},
+                    size: { width: dimensions[0], height: dimensions[1] },
                     dimension: "2d",
-                    format:format,
+                    format: format,
                     usage: usage
                 }
             }
             else {// if(dimensions.length === 2){
                 return {
-                    size: {width: dimensions[0], height: dimensions[1], depthOrArrayLayers: dimensions[2]},
+                    size: { width: dimensions[0], height: dimensions[1], depthOrArrayLayers: dimensions[2] },
                     dimension: "3d",
-                    format:format,
+                    format: format,
                     usage: defaultUsage
                 }
             }
@@ -362,16 +373,16 @@ class Runtime {
         return this.device!.createTexture(getDescriptor())
     }
 
-    createGPUCanvasContext(htmlCanvas: HTMLCanvasElement) : [GPUCanvasContext, GPUTextureFormat] {
-        let context = htmlCanvas.getContext('webgpu') 
-        if(context===null){
+    createGPUCanvasContext(htmlCanvas: HTMLCanvasElement): [GPUCanvasContext, GPUTextureFormat] {
+        let context = htmlCanvas.getContext('webgpu')
+        if (context === null) {
             error("canvas webgpu context is null")
         }
         let presentationFormat = context!.getPreferredFormat(this.adapter!)
 
         context!.configure({
-          device: this.device!,
-          format: presentationFormat,
+            device: this.device!,
+            format: presentationFormat,
         })
         return [context!, presentationFormat]
     }

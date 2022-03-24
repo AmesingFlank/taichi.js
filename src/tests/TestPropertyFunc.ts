@@ -7,8 +7,11 @@ async function testPropertyFunc(): Promise<boolean> {
      
     await ti.init() 
 
-    let f = ti.field(ti.f32, [12])
-    ti.addToKernelScope({f}) 
+    let f = ti.field(ti.f32, [13])
+
+    let dot_f = (x,y) => x.dot(y)
+
+    ti.addToKernelScope({f, dot_f}) 
     let kernel = ti.kernel(
         () => {
             //@ts-ignore
@@ -26,9 +29,10 @@ async function testPropertyFunc(): Promise<boolean> {
             let y = [1.0, 2.0]
             f[8] = dot(x,y)
             f[9] = x.dot(y)
+            f[10] = dot_f(x,y)
 
-            f[10] = [3.0,4.0].normalized().x
-            f[11] = [3.0,4.0].normalized().y
+            f[11] = [3.0,4.0].normalized().x
+            f[12] = [3.0,4.0].normalized().y
         }
     )
 
@@ -36,7 +40,7 @@ async function testPropertyFunc(): Promise<boolean> {
     
     let fHost = await f.toArray1D() 
     console.log(fHost)
-    return assertEqual(fHost,[5,25,2,7,5,25,2,7, 11,11, 0.6,0.8])  
+    return assertEqual(fHost,[5,25,2,7,5,25,2,7, 11,11,11, 0.6,0.8])  
 }
 
 export {testPropertyFunc}

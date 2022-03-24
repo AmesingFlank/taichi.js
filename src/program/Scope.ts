@@ -1,6 +1,6 @@
  
 
-class GlobalScope {
+class Scope {
     constructor(){
     }
 
@@ -30,6 +30,9 @@ class GlobalScope {
         let parts = str.split(".")
         let curr = this.obj
         for(let name of parts){
+            if(typeof curr !== "object"){
+                return undefined
+            }
             if(!(name in curr)){
                 return undefined
             }
@@ -37,6 +40,27 @@ class GlobalScope {
         }
         return curr
     }
+
+    clone(){
+        let newObj:any = {}
+        for(let k in this.obj){
+            newObj[k] = this.obj[k]
+        }
+        let result = new Scope
+        result.obj = newObj
+        return result
+    }
+
+    static merge(a:Scope, b:Scope) : Scope{
+        let result = new Scope()
+        for(let k in a.obj){
+            result.obj[k] = a.obj[k]
+        }
+        for(let k in b.obj){
+            result.obj[k] = b.obj[k]
+        }
+        return result
+    }
 }
 
-export {GlobalScope}
+export {Scope}
