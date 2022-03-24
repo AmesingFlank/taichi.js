@@ -239,41 +239,41 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
     // node: an identifier or property access epxreesion
     // returns a JS value if the expr can be evaluated in kernel scope (i.e. the scope created by ti.addToKernelScope) or in template args
-    protected tryEvalInKernelScopeOrTemplateArgs( node:ts.Node ) : any{
+    protected tryEvalInKernelScopeOrTemplateArgs(node: ts.Node): any {
         let exprText = node.getText()
-        while(node.kind === ts.SyntaxKind.PropertyAccessExpression){
+        while (node.kind === ts.SyntaxKind.PropertyAccessExpression) {
             let access = node as ts.PropertyAccessExpression
             node = access.expression
-        } 
-        if(this.hasNodeSymbol(node)){
+        }
+        if (this.hasNodeSymbol(node)) {
             // ts has created a symbol for this node. 
             // This means the expr isn't "free", in the sense of https://en.wikipedia.org/wiki/Free_variables_and_bound_variables
             // As a result, it mustn't be treated as a kernel scope expr. 
             let symbol = this.getNodeSymbol(node)
             let foundInArgs = false
-            for(let argNode of this.parsedFunction!.argNodes){
-                if (this.getNodeSymbol(argNode.name) === symbol){
+            for (let argNode of this.parsedFunction!.argNodes) {
+                if (this.getNodeSymbol(argNode.name) === symbol) {
                     foundInArgs = true
                     break
                 }
             }
-            if(!foundInArgs){
+            if (!foundInArgs) {
                 // the node corresponds to a non-argument node, so it is a local var
                 return undefined
             }
-            if(!this.templatedValues.canEvaluate(exprText)){
+            if (!this.templatedValues.canEvaluate(exprText)) {
                 // a non-template argument
                 return undefined
             }
             return this.templatedValues.tryEvaluate(exprText)
-        } 
-        else{
+        }
+        else {
             // "free" expr. 
             return this.kernelScope.tryEvaluate(exprText)
         }
     }
 
-    protected canEvalInKernelScopeOrTemplateArgs( node:ts.Node ) : boolean {
+    protected canEvalInKernelScopeOrTemplateArgs(node: ts.Node): boolean {
         return this.tryEvalInKernelScopeOrTemplateArgs(node) !== undefined
     }
 
@@ -1146,8 +1146,8 @@ class CompilingVisitor extends ASTVisitor<Value>{
             }
         }
         if (vertexArgs.length >= 2) {
-            if (this.canEvalInKernelScopeOrTemplateArgs(vertexArgs[0])) {
-                let arg = this.tryEvalInKernelScopeOrTemplateArgs(vertexArgs[0])
+            if (this.canEvalInKernelScopeOrTemplateArgs(vertexArgs[1])) {
+                let arg = this.tryEvalInKernelScopeOrTemplateArgs(vertexArgs[1])
                 if (arg instanceof Field) {
                     this.currentRenderPipelineParams.vertex.IBO = arg
                 }
