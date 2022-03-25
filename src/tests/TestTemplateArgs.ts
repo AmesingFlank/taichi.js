@@ -37,7 +37,7 @@ async function testTemplateArgs(): Promise<boolean> {
  
     let kernel = ti.kernel(
         { 
-            i: iType, f: fType, v: vType, m: mType, o: oType,
+            i: ti.template(), f: ti.template(), v: ti.template(), m: ti.template(), o: ti.template(),
             iField: ti.template(), fField: ti.template(), mField: ti.template(), vField: ti.template(), oField: ti.template(), 
         },
         (i, f, v, m, o, iField, fField, vField, mField, oField) => {
@@ -62,6 +62,12 @@ async function testTemplateArgs(): Promise<boolean> {
         && assertEqual(await vField.get([0]), v)
         && assertEqual(await mField.get([0]), m)
         && assertEqual(await oField.get([0]), o)
+
+    let iField2 = ti.field(iType, [1])
+    let i2 = 54321
+    await kernel(i2, f, v, m, o, iField2, fField, vField, mField, oField)
+    console.log(await iField2.get([0]))
+    passed &&= assertEqual(await iField2.get([0]), i2)
 
     return passed
 }

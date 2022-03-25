@@ -82,7 +82,7 @@ async function runAllTests() {
     passed &&= await testStruct()
     passed &&= await testRets()
     passed &&= await testArgAnnotation()
-    //passed &&= await testTemplateArgs()
+    passed &&= await testTemplateArgs()
 
     if (passed) {
         console.log("All tests passed")

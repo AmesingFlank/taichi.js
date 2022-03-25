@@ -94,22 +94,27 @@ function kernel(argTypesOrCode: any, codeOrUndefined: any): ((...args: any[]) =>
             assert(args.length === argNames.length,
                 `Kernel requires ${argNames.length} arguments, but ${args.length} is provided`)
             let templateArgs = new Map<string, any>()
+            let nonTemplateArgs : any[] = []
             for (let i = 0; i < args.length; ++i) {
                 let name = argNames[i]
+                let val = args[i]
                 if (templateArgNamesSet.has(name)) {
-                    let val = args[i]
                     templateArgs.set(name, val)
+                }
+                else{
+                    nonTemplateArgs.push(val)
                 }
             }
             let existingInstance = template.findInstance(templateArgs)
             if (existingInstance !== null) {
-                return await program.runtime!.launchKernel(existingInstance, ...args)
+                return await program.runtime!.launchKernel(existingInstance, ...nonTemplateArgs)
             }
+            program.materializeCurrentTree()
             let compiler = new KernelCompiler()
             let kernelParams = compiler.compileKernel(parsedFunction, Program.getCurrentProgram().kernelScopeObj, argTypesMap, templateArgs)
             let kernel = program.runtime!.createKernel(kernelParams)
             template.instances.push([templateArgs, kernel])
-            return await program.runtime!.launchKernel(kernel, ...args)
+            return await program.runtime!.launchKernel(kernel, ...nonTemplateArgs)
         }
         return result
     }

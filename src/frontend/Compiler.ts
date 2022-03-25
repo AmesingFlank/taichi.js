@@ -108,11 +108,15 @@ export class ParsedFunction {
         }
     }
 
-    errorNode(node: ts.Node, ...args: any[]) {
-
+    getNodeSourceCode(node: ts.Node): string {
         let startPos = node.getStart()
         let endPos = node.getEnd()
         let code = this.getSourceCodeAt(startPos, endPos)
+        return code
+    }
+
+    errorNode(node: ts.Node, ...args: any[]) {
+        let code = this.getNodeSourceCode(node)
         let errorMessage = "Error: "
         for (let a of args) {
             errorMessage += String(a)
@@ -201,6 +205,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
     }
 
     protected override dispatchVisit(node: ts.Node): VisitorResult<Value> {
+        //console.log(this.parsedFunction!.getNodeSourceCode(node), node)
         if (this.returnValue) {
             this.errorNode(node, "If there is a `return`, it must be the final statement of the function")
         }
@@ -416,7 +421,6 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
 
     protected override visitBinaryExpression(node: ts.BinaryExpression): VisitorResult<Value> {
-        //console.log(node.getText())
         let left = this.extractVisitorResult(this.dispatchVisit(node.left))
         let right = this.extractVisitorResult(this.dispatchVisit(node.right))
         let leftType = left.getType()
@@ -1379,6 +1383,7 @@ export class KernelCompiler extends CompilingVisitor {
                 this.nativeKernel.insert_arg(toNativePrimitiveType(prim), false)
             }
         }
+
         if (this.returnValue !== null && this.returnValue.getType().getCategory() !== TypeCategory.Void) {
             let prims = this.returnValue.getType().getPrimitivesList()
             for (let i = 0; i < prims.length; ++i) {
