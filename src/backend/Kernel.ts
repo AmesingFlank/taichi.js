@@ -1,6 +1,6 @@
 import { PrimitiveType, StructType, Type, VoidType } from "../frontend/Type"
 import { nativeTaichi, NativeTaichiAny } from "../native/taichi/GetTaichi"
-import { Field, Texture, TextureBase } from "../program/Field"
+import { DepthTexture, Field, Texture, TextureBase } from "../program/Field"
 import { assert, error } from "../utils/Logging"
 enum BufferType {
     Root, GlobalTmps, Args, RandStates, Rets
@@ -44,7 +44,6 @@ class FragmentShaderParams {
     constructor(
         public code: string = "",
         public bindings: BufferBinding[] = [],
-        public outputTexutres: TextureBase[] = []
     ) {
 
     }
@@ -80,11 +79,28 @@ class RenderPipelineParams {
     }
 }
 
+interface ColorAttachment {
+    texture: TextureBase,
+    clearColor?: number[],
+}
+
+interface DepthAttachment {
+    texture: DepthTexture,
+    clearDepth?: number
+    storeDepth?: boolean
+}
+
+interface RenderPassParams {
+    colorAttachments: ColorAttachment[]
+    depthAttachment: DepthAttachment | null
+}
+
 class KernelParams {
     constructor(
         public tasksParams: (TaskParams | RenderPipelineParams)[],
         public argTypes: Type[],
-        public returnType: Type
+        public returnType: Type,
+        public renderPassParams: RenderPassParams | null = null
     ) {
 
     }
@@ -112,8 +128,8 @@ class CompiledTask {
 class CompiledRenderPipeline {
     pipeline: GPURenderPipeline | null = null
     bindGroup: GPUBindGroup | null = null
-    constructor(public params: RenderPipelineParams, device: GPUDevice) {
-        this.createPipeline(device)
+    constructor(public params: RenderPipelineParams, renderPassParams: RenderPassParams, device: GPUDevice) {
+        this.createPipeline(device, renderPassParams)
     }
 
     private getGPUVertexBufferStates(): GPUVertexBufferLayout {
@@ -146,30 +162,14 @@ class CompiledRenderPipeline {
             attributes: attrs
         }
     }
-    private getGPUColorTargetStates(): GPUColorTargetState[] {
+    private getGPUColorTargetStates(renderPassParams: RenderPassParams): GPUColorTargetState[] {
         let result: GPUColorTargetState[] = []
-        for (let tex of this.params.fragment.outputTexutres) {
+        for (let tex of renderPassParams.colorAttachments) {
             result.push({
-                format: tex.getGPUTextureFormat()
+                format: tex.texture.getGPUTextureFormat()
             })
         }
         return result
-    }
-    public getGPURenderPassDescriptor(): GPURenderPassDescriptor {
-        let colorAttachments: GPURenderPassColorAttachment[] = []
-        for (let tex of this.params.fragment.outputTexutres) {
-            colorAttachments.push(
-                {
-                    view: tex.getGPUTexture().createView(),
-                    loadValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
-                    loadOp: "clear",
-                    storeOp: 'store',
-                }
-            )
-        }
-        return {
-            colorAttachments
-        }
     }
     getVertexCount(): number {
         if (this.params.vertex.IBO) {
@@ -179,7 +179,7 @@ class CompiledRenderPipeline {
             return this.params.vertex.VBO!.dimensions[0]
         }
     }
-    createPipeline(device: GPUDevice) {
+    createPipeline(device: GPUDevice, renderPassParams: RenderPassParams) {
         this.pipeline = device.createRenderPipeline({
             vertex: {
                 module: device.createShaderModule({
@@ -195,7 +195,7 @@ class CompiledRenderPipeline {
                     code: this.params.fragment.code,
                 }),
                 entryPoint: 'main',
-                targets: this.getGPUColorTargetStates()
+                targets: this.getGPUColorTargetStates(renderPassParams)
             },
             primitive: {
                 topology: 'triangle-list',
@@ -205,14 +205,74 @@ class CompiledRenderPipeline {
     }
 }
 
+class CompiledRenderPassInfo {
+    constructor(
+        public params: RenderPassParams
+    ) {
+        this.gpuRenderPassDescriptor = this.getGPURenderPassDescriptor()
+    }
+    public gpuRenderPassDescriptor: GPURenderPassDescriptor
+
+    private getGPURenderPassDescriptor(): GPURenderPassDescriptor {
+        let colorAttachments: GPURenderPassColorAttachment[] = []
+        for (let attach of this.params.colorAttachments) {
+            if (attach.clearColor === undefined) {
+                colorAttachments.push(
+                    {
+                        view: attach.texture.getGPUTexture().createView(),
+                        clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                        loadValue: "load",
+                        loadOp: "load",
+                        storeOp: 'store',
+                    }
+                )
+            }
+            else {
+                colorAttachments.push(
+                    {
+                        view: attach.texture.getGPUTexture().createView(),
+                        clearValue: {
+                            r: attach.clearColor[0],
+                            g: attach.clearColor[0],
+                            b: attach.clearColor[0],
+                            a: attach.clearColor[0]
+                        },
+                        loadValue: "clear",
+                        loadOp: "clear",
+                        storeOp: 'store',
+                    }
+                )
+            }
+
+        }
+        let depth = this.params.depthAttachment
+        if(depth === null){
+            return {
+                colorAttachments
+            }
+        }
+        let depthStencilAttachment : GPURenderPassDepthStencilAttachment = {
+            view:depth.texture.getGPUTexture().createView(),
+            depthClearValue: depth.clearDepth,
+            depthLoadOp: depth.clearDepth === undefined? "load" : "clear",
+            depthStoreOp: depth.storeDepth === true? "store":"discard"
+        } 
+        return {
+            colorAttachments,
+            depthStencilAttachment
+        }
+    }
+
+}
 class CompiledKernel {
     constructor(
         public tasks: (CompiledTask | CompiledRenderPipeline)[] = [],
         public argTypes: Type[] = [],
-        public returnType: Type = new VoidType()
+        public returnType: Type = new VoidType(),
+        public renderPassInfo : CompiledRenderPassInfo | null = null
     ) {
 
     }
 }
 
-export { CompiledTask, CompiledKernel, TaskParams, BufferType, BufferBinding, KernelParams, VertexShaderParams, FragmentShaderParams, RenderPipelineParams, CompiledRenderPipeline }
+export { CompiledTask, CompiledKernel, TaskParams, BufferType, BufferBinding, KernelParams, VertexShaderParams, FragmentShaderParams, RenderPipelineParams, CompiledRenderPipeline, RenderPassParams, ColorAttachment, DepthAttachment, CompiledRenderPassInfo }

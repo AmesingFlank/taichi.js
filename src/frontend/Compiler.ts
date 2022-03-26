@@ -1,7 +1,7 @@
 import * as ts from "typescript";
 import { InMemoryHost } from "./InMemoryHost";
 import { ASTVisitor, VisitorResult } from "./ast/Visiter"
-import { CompiledKernel, TaskParams, BufferBinding, BufferType, KernelParams, RenderPipelineParams, VertexShaderParams, FragmentShaderParams } from "../backend/Kernel";
+import { CompiledKernel, TaskParams, BufferBinding, BufferType, KernelParams, RenderPipelineParams, VertexShaderParams, FragmentShaderParams, RenderPassParams } from "../backend/Kernel";
 import { nativeTaichi, NativeTaichiAny } from '../native/taichi/GetTaichi'
 import { error, assert } from '../utils/Logging'
 import { Scope } from "../program/Scope";
@@ -168,6 +168,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
     protected renderPipelineParams: RenderPipelineParams[] = []
     protected currentRenderPipelineParams: RenderPipelineParams | null = null
+    protected currentRenderPassParams: RenderPassParams | null = null
 
     buildIR(parsedFunction: ParsedFunction, kernelScope: Scope, templatedValues: Scope) {
         this.kernelScope = kernelScope
@@ -667,9 +668,9 @@ class CompilingVisitor extends ASTVisitor<Value>{
             this.assertNode(node, renderTarget instanceof Texture || renderTarget instanceof CanvasTexture, "the first argument of output_color() must be a texture object that's visible in kernel scope")
             let targetTexture = renderTarget as TextureBase
             let targetLocation = -1
-            let existingTargets = this.currentRenderPipelineParams!.fragment.outputTexutres
+            let existingTargets = this.currentRenderPassParams!.colorAttachments
             for (let i = 0; i < existingTargets.length; ++i) {
-                if (existingTargets[i].textureId === targetTexture.textureId) {
+                if (existingTargets[i].texture.textureId === targetTexture.textureId) {
                     targetLocation = i
                     break
                 }
@@ -677,7 +678,9 @@ class CompilingVisitor extends ASTVisitor<Value>{
             if (targetLocation === -1) {
                 // a new target
                 targetLocation = existingTargets.length
-                existingTargets.push(targetTexture)
+                existingTargets.push({
+                    texture: targetTexture
+                })
             }
 
             let fragOutput = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.arguments[1])))
@@ -1131,6 +1134,12 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
         this.assertNode(null, this.currentRenderPipelineParams === null, "[Compiler bug]")
         this.currentRenderPipelineParams = new RenderPipelineParams(new VertexShaderParams, new FragmentShaderParams)
+        if(this.currentRenderPassParams === null){
+            this.currentRenderPassParams = {
+                colorAttachments:[],
+                depthAttachment:null
+            }
+        }
         if (vertexArgs.length === 0) {
             this.errorNode(null, "Expecting vertex buffer and optionally index buffer")
         }
@@ -1429,7 +1438,7 @@ export class KernelCompiler extends CompilingVisitor {
         if (this.returnValue !== null) {
             returnType = this.returnValue!.getType()
         }
-        return new KernelParams(taskParams, this.kernelArgTypes, returnType)
+        return new KernelParams(taskParams, this.kernelArgTypes, returnType, this.currentRenderPassParams)
     }
 
     protected override registerArguments(args: ts.NodeArray<ts.ParameterDeclaration>) {

@@ -1,4 +1,4 @@
-import { CompiledTask, CompiledKernel, TaskParams, BufferType, KernelParams, BufferBinding, CompiledRenderPipeline, RenderPipelineParams } from './Kernel'
+import { CompiledTask, CompiledKernel, TaskParams, BufferType, KernelParams, BufferBinding, CompiledRenderPipeline, RenderPipelineParams, CompiledRenderPassInfo } from './Kernel'
 import { SNodeTree } from '../program/SNodeTree'
 import { divUp, elementToInt32Array, int32ArrayToElement } from '../utils/Utils'
 import { assert, error } from "../utils/Logging"
@@ -64,9 +64,13 @@ class Runtime {
                 kernel.tasks.push(task)
             }
             else if (taskParams instanceof RenderPipelineParams) {
-                let task = new CompiledRenderPipeline(taskParams, this.device!)
+                assert(params.renderPassParams !== null)
+                let task = new CompiledRenderPipeline(taskParams, params.renderPassParams!, this.device!)
                 kernel.tasks.push(task)
             }
+        }
+        if(params.renderPassParams !== null){
+            kernel.renderPassInfo = new CompiledRenderPassInfo(params.renderPassParams)
         }
         kernel.argTypes = params.argTypes
         kernel.returnType = params.returnType
@@ -144,10 +148,11 @@ class Runtime {
                 computeEncoder = commandEncoder.beginComputePass();
             }
         }
-        let beginRender = (desc: GPURenderPassDescriptor) => {
+        let beginRender = () => {
             endCompute()
             if (!renderEncoder) {
-                renderEncoder = commandEncoder.beginRenderPass(desc)
+                assert(kernel.renderPassInfo !== null, "render pass info is null")
+                renderEncoder = commandEncoder.beginRenderPass(kernel.renderPassInfo!.gpuRenderPassDescriptor)
             }
         }
 
@@ -181,7 +186,7 @@ class Runtime {
                 computeEncoder!.dispatch(numWorkGroups);
             }
             else if (task instanceof CompiledRenderPipeline) {
-                beginRender(task.getGPURenderPassDescriptor())
+                beginRender()
                 renderEncoder!.setPipeline(task.pipeline!)
                 renderEncoder!.setBindGroup(0, task.bindGroup!)
 
@@ -334,7 +339,7 @@ class Runtime {
         return id
     }
 
-    createGPUTexture(dimensions: number[], format: GPUTextureFormat, colorAttachment: boolean): GPUTexture {
+    createGPUTexture(dimensions: number[], format: GPUTextureFormat, renderAttachment: boolean): GPUTexture {
         let getDescriptor = (): GPUTextureDescriptor => {
             let defaultUsage = GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC | GPUTextureUsage.TEXTURE_BINDING
             if (dimensions.length === 1) {
@@ -347,7 +352,7 @@ class Runtime {
             }
             else if (dimensions.length === 2) {
                 let usage = defaultUsage
-                if (colorAttachment) {
+                if (renderAttachment) {
                     usage = usage | GPUTextureUsage.RENDER_ATTACHMENT
                 }
                 return {

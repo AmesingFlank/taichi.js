@@ -208,4 +208,29 @@ class CanvasTexture implements TextureBase{
     }
 }
 
-export { Field, TextureBase, Texture, CanvasTexture }
+class DepthTexture implements TextureBase {
+    constructor(
+        public dimensions: number[],
+    ){
+        assert(dimensions.length === 2, "depth texture must be 2D")
+        this.texture = Program.getCurrentProgram().runtime!.createGPUTexture(dimensions,this.getGPUTextureFormat(), this.canUseAsRengerTarget())
+        this.textureId = Program.getCurrentProgram().runtime!.addTexture(this)
+    }
+
+    private texture:GPUTexture
+    textureId: number
+
+    getGPUTextureFormat() : GPUTextureFormat {
+        return "depth32float"
+    }
+
+    canUseAsRengerTarget(){
+        return true
+    }
+    
+    getGPUTexture() : GPUTexture {
+        return this.texture
+    }
+}
+
+export { Field, TextureBase, Texture, CanvasTexture, DepthTexture }
