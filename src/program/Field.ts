@@ -233,4 +233,10 @@ class DepthTexture implements TextureBase {
     }
 }
 
-export { Field, TextureBase, Texture, CanvasTexture, DepthTexture }
+
+function isTexture(x:any){
+    return x instanceof Texture || x instanceof CanvasTexture || x instanceof DepthTexture    
+}
+
+
+export { Field, TextureBase, Texture, CanvasTexture, DepthTexture, isTexture }

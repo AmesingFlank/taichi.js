@@ -31,6 +31,7 @@ let simpleGraphicsExample = async (htmlCanvas:HTMLCanvasElement) => {
             let view = ti.lookAt([0.5,0.5,-2] , [0.5,0.5,0.5], [0.0, 1.0, 0.0])
             let proj = ti.perspective(45.0 , 2.0, 0.1, 100)
             let mvp = proj.matmul(view) 
+            ti.clear_color(target, [0.1,0.2,0.3,1])
             for(let v of ti.input_vertices(VBO, IBO)){
                 let pos = mvp.matmul((v, 1.0)) 
                 ti.output_position(pos)

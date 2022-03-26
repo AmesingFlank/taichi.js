@@ -228,16 +228,17 @@ class CompiledRenderPassInfo {
                 )
             }
             else {
+                let clearValue = {
+                    r: attach.clearColor[0],
+                    g: attach.clearColor[1],
+                    b: attach.clearColor[2],
+                    a: attach.clearColor[3]
+                }
                 colorAttachments.push(
                     {
                         view: attach.texture.getGPUTexture().createView(),
-                        clearValue: {
-                            r: attach.clearColor[0],
-                            g: attach.clearColor[0],
-                            b: attach.clearColor[0],
-                            a: attach.clearColor[0]
-                        },
-                        loadValue: "clear",
+                        clearValue: clearValue,
+                        loadValue: clearValue,
                         loadOp: "clear",
                         storeOp: 'store',
                     }
@@ -246,17 +247,17 @@ class CompiledRenderPassInfo {
 
         }
         let depth = this.params.depthAttachment
-        if(depth === null){
+        if (depth === null) {
             return {
                 colorAttachments
             }
         }
-        let depthStencilAttachment : GPURenderPassDepthStencilAttachment = {
-            view:depth.texture.getGPUTexture().createView(),
+        let depthStencilAttachment: GPURenderPassDepthStencilAttachment = {
+            view: depth.texture.getGPUTexture().createView(),
             depthClearValue: depth.clearDepth,
-            depthLoadOp: depth.clearDepth === undefined? "load" : "clear",
-            depthStoreOp: depth.storeDepth === true? "store":"discard"
-        } 
+            depthLoadOp: depth.clearDepth === undefined ? "load" : "clear",
+            depthStoreOp: depth.storeDepth === true ? "store" : "discard"
+        }
         return {
             colorAttachments,
             depthStencilAttachment
@@ -269,7 +270,7 @@ class CompiledKernel {
         public tasks: (CompiledTask | CompiledRenderPipeline)[] = [],
         public argTypes: Type[] = [],
         public returnType: Type = new VoidType(),
-        public renderPassInfo : CompiledRenderPassInfo | null = null
+        public renderPassInfo: CompiledRenderPassInfo | null = null
     ) {
 
     }
