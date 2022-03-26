@@ -1,8 +1,9 @@
-import { KernelCompiler, ParsedFunction } from '../frontend/Compiler'
+import { KernelCompiler } from '../frontend/Compiler'
 import { Program } from '../program/Program'
 import { PrimitiveType, ScalarType, Type } from "../frontend/Type"
 import { assert, error } from '../utils/Logging'
 import { CompiledKernel } from '../backend/Kernel'
+import { ParsedFunction } from '../frontend/ParsedFunction'
 
 function addToKernelScope(obj: any) {
     let program = Program.getCurrentProgram()
