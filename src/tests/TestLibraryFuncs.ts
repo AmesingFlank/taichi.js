@@ -19,8 +19,8 @@ async function testLibraryFuncs(): Promise<boolean> {
             let U = zero2x2
             let S = zero2x2
             let V = zero2x2
-            ti.polar_decompose_2d(m1, u, p)
-            ti.svd_2d(m1, U, S, V)
+            ti.polarDecompose2D(m1, u, p)
+            ti.svd2D(m1, U, S, V)
             f[0] = u
             f[1] = p
             f[2] = U

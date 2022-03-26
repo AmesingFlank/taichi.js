@@ -5,7 +5,7 @@ import { CompiledKernel, TaskParams, BufferBinding, BufferType, KernelParams, Re
 import { nativeTaichi, NativeTaichiAny } from '../native/taichi/GetTaichi'
 import { error, assert } from '../utils/Logging'
 import { Scope } from "../program/Scope";
-import { CanvasTexture, Field, isTexture, Texture, TextureBase } from "../program/Field";
+import { CanvasTexture, DepthTexture, Field, isTexture, Texture, TextureBase } from "../program/Field";
 import { Program } from "../program/Program";
 import { getStmtKind, StmtKind } from "./Stmt"
 import { getWgslShaderBindings, getWgslShaderStage, WgslShaderStage } from "./WgslReflection"
@@ -418,7 +418,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
     }
 
     // returns the location
-    protected ensureColorAttachment(target: TextureBase) : number {
+    protected ensureColorAttachment(target: TextureBase): number {
         let targetLocation = -1
         let existingTargets = this.renderPassParams!.colorAttachments
         for (let i = 0; i < existingTargets.length; ++i) {
@@ -539,10 +539,10 @@ class CompilingVisitor extends ASTVisitor<Value>{
             }
         }
 
-        if (funcText === "ti.output_vertex" || funcText === "output_vertex") {
-            this.assertNode(node, getArgumentValues().length === 1, "output_vertex() must have exactly 1 argument")
+        if (funcText === "ti.outputVertex" || funcText === "outputVertex") {
+            this.assertNode(node, getArgumentValues().length === 1, "outputVertex() must have exactly 1 argument")
             let vertexOutput = getArgumentValues()[0]
-            this.assertNode(node, this.startedVertex && !this.finishedVertex, "output_vertex() can only be used inside a vertex-for")
+            this.assertNode(node, this.startedVertex && !this.finishedVertex, "outputVertex() can only be used inside a vertex-for")
             this.assertNode(node, this.currentRenderPipelineParams !== null, "[Compiler bug]")
             this.currentRenderPipelineParams!.interpolatedType = vertexOutput.getType()
             let prims = vertexOutput.getType().getPrimitivesList()
@@ -552,10 +552,10 @@ class CompilingVisitor extends ASTVisitor<Value>{
             return
         }
 
-        if (funcText === "ti.output_position" || funcText === "output_position") {
-            this.assertNode(node, getArgumentValues().length === 1, "output_position must have exactly 1 argument")
+        if (funcText === "ti.outputPosition" || funcText === "outputPosition") {
+            this.assertNode(node, getArgumentValues().length === 1, "outputPosition must have exactly 1 argument")
             let posOutput = getArgumentValues()[0]
-            this.assertNode(node, this.startedVertex && !this.finishedVertex, "output_position() can only be used inside a vertex-for")
+            this.assertNode(node, this.startedVertex && !this.finishedVertex, "outputPosition() can only be used inside a vertex-for")
             this.assertNode(node, this.currentRenderPipelineParams !== null, "[Compiler bug]")
 
             this.assertNode(node, posOutput.getType().getCategory() === TypeCategory.Vector, "position output must be a vector")
@@ -572,15 +572,15 @@ class CompilingVisitor extends ASTVisitor<Value>{
             return
         }
 
-        if (funcText === "ti.clear_color" || funcText === "clear_color") {
-            this.assertNode(node, this.isAtTopLevel(), "clear_color() can only be called at top level")
+        if (funcText === "ti.clearColor" || funcText === "clearColor") {
+            this.assertNode(node, this.isAtTopLevel(), "clearColor() can only be called at top level")
             this.ensureRenderPassParams()
 
-            this.assertNode(node, node.arguments.length === 2, "clear_color() must have exactly 2 arguments, one for cleared texture, the other for the clear value")
-            this.assertNode(node, this.canEvalInKernelScopeOrTemplateArgs(node.arguments[0]), "the first argument of clear_color() must be a texture object that's visible in kernel scope")
-            let renderTarget = this.tryEvalInKernelScopeOrTemplateArgs(node.arguments[0])
-            this.assertNode(node, isTexture(renderTarget), "the first argument of clear_color() must be a texture object that's visible in kernel scope")
-            let targetTexture = renderTarget as TextureBase
+            this.assertNode(node, node.arguments.length === 2, "clearColor() must have exactly 2 arguments, one for cleared texture, the other for the clear value")
+            this.assertNode(node, this.canEvalInKernelScopeOrTemplateArgs(node.arguments[0]), "the first argument of clearColor() must be a texture object that's visible in kernel scope")
+            let targetTexture = this.tryEvalInKernelScopeOrTemplateArgs(node.arguments[0])
+            this.assertNode(node, isTexture(targetTexture), "the first argument of clearColor() must be a texture object that's visible in kernel scope")
+            targetTexture = targetTexture as TextureBase
             let targetLocation = this.ensureColorAttachment(targetTexture)
 
             let clearValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.arguments[1])))
@@ -593,15 +593,15 @@ class CompilingVisitor extends ASTVisitor<Value>{
             return
         }
 
-        if (funcText === "ti.output_color" || funcText === "output_color") {
-            this.assertNode(node, this.startedFragment, "output_color() can only be used inside a fragment-for")
+        if (funcText === "ti.outputColor" || funcText === "outputColor") {
+            this.assertNode(node, this.startedFragment, "outputColor() can only be used inside a fragment-for")
             this.assertNode(node, this.currentRenderPipelineParams !== null, "[Compiler bug]")
 
-            this.assertNode(node, node.arguments.length === 2, "output_color() must have exactly 2 arguments, one for output texture, the other for the output value")
-            this.assertNode(node, this.canEvalInKernelScopeOrTemplateArgs(node.arguments[0]), "the first argument of output_color() must be a texture object that's visible in kernel scope")
-            let renderTarget = this.tryEvalInKernelScopeOrTemplateArgs(node.arguments[0])
-            this.assertNode(node, isTexture(renderTarget), "the first argument of output_color() must be a texture object that's visible in kernel scope")
-            let targetTexture = renderTarget as TextureBase
+            this.assertNode(node, node.arguments.length === 2, "outputColor() must have exactly 2 arguments, one for output texture, the other for the output value")
+            this.assertNode(node, this.canEvalInKernelScopeOrTemplateArgs(node.arguments[0]), "the first argument of outputColor() must be a texture object that's visible in kernel scope")
+            let targetTexture = this.tryEvalInKernelScopeOrTemplateArgs(node.arguments[0])
+            this.assertNode(node, isTexture(targetTexture), "the first argument of outputColor() must be a texture object that's visible in kernel scope")
+            targetTexture = targetTexture as TextureBase
             let targetLocation = this.ensureColorAttachment(targetTexture)
 
             let fragOutput = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.arguments[1])))

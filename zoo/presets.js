@@ -524,7 +524,7 @@ let substep = ti.kernel(
             let U = [[0.0,0.0],[0.0,0.0]]
             let sig = [[0.0,0.0],[0.0,0.0]]
             let V = [[0.0,0.0],[0.0,0.0]]
-            ti.svd_2d(F[p], U, sig, V)
+            ti.svd2D(F[p], U, sig, V)
             let J = 1.0
             for(let d of ti.static(ti.range(2))){
                 let new_sig = sig[d,d]

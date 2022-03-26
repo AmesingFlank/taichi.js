@@ -19,7 +19,7 @@ let svd2dCode =
 (A, U, E, V) => {
     let R = [[0.0, 0.0],[0.0, 0.0]]
     let S = [[0.0, 0.0],[0.0, 0.0]]
-    ti.polar_decompose_2d(A, R, S)
+    ti.polarDecompose2D(A, R, S)
     let c = 0.0
     let s = 0.0
     let s1 = 0.0
@@ -99,8 +99,8 @@ class LibraryFunc {
 
     public static getLibraryFuncs():Map<string,LibraryFunc>{
         let funcs:LibraryFunc[] = [
-            new LibraryFunc("polar_decompose_2d", 3,polar2dCode),
-            new LibraryFunc("svd_2d", 4, svd2dCode),
+            new LibraryFunc("polarDecompose2D", 3,polar2dCode),
+            new LibraryFunc("svd2D", 4, svd2dCode),
             new LibraryFunc("lookAt", 3, lookAtCode),
             new LibraryFunc("perspective", 4, perspectiveCode),
         ]
