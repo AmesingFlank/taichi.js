@@ -59,6 +59,39 @@ let svd2dCode =
 }
 `
 
+let lookAtCode = `
+(eye, center, up) => {
+    let y = up
+    let z = (eye - center).normalized()
+    let x = y.cross(z).normalized()
+    let result = [
+        (x, -x.dot(eye)),
+        (y, -y.dot(eye)),
+        (z, -z.dot(eye)),
+        [0,0,0,1]
+    ]
+    return result
+}
+`
+
+let perspectiveCode = 
+`
+(fovy, aspect, zNear, zFar) => {
+    let rad = fovy * Math.PI / 180.0 
+    let tanHalfFovy = ti.tan(rad / 2.0)
+    
+    let zero4 = [0.0, 0.0, 0.0, 0.0]
+    let result = [zero4, zero4, zero4, zero4]
+
+    result[0,0] = 1.0 / (aspect * tanHalfFovy)
+    result[1,1] = 1.0 / (tanHalfFovy)
+    result[2,2] = - (zFar + zNear) / (zFar - zNear)
+    result[3,2] = - 1.0
+    result[2,3] = - (2.0 * zFar * zNear) / (zFar - zNear)
+    return result;
+}
+`
+
 class LibraryFunc {
     constructor(public name:string, public numArgs:number, public code:string){
 
@@ -68,6 +101,8 @@ class LibraryFunc {
         let funcs:LibraryFunc[] = [
             new LibraryFunc("polar_decompose_2d", 3,polar2dCode),
             new LibraryFunc("svd_2d", 4, svd2dCode),
+            new LibraryFunc("lookAt", 3, lookAtCode),
+            new LibraryFunc("perspective", 4, perspectiveCode),
         ]
 
         let funcsMap = new Map<string,LibraryFunc>()

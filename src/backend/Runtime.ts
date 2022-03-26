@@ -245,7 +245,7 @@ class Runtime {
     addArgsBuffer(size: number): GPUBuffer {
         let buffer = this.device!.createBuffer({
             size: size,
-            usage: GPUBufferUsage.STORAGE,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.UNIFORM,
             mappedAtCreation: true
         })
         return buffer
@@ -260,10 +260,10 @@ class Runtime {
     }
 
     private createGlobalTmpsBuffer() {
-        let size = 1024 * 1024
+        let size = 65536 // this buffer may be used as UBO by vertex shader. 65535 is the maximum size allowed by Chrome's WebGPU DX backend
         this.globalTmpsBuffer = this.device!.createBuffer({
             size: size,
-            usage: GPUBufferUsage.STORAGE,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.UNIFORM,
         })
     }
 
@@ -317,7 +317,7 @@ class Runtime {
         let size = tree.size
         let rootBuffer = this.device!.createBuffer({
             size: size,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
         })
         let device = this.device!
         let materialized: MaterializedTree = {

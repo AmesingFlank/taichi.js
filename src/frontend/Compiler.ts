@@ -1410,9 +1410,6 @@ export class KernelCompiler extends CompilingVisitor {
             else if (stage === WgslShaderStage.Vertex) {
                 let params = this.renderPipelineParams[currentRenderPipelineParamsId]
                 params.vertex.code = wgsl
-                if (bindings.length > 0) {
-                    this.errorNode(null, "the vertex-shader is not allowed to access taichi fields")
-                }
                 params.vertex.bindings = bindings
             }
             else if (stage === WgslShaderStage.Fragment) {
@@ -1424,7 +1421,7 @@ export class KernelCompiler extends CompilingVisitor {
                 taskParams.push(params)
                 currentRenderPipelineParamsId++;
             }
-            //console.log(wgsl)
+            // console.log(wgsl)
         }
         this.nativeKernel.delete()
         this.irBuilder.delete()
