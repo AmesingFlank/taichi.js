@@ -1,5 +1,5 @@
 import { Program } from '../program/Program'
-import { CanvasTexture, Field, Texture } from '../program/Field'
+import { CanvasTexture, DepthTexture, Field, Texture } from '../program/Field'
 import { PrimitiveType, Type, ScalarType, VectorType, MatrixType, StructType } from "../frontend/Type"
 
 
@@ -39,4 +39,8 @@ let canvasTexture = (canvas: HTMLCanvasElement) => {
     return new CanvasTexture(canvas)
 }
 
-export { field, Vector, Matrix, Struct, texture, canvasTexture }
+let depthTexture = (dimensions: number[]) => {
+    return new DepthTexture(dimensions)
+}
+
+export { field, Vector, Matrix, Struct, texture, canvasTexture, depthTexture }

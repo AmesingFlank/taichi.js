@@ -593,6 +593,24 @@ class CompilingVisitor extends ASTVisitor<Value>{
             return
         }
 
+        if (funcText === "ti.useDepth" || funcText === "useDepth") {
+            this.assertNode(node, this.isAtTopLevel(), "useDepth() can only be called at top level")
+            this.ensureRenderPassParams()
+
+            this.assertNode(node, node.arguments.length === 1, "useDepth() must have exactly 1 argument, i.e. the depth texture")
+            this.assertNode(node, this.canEvalInKernelScopeOrTemplateArgs(node.arguments[0]), "the first argument of useDepth() must be a depth texture object that's visible in kernel scope")
+            let depthTexture = this.tryEvalInKernelScopeOrTemplateArgs(node.arguments[0])
+            this.assertNode(node, depthTexture instanceof DepthTexture, "the first argument of useDepth() must be a depth texture object that's visible in kernel scope")
+            depthTexture = depthTexture as DepthTexture
+            this.assertNode(node, this.renderPassParams!.depthAttachment === null, "the depth texture has already been specified")
+            this.renderPassParams!.depthAttachment = {
+                texture: depthTexture,
+                clearDepth: 1.0,
+                storeDepth: true
+            }
+            return
+        }
+
         if (funcText === "ti.outputColor" || funcText === "outputColor") {
             this.assertNode(node, this.startedFragment, "outputColor() can only be used inside a fragment-for")
             this.assertNode(node, this.currentRenderPipelineParams !== null, "[Compiler bug]")

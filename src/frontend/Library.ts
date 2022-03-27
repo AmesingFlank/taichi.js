@@ -61,9 +61,9 @@ let svd2dCode =
 
 let lookAtCode = `
 (eye, center, up) => {
-    let y = up
     let z = (eye - center).normalized()
-    let x = y.cross(z).normalized()
+    let x = up.cross(z).normalized()
+    let y = z.cross(x).normalized()
     let result = [
         (x, -x.dot(eye)),
         (y, -y.dot(eye)),

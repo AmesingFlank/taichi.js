@@ -180,7 +180,7 @@ class CompiledRenderPipeline {
         }
     }
     createPipeline(device: GPUDevice, renderPassParams: RenderPassParams) {
-        this.pipeline = device.createRenderPipeline({
+       let desc:GPURenderPipelineDescriptor = {
             vertex: {
                 module: device.createShaderModule({
                     code: this.params.vertex.code,
@@ -199,9 +199,21 @@ class CompiledRenderPipeline {
             },
             primitive: {
                 topology: 'triangle-list',
-                stripIndexFormat: undefined,
+                cullMode: "none"
             },
-        })
+        }
+        if(renderPassParams.depthAttachment !== null){
+            let depthWrite = true
+            if(renderPassParams.depthAttachment.storeDepth === false){
+                depthWrite = false
+            }
+            desc.depthStencil = {
+                depthWriteEnabled: depthWrite,
+                depthCompare: 'less',
+                format: renderPassParams.depthAttachment.texture.getGPUTextureFormat(),
+            }
+        }
+        this.pipeline = device.createRenderPipeline(desc)
     }
 }
 
@@ -255,8 +267,14 @@ class CompiledRenderPassInfo {
         let depthStencilAttachment: GPURenderPassDepthStencilAttachment = {
             view: depth.texture.getGPUTexture().createView(),
             depthClearValue: depth.clearDepth,
+            depthLoadValue: depth.clearDepth === undefined ? "load" : depth.clearDepth,
             depthLoadOp: depth.clearDepth === undefined ? "load" : "clear",
-            depthStoreOp: depth.storeDepth === true ? "store" : "discard"
+            depthStoreOp: depth.storeDepth === true ? "store" : "discard",
+
+            stencilClearValue: 0,
+            stencilLoadOp: 'clear',
+            stencilStoreOp: 'store',
+            stencilLoadValue: 0
         }
         return {
             colorAttachments,

@@ -199,7 +199,6 @@ class Runtime {
                     let iboTree = this.materializedTrees[task.params.vertex.IBO.snodeTree.treeId]
                     renderEncoder!.setIndexBuffer(iboTree.rootBuffer!, "uint32", task.params.vertex.IBO.offsetBytes, task.params.vertex.IBO.sizeBytes)
                 }
-
                 if (task.params.vertex.IBO) {
                     renderEncoder!.drawIndexed(task.getVertexCount())
                 }
