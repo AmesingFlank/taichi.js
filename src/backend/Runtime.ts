@@ -283,7 +283,8 @@ class Runtime {
         for (let binding of bindings) {
             let buffer: GPUBuffer | null = null
             switch (binding.bufferType) {
-                case BufferType.Root: {
+                case BufferType.Root: 
+                case BufferType.RootAtomic :{
                     buffer = this.materializedTrees[binding.rootID!].rootBuffer!
                     break;
                 }

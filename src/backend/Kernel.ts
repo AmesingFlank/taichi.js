@@ -3,7 +3,7 @@ import { nativeTaichi, NativeTaichiAny } from "../native/taichi/GetTaichi"
 import { DepthTexture, Field, Texture, TextureBase } from "../program/Field"
 import { assert, error } from "../utils/Logging"
 enum BufferType {
-    Root, GlobalTmps, Args, RandStates, Rets
+    Root, RootAtomic, GlobalTmps, Args, RandStates, Rets
 }
 
 class BufferBinding {

@@ -316,6 +316,10 @@ class CompilingVisitor extends ASTVisitor<Value>{
             if (leftType.getCategory() != TypeCategory.Pointer) {
                 this.errorNode(node, "Left hand side of assignment must be an l-value. ", leftType.getCategory())
             }
+            let leftPointerType = leftType as PointerType
+            if(this.isInVertexOrFragmentFor() && leftPointerType.getIsGlobal()){
+                this.errorNode(node, "vertex/fragment shaders are not allowed to write to global temporary variables or global fields.")
+            }
             let storeOp = this.builtinOps.get("=")!
             let typeError = storeOp.checkType([left, rightValue])
             if (typeError.hasError) {
@@ -1047,6 +1051,10 @@ class CompilingVisitor extends ASTVisitor<Value>{
         return this.loopStack.length === 0 && this.branchDepth === 0
     }
 
+    protected isInVertexOrFragmentFor(){
+        return (this.startedVertex && !this.finishedVertex) || this.startedFragment
+    }
+
     protected isFragmentFor(node: ts.Node): boolean {
         if (node.kind !== ts.SyntaxKind.ForOfStatement) {
             return false
@@ -1354,11 +1362,13 @@ export class KernelCompiler extends CompilingVisitor {
                 let params = this.renderPipelineParams[currentRenderPipelineParamsId]
                 params.vertex.code = wgsl
                 params.vertex.bindings = bindings
+                this.checkGraphicsShaderBindings(bindings)
             }
             else if (stage === WgslShaderStage.Fragment) {
                 let params = this.renderPipelineParams[currentRenderPipelineParamsId]
                 params.fragment.code = wgsl
                 params.fragment.bindings = bindings
+                this.checkGraphicsShaderBindings(bindings)
 
                 params.bindings = params.getBindings()
                 taskParams.push(params)
@@ -1425,6 +1435,29 @@ export class KernelCompiler extends CompilingVisitor {
             this.returnValue = new Value(new VoidType())
             let returnStmtsVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
             this.irBuilder.create_return_vec(returnStmtsVec)
+        }
+    }
+
+    protected checkGraphicsShaderBindings(bindings: BufferBinding[]){
+        for(let binding of bindings){
+            if(binding.bufferType === BufferType.RandStates){
+                error("vertex and fragment shaders are not allowed to use randoms")
+            }
+            else if(binding.bufferType === BufferType.Rets){
+                error("[Compiler Bug] vertex and fragment shaders are not allowed to use rets")
+            }
+            else if(binding.bufferType === BufferType.RootAtomic){
+                error("vertex and fragment shaders are not allowed to use atomics")
+            }
+            else if(binding.bufferType === BufferType.Root){
+                let id = binding.rootID!
+                if(Program.getCurrentProgram().materializedTrees[id].size > 65536){
+                    // this is because vertex shaders are not allowed to use storage buffers, and fragment shader bindings must match the vertex shaders
+                    // and uniform buffers have a size limit of 64kB
+                    // not that in order for this error message to make sense, we must have one-to-one correspondence between fields and snode trees
+                    error("vertex and fragment shaders are not allowed to use fields of size greater than 64kB")
+                }
+            }
         }
     }
 }

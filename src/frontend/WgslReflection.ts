@@ -32,7 +32,12 @@ function getWgslShaderBindings(wgsl:string):BufferBinding[] {
             let rootIndexBegin = rootBufferBegin + rootBufferPrefix.length
             let rootIndexEnd = stmt.indexOf("_",rootIndexBegin)
             let rootIndex = Number(stmt.slice(rootIndexBegin,rootIndexEnd))
-            addBinding(new BufferBinding(BufferType.Root,rootIndex,bindingPoint))
+            if(stmt.indexOf("atomic") === -1){
+                addBinding(new BufferBinding(BufferType.Root,rootIndex,bindingPoint))
+            }
+            else{
+                addBinding(new BufferBinding(BufferType.RootAtomic,rootIndex,bindingPoint))
+            }
             continue
         }
 
