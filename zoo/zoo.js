@@ -1,4 +1,4 @@
-import { fractal, fractal3D, vortexRing,rasterizer,mpm99, cornellBox, rotatingCube } from "./presets.js";
+import { fractal, fractal3D, vortexRing,rasterizer,mpm99, cornellBox, rotatingCube, cloth } from "./presets.js";
 
 const editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
     mode: "javascript",
@@ -90,6 +90,7 @@ let examples = [
     {listItem:"Mpm99", code:mpm99},
     {listItem:"CornellBox", code:cornellBox},
     {listItem:"RotatingCube", code:rotatingCube},
+    {listItem:"Cloth", code:cloth},
 ]
 
 let examplesMap = {}

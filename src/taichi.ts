@@ -12,12 +12,14 @@ import { addToKernelScope, kernel, func, i32, f32, sync, template } from './api/
 import { field, Vector, Matrix, Struct, texture, canvasTexture, depthTexture } from "./api/Fields"
 import { range, ndrange } from "./api/KernelScopeBuiltin"
 import { types } from './api/Types'
+import { clothExample } from './examples/cloth/main'
 
 const ti = {
 
     taichiExample6Fractal,
     taichiExample7VortexRing,
     simpleGraphicsExample,
+    clothExample,
 
     runAllTests,
 
