@@ -35,6 +35,9 @@ let canvas = new ti.Canvas(htmlCanvas)
 
 let i = 0
 async function frame() {
+    if(window.shouldStop){
+        return
+    }
     kernel(i * 0.03)
     i = i + 1
     canvas.setImage(pixels)
@@ -183,6 +186,9 @@ let canvas = new ti.Canvas(htmlCanvas)
 
 let i = 0
 async function frame() {
+    if(window.shouldStop){
+        return
+    }
     march(i / 60)
     i = i + 1
     canvas.setImage(image)
@@ -303,6 +309,9 @@ htmlCanvas.height = resolution[1]
 let canvas = new ti.Canvas(htmlCanvas)
 
 let frame = async () => {
+    if(window.shouldStop){
+        return
+    }
     for(let i = 0; i< 4; ++i){
         advect()
         integrate_vortex()
@@ -449,6 +458,9 @@ let canvas = new ti.Canvas(htmlCanvas)
 
 let i = 0
 async function frame() {
+    if(window.shouldStop){
+        return
+    }
     let args = [i % num_triangles]
     for(let i = 0; i<15;++i){
         args.push(Math.random())
@@ -650,6 +662,9 @@ reset()
 
 let i = 0
 async function frame() {
+    if(window.shouldStop){
+        return
+    }
     for(let i = 0;i< Math.floor(2e-3/dt);++i){
         substep()
     }
@@ -1228,6 +1243,9 @@ let interval = 10
 let last_t = new Date().getTime()
 let total_samples = 0
 async function frame() {
+    if(window.shouldStop){
+        return
+    }
     for(let i = 0; i < interval; ++i){
         render()
         total_samples += 1

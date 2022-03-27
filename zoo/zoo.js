@@ -16,6 +16,7 @@ const compileAndRunButton = document.getElementById("CompileRunButton")
 const stopButton = document.getElementById("StopButton")
 
 let cancelAllAnimationFrames = ()=>{
+    window.shouldStop = true
     var id = window.requestAnimationFrame(()=>{});
     while(id--){
       window.cancelAnimationFrame(id);
@@ -55,6 +56,7 @@ console.error = function(...args){
 
 let compileAndRun = ()=>{
     cancelAllAnimationFrames()
+    window.shouldStop = false
     logs = ""
     logger.setValue("")
     let code = editor.getValue();
