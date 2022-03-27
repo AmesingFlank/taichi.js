@@ -221,11 +221,9 @@ class CompiledRenderPassInfo {
     constructor(
         public params: RenderPassParams
     ) {
-        this.gpuRenderPassDescriptor = this.getGPURenderPassDescriptor()
     }
-    public gpuRenderPassDescriptor: GPURenderPassDescriptor
 
-    private getGPURenderPassDescriptor(): GPURenderPassDescriptor {
+    public getGPURenderPassDescriptor(): GPURenderPassDescriptor {
         let colorAttachments: GPURenderPassColorAttachment[] = []
         for (let attach of this.params.colorAttachments) {
             if (attach.clearColor === undefined) {

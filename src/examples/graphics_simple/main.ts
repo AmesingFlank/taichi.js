@@ -28,9 +28,11 @@ let simpleGraphicsExample = async (htmlCanvas: HTMLCanvasElement) => {
         3, 7, 6
     ])
 
-    let pipeline = ti.kernel(
-        () => {
-            let view = ti.lookAt([-2, 2, -2], [0.5, 0.5, 0.5], [0.0, 1.0, 0.0])
+    let render = ti.kernel(
+        (t) => {
+            let center = [0.5, 0.5, 0.5]
+            let eye = center + [ti.sin(t),0.5,ti.cos(t)] * 2
+            let view = ti.lookAt(eye, center, [0.0, 1.0, 0.0])
             let proj = ti.perspective(45.0, aspectRatio, 0.1, 100)
             let mvp = proj.matmul(view)
             ti.clearColor(target, [0.1, 0.2, 0.3, 1])
@@ -46,7 +48,14 @@ let simpleGraphicsExample = async (htmlCanvas: HTMLCanvasElement) => {
             }
         }
     )
-    pipeline()
+
+    let i = 0
+    async function frame() {
+        render(i * 0.03)
+        i = i + 1
+        requestAnimationFrame(frame)
+    }
+    requestAnimationFrame(frame)
 
 }
 

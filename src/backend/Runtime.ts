@@ -152,7 +152,7 @@ class Runtime {
             endCompute()
             if (!renderEncoder) {
                 assert(kernel.renderPassInfo !== null, "render pass info is null")
-                renderEncoder = commandEncoder.beginRenderPass(kernel.renderPassInfo!.gpuRenderPassDescriptor)
+                renderEncoder = commandEncoder.beginRenderPass(kernel.renderPassInfo!.getGPURenderPassDescriptor())
             }
         }
 

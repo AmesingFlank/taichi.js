@@ -1,4 +1,4 @@
-import { fractal, fractal3D, vortex_ring,rasterizer,mpm99, cornell_box } from "./presets.js";
+import { fractal, fractal3D, vortexRing,rasterizer,mpm99, cornellBox, rotatingCube } from "./presets.js";
 
 const editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
     mode: "javascript",
@@ -83,10 +83,11 @@ stopButton.onclick = () => {
 let examples = [
     {listItem:"Fractal", code:fractal},
     {listItem:"Fractal3D", code:fractal3D},
-    {listItem:"VortexRing", code:vortex_ring},
+    {listItem:"VortexRing", code:vortexRing},
     {listItem:"Rasterizer", code:rasterizer},
     {listItem:"Mpm99", code:mpm99},
-    {listItem:"CornellBox", code:cornell_box},
+    {listItem:"CornellBox", code:cornellBox},
+    {listItem:"RotatingCube", code:rotatingCube},
 ]
 
 let examplesMap = {}
