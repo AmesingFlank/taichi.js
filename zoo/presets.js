@@ -1268,6 +1268,8 @@ let rotatingCube = `
 await ti.init()
 
 let htmlCanvas = document.getElementById("result_canvas")
+htmlCanvas.width = 720
+htmlCanvas.height = 360
 
 let VBO = ti.field(ti.types.vector(ti.f32, 3), 8)
 let IBO = ti.field(ti.i32, 36)
