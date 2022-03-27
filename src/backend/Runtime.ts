@@ -320,6 +320,11 @@ class Runtime {
 
     materializeTree(tree: SNodeTree) {
         let size = tree.size
+        // when a root buffer is used in vertex/fragment shader, we bind it as a uniform buffer, which requries the data to be 16-byte aligned
+        // the element is vec4<i32>, so we need to ensure that the buffer size is a multiple of 16
+        if(size % 16 !== 0){
+            size += 16 - (size % 16)
+        }
         let rootBuffer = this.device!.createBuffer({
             size: size,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
