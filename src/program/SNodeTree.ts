@@ -17,14 +17,6 @@ function numElements(dimensions: number[], packed: boolean = false) {
     return result
 }
 
-function product(arr: number[]) {
-    let result = 1
-    for (let d of arr) {
-        result *= d
-    }
-    return result
-}
-
 class SNodeTree {
     treeId: number = 0
     fields: Field[] = []

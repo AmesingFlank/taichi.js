@@ -6,6 +6,14 @@ export function divUp(a: number, b: number) {
     return Math.ceil(a / b)
 }
 
+export function product(arr: number[]) {
+    let result = 1
+    for (let d of arr) {
+        result *= d
+    }
+    return result
+}
+
 export function nextPowerOf2(n: number) {
     let count = 0
 
