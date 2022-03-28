@@ -564,7 +564,8 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
             this.assertNode(node, posOutput.getType().getCategory() === TypeCategory.Vector, "position output must be a vector")
             let outputVecType = posOutput.getType() as VectorType
-            this.assertNode(node, outputVecType.getNumRows() === 4, "position output must be a 4D vector")
+            this.assertNode(node, outputVecType.getNumRows() === 4, "position output must be a 4D f32 vector")
+            this.assertNode(node, outputVecType.getPrimitiveType() === PrimitiveType.f32, "position output must be a 4D f32 vector")
 
             let stmtsVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
 
@@ -630,6 +631,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             this.assertNode(node, fragOutput.getType().getCategory() === TypeCategory.Vector, "frag output must be a vector")
             let outputVecType = fragOutput.getType() as VectorType
             this.assertNode(node, outputVecType.getNumRows() === 1 || outputVecType.getNumRows() === 2 || outputVecType.getNumRows() === 4, "output vector component count must be 1, 2, or 4")
+            this.assertNode(node, outputVecType.getPrimitiveType() === PrimitiveType.f32, "position output must be a f32 vector")
 
             let stmtsVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
 
@@ -638,6 +640,26 @@ class CompilingVisitor extends ASTVisitor<Value>{
             }
 
             this.irBuilder.create_color_output(targetLocation, stmtsVec)
+            return
+        }
+
+        if (funcText === "ti.outputDepth" || funcText === "outputDepth") {
+            this.assertNode(node, this.startedFragment, "outputDepth() can only be used inside a fragment-for")
+            this.assertNode(node, this.currentRenderPipelineParams !== null, "[Compiler bug]")
+
+            this.assertNode(node, node.arguments.length === 1, "outputDepth() must have exactly 1 arguments") 
+            let depthOutput = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.arguments[0])))
+            this.assertNode(node, depthOutput.getType().getCategory() === TypeCategory.Scalar, "depth output must be a scalar")
+            let outputScalarType = depthOutput.getType() as ScalarType
+            this.assertNode(node, outputScalarType.getPrimitiveType() === PrimitiveType.f32, "depth output must be a f32 scalar")
+
+            this.irBuilder.create_depth_output(depthOutput.stmts[0])
+            return
+        }
+
+        if (funcText === "ti.discard" || funcText === "discard") {
+            this.assertNode(node, this.startedFragment, "discard() can only be used inside a fragment-for")
+            this.irBuilder.create_discard()
             return
         }
 

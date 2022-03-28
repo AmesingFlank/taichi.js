@@ -1332,11 +1332,12 @@ requestAnimationFrame(frame)
 `
 
 let cloth = `
+
 await ti.init()
 
 let htmlCanvas = document.getElementById("result_canvas")
-htmlCanvas.width = 720
-htmlCanvas.height = 360
+htmlCanvas.width = 512
+htmlCanvas.height = 512
 
 let N = 128
 let cell_size = 1.0 / N
@@ -1367,7 +1368,7 @@ let init_scene = ti.kernel(
                 (N - j) * cell_size / ti.sqrt(2)
             ]
         }
-        ball_center[0] = [0.5, -0.5, -0.0]
+        ball_center[0] = [0.5, -0.5, 0.0]
     }
 )
 
@@ -1410,11 +1411,21 @@ let vertexType = ti.types.struct({
 })
 let vertices = ti.field(vertexType, N * N)
 
+let ball_vertices = ti.Vector.field(2, ti.f32, [4]);
+let ball_indices = ti.field(ti.i32, [6])
+
+await ball_vertices.fromArray([[-1,-1],[1,-1],[-1,1],[1,1]])
+await ball_indices.fromArray([0,1,2,1,3,2])
+
 let renderTarget = ti.canvasTexture(htmlCanvas)
 let depth = ti.depthTexture([htmlCanvas.width, htmlCanvas.height])
 let aspectRatio = htmlCanvas.width / htmlCanvas.height
 
-ti.addToKernelScope({ num_triangles, vertices, indices, renderTarget, depth, aspectRatio })
+ti.addToKernelScope({ 
+  num_triangles, vertices, indices, renderTarget, depth, aspectRatio,
+  ball_vertices, ball_indices
+})
+
 
 let set_indices = ti.kernel(
     () => {
@@ -1435,7 +1446,6 @@ let set_indices = ti.kernel(
         }
     }
 )
-set_indices() // the IBO is fixed, only needs to be done once
 
 let compute_normal = (a, b, c) => {
     return (a - b).cross(a - c).normalized()
@@ -1473,8 +1483,9 @@ let render = ti.kernel(
 
         let center = [0.5, -0.5, 0]
         let eye = [0.5, -0.5, 2]
+        let fov = 45
         let view = ti.lookAt(eye, center, [0.0, 1.0, 0.0])
-        let proj = ti.perspective(45.0, aspectRatio, 0.1, 100)
+        let proj = ti.perspective(fov, aspectRatio, 0.1, 100)
         let mvp = proj.matmul(view)
 
         let light_pos = [0.5, 1, 2]
@@ -1482,16 +1493,56 @@ let render = ti.kernel(
         ti.clearColor(renderTarget, [0.1, 0.2, 0.3, 1])
         ti.useDepth(depth)
 
+      	// vertex shader for cloth
         for (let v of ti.input_vertices(vertices, indices)) {
             let pos = mvp.matmul((v.pos, 1.0))
             ti.outputPosition(pos)
             ti.outputVertex(v)
         }
+      	// fragment shader for cloth
         for (let f of ti.input_fragments()) {
             let normal = f.normal.normalized()
             let frag_to_light = (light_pos - f.pos).normalized()
-            let c = normal.dot(frag_to_light) * 0.8
+            let c = abs(normal.dot(frag_to_light)) 
             let color = [c, c, c, 1.0]
+            ti.outputColor(renderTarget, color)
+        }
+      	// vertex shader for ball
+      	for(let v of ti.input_vertices(ball_vertices, ball_indices)){
+          	let distance = (eye - ball_center[0]).norm()
+            let tanHalfFov = ti.tan(fov * Math.PI / (180 * 2))
+            let screen_radius = ball_radius / (tanHalfFov * distance)
+            let clip_pos = mvp.matmul((ball_center[0], 1.0))
+            clip_pos.y += screen_radius * v.y * clip_pos.w;
+            clip_pos.x += screen_radius * v.x * clip_pos.w / aspectRatio;
+            ti.outputPosition(clip_pos)
+            ti.outputVertex({
+            	point_coord: v,
+                center_pos_camera_space: view.matmul((ball_center[0], 1.0)).xyz
+            })
+        }
+      	// frag shader for ball
+        for (let f of ti.input_fragments()) {
+            
+          	if(f.point_coord.norm() > 1){
+            	ti.discard()
+            }
+          
+           	let z_in_sphere = ti.sqrt(1 - f.point_coord.norm_sqr())
+           	let coord_in_sphere = (f.point_coord, z_in_sphere) 
+           	let frag_pos_camera_space = 
+                	f.center_pos_camera_space + coord_in_sphere * ball_radius * 0.99
+           	
+            let clip_pos = proj.matmul((frag_pos_camera_space, 1.0))
+            let z = clip_pos.z / clip_pos.w;
+          	ti.outputDepth(z);
+          
+          	let normal_camera_space = coord_in_sphere 
+            let light_pos_camera_space = view.matmul((light_pos,1.0)).xyz
+            let light_dir = 
+                (light_pos_camera_space-frag_pos_camera_space).normalized()
+            let c = normal_camera_space.dot(light_dir) 
+            let color = [c, 0, 0, 1.0]
             ti.outputColor(renderTarget, color)
         }
     }
