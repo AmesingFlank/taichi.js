@@ -324,7 +324,8 @@ await frame()
 `
 
 let rasterizer = 
-`await ti.init() 
+`
+await ti.init() 
 
 let tile_size = 8 
 let width = 512
@@ -333,7 +334,7 @@ let num_triangles = 60
 let num_samples_per_pixel = 4  
 let num_spp_sqrt = Math.floor(Math.sqrt(num_samples_per_pixel)) 
 
-let samples = ti.Vector.field(3, ti.f32,
+let samples = ti.Vector.field(4, ti.f32,
                               [width, height, num_spp_sqrt, num_spp_sqrt])
 let pixels = ti.Vector.field(4,  ti.f32, [width, height])
 
@@ -366,38 +367,26 @@ ti.addToKernelScope({tile_size,width,height,num_triangles,num_samples_per_pixel,
                     samples,pixels,A,B,C,c0,c1,c2,block_num_triangles,block_indicies,
                     point_in_triangle,bbox_intersect,num_blocks_x,num_blocks_y})
 
-let set_triangle = ti.kernel (
-    // ok this is bad...
-    // TODO: support of non-scalar args
-    (ii,v00,v01, v10,v11,v20,v21,c00,c01,c02,c10,c11,c12,c20,c21,c22) => { 
-        let i = i32(ii)
-        A[i] = [v00,v01] * [width,height]
-        B[i] = [v10,v11] * [width,height]
-        C[i] = [v20,v21] * [width,height]
-        c0[i] = [c00,c01,c02]
-        c1[i] = [c10,c11,c12]
-        c2[i] = [c20,c21,c22]
-    }
-)
+let vec2 = ti.types.vector(ti.f32, 2)
+let vec3 = ti.types.vector(ti.f32, 3) 
 
 let tile_culling = ti.kernel(
     ()=>{
-        for(let I of ndrange(num_blocks_x,num_blocks_y)){
-            let i = I[0]
-            let j = I[1]
-            let idx = 0
-            let tile_min = [i * tile_size, j * tile_size]
-            let tile_max = [(i + 1) * tile_size, (j + 1) * tile_size]
-            for(let t of range(num_triangles)){
-                let tri_min = ti.min(A[t], ti.min(B[t], C[t]))
-                let tri_max = ti.max(A[t], ti.max(B[t], C[t]))
+        for(let t of range(num_triangles)){
+        	let tri_min = ti.min(A[t], ti.min(B[t], C[t]))
+            let tri_max = ti.max(A[t], ti.max(B[t], C[t]))
+            for(let I of ndrange(num_blocks_x,num_blocks_y)){
+              	let i = I[0]
+                let j = I[1]
+                let idx = 0
+                let tile_min = [i * tile_size, j * tile_size]
+                let tile_max = [(i + 1) * tile_size, (j + 1) * tile_size]
                 if (bbox_intersect(tile_min, tile_max, tri_min, tri_max)){
-                    block_indicies[i, j, idx] = t
-                    idx = idx + 1
+                    let my_idx = ti.atomic_add(block_num_triangles[i, j], 1)
+                    block_indicies[i, j, my_idx] = t
                 } 
             }
-            block_num_triangles[i, j] = idx
-        } 
+        }
     }
 )
         
@@ -420,10 +409,13 @@ let rasterize = ti.kernel(
                     ]
                     let point_info = point_in_triangle(P,A[idx],B[idx],C[idx])
                     if(point_info[0]){
-                        samples[i, j, subi, subj] = 
+                      	let color = 
                                 c0[idx]*point_info[1] + 
                                 c1[idx]*point_info[2] + 
                                 c2[idx]*point_info[3]
+                        if(idx > samples[i, j, subi, subj].w){
+                        	samples[i, j, subi, subj] = (color, idx)
+                        }
                     }
                 } 
             }
@@ -431,7 +423,7 @@ let rasterize = ti.kernel(
             for(let sub of ndrange(num_spp_sqrt,num_spp_sqrt)){
                 let subi = sub[0]
                 let subj = sub[1]
-                samples_sum = samples_sum + samples[i, j, subi, subj]
+                samples_sum = samples_sum + samples[i, j, subi, subj].rgb
             } 
             pixels[i, j] = ((samples_sum / num_samples_per_pixel), 1)
         }
@@ -439,13 +431,16 @@ let rasterize = ti.kernel(
 )
 let fill_all = ti.kernel(
     ()=>{
+        for(let I of ndrange(num_blocks_x,num_blocks_y)){
+        	block_num_triangles[I] = 0
+        }
         for(let I of ndrange(width,height)){
             let i = I[0]
             let j = I[1]
             for(let sub of ndrange(num_spp_sqrt,num_spp_sqrt)){
                 let subi = sub[0]
                 let subj = sub[1]
-                samples[i, j, subi, subj] = [1,1,1]
+                samples[i, j, subi, subj] = [1,1,1,-1]
             } 
         }
     }
@@ -461,11 +456,14 @@ async function frame() {
     if(window.shouldStop){
         return
     }
-    let args = [i % num_triangles]
-    for(let i = 0; i<15;++i){
-        args.push(Math.random())
-    }
-    set_triangle(...args)
+    let updated_triangle = i % num_triangles
+    A.set([updated_triangle], [Math.random() * width, Math.random() * height])
+    B.set([updated_triangle], [Math.random() * width, Math.random() * height])
+    C.set([updated_triangle], [Math.random() * width, Math.random() * height])
+  	c0.set([updated_triangle], [Math.random(), Math.random(), Math.random()])
+    c1.set([updated_triangle], [Math.random(), Math.random(), Math.random()])
+    c2.set([updated_triangle], [Math.random(), Math.random(), Math.random()])
+
     fill_all()
     tile_culling()
     rasterize()
@@ -474,8 +472,8 @@ async function frame() {
     requestAnimationFrame(frame)
 }
 await frame()
-  
 `
+
 
 let mpm99 = 
 `
