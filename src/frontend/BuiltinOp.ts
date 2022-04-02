@@ -374,6 +374,7 @@ class BuiltinOpFactory {
             new BuiltinBinaryOp("&&", BinaryOpDatatypeTransform.PromoteToMatch, false, false, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_and(l, r), (l, r) => l & r),
             new BuiltinBinaryOp("|", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_or(l, r), (l, r) => l & r),
             new BuiltinBinaryOp("||", BinaryOpDatatypeTransform.PromoteToMatch, false, false, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_or(l, r), (l, r) => l & r),
+            new BuiltinBinaryOp("^", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_xor(l, r), (l, r) => l & r),
 
             new BuiltinBinaryOp("/", BinaryOpDatatypeTransform.AlwaysF32, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_truediv(l, r), (l, r) => l / r),
 
@@ -395,6 +396,8 @@ class BuiltinOpFactory {
 
             new BuiltinUnaryOp("i32", PrimitiveType.i32, (stmt: NativeTaichiAny) => irBuilder.create_cast(stmt, toNativePrimitiveType(PrimitiveType.i32)), (x) => Math.floor(x)),
             new BuiltinUnaryOp("f32", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_cast(stmt, toNativePrimitiveType(PrimitiveType.f32)), (x) => x),
+            new BuiltinUnaryOp("bitcast_f32", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_bit_cast(stmt, toNativePrimitiveType(PrimitiveType.f32)), (x) => x),
+            new BuiltinUnaryOp("bitcast_i32", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_bit_cast(stmt, toNativePrimitiveType(PrimitiveType.f32)), (x) => x),
 
             new BuiltinBinaryOp("max", BinaryOpDatatypeTransform.PromoteToMatch, false, false, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_max(l, r), (l, r) => Math.max(l, r)),
             new BuiltinBinaryOp("min", BinaryOpDatatypeTransform.PromoteToMatch, false, false, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_min(l, r), (l, r) => Math.min(l, r)),
