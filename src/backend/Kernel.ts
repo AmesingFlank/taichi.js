@@ -1,7 +1,7 @@
 import { PrimitiveType, StructType, Type, VoidType } from "../frontend/Type"
 import { nativeTaichi, NativeTaichiAny } from "../native/taichi/GetTaichi"
-import { DepthTexture, Texture, TextureBase } from "../program/Texture"
-import { Field } from "../program/Field"
+import { DepthTexture, Texture, TextureBase } from "../data/Texture"
+import { Field } from "../data/Field"
 
 import { assert, error } from "../utils/Logging"
 enum ResourceType {

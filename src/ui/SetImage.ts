@@ -1,4 +1,4 @@
-import { Field } from "../program/Field"
+import { Field } from "../data/Field"
 import { Program } from "../program/Program"
 
 const vertShader = `

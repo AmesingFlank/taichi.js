@@ -1,10 +1,10 @@
 import { CompiledTask, CompiledKernel, TaskParams, ResourceType, KernelParams, ResourceBinding, CompiledRenderPipeline, RenderPipelineParams, CompiledRenderPassInfo } from './Kernel'
-import { SNodeTree } from '../program/SNodeTree'
+import { SNodeTree } from '../data/SNodeTree'
 import { divUp, elementToInt32Array, int32ArrayToElement } from '../utils/Utils'
 import { assert, error } from "../utils/Logging"
-import { Field } from '../program/Field'
+import { Field } from '../data/Field'
 import { TypeCategory } from '../frontend/Type'
-import { TextureBase } from '../program/Texture'
+import { TextureBase } from '../data/Texture'
 
 class FieldHostSideCopy {
     constructor(

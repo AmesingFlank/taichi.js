@@ -1,5 +1,5 @@
 
-import { Field } from "../program/Field"
+import { Field } from "../data/Field"
 import {SetImage} from "./SetImage"
 
 class Canvas{

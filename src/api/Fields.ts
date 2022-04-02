@@ -1,6 +1,6 @@
 import { Program } from '../program/Program'
-import { Field} from '../program/Field'
-import { CanvasTexture, DepthTexture, Texture } from '../program/Texture'
+import { Field} from '../data/Field'
+import { CanvasTexture, DepthTexture, Texture } from '../data/Texture'
 import { PrimitiveType, Type, ScalarType, VectorType, MatrixType, StructType } from "../frontend/Type"
 import { product } from '../utils/Utils'
 
