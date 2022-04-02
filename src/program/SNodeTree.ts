@@ -22,6 +22,7 @@ class SNodeTree {
     fields: Field[] = []
     size: number = 0
     nativeTreeRoot: NativeTaichiAny
+    rootBuffer: GPUBuffer | null = null
     constructor() {
         this.nativeTreeRoot = new nativeTaichi.SNode(0, nativeTaichi.SNodeType.root);
     }

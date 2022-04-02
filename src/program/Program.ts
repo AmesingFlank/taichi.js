@@ -8,8 +8,7 @@ import { PrimitiveType, toNativePrimitiveType } from '../frontend/Type'
 
 class Program {
     runtime: Runtime | null = null
-    materializedTrees: SNodeTree[] = []
-    textures: TextureBase[] = []
+    
     partialTree: SNodeTree
 
     nativeProgram: NativeTaichiAny
@@ -49,17 +48,15 @@ class Program {
             this.materializeRuntime()
         }
         this.nativeProgram.add_snode_tree(this.partialTree.nativeTreeRoot, true)
-        this.runtime!.materializeTree(this.partialTree)
-        this.materializedTrees.push(this.partialTree)
+        this.runtime!.materializeTree(this.partialTree) 
         let nextId = this.partialTree.treeId + 1
         this.partialTree = new SNodeTree()
         this.partialTree.treeId = nextId
     }
 
     addTexture(texture: TextureBase) {
-        let id = this.textures.length
+        let id = this.runtime!.textures.length
         texture.textureId = id;
-        this.textures.push(texture)
         this.runtime!.addTexture(texture)
 
         let dim = toNativeImageDimensionality(texture.getTextureDimensionality())

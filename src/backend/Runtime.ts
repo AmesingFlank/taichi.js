@@ -5,11 +5,6 @@ import { assert, error } from "../utils/Logging"
 import { Field } from '../program/Field'
 import { TypeCategory } from '../frontend/Type'
 import { TextureBase } from '../program/Texture'
-class MaterializedTree {
-    tree?: SNodeTree
-    rootBuffer?: GPUBuffer
-    device?: GPUDevice
-}
 
 class FieldHostSideCopy {
     constructor(
@@ -24,8 +19,8 @@ class Runtime {
     adapter: GPUAdapter | null = null
     device: GPUDevice | null = null
     kernels: CompiledKernel[] = []
-    private materializedTrees: MaterializedTree[] = []
-    private textures: TextureBase[] = []
+    materializedTrees: SNodeTree[] = []
+    textures: TextureBase[] = []
 
     private globalTmpsBuffer: GPUBuffer | null = null
     private randStatesBuffer: GPUBuffer | null = null
@@ -356,13 +351,8 @@ class Runtime {
             size: size,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
         })
-        let device = this.device!
-        let materialized: MaterializedTree = {
-            tree,
-            rootBuffer,
-            device
-        }
-        this.materializedTrees.push(materialized)
+        tree.rootBuffer = rootBuffer 
+        this.materializedTrees.push(tree)
     }
 
     addTexture(texture: TextureBase) {

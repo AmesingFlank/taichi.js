@@ -1574,7 +1574,7 @@ export class KernelCompiler extends CompilingVisitor {
             }
             else if (binding.resourceType === ResourceType.Root) {
                 let id = binding.resourceID!
-                if (Program.getCurrentProgram().materializedTrees[id].size > 65536) {
+                if (Program.getCurrentProgram().runtime!.materializedTrees[id].size > 65536) {
                     // this is because vertex shaders are not allowed to use storage buffers, and fragment shader bindings must match the vertex shaders
                     // and uniform buffers have a size limit of 64kB
                     // not that in order for this error message to make sense, we must have one-to-one correspondence between fields and snode trees
