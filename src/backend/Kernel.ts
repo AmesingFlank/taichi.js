@@ -1,6 +1,8 @@
 import { PrimitiveType, StructType, Type, VoidType } from "../frontend/Type"
 import { nativeTaichi, NativeTaichiAny } from "../native/taichi/GetTaichi"
-import { DepthTexture, Field, Texture, TextureBase } from "../program/Field"
+import { DepthTexture, Texture, TextureBase } from "../program/Texture"
+import { Field } from "../program/Field"
+
 import { assert, error } from "../utils/Logging"
 enum ResourceType {
     Root, RootAtomic, GlobalTmps, Args, RandStates, Rets, Texture, Sampler
@@ -180,7 +182,7 @@ class CompiledRenderPipeline {
         }
     }
     createPipeline(device: GPUDevice, renderPassParams: RenderPassParams) {
-       let desc:GPURenderPipelineDescriptor = {
+        let desc: GPURenderPipelineDescriptor = {
             vertex: {
                 module: device.createShaderModule({
                     code: this.params.vertex.code,
@@ -202,9 +204,9 @@ class CompiledRenderPipeline {
                 cullMode: "none"
             },
         }
-        if(renderPassParams.depthAttachment !== null){
+        if (renderPassParams.depthAttachment !== null) {
             let depthWrite = true
-            if(renderPassParams.depthAttachment.storeDepth === false){
+            if (renderPassParams.depthAttachment.storeDepth === false) {
                 depthWrite = false
             }
             desc.depthStencil = {

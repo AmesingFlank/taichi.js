@@ -3,7 +3,7 @@ import { SNodeTree } from './SNodeTree'
 import { nativeTaichi, NativeTaichiAny } from '../native/taichi/GetTaichi'
 import { error } from '../utils/Logging'
 import { Scope } from "./Scope"
-import { DepthTexture, TextureBase, toNativeImageDimensionality } from './Field'
+import { DepthTexture, TextureBase, toNativeImageDimensionality } from './Texture'
 import { PrimitiveType, toNativePrimitiveType } from '../frontend/Type'
 
 class Program {

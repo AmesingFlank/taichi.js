@@ -2,8 +2,9 @@ import { CompiledTask, CompiledKernel, TaskParams, ResourceType, KernelParams, R
 import { SNodeTree } from '../program/SNodeTree'
 import { divUp, elementToInt32Array, int32ArrayToElement } from '../utils/Utils'
 import { assert, error } from "../utils/Logging"
-import { Field, Texture, TextureBase } from '../program/Field'
-import { PrimitiveType, TypeCategory, TypeUtils } from '../frontend/Type'
+import { Field } from '../program/Field'
+import { TypeCategory } from '../frontend/Type'
+import { TextureBase } from '../program/Texture'
 class MaterializedTree {
     tree?: SNodeTree
     rootBuffer?: GPUBuffer
@@ -69,7 +70,7 @@ class Runtime {
                 kernel.tasks.push(task)
             }
         }
-        if(params.renderPassParams !== null){
+        if (params.renderPassParams !== null) {
             kernel.renderPassInfo = new CompiledRenderPassInfo(params.renderPassParams)
         }
         kernel.argTypes = params.argTypes
@@ -283,10 +284,10 @@ class Runtime {
         for (let binding of bindings) {
             let buffer: GPUBuffer | null = null
             let texture: GPUTextureView | null = null
-            let sampler : GPUSampler | null = null
+            let sampler: GPUSampler | null = null
             switch (binding.resourceType) {
-                case ResourceType.Root: 
-                case ResourceType.RootAtomic :{
+                case ResourceType.Root:
+                case ResourceType.RootAtomic: {
                     buffer = this.materializedTrees[binding.resourceID!].rootBuffer!
                     break;
                 }
@@ -308,16 +309,16 @@ class Runtime {
                     buffer = this.randStatesBuffer!
                     break;
                 }
-                case ResourceType.Texture:{
+                case ResourceType.Texture: {
                     texture = this.textures[binding.resourceID!].getGPUTextureView()
                     break;
                 }
-                case ResourceType.Sampler:{
+                case ResourceType.Sampler: {
                     sampler = this.textures[binding.resourceID!].getGPUSampler()
                     break;
                 }
             }
-            if(buffer!==null){
+            if (buffer !== null) {
                 entries.push({
                     binding: binding.binding,
                     resource: {
@@ -325,19 +326,19 @@ class Runtime {
                     }
                 })
             }
-            else if(texture !== null){
+            else if (texture !== null) {
                 entries.push({
                     binding: binding.binding,
                     resource: texture
                 })
             }
-            else if(sampler !== null){
+            else if (sampler !== null) {
                 entries.push({
                     binding: binding.binding,
                     resource: sampler
                 })
             }
-            else{
+            else {
                 error("couldn't identify resource")
             }
         }
@@ -348,7 +349,7 @@ class Runtime {
         let size = tree.size
         // when a root buffer is used in vertex/fragment shader, we bind it as a uniform buffer, which requries the data to be 16-byte aligned
         // the element is vec4<i32>, so we need to ensure that the buffer size is a multiple of 16
-        if(size % 16 !== 0){
+        if (size % 16 !== 0) {
             size += 16 - (size % 16)
         }
         let rootBuffer = this.device!.createBuffer({
@@ -368,10 +369,10 @@ class Runtime {
         this.textures.push(texture)
     }
 
-    createGPUTexture(dimensions: number[], format: GPUTextureFormat, renderAttachment: boolean, requires_storage:boolean): GPUTexture {
+    createGPUTexture(dimensions: number[], format: GPUTextureFormat, renderAttachment: boolean, requires_storage: boolean): GPUTexture {
         let getDescriptor = (): GPUTextureDescriptor => {
-            let usage = GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC | GPUTextureUsage.TEXTURE_BINDING 
-            if(requires_storage){
+            let usage = GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC | GPUTextureUsage.TEXTURE_BINDING
+            if (requires_storage) {
                 usage = usage | GPUTextureUsage.STORAGE_BINDING;
             }
             if (dimensions.length === 1) {
@@ -405,9 +406,9 @@ class Runtime {
         return this.device!.createTexture(getDescriptor())
     }
 
-    createGPUSampler(depth:boolean):GPUSampler {
-        let desc:GPUSamplerDescriptor = {}
-        if(depth){
+    createGPUSampler(depth: boolean): GPUSampler {
+        let desc: GPUSamplerDescriptor = {}
+        if (depth) {
             desc.compare = "less"
         }
         return this.device!.createSampler(desc)
@@ -471,10 +472,4 @@ class Runtime {
         return this.materializedTrees[treeId].rootBuffer!
     }
 }
-
-enum FieldTextureCopyDirection {
-    FieldToTexture,
-    TextureToField
-}
-
-export { Runtime , FieldTextureCopyDirection}
+export { Runtime }

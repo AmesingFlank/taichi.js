@@ -1,19 +1,6 @@
 import * as ts from "typescript";
 import { InMemoryHost } from "./InMemoryHost";
-import { ASTVisitor, VisitorResult } from "./ast/Visiter"
-import { CompiledKernel, TaskParams, ResourceBinding, ResourceType, KernelParams, RenderPipelineParams, VertexShaderParams, FragmentShaderParams, RenderPassParams } from "../backend/Kernel";
-import { nativeTaichi, NativeTaichiAny } from '../native/taichi/GetTaichi'
-import { error, assert } from '../utils/Logging'
-import { Scope } from "../program/Scope";
-import { CanvasTexture, Field, Texture, TextureBase } from "../program/Field";
-import { Program } from "../program/Program";
-import { getStmtKind, StmtKind } from "./Stmt"
-import { getWgslShaderBindings, getWgslShaderStage, WgslShaderStage } from "./WgslReflection"
-import { LibraryFunc } from "./Library";
-import { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, TypeUtils, PrimitiveType, toNativePrimitiveType, TypeError } from "./Type"
-import { Value, ValueUtils } from "./Value"
-import { BuiltinOp, BuiltinNullaryOp, BuiltinBinaryOp, BuiltinUnaryOp, BuiltinAtomicOp, BuiltinCustomOp, BuiltinOpFactory } from "./BuiltinOp";
-import { ResultOrError } from "./Error";
+import { error } from '../utils/Logging'
 
 
 export class ParsedFunction {

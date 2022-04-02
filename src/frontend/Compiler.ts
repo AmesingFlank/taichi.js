@@ -5,7 +5,8 @@ import { CompiledKernel, TaskParams, ResourceBinding, ResourceType, KernelParams
 import { nativeTaichi, NativeTaichiAny } from '../native/taichi/GetTaichi'
 import { error, assert } from '../utils/Logging'
 import { Scope } from "../program/Scope";
-import { CanvasTexture, DepthTexture, Field, getTextureCoordsNumComponents, isTexture, Texture, TextureBase } from "../program/Field";
+import { Field } from "../program/Field";
+import { CanvasTexture, DepthTexture, getTextureCoordsNumComponents, isTexture, Texture, TextureBase } from "../program/Texture";
 import { Program } from "../program/Program";
 import { getStmtKind, StmtKind } from "./Stmt"
 import { getWgslShaderBindings, getWgslShaderStage, WgslShaderStage } from "./WgslReflection"
