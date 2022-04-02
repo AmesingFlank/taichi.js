@@ -41,8 +41,8 @@ let Struct = {
     }
 }
 
-let texture = (primitiveType: PrimitiveType, numComponents:number, dimensions: number[])=> {
-    return new Texture(primitiveType,numComponents,dimensions)
+let texture = (numComponents:number, dimensions: number[])=> {
+    return new Texture(numComponents,dimensions)
 }
 
 let canvasTexture = (canvas: HTMLCanvasElement) => {

@@ -2,19 +2,19 @@ import { PrimitiveType, StructType, Type, VoidType } from "../frontend/Type"
 import { nativeTaichi, NativeTaichiAny } from "../native/taichi/GetTaichi"
 import { DepthTexture, Field, Texture, TextureBase } from "../program/Field"
 import { assert, error } from "../utils/Logging"
-enum BufferType {
-    Root, RootAtomic, GlobalTmps, Args, RandStates, Rets
+enum ResourceType {
+    Root, RootAtomic, GlobalTmps, Args, RandStates, Rets, Texture, Sampler
 }
 
-class BufferBinding {
+class ResourceBinding {
     constructor(
-        public bufferType: BufferType,
-        public rootID: number | null,
+        public resourceType: ResourceType,
+        public resourceID: number | null,
         public binding: number
     ) { }
 
-    equals(that: BufferBinding): boolean {
-        return this.bufferType === that.bufferType && this.rootID === that.rootID && this.binding === that.binding
+    equals(that: ResourceBinding): boolean {
+        return this.resourceType === that.resourceType && this.resourceID === that.resourceID && this.binding === that.binding
     }
 }
 
@@ -24,7 +24,7 @@ class TaskParams {
         public code: string,
         public rangeHint: string,
         public workgroupSize: number,
-        public bindings: BufferBinding[] = []
+        public bindings: ResourceBinding[] = []
     ) {
 
     }
@@ -33,7 +33,7 @@ class VertexShaderParams {
     constructor(
         public code: string = "",
         public VBO: Field | null = null,
-        public bindings: BufferBinding[] = [],
+        public bindings: ResourceBinding[] = [],
         public IBO: Field | null = null
     ) {
 
@@ -43,7 +43,7 @@ class VertexShaderParams {
 class FragmentShaderParams {
     constructor(
         public code: string = "",
-        public bindings: BufferBinding[] = [],
+        public bindings: ResourceBinding[] = [],
     ) {
 
     }
@@ -58,10 +58,10 @@ class RenderPipelineParams {
         this.bindings = this.getBindings()
     }
 
-    public bindings: BufferBinding[]
+    public bindings: ResourceBinding[]
 
     public getBindings() {
-        let bindings: BufferBinding[] = []
+        let bindings: ResourceBinding[] = []
         let candidates = this.vertex.bindings.concat(this.fragment.bindings)
         for (let c of candidates) {
             let found = false
@@ -229,7 +229,7 @@ class CompiledRenderPassInfo {
             if (attach.clearColor === undefined) {
                 colorAttachments.push(
                     {
-                        view: attach.texture.getGPUTexture().createView(),
+                        view: attach.texture.getGPUTextureView(),
                         clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
                         loadValue: "load",
                         loadOp: "load",
@@ -246,7 +246,7 @@ class CompiledRenderPassInfo {
                 }
                 colorAttachments.push(
                     {
-                        view: attach.texture.getGPUTexture().createView(),
+                        view: attach.texture.getGPUTextureView(),
                         clearValue: clearValue,
                         loadValue: clearValue,
                         loadOp: "clear",
@@ -263,7 +263,7 @@ class CompiledRenderPassInfo {
             }
         }
         let depthStencilAttachment: GPURenderPassDepthStencilAttachment = {
-            view: depth.texture.getGPUTexture().createView(),
+            view: depth.texture.getGPUTextureView(),
             depthClearValue: depth.clearDepth,
             depthLoadValue: depth.clearDepth === undefined ? "load" : depth.clearDepth,
             depthLoadOp: depth.clearDepth === undefined ? "load" : "clear",
@@ -292,4 +292,4 @@ class CompiledKernel {
     }
 }
 
-export { CompiledTask, CompiledKernel, TaskParams, BufferType, BufferBinding, KernelParams, VertexShaderParams, FragmentShaderParams, RenderPipelineParams, CompiledRenderPipeline, RenderPassParams, ColorAttachment, DepthAttachment, CompiledRenderPassInfo }
+export { CompiledTask, CompiledKernel, TaskParams, ResourceType, ResourceBinding, KernelParams, VertexShaderParams, FragmentShaderParams, RenderPipelineParams, CompiledRenderPipeline, RenderPassParams, ColorAttachment, DepthAttachment, CompiledRenderPassInfo }

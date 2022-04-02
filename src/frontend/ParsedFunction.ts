@@ -1,7 +1,7 @@
 import * as ts from "typescript";
 import { InMemoryHost } from "./InMemoryHost";
 import { ASTVisitor, VisitorResult } from "./ast/Visiter"
-import { CompiledKernel, TaskParams, BufferBinding, BufferType, KernelParams, RenderPipelineParams, VertexShaderParams, FragmentShaderParams, RenderPassParams } from "../backend/Kernel";
+import { CompiledKernel, TaskParams, ResourceBinding, ResourceType, KernelParams, RenderPipelineParams, VertexShaderParams, FragmentShaderParams, RenderPassParams } from "../backend/Kernel";
 import { nativeTaichi, NativeTaichiAny } from '../native/taichi/GetTaichi'
 import { error, assert } from '../utils/Logging'
 import { Scope } from "../program/Scope";

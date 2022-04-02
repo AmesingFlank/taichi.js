@@ -457,6 +457,11 @@ class BuiltinOpFactory {
                 }
 
                 if (TypeUtils.isTensorType(pointerType.getValueType()) && TypeUtils.isTensorType(args[1].getType())) {
+                    let destPrim = TypeUtils.getPrimitiveType(pointerType.getValueType())
+                    let valPrim = TypeUtils.getPrimitiveType(type1)
+                    if (destPrim === PrimitiveType.f32 && valPrim === PrimitiveType.i32) {
+                        args[1] = opsMap.get("f32")!.apply([args[1]])
+                    }
                     if (TypeUtils.tensorTypeShapeMatch(pointerType.getValueType(), type1)) {
                         assert(args[0].stmts.length === args[1].stmts.length, "[Compiler bug]", "Expecting stmts.length to match")
                         for (let i = 0; i < args[0].stmts.length; ++i) {

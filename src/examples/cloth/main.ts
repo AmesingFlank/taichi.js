@@ -2,8 +2,6 @@
 
 let clothExample = async (htmlCanvas: HTMLCanvasElement) => {
 
-    await ti.init()
-
     let N = 128
     let cell_size = 1.0 / N
     let gravity = 0.5
@@ -11,7 +9,7 @@ let clothExample = async (htmlCanvas: HTMLCanvasElement) => {
     let damping = 2
     let dt = 5e-4
 
-    let ball_radius = 0.2
+    let ball_radius = 0.3
     let ball_center = ti.Vector.field(3, ti.f32, [1])
 
     let x = ti.Vector.field(3, ti.f32, [N, N])
@@ -33,7 +31,7 @@ let clothExample = async (htmlCanvas: HTMLCanvasElement) => {
                     (N - j) * cell_size / ti.sqrt(2)
                 ]
             }
-            ball_center[0] = [0.5, -0.5, 0.0]
+            ball_center[0] = [0.5, -0.5, -0.1]
         }
     )
 
@@ -68,11 +66,40 @@ let clothExample = async (htmlCanvas: HTMLCanvasElement) => {
         }
     )
 
+    let fractal_dim = 320
+    let fractal_tex = ti.texture(4, [fractal_dim, fractal_dim])
+    let complex_sqr = (z) => {
+        return [z[0] ** 2 - z[1] ** 2, z[1] * z[0] * 2]
+    }
+
+    ti.addToKernelScope({ fractal_dim, fractal_tex, complex_sqr })
+
+    let fractal_kernel = ti.kernel(
+        (t) => {
+            for (let I of ndrange(fractal_dim, fractal_dim)) {
+                let i = I[0]
+                let j = I[1]
+                let c = [-0.8, cos(t) * 0.2]
+                let z = [i * 2 / fractal_dim - 1, j / fractal_dim - 0.5] * 2
+                let iterations = 0
+                while (z.norm() < 20 && iterations < 50) {
+                    z = complex_sqr(z) + c
+                    iterations = iterations + 1
+                }
+                let brightness = 1 - iterations * 0.02
+                let color = [brightness, brightness, brightness, 1.0]
+                ti.textureStore(fractal_tex, I, color)
+            }
+        }
+    )
+
+
     let num_triangles = (N - 1) * (N - 1) * 2
     let indices = ti.field(ti.i32, num_triangles * 3)
     let vertexType = ti.types.struct({
         "pos": ti.types.vector(ti.f32, 3),
-        "normal": ti.types.vector(ti.f32, 3)
+        "normal": ti.types.vector(ti.f32, 3),
+        "local_pos": ti.types.vector(ti.f32, 2),
     })
     let vertices = ti.field(vertexType, N * N)
 
@@ -144,6 +171,7 @@ let clothExample = async (htmlCanvas: HTMLCanvasElement) => {
                 }
                 normal = normal / normal_count
                 vertices[i * N + j].normal = normal
+                vertices[i * N + j].local_pos = [i / (N - 1), j / (N - 1)]
             }
 
             let center = [0.5, -0.5, 0]
@@ -169,7 +197,8 @@ let clothExample = async (htmlCanvas: HTMLCanvasElement) => {
                 let normal = f.normal.normalized()
                 let frag_to_light = (light_pos - f.pos).normalized()
                 let c = abs(normal.dot(frag_to_light))
-                let color = [c, c, c, 1.0]
+                let color = c * ti.textureSample(fractal_tex, f.local_pos)
+                color.a = 1
                 ti.outputColor(renderTarget, color)
             }
             // vertex shader for ball
@@ -216,6 +245,7 @@ let clothExample = async (htmlCanvas: HTMLCanvasElement) => {
     init_scene()
     set_indices()
 
+    let frame_id = 0
     async function frame() {
         if (window.shouldStop) {
             return
@@ -223,11 +253,12 @@ let clothExample = async (htmlCanvas: HTMLCanvasElement) => {
         for (let i = 0; i < 30; ++i) {
             step()
         }
+        fractal_kernel(frame_id * 0.03)
         render()
+        frame_id += 1
         requestAnimationFrame(frame)
     }
     requestAnimationFrame(frame)
-
 }
 
 export { clothExample }

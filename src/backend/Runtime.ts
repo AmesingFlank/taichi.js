@@ -1,4 +1,4 @@
-import { CompiledTask, CompiledKernel, TaskParams, BufferType, KernelParams, BufferBinding, CompiledRenderPipeline, RenderPipelineParams, CompiledRenderPassInfo } from './Kernel'
+import { CompiledTask, CompiledKernel, TaskParams, ResourceType, KernelParams, ResourceBinding, CompiledRenderPipeline, RenderPipelineParams, CompiledRenderPassInfo } from './Kernel'
 import { SNodeTree } from '../program/SNodeTree'
 import { divUp, elementToInt32Array, int32ArrayToElement } from '../utils/Utils'
 import { assert, error } from "../utils/Logging"
@@ -93,10 +93,10 @@ class Runtime {
         let retsSize: number = 0
         for (let task of kernel.tasks) {
             for (let binding of task.params.bindings) {
-                if (binding.bufferType === BufferType.Args) {
+                if (binding.resourceType === ResourceType.Args) {
                     requiresArgsBuffer = true
                 }
-                if (binding.bufferType === BufferType.Rets) {
+                if (binding.resourceType === ResourceType.Rets) {
                     requiresRetsBuffer = true
                 }
             }
@@ -278,42 +278,68 @@ class Runtime {
         })
     }
 
-    getGPUBindGroupEntries(bindings: BufferBinding[], argsBuffer: GPUBuffer | null, retsBuffer: GPUBuffer | null): GPUBindGroupEntry[] {
+    getGPUBindGroupEntries(bindings: ResourceBinding[], argsBuffer: GPUBuffer | null, retsBuffer: GPUBuffer | null): GPUBindGroupEntry[] {
         let entries: GPUBindGroupEntry[] = []
         for (let binding of bindings) {
             let buffer: GPUBuffer | null = null
-            switch (binding.bufferType) {
-                case BufferType.Root: 
-                case BufferType.RootAtomic :{
-                    buffer = this.materializedTrees[binding.rootID!].rootBuffer!
+            let texture: GPUTextureView | null = null
+            let sampler : GPUSampler | null = null
+            switch (binding.resourceType) {
+                case ResourceType.Root: 
+                case ResourceType.RootAtomic :{
+                    buffer = this.materializedTrees[binding.resourceID!].rootBuffer!
                     break;
                 }
-                case BufferType.GlobalTmps: {
+                case ResourceType.GlobalTmps: {
                     buffer = this.globalTmpsBuffer!
                     break;
                 }
-                case BufferType.Args: {
+                case ResourceType.Args: {
                     assert(argsBuffer !== null)
                     buffer = argsBuffer!
                     break;
                 }
-                case BufferType.Rets: {
+                case ResourceType.Rets: {
                     assert(retsBuffer !== null)
                     buffer = retsBuffer!
                     break;
                 }
-                case BufferType.RandStates: {
+                case ResourceType.RandStates: {
                     buffer = this.randStatesBuffer!
                     break;
                 }
-            }
-            assert(buffer !== null, "couldn't find buffer to bind")
-            entries.push({
-                binding: binding.binding,
-                resource: {
-                    buffer: buffer
+                case ResourceType.Texture:{
+                    texture = this.textures[binding.resourceID!].getGPUTextureView()
+                    break;
                 }
-            })
+                case ResourceType.Sampler:{
+                    sampler = this.textures[binding.resourceID!].getGPUSampler()
+                    break;
+                }
+            }
+            if(buffer!==null){
+                entries.push({
+                    binding: binding.binding,
+                    resource: {
+                        buffer: buffer
+                    }
+                })
+            }
+            else if(texture !== null){
+                entries.push({
+                    binding: binding.binding,
+                    resource: texture
+                })
+            }
+            else if(sampler !== null){
+                entries.push({
+                    binding: binding.binding,
+                    resource: sampler
+                })
+            }
+            else{
+                error("couldn't identify resource")
+            }
         }
         return entries
     }
@@ -339,24 +365,24 @@ class Runtime {
     }
 
     addTexture(texture: TextureBase) {
-        let id = this.textures.length
         this.textures.push(texture)
-        return id
     }
 
-    createGPUTexture(dimensions: number[], format: GPUTextureFormat, renderAttachment: boolean): GPUTexture {
+    createGPUTexture(dimensions: number[], format: GPUTextureFormat, renderAttachment: boolean, requires_storage:boolean): GPUTexture {
         let getDescriptor = (): GPUTextureDescriptor => {
-            let defaultUsage = GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC | GPUTextureUsage.TEXTURE_BINDING
+            let usage = GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC | GPUTextureUsage.TEXTURE_BINDING 
+            if(requires_storage){
+                usage = usage | GPUTextureUsage.STORAGE_BINDING;
+            }
             if (dimensions.length === 1) {
                 return {
                     size: { width: dimensions[0] },
                     dimension: "1d",
                     format: format,
-                    usage: defaultUsage
+                    usage: usage
                 }
             }
             else if (dimensions.length === 2) {
-                let usage = defaultUsage
                 if (renderAttachment) {
                     usage = usage | GPUTextureUsage.RENDER_ATTACHMENT
                 }
@@ -372,11 +398,19 @@ class Runtime {
                     size: { width: dimensions[0], height: dimensions[1], depthOrArrayLayers: dimensions[2] },
                     dimension: "3d",
                     format: format,
-                    usage: defaultUsage
+                    usage: usage
                 }
             }
         }
         return this.device!.createTexture(getDescriptor())
+    }
+
+    createGPUSampler(depth:boolean):GPUSampler {
+        let desc:GPUSamplerDescriptor = {}
+        if(depth){
+            desc.compare = "less"
+        }
+        return this.device!.createSampler(desc)
     }
 
     createGPUCanvasContext(htmlCanvas: HTMLCanvasElement): [GPUCanvasContext, GPUTextureFormat] {
@@ -428,7 +462,7 @@ class Runtime {
         let commandEncoder = this.device!.createCommandEncoder();
         commandEncoder.copyBufferToBuffer(rootBufferCopy, 0, this.materializedTrees[field.snodeTree.treeId].rootBuffer!, field.offsetBytes + offsetBytes, hostArray.byteLength)
         this.device!.queue.submit([commandEncoder.finish()]);
-        await this.sync()
+        await this.device!.queue.onSubmittedWorkDone()
 
         rootBufferCopy.destroy()
     }
@@ -438,4 +472,9 @@ class Runtime {
     }
 }
 
-export { Runtime }
+enum FieldTextureCopyDirection {
+    FieldToTexture,
+    TextureToField
+}
+
+export { Runtime , FieldTextureCopyDirection}

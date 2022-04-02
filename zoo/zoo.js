@@ -1,4 +1,4 @@
-import { fractal, fractal3D, vortexRing,rasterizer,mpm99, cornellBox, rotatingCube, cloth } from "./presets.js";
+import { fractal, fractal3D, vortexRing,rasterizer,mpm99, cornellBox, rotatingCube, cloth, fractalCloth } from "./presets.js";
 
 const editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
     mode: "javascript",
@@ -37,22 +37,22 @@ let preprocessCode = (code) => {
 } 
 
 let logs = ""
-console.log = function(...args) {
-    let s = ""
-    for(let a of args){
-        s += String(a) + " "
-    }
-    logs += "\n" + s
-    if(logs.length > 10000){
-        logs = logs.slice(-10000)
-    }
-    logger.setValue(logs)
-    let lineCount = logger.lineCount()
-    logger.setCursor(lineCount)
-};
-console.error = function(...args){
-    console.log(...args)
-}
+// console.log = function(...args) {
+//     let s = ""
+//     for(let a of args){
+//         s += String(a) + " "
+//     }
+//     logs += "\n" + s
+//     if(logs.length > 10000){
+//         logs = logs.slice(-10000)
+//     }
+//     logger.setValue(logs)
+//     let lineCount = logger.lineCount()
+//     logger.setCursor(lineCount)
+// };
+// console.error = function(...args){
+//     console.log(...args)
+// }
 
 let compileAndRun = ()=>{
     cancelAllAnimationFrames()
@@ -91,6 +91,7 @@ let examples = [
     {listItem:"CornellBox", code:cornellBox},
     {listItem:"RotatingCube", code:rotatingCube},
     {listItem:"Cloth", code:cloth},
+    {listItem:"FractalCloth", code:fractalCloth},
 ]
 
 let examplesMap = {}

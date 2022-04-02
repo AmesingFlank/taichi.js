@@ -1,10 +1,10 @@
-import { BufferBinding, BufferType } from "../backend/Kernel";
+import { ResourceBinding, ResourceType } from "../backend/Kernel";
 import { error } from "../utils/Logging";
 
 // hacky af
-function getWgslShaderBindings(wgsl:string):BufferBinding[] {
-    let bindings:BufferBinding[] = []
-    let addBinding = (binding:BufferBinding) => {
+function getWgslShaderBindings(wgsl:string):ResourceBinding[] {
+    let bindings:ResourceBinding[] = []
+    let addBinding = (binding:ResourceBinding) => {
         for(let existing of bindings){
             if(existing.equals(binding)){
                 return
@@ -33,10 +33,10 @@ function getWgslShaderBindings(wgsl:string):BufferBinding[] {
             let rootIndexEnd = stmt.indexOf("_",rootIndexBegin)
             let rootIndex = Number(stmt.slice(rootIndexBegin,rootIndexEnd))
             if(stmt.indexOf("atomic") === -1){
-                addBinding(new BufferBinding(BufferType.Root,rootIndex,bindingPoint))
+                addBinding(new ResourceBinding(ResourceType.Root,rootIndex,bindingPoint))
             }
             else{
-                addBinding(new BufferBinding(BufferType.RootAtomic,rootIndex,bindingPoint))
+                addBinding(new ResourceBinding(ResourceType.RootAtomic,rootIndex,bindingPoint))
             }
             continue
         }
@@ -44,29 +44,47 @@ function getWgslShaderBindings(wgsl:string):BufferBinding[] {
         let globalTmpsPrefix = "global_tmps_"
         let globalTmpsBegin = stmt.indexOf(globalTmpsPrefix)
         if(globalTmpsBegin !== -1){
-            addBinding(new BufferBinding(BufferType.GlobalTmps,null,bindingPoint))
+            addBinding(new ResourceBinding(ResourceType.GlobalTmps,null,bindingPoint))
             continue
         }
 
         let argsPrefix = "args_"
         let argsBegin = stmt.indexOf(argsPrefix)
         if(argsBegin !== -1){
-            addBinding(new BufferBinding(BufferType.Args,null,bindingPoint))
+            addBinding(new ResourceBinding(ResourceType.Args,null,bindingPoint))
             continue
         }
 
         let retsPrefix = "rets_"
         let retsBegin = stmt.indexOf(retsPrefix)
         if(retsBegin !== -1){
-            addBinding(new BufferBinding(BufferType.Rets,null,bindingPoint))
+            addBinding(new ResourceBinding(ResourceType.Rets,null,bindingPoint))
             continue
         }
 
         let randStatesPrefix = "rand_states_"
         let randStatesBegin = stmt.indexOf(randStatesPrefix)
         if(randStatesBegin !== -1){
-            addBinding(new BufferBinding(BufferType.RandStates,null,bindingPoint))
+            addBinding(new ResourceBinding(ResourceType.RandStates,null,bindingPoint))
             continue
+        }
+
+        let texturePrefix = "texture_"
+        let textureBegin = stmt.indexOf(texturePrefix)
+        if(textureBegin !== -1){
+            let textureIndexBegin = textureBegin + texturePrefix.length
+            let textureIndexEnd = stmt.indexOf("_",textureIndexBegin)
+            let textureIndex = Number(stmt.slice(textureIndexBegin,textureIndexEnd))
+            addBinding(new ResourceBinding(ResourceType.Texture,textureIndex,bindingPoint))
+        }
+
+        let samplerPrefix = "sampler_"
+        let samplerBegin = stmt.indexOf(samplerPrefix)
+        if(samplerBegin !== -1){
+            let samplerIndexBegin = samplerBegin + samplerPrefix.length
+            let samplerIndexEnd = stmt.indexOf("_",samplerIndexBegin)
+            let samplerIndex = Number(stmt.slice(samplerIndexBegin,samplerIndexEnd))
+            addBinding(new ResourceBinding(ResourceType.Sampler,samplerIndex,bindingPoint))
         }
     }
     return bindings
