@@ -13,7 +13,7 @@ class Program {
 
     nativeProgram: NativeTaichiAny
     nativeAotBuilder: NativeTaichiAny
-    kernelScopeObj: Scope
+    kernelScope: Scope
 
     private static instance: Program
     private constructor() {
@@ -22,7 +22,7 @@ class Program {
         this.nativeAotBuilder = this.nativeProgram.make_aot_module_builder(arch);
         this.partialTree = new SNodeTree()
         this.partialTree.treeId = 0
-        this.kernelScopeObj = new Scope()
+        this.kernelScope = new Scope()
     }
 
     public static getCurrentProgram(): Program {
@@ -68,8 +68,12 @@ class Program {
 
     addToKernelScope(obj: any) {
         for (let name in obj) {
-            this.kernelScopeObj.addStored(name, obj[name])
+            this.kernelScope.addStored(name, obj[name])
         }
+    }
+
+    clearKernelScope(){
+        this.kernelScope = new Scope()
     }
 
     private nextAnonymousKernel = 0

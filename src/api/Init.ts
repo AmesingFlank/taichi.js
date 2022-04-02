@@ -9,6 +9,7 @@ async function init() {
         await Program.getCurrentProgram().materializeRuntime()
         initialized = true
     }
+    Program.getCurrentProgram().clearKernelScope()
 }
 
 export {init}

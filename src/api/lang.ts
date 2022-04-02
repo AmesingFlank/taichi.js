@@ -10,6 +10,11 @@ function addToKernelScope(obj: any) {
     program.addToKernelScope(obj)
 }
 
+function clearKernelScope() {
+    let program = Program.getCurrentProgram()
+    program.clearKernelScope()
+}
+
 // Similar to Python Taichi, Template is a dummy class whose sole purpose is for marking template arguments with ti.template()
 class Template {
 
@@ -83,7 +88,7 @@ function kernel(argTypesOrCode: any, codeOrUndefined: any): ((...args: any[]) =>
     if (templateArgNamesSet.size === 0) {
         program.materializeCurrentTree()
         let compiler = new KernelCompiler()
-        let kernelParams = compiler.compileKernel(parsedFunction, Program.getCurrentProgram().kernelScopeObj, argTypesMap)
+        let kernelParams = compiler.compileKernel(parsedFunction, Program.getCurrentProgram().kernelScope, argTypesMap)
         let kernel = program.runtime!.createKernel(kernelParams)
         let result = async (...args: any[]) => {
             return await program.runtime!.launchKernel(kernel, ...args)
@@ -112,7 +117,7 @@ function kernel(argTypesOrCode: any, codeOrUndefined: any): ((...args: any[]) =>
             }
             program.materializeCurrentTree()
             let compiler = new KernelCompiler()
-            let kernelParams = compiler.compileKernel(parsedFunction, Program.getCurrentProgram().kernelScopeObj, argTypesMap, templateArgs)
+            let kernelParams = compiler.compileKernel(parsedFunction, Program.getCurrentProgram().kernelScope, argTypesMap, templateArgs)
             let kernel = program.runtime!.createKernel(kernelParams)
             template.instances.push([templateArgs, kernel])
             return await program.runtime!.launchKernel(kernel, ...nonTemplateArgs)
@@ -132,4 +137,4 @@ async function sync() {
 const i32 = PrimitiveType.i32
 const f32 = PrimitiveType.f32
 
-export { addToKernelScope, kernel, func, i32, f32, sync, template }
+export { addToKernelScope, clearKernelScope, kernel, func, i32, f32, sync, template }

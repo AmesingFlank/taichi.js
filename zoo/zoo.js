@@ -37,22 +37,22 @@ let preprocessCode = (code) => {
 } 
 
 let logs = ""
-// console.log = function(...args) {
-//     let s = ""
-//     for(let a of args){
-//         s += String(a) + " "
-//     }
-//     logs += "\n" + s
-//     if(logs.length > 10000){
-//         logs = logs.slice(-10000)
-//     }
-//     logger.setValue(logs)
-//     let lineCount = logger.lineCount()
-//     logger.setCursor(lineCount)
-// };
-// console.error = function(...args){
-//     console.log(...args)
-// }
+console.log = function(...args) {
+    let s = ""
+    for(let a of args){
+        s += String(a) + " "
+    }
+    logs += "\n" + s
+    if(logs.length > 10000){
+        logs = logs.slice(-10000)
+    }
+    logger.setValue(logs)
+    let lineCount = logger.lineCount()
+    logger.setCursor(lineCount)
+};
+console.error = function(...args){
+    console.log(...args)
+}
 
 let compileAndRun = ()=>{
     cancelAllAnimationFrames()
