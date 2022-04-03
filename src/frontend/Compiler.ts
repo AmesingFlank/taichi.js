@@ -23,6 +23,8 @@ enum LoopKind {
     For, While, StaticFor, VertexFor, FragmentFor
 }
 
+type SymbolTable = Map<ts.Symbol, Value>
+
 class CompilingVisitor extends ASTVisitor<Value>{
     constructor(
         protected irBuilder: NativeTaichiAny,
@@ -35,7 +37,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
     protected kernelScope: Scope = new Scope()
     protected templatedValues: Scope = new Scope()
-    protected symbolTable: Map<ts.Symbol, Value> = new Map<ts.Symbol, Value>()
+    protected symbolTable: SymbolTable = new Map<ts.Symbol, Value>()
     protected parsedFunction: ParsedFunction | null = null
 
     public compilationResultName: string | null = null
@@ -60,20 +62,16 @@ class CompilingVisitor extends ASTVisitor<Value>{
         this.kernelScope = kernelScope
         this.templatedValues = templatedValues
         this.parsedFunction = parsedFunction
-        this.symbolTable = new Map<ts.Symbol, Value>()
 
-        let sourceFiles = this.parsedFunction!.tsProgram.getSourceFiles()
-        let sourceFile = sourceFiles[0]
-        let statements = sourceFile.statements
-        if (statements[0].kind === ts.SyntaxKind.FunctionDeclaration) {
-            let func = statements[0] as ts.FunctionDeclaration
+        let functionNode = this.parsedFunction!.functionNode!
+        if (functionNode.kind === ts.SyntaxKind.FunctionDeclaration) {
+            let func = functionNode as ts.FunctionDeclaration
             this.compilationResultName = func.name!.text
             this.registerArguments(func.parameters)
             this.visitInputFunctionBody(func.body!)
         }
-        else if (statements[0].kind === ts.SyntaxKind.ExpressionStatement &&
-            (statements[0] as ts.ExpressionStatement).expression.kind === ts.SyntaxKind.ArrowFunction) {
-            let func = (statements[0] as ts.ExpressionStatement).expression as ts.ArrowFunction
+        else if (functionNode.kind === ts.SyntaxKind.ArrowFunction) {
+            let func = functionNode as ts.ArrowFunction
             this.registerArguments(func.parameters)
             let body = func.body
             if (body.kind === ts.SyntaxKind.Block) {
@@ -486,7 +484,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             let func = kv[1]
             if (funcText === func.name || funcText === "ti." + func.name) {
                 let compiler = new InliningCompiler(this.irBuilder, this.builtinOps, this.atomicOps, funcText)
-                let parsedInlinedFunction = new ParsedFunction(func.code)
+                let parsedInlinedFunction = ParsedFunction.makeFromCode(func.code)
                 let result = compiler.runInlining(parsedInlinedFunction, this.kernelScope, getArgumentRefs())
                 if (result) {
                     return result
@@ -773,7 +771,13 @@ class CompilingVisitor extends ASTVisitor<Value>{
         let calledFunctionValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.expression)))
         if (calledFunctionValue.getType().getCategory() === TypeCategory.Function) {
             let compiler = new InliningCompiler(this.irBuilder, this.builtinOps, this.atomicOps, funcText)
-            let result = compiler.runInlining(calledFunctionValue.parsedFunction!, this.kernelScope, getArgumentRefs())
+            let additionalSymbolTable : SymbolTable | null = null
+            if(calledFunctionValue.parsedFunction!.tsProgram === this.parsedFunction!.tsProgram){
+                // this means that the funtion is embedded in this kernel/function. 
+                // so we should pass in this function's symbol table, to allow variable captures
+                additionalSymbolTable = this.symbolTable
+            }
+            let result = compiler.runInlining(calledFunctionValue.parsedFunction!, this.kernelScope, getArgumentRefs(), additionalSymbolTable)
             if (result) {
                 return result
             }
@@ -938,8 +942,8 @@ class CompilingVisitor extends ASTVisitor<Value>{
                         return ValueUtils.makeConstantScalar(val, this.irBuilder.get_float32(val), PrimitiveType.f32)
                     }
                 }
-                else if( typeof val === "function") {
-                    let parsedFunction = new ParsedFunction(val.toString())
+                else if (typeof val === "function") {
+                    let parsedFunction = ParsedFunction.makeFromCode(val.toString())
                     let value = new Value(new FunctionType())
                     value.parsedFunction = parsedFunction
                     return value
@@ -1010,12 +1014,12 @@ class CompilingVisitor extends ASTVisitor<Value>{
         let initValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(initializer)))
         let varSymbol = this.getNodeSymbol(identifier)
 
-        if(initValue.getType().getCategory() !== TypeCategory.Function){
+        if (initValue.getType().getCategory() !== TypeCategory.Function) {
             let localVar = this.createLocalVarCopy(initValue)
             this.symbolTable.set(varSymbol, localVar)
             return localVar
         }
-        else{
+        else {
             // don't support alloca/load/store for functions... treated as const
             this.symbolTable.set(varSymbol, initValue)
             return initValue
@@ -1369,9 +1373,8 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
     protected override visitFunctionDeclaration(node: ts.FunctionDeclaration): VisitorResult<Value> {
         let value = new Value(new FunctionType())
-        let code = node.getText()
-        value.parsedFunction = new ParsedFunction(code, this.parsedFunction)
-        if(node.name){
+        value.parsedFunction = ParsedFunction.makeFromParsedNode(node, this.parsedFunction!)
+        if (node.name) {
             this.symbolTable.set(this.getNodeSymbol(node.name), value)
         }
         return value
@@ -1379,8 +1382,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
     protected override visitArrowFunction(node: ts.ArrowFunction): VisitorResult<Value> {
         let value = new Value(new FunctionType())
-        let code = node.getText()
-        value.parsedFunction = new ParsedFunction(code, this.parsedFunction)
+        value.parsedFunction = ParsedFunction.makeFromParsedNode(node, this.parsedFunction!)
         return value
     }
 }
@@ -1396,8 +1398,14 @@ export class InliningCompiler extends CompilingVisitor {
 
     argValues: Value[] = []
 
-    runInlining(parsedFunction: ParsedFunction, kernelScope: Scope, argValues: Value[]): Value | null {
+    runInlining(parsedFunction: ParsedFunction, kernelScope: Scope, argValues: Value[], parentFunctionSymbolTable: SymbolTable | null = null): Value | null {
         this.argValues = argValues
+        if(parentFunctionSymbolTable!==null){
+            for(let symbol of parentFunctionSymbolTable.keys()){
+                let val = parentFunctionSymbolTable.get(symbol)!
+                this.symbolTable.set(symbol, val)
+            }
+        }
         this.buildIR(parsedFunction, kernelScope, new Scope())
         return this.returnValue
     }

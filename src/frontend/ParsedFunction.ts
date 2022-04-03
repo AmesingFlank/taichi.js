@@ -6,7 +6,9 @@ import { error } from '../utils/Logging'
 // A parsed JS function.
 // The optional argument `parent` is a parent JS function whose scope this function resides in
 export class ParsedFunction {
-    constructor(public code: string, public parent: ParsedFunction | null = null) {
+
+    static makeFromCode(code: string): ParsedFunction {
+        let parsedFunction = new ParsedFunction()
         let host: InMemoryHost = new InMemoryHost()
         let tempFileName = "temp.js"
         host.writeFile(tempFileName, code)
@@ -20,33 +22,55 @@ export class ParsedFunction {
             strictFunctionTypes: false,
             checkJs: true
         };
-        this.tsProgram = ts.createProgram([tempFileName], tsOptions, host);
-        this.errorTsDiagnostics(this.tsProgram.getSyntacticDiagnostics())
-        this.typeChecker = this.tsProgram.getTypeChecker()
+        parsedFunction.tsProgram = ts.createProgram([tempFileName], tsOptions, host);
+        parsedFunction.errorTsDiagnostics(parsedFunction.tsProgram.getSyntacticDiagnostics())
+        parsedFunction.typeChecker = parsedFunction.tsProgram.getTypeChecker()
 
-        let sourceFiles = this.tsProgram!.getSourceFiles()
-        this.assertNode(sourceFiles[0], sourceFiles.length === 1, "Expecting exactly 1 source file, got ", sourceFiles.length)
+        let sourceFiles = parsedFunction.tsProgram!.getSourceFiles()
+        parsedFunction.assertNode(sourceFiles[0], sourceFiles.length === 1, "Expecting exactly 1 source file, got ", sourceFiles.length)
         let sourceFile = sourceFiles[0]
         let statements = sourceFile.statements
-        this.assertNode(sourceFiles[0], statements.length === 1, "Expecting exactly 1 statement in ti.kernel (A single function or arrow function)")
-        if (statements[0].kind === ts.SyntaxKind.FunctionDeclaration) {
-            let func = statements[0] as ts.FunctionDeclaration
-            this.registerArguments(func.parameters)
-        }
-        else if (statements[0].kind === ts.SyntaxKind.ExpressionStatement &&
-            (statements[0] as ts.ExpressionStatement).expression.kind === ts.SyntaxKind.ArrowFunction) {
-            let func = (statements[0] as ts.ExpressionStatement).expression as ts.ArrowFunction
-            this.registerArguments(func.parameters)
-        }
-        else {
-            this.errorNode(sourceFiles[0], "Expecting a function or an arrow function in ti.kernel")
-        }
+        parsedFunction.assertNode(sourceFiles[0], statements.length === 1, "Expecting exactly 1 statement in ti.kernel (A single function or arrow function)")
+        parsedFunction.registerFunctionNode(statements[0])
+        return parsedFunction
     }
 
-    typeChecker: ts.TypeChecker
-    tsProgram: ts.Program
+    // used for functions embedded in another parsed function
+    static makeFromParsedNode(node: ts.ArrowFunction | ts.FunctionDeclaration, parentFunction:ParsedFunction): ParsedFunction {
+        let parsedFunction = new ParsedFunction()
+        parentFunction.parent = parentFunction
+        parsedFunction.typeChecker = parentFunction.typeChecker!
+        parsedFunction.tsProgram = parentFunction.tsProgram!
+        parsedFunction.registerFunctionNode(node)
+        return parsedFunction
+    }
+
+    typeChecker: ts.TypeChecker | null = null
+    tsProgram: ts.Program | null = null
+    functionNode: ts.Node | null = null
+    parent: ParsedFunction | null = null
     argNames: string[] = []
     argNodes: ts.ParameterDeclaration[] = []
+
+    protected registerFunctionNode(node: ts.Node) {
+        if (node.kind === ts.SyntaxKind.FunctionDeclaration) {
+            this.functionNode = node
+            this.registerArguments((node as ts.FunctionDeclaration).parameters)
+        }
+        else if (node.kind === ts.SyntaxKind.ExpressionStatement &&
+            (node as ts.ExpressionStatement).expression.kind === ts.SyntaxKind.ArrowFunction) {
+            let func = (node as ts.ExpressionStatement).expression as ts.ArrowFunction
+            this.functionNode = func
+            this.registerArguments(func.parameters)
+        }
+        else if (node.kind === ts.SyntaxKind.ArrowFunction) {
+            this.functionNode = node;
+            this.registerArguments((node as ts.ArrowFunction).parameters)
+        }
+        else {
+            this.errorNode(node, "Expecting a function or an arrow function in kernel/function")
+        }
+    }
 
     protected registerArguments(args: ts.NodeArray<ts.ParameterDeclaration>) {
         for (let a of args) {
@@ -56,24 +80,12 @@ export class ParsedFunction {
     }
 
     hasNodeSymbol(node: ts.Node): boolean {
-        if (this.typeChecker.getSymbolAtLocation(node) !== undefined) {
-            return true;
-        }
-        if (this.parent !== null) {
-            return this.parent.hasNodeSymbol(node)
-        }
-        return false
+        return this.typeChecker!.getSymbolAtLocation(node) !== undefined
     }
 
     getNodeSymbol(node: ts.Node): ts.Symbol {
         this.assertNode(node, this.hasNodeSymbol(node), "symbol not found for " + node.getText())
-        if (this.typeChecker.getSymbolAtLocation(node) !== undefined) {
-            let symbol = this.typeChecker.getSymbolAtLocation(node)
-            return symbol!
-        }
-        else{
-            return this.parent!.getNodeSymbol(node)
-        } 
+        return this.typeChecker!.getSymbolAtLocation(node)!
     }
 
     getSourceCodeAt(startPos: number, endPos: number): string {
@@ -106,22 +118,11 @@ export class ParsedFunction {
         }
     }
 
-    private isNodeFromThisFunction(node:ts.Node) {
-        let sourceFile = this.tsProgram!.getSourceFiles()[0]
-        while(node.kind !== ts.SyntaxKind.SourceFile){
-            node = node.parent
-        }
-        return node === sourceFile
-    }
-
     getNodeSourceCode(node: ts.Node): string {
-        if(this.isNodeFromThisFunction(node)){
-            let startPos = node.getStart()
-            let endPos = node.getEnd()
-            let code = this.getSourceCodeAt(startPos, endPos)
-            return code
-        }
-        return this.parent!.getNodeSourceCode(node)
+        let startPos = node.getStart()
+        let endPos = node.getEnd()
+        let code = this.getSourceCodeAt(startPos, endPos)
+        return code
     }
 
     errorNode(node: ts.Node, ...args: any[]) {

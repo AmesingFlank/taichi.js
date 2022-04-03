@@ -7,7 +7,7 @@ async function testLambda(): Promise<boolean> {
 
     await ti.init()
 
-    let f = ti.field(ti.f32, [5])
+    let f = ti.field(ti.f32, [6])
 
     let globalFunc = () => {
         let localFunc = () => {
@@ -32,11 +32,16 @@ async function testLambda(): Promise<boolean> {
             let f3 = (x) => {
                 x = 3
             }
+            let one = 1
+            let f5 = () => {
+                return one + f2(f2(one))
+            }
             f[0] = f0();
             f[1] = f1();
             f[2] = f2(1);
             f3(f[3])
             f[4] = globalFunc()
+            f[5] = f5()
         }
     )
 
@@ -44,7 +49,7 @@ async function testLambda(): Promise<boolean> {
 
     let fHost = await f.toArray()
     console.log(fHost)
-    return assertEqual(fHost, [0, 1, 2, 3, 4])
+    return assertEqual(fHost, [0, 1, 2, 3, 4, 5])
 }
 
 export { testLambda }

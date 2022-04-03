@@ -78,7 +78,7 @@ function kernel(argTypesOrCode: any, codeOrUndefined: any): ((...args: any[]) =>
     }
     let codeString = code.toString()
     let program = Program.getCurrentProgram()
-    let parsedFunction = new ParsedFunction(codeString)
+    let parsedFunction = ParsedFunction.makeFromCode(codeString)
     let argNames = parsedFunction.argNames
     if (!templateKernelCache.has(codeString)) {
         templateKernelCache.set(codeString, new TemplateKernel())
