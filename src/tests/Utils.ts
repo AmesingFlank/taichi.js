@@ -4,7 +4,7 @@ import { MultiDimensionalArray } from "../utils/MultiDimensionalArray"
 function assertEqual<T>(actual: any, expected: any, epsilon = 1e-6): boolean {
     if (typeof expected === "number") {
         assert(typeof actual === "number", "expecting number")
-        if (isNaN(actual) || Math.abs(actual - expected) > epsilon) {
+        if ((isNaN(actual) != isNaN(expected)) || Math.abs(actual - expected) > epsilon) {
             error(`Mismatch: expecting ${expected}, but received ${actual}`)
             return false
         }

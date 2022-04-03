@@ -81,7 +81,7 @@ async function testLibraryFuncs(): Promise<boolean> {
             [-0.665064, -0.62532, 0.408245]
         ]
     ]
-    return assertEqual(f2Host, expected2) //&& assertEqual(f3Host, expected3)
+    return assertEqual(f2Host, expected2) && assertEqual(f3Host, expected3, 1e-4)
 }
 
 export { testLibraryFuncs }

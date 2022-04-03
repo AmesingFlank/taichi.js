@@ -1074,6 +1074,10 @@ class CompilingVisitor extends ASTVisitor<Value>{
         guard.delete()
     }
 
+    protected shouldStrictlySerialize() {
+        return false
+    }
+
     protected visitRangeFor(indexSymbols: ts.Symbol[], rangeExpr: ts.NodeArray<ts.Expression>, body: ts.Statement, shouldUnroll: boolean): VisitorResult<Value> {
         this.assertNode(null, rangeExpr.length === 1, "Expecting exactly 1 argument in range()")
         this.assertNode(null, indexSymbols.length === 1, "Expecting exactly 1 loop index in range()")
@@ -1095,7 +1099,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
         }
         else {
             let zero = this.irBuilder.get_int32(0)
-            let loop = this.irBuilder.create_range_for(zero, rangeLengthValue.stmts[0], 0, 4, 0, false);
+            let loop = this.irBuilder.create_range_for(zero, rangeLengthValue.stmts[0], 0, 4, 0, this.shouldStrictlySerialize());
 
             let loopGuard = this.irBuilder.get_range_loop_guard(loop);
             let indexStmt = this.irBuilder.get_loop_index(loop, 0);
@@ -1153,7 +1157,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
                 product = this.irBuilder.create_mul(product, lengthValues[i].stmts[0])
             }
             let zero = this.irBuilder.get_int32(0)
-            let loop = this.irBuilder.create_range_for(zero, product, 0, 4, 0, false);
+            let loop = this.irBuilder.create_range_for(zero, product, 0, 4, 0, this.shouldStrictlySerialize());
 
             let loopGuard = this.irBuilder.get_range_loop_guard(loop);
             let flatIndexStmt = this.irBuilder.get_loop_index(loop, 0);
@@ -1440,6 +1444,11 @@ export class InliningCompiler extends CompilingVisitor {
 
     protected override visitFragmentFor(indexSymbols: ts.Symbol[], fragmentArgs: ts.NodeArray<ts.Expression>, body: ts.Statement): VisitorResult<Value> {
         this.errorNode(null, "Fragment-For not allowed in non-kernel functions")
+    }
+
+    protected shouldStrictlySerialize() {
+        // avoid generating an overloaded task due to a for loop inside a function
+        return true
     }
 }
 export class KernelCompiler extends CompilingVisitor {
