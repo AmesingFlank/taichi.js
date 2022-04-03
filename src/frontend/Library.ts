@@ -75,12 +75,8 @@ let svd3dCode =
 
     let xffffffff = -1;
 
-    let Expr = (x) => x;
-    let Var = (x) => x;
-    let Tf = (x) => ti.f32(x);
-    let Ti = (x) => ti.i32(x);
-    let int32 = (x) => ti.i32(x);
-    let insert_assignment = (x, y) => { x = y }
+    let Ti = (x) => ti.i32(x)
+    let int32 = (x) => ti.i32(x)
     let expr_select = (c, x, y) => {
         let result = x
         if (!c) {
@@ -103,841 +99,834 @@ let svd3dCode =
     let Cosine_Pi_Over_Eight = 0.9238795325112867
 
 
-    let Sfour_gamma_squared = Var(Expr(Tf(0.0)));
-    let Ssine_pi_over_eight = Var(Expr(Tf(0.0)));
-    let Scosine_pi_over_eight = Var(Expr(Tf(0.0)));
-    let Sone_half = Var(Expr(Tf(0.0)));
-    let Sone = Var(Expr(Tf(0.0)));
-    let Stiny_number = Var(Expr(Tf(0.0)));
-    let Ssmall_number = Var(Expr(Tf(0.0)));
-    let Sa11 = Var(Expr(Tf(0.0)));
-    let Sa21 = Var(Expr(Tf(0.0)));
-    let Sa31 = Var(Expr(Tf(0.0)));
-    let Sa12 = Var(Expr(Tf(0.0)));
-    let Sa22 = Var(Expr(Tf(0.0)));
-    let Sa32 = Var(Expr(Tf(0.0)));
-    let Sa13 = Var(Expr(Tf(0.0)));
-    let Sa23 = Var(Expr(Tf(0.0)));
-    let Sa33 = Var(Expr(Tf(0.0)));
-    let Sv11 = Var(Expr(Tf(0.0)));
-    let Sv21 = Var(Expr(Tf(0.0)));
-    let Sv31 = Var(Expr(Tf(0.0)));
-    let Sv12 = Var(Expr(Tf(0.0)));
-    let Sv22 = Var(Expr(Tf(0.0)));
-    let Sv32 = Var(Expr(Tf(0.0)));
-    let Sv13 = Var(Expr(Tf(0.0)));
-    let Sv23 = Var(Expr(Tf(0.0)));
-    let Sv33 = Var(Expr(Tf(0.0)));
-    let Su11 = Var(Expr(Tf(0.0)));
-    let Su21 = Var(Expr(Tf(0.0)));
-    let Su31 = Var(Expr(Tf(0.0)));
-    let Su12 = Var(Expr(Tf(0.0)));
-    let Su22 = Var(Expr(Tf(0.0)));
-    let Su32 = Var(Expr(Tf(0.0)));
-    let Su13 = Var(Expr(Tf(0.0)));
-    let Su23 = Var(Expr(Tf(0.0)));
-    let Su33 = Var(Expr(Tf(0.0)));
-    let Sc = Var(Expr(Tf(0.0)));
-    let Ss = Var(Expr(Tf(0.0)));
-    let Sch = Var(Expr(Tf(0.0)));
-    let Ssh = Var(Expr(Tf(0.0)));
-    let Stmp1 = Var(Expr(Tf(0.0)));
-    let Stmp2 = Var(Expr(Tf(0.0)));
-    let Stmp3 = Var(Expr(Tf(0.0)));
-    let Stmp4 = Var(Expr(Tf(0.0)));
-    let Stmp5 = Var(Expr(Tf(0.0)));
-    let Sqvs = Var(Expr(Tf(0.0)));
-    let Sqvvx = Var(Expr(Tf(0.0)));
-    let Sqvvy = Var(Expr(Tf(0.0)));
-    let Sqvvz = Var(Expr(Tf(0.0)));
-    let Ss11 = Var(Expr(Tf(0.0)));
-    let Ss21 = Var(Expr(Tf(0.0)));
-    let Ss31 = Var(Expr(Tf(0.0)));
-    let Ss22 = Var(Expr(Tf(0.0)));
-    let Ss32 = Var(Expr(Tf(0.0)));
-    let Ss33 = Var(Expr(Tf(0.0)));
-    insert_assignment(Sfour_gamma_squared, Expr(Four_Gamma_Squared));
-    insert_assignment(Ssine_pi_over_eight, Expr(Sine_Pi_Over_Eight));
-    insert_assignment(Scosine_pi_over_eight,
-        Expr(Cosine_Pi_Over_Eight));
-    insert_assignment(Sone_half, Expr(Tf(0.5)));
-    insert_assignment(Sone, Expr(Tf(1.0)));
-    insert_assignment(Stiny_number, Expr(Tf(1.e-20)));
-    insert_assignment(Ssmall_number, Expr(Tf(1.e-12)));
-    insert_assignment(Sa11, a00);
-    insert_assignment(Sa21, a10);
-    insert_assignment(Sa31, a20);
-    insert_assignment(Sa12, a01);
-    insert_assignment(Sa22, a11);
-    insert_assignment(Sa32, a21);
-    insert_assignment(Sa13, a02);
-    insert_assignment(Sa23, a12);
-    insert_assignment(Sa33, a22);
-    insert_assignment(Sqvs, Expr(Tf(1.0)));
-    insert_assignment(Sqvvx, Expr(Tf(0.0)));
-    insert_assignment(Sqvvy, Expr(Tf(0.0)));
-    insert_assignment(Sqvvz, Expr(Tf(0.0)));
-    insert_assignment(Ss11, Sa11 * Sa11);
-    insert_assignment(Stmp1, Sa21 * Sa21);
-    insert_assignment(Ss11, Stmp1 + Ss11);
-    insert_assignment(Stmp1, Sa31 * Sa31);
-    insert_assignment(Ss11, Stmp1 + Ss11);
-    insert_assignment(Ss21, Sa12 * Sa11);
-    insert_assignment(Stmp1, Sa22 * Sa21);
-    insert_assignment(Ss21, Stmp1 + Ss21);
-    insert_assignment(Stmp1, Sa32 * Sa31);
-    insert_assignment(Ss21, Stmp1 + Ss21);
-    insert_assignment(Ss31, Sa13 * Sa11);
-    insert_assignment(Stmp1, Sa23 * Sa21);
-    insert_assignment(Ss31, Stmp1 + Ss31);
-    insert_assignment(Stmp1, Sa33 * Sa31);
-    insert_assignment(Ss31, Stmp1 + Ss31);
-    insert_assignment(Ss22, Sa12 * Sa12);
-    insert_assignment(Stmp1, Sa22 * Sa22);
-    insert_assignment(Ss22, Stmp1 + Ss22);
-    insert_assignment(Stmp1, Sa32 * Sa32);
-    insert_assignment(Ss22, Stmp1 + Ss22);
-    insert_assignment(Ss32, Sa13 * Sa12);
-    insert_assignment(Stmp1, Sa23 * Sa22);
-    insert_assignment(Ss32, Stmp1 + Ss32);
-    insert_assignment(Stmp1, Sa33 * Sa32);
-    insert_assignment(Ss32, Stmp1 + Ss32);
-    insert_assignment(Ss33, Sa13 * Sa13);
-    insert_assignment(Stmp1, Sa23 * Sa23);
-    insert_assignment(Ss33, Stmp1 + Ss33);
-    insert_assignment(Stmp1, Sa33 * Sa33);
-    insert_assignment(Ss33, Stmp1 + Ss33);
+    let Sfour_gamma_squared = 0.0
+    let Ssine_pi_over_eight = 0.0
+    let Scosine_pi_over_eight = 0.0
+    let Sone_half = 0.0
+    let Sone = 0.0
+    let Stiny_number = 0.0
+    let Ssmall_number = 0.0
+    let Sa11 = 0.0
+    let Sa21 = 0.0
+    let Sa31 = 0.0
+    let Sa12 = 0.0
+    let Sa22 = 0.0
+    let Sa32 = 0.0
+    let Sa13 = 0.0
+    let Sa23 = 0.0
+    let Sa33 = 0.0
+    let Sv11 = 0.0
+    let Sv21 = 0.0
+    let Sv31 = 0.0
+    let Sv12 = 0.0
+    let Sv22 = 0.0
+    let Sv32 = 0.0
+    let Sv13 = 0.0
+    let Sv23 = 0.0
+    let Sv33 = 0.0
+    let Su11 = 0.0
+    let Su21 = 0.0
+    let Su31 = 0.0
+    let Su12 = 0.0
+    let Su22 = 0.0
+    let Su32 = 0.0
+    let Su13 = 0.0
+    let Su23 = 0.0
+    let Su33 = 0.0
+    let Sc = 0.0
+    let Ss = 0.0
+    let Sch = 0.0
+    let Ssh = 0.0
+    let Stmp1 = 0.0
+    let Stmp2 = 0.0
+    let Stmp3 = 0.0
+    let Stmp4 = 0.0
+    let Stmp5 = 0.0
+    let Sqvs = 0.0
+    let Sqvvx = 0.0
+    let Sqvvy = 0.0
+    let Sqvvz = 0.0
+    let Ss11 = 0.0
+    let Ss21 = 0.0
+    let Ss31 = 0.0
+    let Ss22 = 0.0
+    let Ss32 = 0.0
+    let Ss33 = 0.0
+    Sfour_gamma_squared = Four_Gamma_Squared
+    Ssine_pi_over_eight = Sine_Pi_Over_Eight
+    Scosine_pi_over_eight = Cosine_Pi_Over_Eight
+    Sone_half = 0.5
+    Sone = 1.0
+    Stiny_number = 1.e-20
+    Ssmall_number = 1.e-12
+    Sa11 = a00
+    Sa21 = a10
+    Sa31 = a20
+    Sa12 = a01
+    Sa22 = a11
+    Sa32 = a21
+    Sa13 = a02
+    Sa23 = a12
+    Sa33 = a22
+    Sqvs = 1.0
+    Sqvvx = 0.0
+    Sqvvy = 0.0
+    Sqvvz = 0.0
+    Ss11 = Sa11 * Sa11
+    Stmp1 = Sa21 * Sa21
+    Ss11 = Stmp1 + Ss11
+    Stmp1 = Sa31 * Sa31
+    Ss11 = Stmp1 + Ss11
+    Ss21 = Sa12 * Sa11
+    Stmp1 = Sa22 * Sa21
+    Ss21 = Stmp1 + Ss21
+    Stmp1 = Sa32 * Sa31
+    Ss21 = Stmp1 + Ss21
+    Ss31 = Sa13 * Sa11
+    Stmp1 = Sa23 * Sa21
+    Ss31 = Stmp1 + Ss31
+    Stmp1 = Sa33 * Sa31
+    Ss31 = Stmp1 + Ss31
+    Ss22 = Sa12 * Sa12
+    Stmp1 = Sa22 * Sa22
+    Ss22 = Stmp1 + Ss22
+    Stmp1 = Sa32 * Sa32
+    Ss22 = Stmp1 + Ss22
+    Ss32 = Sa13 * Sa12
+    Stmp1 = Sa23 * Sa22
+    Ss32 = Stmp1 + Ss32
+    Stmp1 = Sa33 * Sa32
+    Ss32 = Stmp1 + Ss32
+    Ss33 = Sa13 * Sa13
+    Stmp1 = Sa23 * Sa23
+    Ss33 = Stmp1 + Ss33
+    Stmp1 = Sa33 * Sa33
+    Ss33 = Stmp1 + Ss33
     for (let iter of range(5)) {
-        insert_assignment(Ssh, Ss21 * Sone_half);
-        insert_assignment(Stmp5, Ss11 - Ss22);
-        insert_assignment(Stmp2, Ssh * Ssh);
-        insert_assignment(
-            Stmp1,
-            bitcast_f32(expr_select(Stmp2 >= Stiny_number,
-                Expr(Ti(int32(xffffffff))), Expr(Ti(0)))));
-        insert_assignment(Ssh, svd_bitwise_and(Stmp1, Ssh));
-        insert_assignment(Sch, svd_bitwise_and(Stmp1, Stmp5));
-        insert_assignment(
-            Stmp2, svd_bitwise_and(Expr(not(bitcast_i32(Stmp1))), Sone));
-        insert_assignment(Sch, svd_bitwise_or(Sch, Stmp2));
-        insert_assignment(Stmp1, Ssh * Ssh);
-        insert_assignment(Stmp2, Sch * Sch);
-        insert_assignment(Stmp3, Stmp1 + Stmp2);
-        insert_assignment(Stmp4, rsqrt(Stmp3));
-        insert_assignment(Ssh, Stmp4 * Ssh);
-        insert_assignment(Sch, Stmp4 * Sch);
-        insert_assignment(Stmp1, Sfour_gamma_squared * Stmp1);
-        insert_assignment(
-            Stmp1, bitcast_f32(expr_select(
-                Stmp2 <= Stmp1, Expr(Ti(int32(xffffffff))), Expr(Ti(0)))));
-        insert_assignment(
-            Stmp2, svd_bitwise_and(Ssine_pi_over_eight, Stmp1));
-        insert_assignment(
-            Ssh, svd_bitwise_and(Expr(~bitcast_i32(Stmp1)), Ssh));
-        insert_assignment(Ssh, svd_bitwise_or(Ssh, Stmp2));
-        insert_assignment(
-            Stmp2, svd_bitwise_and(Scosine_pi_over_eight, Stmp1));
-        insert_assignment(
-            Sch, svd_bitwise_and(Expr(~bitcast_i32(Stmp1)), Sch));
-        insert_assignment(Sch, svd_bitwise_or(Sch, Stmp2));
-        insert_assignment(Stmp1, Ssh * Ssh);
-        insert_assignment(Stmp2, Sch * Sch);
-        insert_assignment(Sc, Stmp2 - Stmp1);
-        insert_assignment(Ss, Sch * Ssh);
-        insert_assignment(Ss, Ss + Ss);
-        insert_assignment(Stmp3, Stmp1 + Stmp2);
-        insert_assignment(Ss33, Ss33 * Stmp3);
-        insert_assignment(Ss31, Ss31 * Stmp3);
-        insert_assignment(Ss32, Ss32 * Stmp3);
-        insert_assignment(Ss33, Ss33 * Stmp3);
-        insert_assignment(Stmp1, Ss * Ss31);
-        insert_assignment(Stmp2, Ss * Ss32);
-        insert_assignment(Ss31, Sc * Ss31);
-        insert_assignment(Ss32, Sc * Ss32);
-        insert_assignment(Ss31, Stmp2 + Ss31);
-        insert_assignment(Ss32, Ss32 - Stmp1);
-        insert_assignment(Stmp2, Ss * Ss);
-        insert_assignment(Stmp1, Ss22 * Stmp2);
-        insert_assignment(Stmp3, Ss11 * Stmp2);
-        insert_assignment(Stmp4, Sc * Sc);
-        insert_assignment(Ss11, Ss11 * Stmp4);
-        insert_assignment(Ss22, Ss22 * Stmp4);
-        insert_assignment(Ss11, Ss11 + Stmp1);
-        insert_assignment(Ss22, Ss22 + Stmp3);
-        insert_assignment(Stmp4, Stmp4 - Stmp2);
-        insert_assignment(Stmp2, Ss21 + Ss21);
-        insert_assignment(Ss21, Ss21 * Stmp4);
-        insert_assignment(Stmp4, Sc * Ss);
-        insert_assignment(Stmp2, Stmp2 * Stmp4);
-        insert_assignment(Stmp5, Stmp5 * Stmp4);
-        insert_assignment(Ss11, Ss11 + Stmp2);
-        insert_assignment(Ss21, Ss21 - Stmp5);
-        insert_assignment(Ss22, Ss22 - Stmp2);
-        insert_assignment(Stmp1, Ssh * Sqvvx);
-        insert_assignment(Stmp2, Ssh * Sqvvy);
-        insert_assignment(Stmp3, Ssh * Sqvvz);
-        insert_assignment(Ssh, Ssh * Sqvs);
-        insert_assignment(Sqvs, Sch * Sqvs);
-        insert_assignment(Sqvvx, Sch * Sqvvx);
-        insert_assignment(Sqvvy, Sch * Sqvvy);
-        insert_assignment(Sqvvz, Sch * Sqvvz);
-        insert_assignment(Sqvvz, Sqvvz + Ssh);
-        insert_assignment(Sqvs, Sqvs - Stmp3);
-        insert_assignment(Sqvvx, Sqvvx + Stmp2);
-        insert_assignment(Sqvvy, Sqvvy - Stmp1);
-        insert_assignment(Ssh, Ss32 * Sone_half);
-        insert_assignment(Stmp5, Ss22 - Ss33);
-        insert_assignment(Stmp2, Ssh * Ssh);
-        insert_assignment(
-            Stmp1,
-            bitcast_f32(expr_select(Stmp2 >= Stiny_number,
-                Expr(Ti(int32(xffffffff))), Expr(Ti(0)))));
-        insert_assignment(Ssh, svd_bitwise_and(Stmp1, Ssh));
-        insert_assignment(Sch, svd_bitwise_and(Stmp1, Stmp5));
-        insert_assignment(
-            Stmp2, svd_bitwise_and(Expr(~bitcast_i32(Stmp1)), Sone));
-        insert_assignment(Sch, svd_bitwise_or(Sch, Stmp2));
-        insert_assignment(Stmp1, Ssh * Ssh);
-        insert_assignment(Stmp2, Sch * Sch);
-        insert_assignment(Stmp3, Stmp1 + Stmp2);
-        insert_assignment(Stmp4, rsqrt(Stmp3));
-        insert_assignment(Ssh, Stmp4 * Ssh);
-        insert_assignment(Sch, Stmp4 * Sch);
-        insert_assignment(Stmp1, Sfour_gamma_squared * Stmp1);
-        insert_assignment(
-            Stmp1, bitcast_f32(expr_select(
-                Stmp2 <= Stmp1, Expr(Ti(int32(xffffffff))), Expr(Ti(0)))));
-        insert_assignment(
-            Stmp2, svd_bitwise_and(Ssine_pi_over_eight, Stmp1));
-        insert_assignment(
-            Ssh, svd_bitwise_and(Expr(~bitcast_i32(Stmp1)), Ssh));
-        insert_assignment(Ssh, svd_bitwise_or(Ssh, Stmp2));
-        insert_assignment(
-            Stmp2, svd_bitwise_and(Scosine_pi_over_eight, Stmp1));
-        insert_assignment(
-            Sch, svd_bitwise_and(Expr(~bitcast_i32(Stmp1)), Sch));
-        insert_assignment(Sch, svd_bitwise_or(Sch, Stmp2));
-        insert_assignment(Stmp1, Ssh * Ssh);
-        insert_assignment(Stmp2, Sch * Sch);
-        insert_assignment(Sc, Stmp2 - Stmp1);
-        insert_assignment(Ss, Sch * Ssh);
-        insert_assignment(Ss, Ss + Ss);
-        insert_assignment(Stmp3, Stmp1 + Stmp2);
-        insert_assignment(Ss11, Ss11 * Stmp3);
-        insert_assignment(Ss21, Ss21 * Stmp3);
-        insert_assignment(Ss31, Ss31 * Stmp3);
-        insert_assignment(Ss11, Ss11 * Stmp3);
-        insert_assignment(Stmp1, Ss * Ss21);
-        insert_assignment(Stmp2, Ss * Ss31);
-        insert_assignment(Ss21, Sc * Ss21);
-        insert_assignment(Ss31, Sc * Ss31);
-        insert_assignment(Ss21, Stmp2 + Ss21);
-        insert_assignment(Ss31, Ss31 - Stmp1);
-        insert_assignment(Stmp2, Ss * Ss);
-        insert_assignment(Stmp1, Ss33 * Stmp2);
-        insert_assignment(Stmp3, Ss22 * Stmp2);
-        insert_assignment(Stmp4, Sc * Sc);
-        insert_assignment(Ss22, Ss22 * Stmp4);
-        insert_assignment(Ss33, Ss33 * Stmp4);
-        insert_assignment(Ss22, Ss22 + Stmp1);
-        insert_assignment(Ss33, Ss33 + Stmp3);
-        insert_assignment(Stmp4, Stmp4 - Stmp2);
-        insert_assignment(Stmp2, Ss32 + Ss32);
-        insert_assignment(Ss32, Ss32 * Stmp4);
-        insert_assignment(Stmp4, Sc * Ss);
-        insert_assignment(Stmp2, Stmp2 * Stmp4);
-        insert_assignment(Stmp5, Stmp5 * Stmp4);
-        insert_assignment(Ss22, Ss22 + Stmp2);
-        insert_assignment(Ss32, Ss32 - Stmp5);
-        insert_assignment(Ss33, Ss33 - Stmp2);
-        insert_assignment(Stmp1, Ssh * Sqvvx);
-        insert_assignment(Stmp2, Ssh * Sqvvy);
-        insert_assignment(Stmp3, Ssh * Sqvvz);
-        insert_assignment(Ssh, Ssh * Sqvs);
-        insert_assignment(Sqvs, Sch * Sqvs);
-        insert_assignment(Sqvvx, Sch * Sqvvx);
-        insert_assignment(Sqvvy, Sch * Sqvvy);
-        insert_assignment(Sqvvz, Sch * Sqvvz);
-        insert_assignment(Sqvvx, Sqvvx + Ssh);
-        insert_assignment(Sqvs, Sqvs - Stmp1);
-        insert_assignment(Sqvvy, Sqvvy + Stmp3);
-        insert_assignment(Sqvvz, Sqvvz - Stmp2);
-        insert_assignment(Ssh, Ss31 * Sone_half);
-        insert_assignment(Stmp5, Ss33 - Ss11);
-        insert_assignment(Stmp2, Ssh * Ssh);
-        insert_assignment(
-            Stmp1,
-            bitcast_f32(expr_select(Stmp2 >= Stiny_number,
-                Expr(Ti(int32(xffffffff))), Expr(Ti(0)))));
-        insert_assignment(Ssh, svd_bitwise_and(Stmp1, Ssh));
-        insert_assignment(Sch, svd_bitwise_and(Stmp1, Stmp5));
-        insert_assignment(
-            Stmp2, svd_bitwise_and(Expr(~bitcast_i32(Stmp1)), Sone));
-        insert_assignment(Sch, svd_bitwise_or(Sch, Stmp2));
-        insert_assignment(Stmp1, Ssh * Ssh);
-        insert_assignment(Stmp2, Sch * Sch);
-        insert_assignment(Stmp3, Stmp1 + Stmp2);
-        insert_assignment(Stmp4, rsqrt(Stmp3));
-        insert_assignment(Ssh, Stmp4 * Ssh);
-        insert_assignment(Sch, Stmp4 * Sch);
-        insert_assignment(Stmp1, Sfour_gamma_squared * Stmp1);
-        insert_assignment(
-            Stmp1, bitcast_f32(expr_select(
-                Stmp2 <= Stmp1, Expr(Ti(int32(xffffffff))), Expr(Ti(0)))));
-        insert_assignment(
-            Stmp2, svd_bitwise_and(Ssine_pi_over_eight, Stmp1));
-        insert_assignment(
-            Ssh, svd_bitwise_and(Expr(~bitcast_i32(Stmp1)), Ssh));
-        insert_assignment(Ssh, svd_bitwise_or(Ssh, Stmp2));
-        insert_assignment(
-            Stmp2, svd_bitwise_and(Scosine_pi_over_eight, Stmp1));
-        insert_assignment(
-            Sch, svd_bitwise_and(Expr(~bitcast_i32(Stmp1)), Sch));
-        insert_assignment(Sch, svd_bitwise_or(Sch, Stmp2));
-        insert_assignment(Stmp1, Ssh * Ssh);
-        insert_assignment(Stmp2, Sch * Sch);
-        insert_assignment(Sc, Stmp2 - Stmp1);
-        insert_assignment(Ss, Sch * Ssh);
-        insert_assignment(Ss, Ss + Ss);
-        insert_assignment(Stmp3, Stmp1 + Stmp2);
-        insert_assignment(Ss22, Ss22 * Stmp3);
-        insert_assignment(Ss32, Ss32 * Stmp3);
-        insert_assignment(Ss21, Ss21 * Stmp3);
-        insert_assignment(Ss22, Ss22 * Stmp3);
-        insert_assignment(Stmp1, Ss * Ss32);
-        insert_assignment(Stmp2, Ss * Ss21);
-        insert_assignment(Ss32, Sc * Ss32);
-        insert_assignment(Ss21, Sc * Ss21);
-        insert_assignment(Ss32, Stmp2 + Ss32);
-        insert_assignment(Ss21, Ss21 - Stmp1);
-        insert_assignment(Stmp2, Ss * Ss);
-        insert_assignment(Stmp1, Ss11 * Stmp2);
-        insert_assignment(Stmp3, Ss33 * Stmp2);
-        insert_assignment(Stmp4, Sc * Sc);
-        insert_assignment(Ss33, Ss33 * Stmp4);
-        insert_assignment(Ss11, Ss11 * Stmp4);
-        insert_assignment(Ss33, Ss33 + Stmp1);
-        insert_assignment(Ss11, Ss11 + Stmp3);
-        insert_assignment(Stmp4, Stmp4 - Stmp2);
-        insert_assignment(Stmp2, Ss31 + Ss31);
-        insert_assignment(Ss31, Ss31 * Stmp4);
-        insert_assignment(Stmp4, Sc * Ss);
-        insert_assignment(Stmp2, Stmp2 * Stmp4);
-        insert_assignment(Stmp5, Stmp5 * Stmp4);
-        insert_assignment(Ss33, Ss33 + Stmp2);
-        insert_assignment(Ss31, Ss31 - Stmp5);
-        insert_assignment(Ss11, Ss11 - Stmp2);
-        insert_assignment(Stmp1, Ssh * Sqvvx);
-        insert_assignment(Stmp2, Ssh * Sqvvy);
-        insert_assignment(Stmp3, Ssh * Sqvvz);
-        insert_assignment(Ssh, Ssh * Sqvs);
-        insert_assignment(Sqvs, Sch * Sqvs);
-        insert_assignment(Sqvvx, Sch * Sqvvx);
-        insert_assignment(Sqvvy, Sch * Sqvvy);
-        insert_assignment(Sqvvz, Sch * Sqvvz);
-        insert_assignment(Sqvvy, Sqvvy + Ssh);
-        insert_assignment(Sqvs, Sqvs - Stmp2);
-        insert_assignment(Sqvvz, Sqvvz + Stmp1);
-        insert_assignment(Sqvvx, Sqvvx - Stmp3);
+        Ssh = Ss21 * Sone_half
+        Stmp5 = Ss11 - Ss22
+        Stmp2 = Ssh * Ssh
+
+        Stmp1 = bitcast_f32(expr_select(Stmp2 >= Stiny_number,
+            xffffffff, 0))
+        Ssh = svd_bitwise_and(Stmp1, Ssh)
+        Sch = svd_bitwise_and(Stmp1, Stmp5)
+
+        Stmp2 = svd_bitwise_and(not(bitcast_i32(Stmp1)), Sone)
+        Sch = svd_bitwise_or(Sch, Stmp2)
+        Stmp1 = Ssh * Ssh
+        Stmp2 = Sch * Sch
+        Stmp3 = Stmp1 + Stmp2
+        Stmp4 = rsqrt(Stmp3)
+        Ssh = Stmp4 * Ssh
+        Sch = Stmp4 * Sch
+        Stmp1 = Sfour_gamma_squared * Stmp1
+        Stmp1 = bitcast_f32(expr_select(
+            Stmp2 <= Stmp1, xffffffff, 0))
+
+        Stmp2 = svd_bitwise_and(Ssine_pi_over_eight, Stmp1)
+
+        Ssh = svd_bitwise_and(~bitcast_i32(Stmp1), Ssh)
+        Ssh = svd_bitwise_or(Ssh, Stmp2)
+        Stmp2 = svd_bitwise_and(Scosine_pi_over_eight, Stmp1)
+        Sch = svd_bitwise_and(~bitcast_i32(Stmp1), Sch)
+        Sch = svd_bitwise_or(Sch, Stmp2)
+        Stmp1 = Ssh * Ssh
+        Stmp2 = Sch * Sch
+        Sc = Stmp2 - Stmp1
+        Ss = Sch * Ssh
+        Ss = Ss + Ss
+        Stmp3 = Stmp1 + Stmp2
+        Ss33 = Ss33 * Stmp3
+        Ss31 = Ss31 * Stmp3
+        Ss32 = Ss32 * Stmp3
+        Ss33 = Ss33 * Stmp3
+        Stmp1 = Ss * Ss31
+        Stmp2 = Ss * Ss32
+        Ss31 = Sc * Ss31
+        Ss32 = Sc * Ss32
+        Ss31 = Stmp2 + Ss31
+        Ss32 = Ss32 - Stmp1
+        Stmp2 = Ss * Ss
+        Stmp1 = Ss22 * Stmp2
+        Stmp3 = Ss11 * Stmp2
+        Stmp4 = Sc * Sc
+        Ss11 = Ss11 * Stmp4
+        Ss22 = Ss22 * Stmp4
+        Ss11 = Ss11 + Stmp1
+        Ss22 = Ss22 + Stmp3
+        Stmp4 = Stmp4 - Stmp2
+        Stmp2 = Ss21 + Ss21
+        Ss21 = Ss21 * Stmp4
+        Stmp4 = Sc * Ss
+        Stmp2 = Stmp2 * Stmp4
+        Stmp5 = Stmp5 * Stmp4
+        Ss11 = Ss11 + Stmp2
+        Ss21 = Ss21 - Stmp5
+        Ss22 = Ss22 - Stmp2
+        Stmp1 = Ssh * Sqvvx
+        Stmp2 = Ssh * Sqvvy
+        Stmp3 = Ssh * Sqvvz
+        Ssh = Ssh * Sqvs
+        Sqvs = Sch * Sqvs
+        Sqvvx = Sch * Sqvvx
+        Sqvvy = Sch * Sqvvy
+        Sqvvz = Sch * Sqvvz
+        Sqvvz = Sqvvz + Ssh
+        Sqvs = Sqvs - Stmp3
+        Sqvvx = Sqvvx + Stmp2
+        Sqvvy = Sqvvy - Stmp1
+        Ssh = Ss32 * Sone_half
+        Stmp5 = Ss22 - Ss33
+        Stmp2 = Ssh * Ssh
+
+        Stmp1 = bitcast_f32(expr_select(Stmp2 >= Stiny_number,
+            xffffffff, 0))
+        Ssh = svd_bitwise_and(Stmp1, Ssh)
+        Sch = svd_bitwise_and(Stmp1, Stmp5)
+
+        Stmp2 = svd_bitwise_and(~bitcast_i32(Stmp1), Sone)
+        Sch = svd_bitwise_or(Sch, Stmp2)
+        Stmp1 = Ssh * Ssh
+        Stmp2 = Sch * Sch
+        Stmp3 = Stmp1 + Stmp2
+        Stmp4 = rsqrt(Stmp3)
+        Ssh = Stmp4 * Ssh
+        Sch = Stmp4 * Sch
+        Stmp1 = Sfour_gamma_squared * Stmp1
+
+        Stmp1 = bitcast_f32(expr_select(
+            Stmp2 <= Stmp1, xffffffff, 0))
+
+        Stmp2 = svd_bitwise_and(Ssine_pi_over_eight, Stmp1)
+
+        Ssh = svd_bitwise_and(~bitcast_i32(Stmp1), Ssh)
+        Ssh = svd_bitwise_or(Ssh, Stmp2)
+
+        Stmp2 = svd_bitwise_and(Scosine_pi_over_eight, Stmp1)
+
+        Sch = svd_bitwise_and(~bitcast_i32(Stmp1), Sch)
+        Sch = svd_bitwise_or(Sch, Stmp2)
+        Stmp1 = Ssh * Ssh
+        Stmp2 = Sch * Sch
+        Sc = Stmp2 - Stmp1
+        Ss = Sch * Ssh
+        Ss = Ss + Ss
+        Stmp3 = Stmp1 + Stmp2
+        Ss11 = Ss11 * Stmp3
+        Ss21 = Ss21 * Stmp3
+        Ss31 = Ss31 * Stmp3
+        Ss11 = Ss11 * Stmp3
+        Stmp1 = Ss * Ss21
+        Stmp2 = Ss * Ss31
+        Ss21 = Sc * Ss21
+        Ss31 = Sc * Ss31
+        Ss21 = Stmp2 + Ss21
+        Ss31 = Ss31 - Stmp1
+        Stmp2 = Ss * Ss
+        Stmp1 = Ss33 * Stmp2
+        Stmp3 = Ss22 * Stmp2
+        Stmp4 = Sc * Sc
+        Ss22 = Ss22 * Stmp4
+        Ss33 = Ss33 * Stmp4
+        Ss22 = Ss22 + Stmp1
+        Ss33 = Ss33 + Stmp3
+        Stmp4 = Stmp4 - Stmp2
+        Stmp2 = Ss32 + Ss32
+        Ss32 = Ss32 * Stmp4
+        Stmp4 = Sc * Ss
+        Stmp2 = Stmp2 * Stmp4
+        Stmp5 = Stmp5 * Stmp4
+        Ss22 = Ss22 + Stmp2
+        Ss32 = Ss32 - Stmp5
+        Ss33 = Ss33 - Stmp2
+        Stmp1 = Ssh * Sqvvx
+        Stmp2 = Ssh * Sqvvy
+        Stmp3 = Ssh * Sqvvz
+        Ssh = Ssh * Sqvs
+        Sqvs = Sch * Sqvs
+        Sqvvx = Sch * Sqvvx
+        Sqvvy = Sch * Sqvvy
+        Sqvvz = Sch * Sqvvz
+        Sqvvx = Sqvvx + Ssh
+        Sqvs = Sqvs - Stmp1
+        Sqvvy = Sqvvy + Stmp3
+        Sqvvz = Sqvvz - Stmp2
+        Ssh = Ss31 * Sone_half
+        Stmp5 = Ss33 - Ss11
+        Stmp2 = Ssh * Ssh
+
+        Stmp1 = bitcast_f32(expr_select(Stmp2 >= Stiny_number,
+            xffffffff, 0))
+        Ssh = svd_bitwise_and(Stmp1, Ssh)
+        Sch = svd_bitwise_and(Stmp1, Stmp5)
+
+        Stmp2 = svd_bitwise_and(~bitcast_i32(Stmp1), Sone)
+        Sch = svd_bitwise_or(Sch, Stmp2)
+        Stmp1 = Ssh * Ssh
+        Stmp2 = Sch * Sch
+        Stmp3 = Stmp1 + Stmp2
+        Stmp4 = rsqrt(Stmp3)
+        Ssh = Stmp4 * Ssh
+        Sch = Stmp4 * Sch
+        Stmp1 = Sfour_gamma_squared * Stmp1
+
+        Stmp1 = bitcast_f32(expr_select(
+            Stmp2 <= Stmp1, xffffffff, 0))
+
+        Stmp2 = svd_bitwise_and(Ssine_pi_over_eight, Stmp1)
+
+        Ssh = svd_bitwise_and(~bitcast_i32(Stmp1), Ssh)
+        Ssh = svd_bitwise_or(Ssh, Stmp2)
+
+        Stmp2 = svd_bitwise_and(Scosine_pi_over_eight, Stmp1)
+
+        Sch = svd_bitwise_and(~bitcast_i32(Stmp1), Sch)
+        Sch = svd_bitwise_or(Sch, Stmp2)
+        Stmp1 = Ssh * Ssh
+        Stmp2 = Sch * Sch
+        Sc = Stmp2 - Stmp1
+        Ss = Sch * Ssh
+        Ss = Ss + Ss
+        Stmp3 = Stmp1 + Stmp2
+        Ss22 = Ss22 * Stmp3
+        Ss32 = Ss32 * Stmp3
+        Ss21 = Ss21 * Stmp3
+        Ss22 = Ss22 * Stmp3
+        Stmp1 = Ss * Ss32
+        Stmp2 = Ss * Ss21
+        Ss32 = Sc * Ss32
+        Ss21 = Sc * Ss21
+        Ss32 = Stmp2 + Ss32
+        Ss21 = Ss21 - Stmp1
+        Stmp2 = Ss * Ss
+        Stmp1 = Ss11 * Stmp2
+        Stmp3 = Ss33 * Stmp2
+        Stmp4 = Sc * Sc
+        Ss33 = Ss33 * Stmp4
+        Ss11 = Ss11 * Stmp4
+        Ss33 = Ss33 + Stmp1
+        Ss11 = Ss11 + Stmp3
+        Stmp4 = Stmp4 - Stmp2
+        Stmp2 = Ss31 + Ss31
+        Ss31 = Ss31 * Stmp4
+        Stmp4 = Sc * Ss
+        Stmp2 = Stmp2 * Stmp4
+        Stmp5 = Stmp5 * Stmp4
+        Ss33 = Ss33 + Stmp2
+        Ss31 = Ss31 - Stmp5
+        Ss11 = Ss11 - Stmp2
+        Stmp1 = Ssh * Sqvvx
+        Stmp2 = Ssh * Sqvvy
+        Stmp3 = Ssh * Sqvvz
+        Ssh = Ssh * Sqvs
+        Sqvs = Sch * Sqvs
+        Sqvvx = Sch * Sqvvx
+        Sqvvy = Sch * Sqvvy
+        Sqvvz = Sch * Sqvvz
+        Sqvvy = Sqvvy + Ssh
+        Sqvs = Sqvs - Stmp2
+        Sqvvz = Sqvvz + Stmp1
+        Sqvvx = Sqvvx - Stmp3
     }
-    insert_assignment(Stmp2, Sqvs * Sqvs);
-    insert_assignment(Stmp1, Sqvvx * Sqvvx);
-    insert_assignment(Stmp2, Stmp1 + Stmp2);
-    insert_assignment(Stmp1, Sqvvy * Sqvvy);
-    insert_assignment(Stmp2, Stmp1 + Stmp2);
-    insert_assignment(Stmp1, Sqvvz * Sqvvz);
-    insert_assignment(Stmp2, Stmp1 + Stmp2);
-    insert_assignment(Stmp1, rsqrt(Stmp2));
-    insert_assignment(Stmp4, Stmp1 * Sone_half);
-    insert_assignment(Stmp3, Stmp1 * Stmp4);
-    insert_assignment(Stmp3, Stmp1 * Stmp3);
-    insert_assignment(Stmp3, Stmp2 * Stmp3);
-    insert_assignment(Stmp1, Stmp1 + Stmp4);
-    insert_assignment(Stmp1, Stmp1 - Stmp3);
-    insert_assignment(Sqvs, Sqvs * Stmp1);
-    insert_assignment(Sqvvx, Sqvvx * Stmp1);
-    insert_assignment(Sqvvy, Sqvvy * Stmp1);
-    insert_assignment(Sqvvz, Sqvvz * Stmp1);
-    insert_assignment(Stmp1, Sqvvx * Sqvvx);
-    insert_assignment(Stmp2, Sqvvy * Sqvvy);
-    insert_assignment(Stmp3, Sqvvz * Sqvvz);
-    insert_assignment(Sv11, Sqvs * Sqvs);
-    insert_assignment(Sv22, Sv11 - Stmp1);
-    insert_assignment(Sv33, Sv22 - Stmp2);
-    insert_assignment(Sv33, Sv33 + Stmp3);
-    insert_assignment(Sv22, Sv22 + Stmp2);
-    insert_assignment(Sv22, Sv22 - Stmp3);
-    insert_assignment(Sv11, Sv11 + Stmp1);
-    insert_assignment(Sv11, Sv11 - Stmp2);
-    insert_assignment(Sv11, Sv11 - Stmp3);
-    insert_assignment(Stmp1, Sqvvx + Sqvvx);
-    insert_assignment(Stmp2, Sqvvy + Sqvvy);
-    insert_assignment(Stmp3, Sqvvz + Sqvvz);
-    insert_assignment(Sv32, Sqvs * Stmp1);
-    insert_assignment(Sv13, Sqvs * Stmp2);
-    insert_assignment(Sv21, Sqvs * Stmp3);
-    insert_assignment(Stmp1, Sqvvy * Stmp1);
-    insert_assignment(Stmp2, Sqvvz * Stmp2);
-    insert_assignment(Stmp3, Sqvvx * Stmp3);
-    insert_assignment(Sv12, Stmp1 - Sv21);
-    insert_assignment(Sv23, Stmp2 - Sv32);
-    insert_assignment(Sv31, Stmp3 - Sv13);
-    insert_assignment(Sv21, Stmp1 + Sv21);
-    insert_assignment(Sv32, Stmp2 + Sv32);
-    insert_assignment(Sv13, Stmp3 + Sv13);
-    insert_assignment(Stmp2, Sa12);
-    insert_assignment(Stmp3, Sa13);
-    insert_assignment(Sa12, Sv12 * Sa11);
-    insert_assignment(Sa13, Sv13 * Sa11);
-    insert_assignment(Sa11, Sv11 * Sa11);
-    insert_assignment(Stmp1, Sv21 * Stmp2);
-    insert_assignment(Sa11, Sa11 + Stmp1);
-    insert_assignment(Stmp1, Sv31 * Stmp3);
-    insert_assignment(Sa11, Sa11 + Stmp1);
-    insert_assignment(Stmp1, Sv22 * Stmp2);
-    insert_assignment(Sa12, Sa12 + Stmp1);
-    insert_assignment(Stmp1, Sv32 * Stmp3);
-    insert_assignment(Sa12, Sa12 + Stmp1);
-    insert_assignment(Stmp1, Sv23 * Stmp2);
-    insert_assignment(Sa13, Sa13 + Stmp1);
-    insert_assignment(Stmp1, Sv33 * Stmp3);
-    insert_assignment(Sa13, Sa13 + Stmp1);
-    insert_assignment(Stmp2, Sa22);
-    insert_assignment(Stmp3, Sa23);
-    insert_assignment(Sa22, Sv12 * Sa21);
-    insert_assignment(Sa23, Sv13 * Sa21);
-    insert_assignment(Sa21, Sv11 * Sa21);
-    insert_assignment(Stmp1, Sv21 * Stmp2);
-    insert_assignment(Sa21, Sa21 + Stmp1);
-    insert_assignment(Stmp1, Sv31 * Stmp3);
-    insert_assignment(Sa21, Sa21 + Stmp1);
-    insert_assignment(Stmp1, Sv22 * Stmp2);
-    insert_assignment(Sa22, Sa22 + Stmp1);
-    insert_assignment(Stmp1, Sv32 * Stmp3);
-    insert_assignment(Sa22, Sa22 + Stmp1);
-    insert_assignment(Stmp1, Sv23 * Stmp2);
-    insert_assignment(Sa23, Sa23 + Stmp1);
-    insert_assignment(Stmp1, Sv33 * Stmp3);
-    insert_assignment(Sa23, Sa23 + Stmp1);
-    insert_assignment(Stmp2, Sa32);
-    insert_assignment(Stmp3, Sa33);
-    insert_assignment(Sa32, Sv12 * Sa31);
-    insert_assignment(Sa33, Sv13 * Sa31);
-    insert_assignment(Sa31, Sv11 * Sa31);
-    insert_assignment(Stmp1, Sv21 * Stmp2);
-    insert_assignment(Sa31, Sa31 + Stmp1);
-    insert_assignment(Stmp1, Sv31 * Stmp3);
-    insert_assignment(Sa31, Sa31 + Stmp1);
-    insert_assignment(Stmp1, Sv22 * Stmp2);
-    insert_assignment(Sa32, Sa32 + Stmp1);
-    insert_assignment(Stmp1, Sv32 * Stmp3);
-    insert_assignment(Sa32, Sa32 + Stmp1);
-    insert_assignment(Stmp1, Sv23 * Stmp2);
-    insert_assignment(Sa33, Sa33 + Stmp1);
-    insert_assignment(Stmp1, Sv33 * Stmp3);
-    insert_assignment(Sa33, Sa33 + Stmp1);
-    insert_assignment(Stmp1, Sa11 * Sa11);
-    insert_assignment(Stmp4, Sa21 * Sa21);
-    insert_assignment(Stmp1, Stmp1 + Stmp4);
-    insert_assignment(Stmp4, Sa31 * Sa31);
-    insert_assignment(Stmp1, Stmp1 + Stmp4);
-    insert_assignment(Stmp2, Sa12 * Sa12);
-    insert_assignment(Stmp4, Sa22 * Sa22);
-    insert_assignment(Stmp2, Stmp2 + Stmp4);
-    insert_assignment(Stmp4, Sa32 * Sa32);
-    insert_assignment(Stmp2, Stmp2 + Stmp4);
-    insert_assignment(Stmp3, Sa13 * Sa13);
-    insert_assignment(Stmp4, Sa23 * Sa23);
-    insert_assignment(Stmp3, Stmp3 + Stmp4);
-    insert_assignment(Stmp4, Sa33 * Sa33);
-    insert_assignment(Stmp3, Stmp3 + Stmp4);
-    insert_assignment(
-        Stmp4, bitcast_f32(expr_select(
-            Stmp1 < Stmp2, Expr(Ti(int32(xffffffff))), Expr(Ti(0)))));
-    insert_assignment(Stmp5, svd_bitwise_xor(Sa11, Sa12));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Sa11, svd_bitwise_xor(Sa11, Stmp5));
-    insert_assignment(Sa12, svd_bitwise_xor(Sa12, Stmp5));
-    insert_assignment(Stmp5, svd_bitwise_xor(Sa21, Sa22));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Sa21, svd_bitwise_xor(Sa21, Stmp5));
-    insert_assignment(Sa22, svd_bitwise_xor(Sa22, Stmp5));
-    insert_assignment(Stmp5, svd_bitwise_xor(Sa31, Sa32));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Sa31, svd_bitwise_xor(Sa31, Stmp5));
-    insert_assignment(Sa32, svd_bitwise_xor(Sa32, Stmp5));
-    insert_assignment(Stmp5, svd_bitwise_xor(Sv11, Sv12));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Sv11, svd_bitwise_xor(Sv11, Stmp5));
-    insert_assignment(Sv12, svd_bitwise_xor(Sv12, Stmp5));
-    insert_assignment(Stmp5, svd_bitwise_xor(Sv21, Sv22));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Sv21, svd_bitwise_xor(Sv21, Stmp5));
-    insert_assignment(Sv22, svd_bitwise_xor(Sv22, Stmp5));
-    insert_assignment(Stmp5, svd_bitwise_xor(Sv31, Sv32));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Sv31, svd_bitwise_xor(Sv31, Stmp5));
-    insert_assignment(Sv32, svd_bitwise_xor(Sv32, Stmp5));
-    insert_assignment(Stmp5, svd_bitwise_xor(Stmp1, Stmp2));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Stmp1, svd_bitwise_xor(Stmp1, Stmp5));
-    insert_assignment(Stmp2, svd_bitwise_xor(Stmp2, Stmp5));
-    insert_assignment(Stmp5, Expr(Tf(-2.0)));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Stmp4, Expr(Tf(1.0)));
-    insert_assignment(Stmp4, Stmp4 + Stmp5);
-    insert_assignment(Sa12, Sa12 * Stmp4);
-    insert_assignment(Sa22, Sa22 * Stmp4);
-    insert_assignment(Sa32, Sa32 * Stmp4);
-    insert_assignment(Sv12, Sv12 * Stmp4);
-    insert_assignment(Sv22, Sv22 * Stmp4);
-    insert_assignment(Sv32, Sv32 * Stmp4);
-    insert_assignment(
-        Stmp4, bitcast_f32(expr_select(
-            Stmp1 < Stmp3, Expr(Ti(int32(xffffffff))), Expr(Ti(0)))));
-    insert_assignment(Stmp5, svd_bitwise_xor(Sa11, Sa13));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Sa11, svd_bitwise_xor(Sa11, Stmp5));
-    insert_assignment(Sa13, svd_bitwise_xor(Sa13, Stmp5));
-    insert_assignment(Stmp5, svd_bitwise_xor(Sa21, Sa23));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Sa21, svd_bitwise_xor(Sa21, Stmp5));
-    insert_assignment(Sa23, svd_bitwise_xor(Sa23, Stmp5));
-    insert_assignment(Stmp5, svd_bitwise_xor(Sa31, Sa33));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Sa31, svd_bitwise_xor(Sa31, Stmp5));
-    insert_assignment(Sa33, svd_bitwise_xor(Sa33, Stmp5));
-    insert_assignment(Stmp5, svd_bitwise_xor(Sv11, Sv13));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Sv11, svd_bitwise_xor(Sv11, Stmp5));
-    insert_assignment(Sv13, svd_bitwise_xor(Sv13, Stmp5));
-    insert_assignment(Stmp5, svd_bitwise_xor(Sv21, Sv23));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Sv21, svd_bitwise_xor(Sv21, Stmp5));
-    insert_assignment(Sv23, svd_bitwise_xor(Sv23, Stmp5));
-    insert_assignment(Stmp5, svd_bitwise_xor(Sv31, Sv33));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Sv31, svd_bitwise_xor(Sv31, Stmp5));
-    insert_assignment(Sv33, svd_bitwise_xor(Sv33, Stmp5));
-    insert_assignment(Stmp5, svd_bitwise_xor(Stmp1, Stmp3));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Stmp1, svd_bitwise_xor(Stmp1, Stmp5));
-    insert_assignment(Stmp3, svd_bitwise_xor(Stmp3, Stmp5));
-    insert_assignment(Stmp5, Expr(Tf(-2.0)));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Stmp4, Expr(Tf(1.0)));
-    insert_assignment(Stmp4, Stmp4 + Stmp5);
-    insert_assignment(Sa11, Sa11 * Stmp4);
-    insert_assignment(Sa21, Sa21 * Stmp4);
-    insert_assignment(Sa31, Sa31 * Stmp4);
-    insert_assignment(Sv11, Sv11 * Stmp4);
-    insert_assignment(Sv21, Sv21 * Stmp4);
-    insert_assignment(Sv31, Sv31 * Stmp4);
-    insert_assignment(
-        Stmp4, bitcast_f32(expr_select(
-            Stmp2 < Stmp3, Expr(Ti(int32(xffffffff))), Expr(Ti(0)))));
-    insert_assignment(Stmp5, svd_bitwise_xor(Sa12, Sa13));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Sa12, svd_bitwise_xor(Sa12, Stmp5));
-    insert_assignment(Sa13, svd_bitwise_xor(Sa13, Stmp5));
-    insert_assignment(Stmp5, svd_bitwise_xor(Sa22, Sa23));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Sa22, svd_bitwise_xor(Sa22, Stmp5));
-    insert_assignment(Sa23, svd_bitwise_xor(Sa23, Stmp5));
-    insert_assignment(Stmp5, svd_bitwise_xor(Sa32, Sa33));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Sa32, svd_bitwise_xor(Sa32, Stmp5));
-    insert_assignment(Sa33, svd_bitwise_xor(Sa33, Stmp5));
-    insert_assignment(Stmp5, svd_bitwise_xor(Sv12, Sv13));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Sv12, svd_bitwise_xor(Sv12, Stmp5));
-    insert_assignment(Sv13, svd_bitwise_xor(Sv13, Stmp5));
-    insert_assignment(Stmp5, svd_bitwise_xor(Sv22, Sv23));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Sv22, svd_bitwise_xor(Sv22, Stmp5));
-    insert_assignment(Sv23, svd_bitwise_xor(Sv23, Stmp5));
-    insert_assignment(Stmp5, svd_bitwise_xor(Sv32, Sv33));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Sv32, svd_bitwise_xor(Sv32, Stmp5));
-    insert_assignment(Sv33, svd_bitwise_xor(Sv33, Stmp5));
-    insert_assignment(Stmp5, svd_bitwise_xor(Stmp2, Stmp3));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Stmp2, svd_bitwise_xor(Stmp2, Stmp5));
-    insert_assignment(Stmp3, svd_bitwise_xor(Stmp3, Stmp5));
-    insert_assignment(Stmp5, Expr(Tf(-2.0)));
-    insert_assignment(Stmp5, svd_bitwise_and(Stmp5, Stmp4));
-    insert_assignment(Stmp4, Expr(Tf(1.0)));
-    insert_assignment(Stmp4, Stmp4 + Stmp5);
-    insert_assignment(Sa13, Sa13 * Stmp4);
-    insert_assignment(Sa23, Sa23 * Stmp4);
-    insert_assignment(Sa33, Sa33 * Stmp4);
-    insert_assignment(Sv13, Sv13 * Stmp4);
-    insert_assignment(Sv23, Sv23 * Stmp4);
-    insert_assignment(Sv33, Sv33 * Stmp4);
-    insert_assignment(Su11, Expr(Tf(1.0)));
-    insert_assignment(Su21, Expr(Tf(0.0)));
-    insert_assignment(Su31, Expr(Tf(0.0)));
-    insert_assignment(Su12, Expr(Tf(0.0)));
-    insert_assignment(Su22, Expr(Tf(1.0)));
-    insert_assignment(Su32, Expr(Tf(0.0)));
-    insert_assignment(Su13, Expr(Tf(0.0)));
-    insert_assignment(Su23, Expr(Tf(0.0)));
-    insert_assignment(Su33, Expr(Tf(1.0)));
-    insert_assignment(Ssh, Sa21 * Sa21);
-    insert_assignment(
-        Ssh, bitcast_f32(expr_select(Ssh >= Ssmall_number,
-            Expr(Ti(int32(xffffffff))), Expr(Ti(0)))));
-    insert_assignment(Ssh, svd_bitwise_and(Ssh, Sa21));
-    insert_assignment(Stmp5, Expr(Tf(0.0)));
-    insert_assignment(Sch, Stmp5 - Sa11);
-    insert_assignment(Sch, ti.max(Sch, Sa11));
-    insert_assignment(Sch, ti.max(Sch, Ssmall_number));
-    insert_assignment(
-        Stmp5, bitcast_f32(expr_select(
-            Sa11 >= Stmp5, Expr(Ti(int32(xffffffff))), Expr(Ti(0)))));
-    insert_assignment(Stmp1, Sch * Sch);
-    insert_assignment(Stmp2, Ssh * Ssh);
-    insert_assignment(Stmp2, Stmp1 + Stmp2);
-    insert_assignment(Stmp1, rsqrt(Stmp2));
-    insert_assignment(Stmp4, Stmp1 * Sone_half);
-    insert_assignment(Stmp3, Stmp1 * Stmp4);
-    insert_assignment(Stmp3, Stmp1 * Stmp3);
-    insert_assignment(Stmp3, Stmp2 * Stmp3);
-    insert_assignment(Stmp1, Stmp1 + Stmp4);
-    insert_assignment(Stmp1, Stmp1 - Stmp3);
-    insert_assignment(Stmp1, Stmp1 * Stmp2);
-    insert_assignment(Sch, Sch + Stmp1);
-    insert_assignment(
-        Stmp1, svd_bitwise_and(Expr(~bitcast_i32(Stmp5)), Ssh));
-    insert_assignment(
-        Stmp2, svd_bitwise_and(Expr(~bitcast_i32(Stmp5)), Sch));
-    insert_assignment(Sch, svd_bitwise_and(Stmp5, Sch));
-    insert_assignment(Ssh, svd_bitwise_and(Stmp5, Ssh));
-    insert_assignment(Sch, svd_bitwise_or(Sch, Stmp1));
-    insert_assignment(Ssh, svd_bitwise_or(Ssh, Stmp2));
-    insert_assignment(Stmp1, Sch * Sch);
-    insert_assignment(Stmp2, Ssh * Ssh);
-    insert_assignment(Stmp2, Stmp1 + Stmp2);
-    insert_assignment(Stmp1, rsqrt(Stmp2));
-    insert_assignment(Stmp4, Stmp1 * Sone_half);
-    insert_assignment(Stmp3, Stmp1 * Stmp4);
-    insert_assignment(Stmp3, Stmp1 * Stmp3);
-    insert_assignment(Stmp3, Stmp2 * Stmp3);
-    insert_assignment(Stmp1, Stmp1 + Stmp4);
-    insert_assignment(Stmp1, Stmp1 - Stmp3);
-    insert_assignment(Sch, Sch * Stmp1);
-    insert_assignment(Ssh, Ssh * Stmp1);
-    insert_assignment(Sc, Sch * Sch);
-    insert_assignment(Ss, Ssh * Ssh);
-    insert_assignment(Sc, Sc - Ss);
-    insert_assignment(Ss, Ssh * Sch);
-    insert_assignment(Ss, Ss + Ss);
-    insert_assignment(Stmp1, Ss * Sa11);
-    insert_assignment(Stmp2, Ss * Sa21);
-    insert_assignment(Sa11, Sc * Sa11);
-    insert_assignment(Sa21, Sc * Sa21);
-    insert_assignment(Sa11, Sa11 + Stmp2);
-    insert_assignment(Sa21, Sa21 - Stmp1);
-    insert_assignment(Stmp1, Ss * Sa12);
-    insert_assignment(Stmp2, Ss * Sa22);
-    insert_assignment(Sa12, Sc * Sa12);
-    insert_assignment(Sa22, Sc * Sa22);
-    insert_assignment(Sa12, Sa12 + Stmp2);
-    insert_assignment(Sa22, Sa22 - Stmp1);
-    insert_assignment(Stmp1, Ss * Sa13);
-    insert_assignment(Stmp2, Ss * Sa23);
-    insert_assignment(Sa13, Sc * Sa13);
-    insert_assignment(Sa23, Sc * Sa23);
-    insert_assignment(Sa13, Sa13 + Stmp2);
-    insert_assignment(Sa23, Sa23 - Stmp1);
-    insert_assignment(Stmp1, Ss * Su11);
-    insert_assignment(Stmp2, Ss * Su12);
-    insert_assignment(Su11, Sc * Su11);
-    insert_assignment(Su12, Sc * Su12);
-    insert_assignment(Su11, Su11 + Stmp2);
-    insert_assignment(Su12, Su12 - Stmp1);
-    insert_assignment(Stmp1, Ss * Su21);
-    insert_assignment(Stmp2, Ss * Su22);
-    insert_assignment(Su21, Sc * Su21);
-    insert_assignment(Su22, Sc * Su22);
-    insert_assignment(Su21, Su21 + Stmp2);
-    insert_assignment(Su22, Su22 - Stmp1);
-    insert_assignment(Stmp1, Ss * Su31);
-    insert_assignment(Stmp2, Ss * Su32);
-    insert_assignment(Su31, Sc * Su31);
-    insert_assignment(Su32, Sc * Su32);
-    insert_assignment(Su31, Su31 + Stmp2);
-    insert_assignment(Su32, Su32 - Stmp1);
-    insert_assignment(Ssh, Sa31 * Sa31);
-    insert_assignment(
-        Ssh, bitcast_f32(expr_select(Ssh >= Ssmall_number,
-            Expr(Ti(int32(xffffffff))), Expr(Ti(0)))));
-    insert_assignment(Ssh, svd_bitwise_and(Ssh, Sa31));
-    insert_assignment(Stmp5, Expr(Tf(0.0)));
-    insert_assignment(Sch, Stmp5 - Sa11);
-    insert_assignment(Sch, ti.max(Sch, Sa11));
-    insert_assignment(Sch, ti.max(Sch, Ssmall_number));
-    insert_assignment(
-        Stmp5, bitcast_f32(expr_select(
-            Sa11 >= Stmp5, Expr(Ti(int32(xffffffff))), Expr(Ti(0)))));
-    insert_assignment(Stmp1, Sch * Sch);
-    insert_assignment(Stmp2, Ssh * Ssh);
-    insert_assignment(Stmp2, Stmp1 + Stmp2);
-    insert_assignment(Stmp1, rsqrt(Stmp2));
-    insert_assignment(Stmp4, Stmp1 * Sone_half);
-    insert_assignment(Stmp3, Stmp1 * Stmp4);
-    insert_assignment(Stmp3, Stmp1 * Stmp3);
-    insert_assignment(Stmp3, Stmp2 * Stmp3);
-    insert_assignment(Stmp1, Stmp1 + Stmp4);
-    insert_assignment(Stmp1, Stmp1 - Stmp3);
-    insert_assignment(Stmp1, Stmp1 * Stmp2);
-    insert_assignment(Sch, Sch + Stmp1);
-    insert_assignment(
-        Stmp1, svd_bitwise_and(Expr(~bitcast_i32(Stmp5)), Ssh));
-    insert_assignment(
-        Stmp2, svd_bitwise_and(Expr(~bitcast_i32(Stmp5)), Sch));
-    insert_assignment(Sch, svd_bitwise_and(Stmp5, Sch));
-    insert_assignment(Ssh, svd_bitwise_and(Stmp5, Ssh));
-    insert_assignment(Sch, svd_bitwise_or(Sch, Stmp1));
-    insert_assignment(Ssh, svd_bitwise_or(Ssh, Stmp2));
-    insert_assignment(Stmp1, Sch * Sch);
-    insert_assignment(Stmp2, Ssh * Ssh);
-    insert_assignment(Stmp2, Stmp1 + Stmp2);
-    insert_assignment(Stmp1, rsqrt(Stmp2));
-    insert_assignment(Stmp4, Stmp1 * Sone_half);
-    insert_assignment(Stmp3, Stmp1 * Stmp4);
-    insert_assignment(Stmp3, Stmp1 * Stmp3);
-    insert_assignment(Stmp3, Stmp2 * Stmp3);
-    insert_assignment(Stmp1, Stmp1 + Stmp4);
-    insert_assignment(Stmp1, Stmp1 - Stmp3);
-    insert_assignment(Sch, Sch * Stmp1);
-    insert_assignment(Ssh, Ssh * Stmp1);
-    insert_assignment(Sc, Sch * Sch);
-    insert_assignment(Ss, Ssh * Ssh);
-    insert_assignment(Sc, Sc - Ss);
-    insert_assignment(Ss, Ssh * Sch);
-    insert_assignment(Ss, Ss + Ss);
-    insert_assignment(Stmp1, Ss * Sa11);
-    insert_assignment(Stmp2, Ss * Sa31);
-    insert_assignment(Sa11, Sc * Sa11);
-    insert_assignment(Sa31, Sc * Sa31);
-    insert_assignment(Sa11, Sa11 + Stmp2);
-    insert_assignment(Sa31, Sa31 - Stmp1);
-    insert_assignment(Stmp1, Ss * Sa12);
-    insert_assignment(Stmp2, Ss * Sa32);
-    insert_assignment(Sa12, Sc * Sa12);
-    insert_assignment(Sa32, Sc * Sa32);
-    insert_assignment(Sa12, Sa12 + Stmp2);
-    insert_assignment(Sa32, Sa32 - Stmp1);
-    insert_assignment(Stmp1, Ss * Sa13);
-    insert_assignment(Stmp2, Ss * Sa33);
-    insert_assignment(Sa13, Sc * Sa13);
-    insert_assignment(Sa33, Sc * Sa33);
-    insert_assignment(Sa13, Sa13 + Stmp2);
-    insert_assignment(Sa33, Sa33 - Stmp1);
-    insert_assignment(Stmp1, Ss * Su11);
-    insert_assignment(Stmp2, Ss * Su13);
-    insert_assignment(Su11, Sc * Su11);
-    insert_assignment(Su13, Sc * Su13);
-    insert_assignment(Su11, Su11 + Stmp2);
-    insert_assignment(Su13, Su13 - Stmp1);
-    insert_assignment(Stmp1, Ss * Su21);
-    insert_assignment(Stmp2, Ss * Su23);
-    insert_assignment(Su21, Sc * Su21);
-    insert_assignment(Su23, Sc * Su23);
-    insert_assignment(Su21, Su21 + Stmp2);
-    insert_assignment(Su23, Su23 - Stmp1);
-    insert_assignment(Stmp1, Ss * Su31);
-    insert_assignment(Stmp2, Ss * Su33);
-    insert_assignment(Su31, Sc * Su31);
-    insert_assignment(Su33, Sc * Su33);
-    insert_assignment(Su31, Su31 + Stmp2);
-    insert_assignment(Su33, Su33 - Stmp1);
-    insert_assignment(Ssh, Sa32 * Sa32);
-    insert_assignment(
-        Ssh, bitcast_f32(expr_select(Ssh >= Ssmall_number,
-            Expr(Ti(int32(xffffffff))), Expr(Ti(0)))));
-    insert_assignment(Ssh, svd_bitwise_and(Ssh, Sa32));
-    insert_assignment(Stmp5, Expr(Tf(0.0)));
-    insert_assignment(Sch, Stmp5 - Sa22);
-    insert_assignment(Sch, ti.max(Sch, Sa22));
-    insert_assignment(Sch, ti.max(Sch, Ssmall_number));
-    insert_assignment(
-        Stmp5, bitcast_f32(expr_select(
-            Sa22 >= Stmp5, Expr(Ti(int32(xffffffff))), Expr(Ti(0)))));
-    insert_assignment(Stmp1, Sch * Sch);
-    insert_assignment(Stmp2, Ssh * Ssh);
-    insert_assignment(Stmp2, Stmp1 + Stmp2);
-    insert_assignment(Stmp1, rsqrt(Stmp2));
-    insert_assignment(Stmp4, Stmp1 * Sone_half);
-    insert_assignment(Stmp3, Stmp1 * Stmp4);
-    insert_assignment(Stmp3, Stmp1 * Stmp3);
-    insert_assignment(Stmp3, Stmp2 * Stmp3);
-    insert_assignment(Stmp1, Stmp1 + Stmp4);
-    insert_assignment(Stmp1, Stmp1 - Stmp3);
-    insert_assignment(Stmp1, Stmp1 * Stmp2);
-    insert_assignment(Sch, Sch + Stmp1);
-    insert_assignment(
-        Stmp1, svd_bitwise_and(Expr(~bitcast_i32(Stmp5)), Ssh));
-    insert_assignment(
-        Stmp2, svd_bitwise_and(Expr(~bitcast_i32(Stmp5)), Sch));
-    insert_assignment(Sch, svd_bitwise_and(Stmp5, Sch));
-    insert_assignment(Ssh, svd_bitwise_and(Stmp5, Ssh));
-    insert_assignment(Sch, svd_bitwise_or(Sch, Stmp1));
-    insert_assignment(Ssh, svd_bitwise_or(Ssh, Stmp2));
-    insert_assignment(Stmp1, Sch * Sch);
-    insert_assignment(Stmp2, Ssh * Ssh);
-    insert_assignment(Stmp2, Stmp1 + Stmp2);
-    insert_assignment(Stmp1, rsqrt(Stmp2));
-    insert_assignment(Stmp4, Stmp1 * Sone_half);
-    insert_assignment(Stmp3, Stmp1 * Stmp4);
-    insert_assignment(Stmp3, Stmp1 * Stmp3);
-    insert_assignment(Stmp3, Stmp2 * Stmp3);
-    insert_assignment(Stmp1, Stmp1 + Stmp4);
-    insert_assignment(Stmp1, Stmp1 - Stmp3);
-    insert_assignment(Sch, Sch * Stmp1);
-    insert_assignment(Ssh, Ssh * Stmp1);
-    insert_assignment(Sc, Sch * Sch);
-    insert_assignment(Ss, Ssh * Ssh);
-    insert_assignment(Sc, Sc - Ss);
-    insert_assignment(Ss, Ssh * Sch);
-    insert_assignment(Ss, Ss + Ss);
-    insert_assignment(Stmp1, Ss * Sa21);
-    insert_assignment(Stmp2, Ss * Sa31);
-    insert_assignment(Sa21, Sc * Sa21);
-    insert_assignment(Sa31, Sc * Sa31);
-    insert_assignment(Sa21, Sa21 + Stmp2);
-    insert_assignment(Sa31, Sa31 - Stmp1);
-    insert_assignment(Stmp1, Ss * Sa22);
-    insert_assignment(Stmp2, Ss * Sa32);
-    insert_assignment(Sa22, Sc * Sa22);
-    insert_assignment(Sa32, Sc * Sa32);
-    insert_assignment(Sa22, Sa22 + Stmp2);
-    insert_assignment(Sa32, Sa32 - Stmp1);
-    insert_assignment(Stmp1, Ss * Sa23);
-    insert_assignment(Stmp2, Ss * Sa33);
-    insert_assignment(Sa23, Sc * Sa23);
-    insert_assignment(Sa33, Sc * Sa33);
-    insert_assignment(Sa23, Sa23 + Stmp2);
-    insert_assignment(Sa33, Sa33 - Stmp1);
-    insert_assignment(Stmp1, Ss * Su12);
-    insert_assignment(Stmp2, Ss * Su13);
-    insert_assignment(Su12, Sc * Su12);
-    insert_assignment(Su13, Sc * Su13);
-    insert_assignment(Su12, Su12 + Stmp2);
-    insert_assignment(Su13, Su13 - Stmp1);
-    insert_assignment(Stmp1, Ss * Su22);
-    insert_assignment(Stmp2, Ss * Su23);
-    insert_assignment(Su22, Sc * Su22);
-    insert_assignment(Su23, Sc * Su23);
-    insert_assignment(Su22, Su22 + Stmp2);
-    insert_assignment(Su23, Su23 - Stmp1);
-    insert_assignment(Stmp1, Ss * Su32);
-    insert_assignment(Stmp2, Ss * Su33);
-    insert_assignment(Su32, Sc * Su32);
-    insert_assignment(Su33, Sc * Su33);
-    insert_assignment(Su32, Su32 + Stmp2);
-    insert_assignment(Su33, Su33 - Stmp1);
+    Stmp2 = Sqvs * Sqvs
+    Stmp1 = Sqvvx * Sqvvx
+    Stmp2 = Stmp1 + Stmp2
+    Stmp1 = Sqvvy * Sqvvy
+    Stmp2 = Stmp1 + Stmp2
+    Stmp1 = Sqvvz * Sqvvz
+    Stmp2 = Stmp1 + Stmp2
+    Stmp1 = rsqrt(Stmp2)
+    Stmp4 = Stmp1 * Sone_half
+    Stmp3 = Stmp1 * Stmp4
+    Stmp3 = Stmp1 * Stmp3
+    Stmp3 = Stmp2 * Stmp3
+    Stmp1 = Stmp1 + Stmp4
+    Stmp1 = Stmp1 - Stmp3
+    Sqvs = Sqvs * Stmp1
+    Sqvvx = Sqvvx * Stmp1
+    Sqvvy = Sqvvy * Stmp1
+    Sqvvz = Sqvvz * Stmp1
+    Stmp1 = Sqvvx * Sqvvx
+    Stmp2 = Sqvvy * Sqvvy
+    Stmp3 = Sqvvz * Sqvvz
+    Sv11 = Sqvs * Sqvs
+    Sv22 = Sv11 - Stmp1
+    Sv33 = Sv22 - Stmp2
+    Sv33 = Sv33 + Stmp3
+    Sv22 = Sv22 + Stmp2
+    Sv22 = Sv22 - Stmp3
+    Sv11 = Sv11 + Stmp1
+    Sv11 = Sv11 - Stmp2
+    Sv11 = Sv11 - Stmp3
+    Stmp1 = Sqvvx + Sqvvx
+    Stmp2 = Sqvvy + Sqvvy
+    Stmp3 = Sqvvz + Sqvvz
+    Sv32 = Sqvs * Stmp1
+    Sv13 = Sqvs * Stmp2
+    Sv21 = Sqvs * Stmp3
+    Stmp1 = Sqvvy * Stmp1
+    Stmp2 = Sqvvz * Stmp2
+    Stmp3 = Sqvvx * Stmp3
+    Sv12 = Stmp1 - Sv21
+    Sv23 = Stmp2 - Sv32
+    Sv31 = Stmp3 - Sv13
+    Sv21 = Stmp1 + Sv21
+    Sv32 = Stmp2 + Sv32
+    Sv13 = Stmp3 + Sv13
+    Stmp2 = Sa12
+    Stmp3 = Sa13
+    Sa12 = Sv12 * Sa11
+    Sa13 = Sv13 * Sa11
+    Sa11 = Sv11 * Sa11
+    Stmp1 = Sv21 * Stmp2
+    Sa11 = Sa11 + Stmp1
+    Stmp1 = Sv31 * Stmp3
+    Sa11 = Sa11 + Stmp1
+    Stmp1 = Sv22 * Stmp2
+    Sa12 = Sa12 + Stmp1
+    Stmp1 = Sv32 * Stmp3
+    Sa12 = Sa12 + Stmp1
+    Stmp1 = Sv23 * Stmp2
+    Sa13 = Sa13 + Stmp1
+    Stmp1 = Sv33 * Stmp3
+    Sa13 = Sa13 + Stmp1
+    Stmp2 = Sa22
+    Stmp3 = Sa23
+    Sa22 = Sv12 * Sa21
+    Sa23 = Sv13 * Sa21
+    Sa21 = Sv11 * Sa21
+    Stmp1 = Sv21 * Stmp2
+    Sa21 = Sa21 + Stmp1
+    Stmp1 = Sv31 * Stmp3
+    Sa21 = Sa21 + Stmp1
+    Stmp1 = Sv22 * Stmp2
+    Sa22 = Sa22 + Stmp1
+    Stmp1 = Sv32 * Stmp3
+    Sa22 = Sa22 + Stmp1
+    Stmp1 = Sv23 * Stmp2
+    Sa23 = Sa23 + Stmp1
+    Stmp1 = Sv33 * Stmp3
+    Sa23 = Sa23 + Stmp1
+    Stmp2 = Sa32
+    Stmp3 = Sa33
+    Sa32 = Sv12 * Sa31
+    Sa33 = Sv13 * Sa31
+    Sa31 = Sv11 * Sa31
+    Stmp1 = Sv21 * Stmp2
+    Sa31 = Sa31 + Stmp1
+    Stmp1 = Sv31 * Stmp3
+    Sa31 = Sa31 + Stmp1
+    Stmp1 = Sv22 * Stmp2
+    Sa32 = Sa32 + Stmp1
+    Stmp1 = Sv32 * Stmp3
+    Sa32 = Sa32 + Stmp1
+    Stmp1 = Sv23 * Stmp2
+    Sa33 = Sa33 + Stmp1
+    Stmp1 = Sv33 * Stmp3
+    Sa33 = Sa33 + Stmp1
+    Stmp1 = Sa11 * Sa11
+    Stmp4 = Sa21 * Sa21
+    Stmp1 = Stmp1 + Stmp4
+    Stmp4 = Sa31 * Sa31
+    Stmp1 = Stmp1 + Stmp4
+    Stmp2 = Sa12 * Sa12
+    Stmp4 = Sa22 * Sa22
+    Stmp2 = Stmp2 + Stmp4
+    Stmp4 = Sa32 * Sa32
+    Stmp2 = Stmp2 + Stmp4
+    Stmp3 = Sa13 * Sa13
+    Stmp4 = Sa23 * Sa23
+    Stmp3 = Stmp3 + Stmp4
+    Stmp4 = Sa33 * Sa33
+    Stmp3 = Stmp3 + Stmp4
+
+    Stmp4 = bitcast_f32(expr_select(
+        Stmp1 < Stmp2, xffffffff, 0))
+    Stmp5 = svd_bitwise_xor(Sa11, Sa12)
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Sa11 = svd_bitwise_xor(Sa11, Stmp5)
+    Sa12 = svd_bitwise_xor(Sa12, Stmp5)
+    Stmp5 = svd_bitwise_xor(Sa21, Sa22)
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Sa21 = svd_bitwise_xor(Sa21, Stmp5)
+    Sa22 = svd_bitwise_xor(Sa22, Stmp5)
+    Stmp5 = svd_bitwise_xor(Sa31, Sa32)
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Sa31 = svd_bitwise_xor(Sa31, Stmp5)
+    Sa32 = svd_bitwise_xor(Sa32, Stmp5)
+    Stmp5 = svd_bitwise_xor(Sv11, Sv12)
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Sv11 = svd_bitwise_xor(Sv11, Stmp5)
+    Sv12 = svd_bitwise_xor(Sv12, Stmp5)
+    Stmp5 = svd_bitwise_xor(Sv21, Sv22)
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Sv21 = svd_bitwise_xor(Sv21, Stmp5)
+    Sv22 = svd_bitwise_xor(Sv22, Stmp5)
+    Stmp5 = svd_bitwise_xor(Sv31, Sv32)
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Sv31 = svd_bitwise_xor(Sv31, Stmp5)
+    Sv32 = svd_bitwise_xor(Sv32, Stmp5)
+    Stmp5 = svd_bitwise_xor(Stmp1, Stmp2)
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Stmp1 = svd_bitwise_xor(Stmp1, Stmp5)
+    Stmp2 = svd_bitwise_xor(Stmp2, Stmp5)
+    Stmp5 = -2.0
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Stmp4 = 1.0
+    Stmp4 = Stmp4 + Stmp5
+    Sa12 = Sa12 * Stmp4
+    Sa22 = Sa22 * Stmp4
+    Sa32 = Sa32 * Stmp4
+    Sv12 = Sv12 * Stmp4
+    Sv22 = Sv22 * Stmp4
+    Sv32 = Sv32 * Stmp4
+
+    Stmp4 = bitcast_f32(expr_select(
+        Stmp1 < Stmp3, xffffffff, 0))
+    Stmp5 = svd_bitwise_xor(Sa11, Sa13)
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Sa11 = svd_bitwise_xor(Sa11, Stmp5)
+    Sa13 = svd_bitwise_xor(Sa13, Stmp5)
+    Stmp5 = svd_bitwise_xor(Sa21, Sa23)
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Sa21 = svd_bitwise_xor(Sa21, Stmp5)
+    Sa23 = svd_bitwise_xor(Sa23, Stmp5)
+    Stmp5 = svd_bitwise_xor(Sa31, Sa33)
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Sa31 = svd_bitwise_xor(Sa31, Stmp5)
+    Sa33 = svd_bitwise_xor(Sa33, Stmp5)
+    Stmp5 = svd_bitwise_xor(Sv11, Sv13)
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Sv11 = svd_bitwise_xor(Sv11, Stmp5)
+    Sv13 = svd_bitwise_xor(Sv13, Stmp5)
+    Stmp5 = svd_bitwise_xor(Sv21, Sv23)
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Sv21 = svd_bitwise_xor(Sv21, Stmp5)
+    Sv23 = svd_bitwise_xor(Sv23, Stmp5)
+    Stmp5 = svd_bitwise_xor(Sv31, Sv33)
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Sv31 = svd_bitwise_xor(Sv31, Stmp5)
+    Sv33 = svd_bitwise_xor(Sv33, Stmp5)
+    Stmp5 = svd_bitwise_xor(Stmp1, Stmp3)
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Stmp1 = svd_bitwise_xor(Stmp1, Stmp5)
+    Stmp3 = svd_bitwise_xor(Stmp3, Stmp5)
+    Stmp5 = -2.0
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Stmp4 = 1.0
+    Stmp4 = Stmp4 + Stmp5
+    Sa11 = Sa11 * Stmp4
+    Sa21 = Sa21 * Stmp4
+    Sa31 = Sa31 * Stmp4
+    Sv11 = Sv11 * Stmp4
+    Sv21 = Sv21 * Stmp4
+    Sv31 = Sv31 * Stmp4
+
+    Stmp4 = bitcast_f32(expr_select(
+        Stmp2 < Stmp3, xffffffff, 0))
+    Stmp5 = svd_bitwise_xor(Sa12, Sa13)
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Sa12 = svd_bitwise_xor(Sa12, Stmp5)
+    Sa13 = svd_bitwise_xor(Sa13, Stmp5)
+    Stmp5 = svd_bitwise_xor(Sa22, Sa23)
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Sa22 = svd_bitwise_xor(Sa22, Stmp5)
+    Sa23 = svd_bitwise_xor(Sa23, Stmp5)
+    Stmp5 = svd_bitwise_xor(Sa32, Sa33)
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Sa32 = svd_bitwise_xor(Sa32, Stmp5)
+    Sa33 = svd_bitwise_xor(Sa33, Stmp5)
+    Stmp5 = svd_bitwise_xor(Sv12, Sv13)
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Sv12 = svd_bitwise_xor(Sv12, Stmp5)
+    Sv13 = svd_bitwise_xor(Sv13, Stmp5)
+    Stmp5 = svd_bitwise_xor(Sv22, Sv23)
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Sv22 = svd_bitwise_xor(Sv22, Stmp5)
+    Sv23 = svd_bitwise_xor(Sv23, Stmp5)
+    Stmp5 = svd_bitwise_xor(Sv32, Sv33)
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Sv32 = svd_bitwise_xor(Sv32, Stmp5)
+    Sv33 = svd_bitwise_xor(Sv33, Stmp5)
+    Stmp5 = svd_bitwise_xor(Stmp2, Stmp3)
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Stmp2 = svd_bitwise_xor(Stmp2, Stmp5)
+    Stmp3 = svd_bitwise_xor(Stmp3, Stmp5)
+    Stmp5 = -2.0
+    Stmp5 = svd_bitwise_and(Stmp5, Stmp4)
+    Stmp4 = 1.0
+    Stmp4 = Stmp4 + Stmp5
+    Sa13 = Sa13 * Stmp4
+    Sa23 = Sa23 * Stmp4
+    Sa33 = Sa33 * Stmp4
+    Sv13 = Sv13 * Stmp4
+    Sv23 = Sv23 * Stmp4
+    Sv33 = Sv33 * Stmp4
+    Su11 = 1.0
+    Su21 = 0.0
+    Su31 = 0.0
+    Su12 = 0.0
+    Su22 = 1.0
+    Su32 = 0.0
+    Su13 = 0.0
+    Su23 = 0.0
+    Su33 = 1.0
+    Ssh = Sa21 * Sa21
+
+    Ssh = bitcast_f32(expr_select(Ssh >= Ssmall_number,
+        xffffffff, 0))
+    Ssh = svd_bitwise_and(Ssh, Sa21)
+    Stmp5 = 0.0
+    Sch = Stmp5 - Sa11
+    Sch = ti.max(Sch, Sa11)
+    Sch = ti.max(Sch, Ssmall_number)
+
+    Stmp5 = bitcast_f32(expr_select(
+        Sa11 >= Stmp5, xffffffff, 0))
+    Stmp1 = Sch * Sch
+    Stmp2 = Ssh * Ssh
+    Stmp2 = Stmp1 + Stmp2
+    Stmp1 = rsqrt(Stmp2)
+    Stmp4 = Stmp1 * Sone_half
+    Stmp3 = Stmp1 * Stmp4
+    Stmp3 = Stmp1 * Stmp3
+    Stmp3 = Stmp2 * Stmp3
+    Stmp1 = Stmp1 + Stmp4
+    Stmp1 = Stmp1 - Stmp3
+    Stmp1 = Stmp1 * Stmp2
+    Sch = Sch + Stmp1
+
+    Stmp1 = svd_bitwise_and(~bitcast_i32(Stmp5), Ssh)
+
+    Stmp2 = svd_bitwise_and(~bitcast_i32(Stmp5), Sch)
+    Sch = svd_bitwise_and(Stmp5, Sch)
+    Ssh = svd_bitwise_and(Stmp5, Ssh)
+    Sch = svd_bitwise_or(Sch, Stmp1)
+    Ssh = svd_bitwise_or(Ssh, Stmp2)
+    Stmp1 = Sch * Sch
+    Stmp2 = Ssh * Ssh
+    Stmp2 = Stmp1 + Stmp2
+    Stmp1 = rsqrt(Stmp2)
+    Stmp4 = Stmp1 * Sone_half
+    Stmp3 = Stmp1 * Stmp4
+    Stmp3 = Stmp1 * Stmp3
+    Stmp3 = Stmp2 * Stmp3
+    Stmp1 = Stmp1 + Stmp4
+    Stmp1 = Stmp1 - Stmp3
+    Sch = Sch * Stmp1
+    Ssh = Ssh * Stmp1
+    Sc = Sch * Sch
+    Ss = Ssh * Ssh
+    Sc = Sc - Ss
+    Ss = Ssh * Sch
+    Ss = Ss + Ss
+    Stmp1 = Ss * Sa11
+    Stmp2 = Ss * Sa21
+    Sa11 = Sc * Sa11
+    Sa21 = Sc * Sa21
+    Sa11 = Sa11 + Stmp2
+    Sa21 = Sa21 - Stmp1
+    Stmp1 = Ss * Sa12
+    Stmp2 = Ss * Sa22
+    Sa12 = Sc * Sa12
+    Sa22 = Sc * Sa22
+    Sa12 = Sa12 + Stmp2
+    Sa22 = Sa22 - Stmp1
+    Stmp1 = Ss * Sa13
+    Stmp2 = Ss * Sa23
+    Sa13 = Sc * Sa13
+    Sa23 = Sc * Sa23
+    Sa13 = Sa13 + Stmp2
+    Sa23 = Sa23 - Stmp1
+    Stmp1 = Ss * Su11
+    Stmp2 = Ss * Su12
+    Su11 = Sc * Su11
+    Su12 = Sc * Su12
+    Su11 = Su11 + Stmp2
+    Su12 = Su12 - Stmp1
+    Stmp1 = Ss * Su21
+    Stmp2 = Ss * Su22
+    Su21 = Sc * Su21
+    Su22 = Sc * Su22
+    Su21 = Su21 + Stmp2
+    Su22 = Su22 - Stmp1
+    Stmp1 = Ss * Su31
+    Stmp2 = Ss * Su32
+    Su31 = Sc * Su31
+    Su32 = Sc * Su32
+    Su31 = Su31 + Stmp2
+    Su32 = Su32 - Stmp1
+    Ssh = Sa31 * Sa31
+
+    Ssh = bitcast_f32(expr_select(Ssh >= Ssmall_number,
+        xffffffff, 0))
+    Ssh = svd_bitwise_and(Ssh, Sa31)
+    Stmp5 = 0.0
+    Sch = Stmp5 - Sa11
+    Sch = ti.max(Sch, Sa11)
+    Sch = ti.max(Sch, Ssmall_number)
+
+    Stmp5 = bitcast_f32(expr_select(
+        Sa11 >= Stmp5, xffffffff, 0))
+    Stmp1 = Sch * Sch
+    Stmp2 = Ssh * Ssh
+    Stmp2 = Stmp1 + Stmp2
+    Stmp1 = rsqrt(Stmp2)
+    Stmp4 = Stmp1 * Sone_half
+    Stmp3 = Stmp1 * Stmp4
+    Stmp3 = Stmp1 * Stmp3
+    Stmp3 = Stmp2 * Stmp3
+    Stmp1 = Stmp1 + Stmp4
+    Stmp1 = Stmp1 - Stmp3
+    Stmp1 = Stmp1 * Stmp2
+    Sch = Sch + Stmp1
+
+    Stmp1 = svd_bitwise_and(~bitcast_i32(Stmp5), Ssh)
+
+    Stmp2 = svd_bitwise_and(~bitcast_i32(Stmp5), Sch)
+    Sch = svd_bitwise_and(Stmp5, Sch)
+    Ssh = svd_bitwise_and(Stmp5, Ssh)
+    Sch = svd_bitwise_or(Sch, Stmp1)
+    Ssh = svd_bitwise_or(Ssh, Stmp2)
+    Stmp1 = Sch * Sch
+    Stmp2 = Ssh * Ssh
+    Stmp2 = Stmp1 + Stmp2
+    Stmp1 = rsqrt(Stmp2)
+    Stmp4 = Stmp1 * Sone_half
+    Stmp3 = Stmp1 * Stmp4
+    Stmp3 = Stmp1 * Stmp3
+    Stmp3 = Stmp2 * Stmp3
+    Stmp1 = Stmp1 + Stmp4
+    Stmp1 = Stmp1 - Stmp3
+    Sch = Sch * Stmp1
+    Ssh = Ssh * Stmp1
+    Sc = Sch * Sch
+    Ss = Ssh * Ssh
+    Sc = Sc - Ss
+    Ss = Ssh * Sch
+    Ss = Ss + Ss
+    Stmp1 = Ss * Sa11
+    Stmp2 = Ss * Sa31
+    Sa11 = Sc * Sa11
+    Sa31 = Sc * Sa31
+    Sa11 = Sa11 + Stmp2
+    Sa31 = Sa31 - Stmp1
+    Stmp1 = Ss * Sa12
+    Stmp2 = Ss * Sa32
+    Sa12 = Sc * Sa12
+    Sa32 = Sc * Sa32
+    Sa12 = Sa12 + Stmp2
+    Sa32 = Sa32 - Stmp1
+    Stmp1 = Ss * Sa13
+    Stmp2 = Ss * Sa33
+    Sa13 = Sc * Sa13
+    Sa33 = Sc * Sa33
+    Sa13 = Sa13 + Stmp2
+    Sa33 = Sa33 - Stmp1
+    Stmp1 = Ss * Su11
+    Stmp2 = Ss * Su13
+    Su11 = Sc * Su11
+    Su13 = Sc * Su13
+    Su11 = Su11 + Stmp2
+    Su13 = Su13 - Stmp1
+    Stmp1 = Ss * Su21
+    Stmp2 = Ss * Su23
+    Su21 = Sc * Su21
+    Su23 = Sc * Su23
+    Su21 = Su21 + Stmp2
+    Su23 = Su23 - Stmp1
+    Stmp1 = Ss * Su31
+    Stmp2 = Ss * Su33
+    Su31 = Sc * Su31
+    Su33 = Sc * Su33
+    Su31 = Su31 + Stmp2
+    Su33 = Su33 - Stmp1
+    Ssh = Sa32 * Sa32
+
+    Ssh = bitcast_f32(expr_select(Ssh >= Ssmall_number,
+        xffffffff, 0))
+    Ssh = svd_bitwise_and(Ssh, Sa32)
+    Stmp5 = 0.0
+    Sch = Stmp5 - Sa22
+    Sch = ti.max(Sch, Sa22)
+    Sch = ti.max(Sch, Ssmall_number)
+
+    Stmp5 = bitcast_f32(expr_select(
+        Sa22 >= Stmp5, xffffffff, 0))
+    Stmp1 = Sch * Sch
+    Stmp2 = Ssh * Ssh
+    Stmp2 = Stmp1 + Stmp2
+    Stmp1 = rsqrt(Stmp2)
+    Stmp4 = Stmp1 * Sone_half
+    Stmp3 = Stmp1 * Stmp4
+    Stmp3 = Stmp1 * Stmp3
+    Stmp3 = Stmp2 * Stmp3
+    Stmp1 = Stmp1 + Stmp4
+    Stmp1 = Stmp1 - Stmp3
+    Stmp1 = Stmp1 * Stmp2
+    Sch = Sch + Stmp1
+
+    Stmp1 = svd_bitwise_and(~bitcast_i32(Stmp5), Ssh)
+
+    Stmp2 = svd_bitwise_and(~bitcast_i32(Stmp5), Sch)
+    Sch = svd_bitwise_and(Stmp5, Sch)
+    Ssh = svd_bitwise_and(Stmp5, Ssh)
+    Sch = svd_bitwise_or(Sch, Stmp1)
+    Ssh = svd_bitwise_or(Ssh, Stmp2)
+    Stmp1 = Sch * Sch
+    Stmp2 = Ssh * Ssh
+    Stmp2 = Stmp1 + Stmp2
+    Stmp1 = rsqrt(Stmp2)
+    Stmp4 = Stmp1 * Sone_half
+    Stmp3 = Stmp1 * Stmp4
+    Stmp3 = Stmp1 * Stmp3
+    Stmp3 = Stmp2 * Stmp3
+    Stmp1 = Stmp1 + Stmp4
+    Stmp1 = Stmp1 - Stmp3
+    Sch = Sch * Stmp1
+    Ssh = Ssh * Stmp1
+    Sc = Sch * Sch
+    Ss = Ssh * Ssh
+    Sc = Sc - Ss
+    Ss = Ssh * Sch
+    Ss = Ss + Ss
+    Stmp1 = Ss * Sa21
+    Stmp2 = Ss * Sa31
+    Sa21 = Sc * Sa21
+    Sa31 = Sc * Sa31
+    Sa21 = Sa21 + Stmp2
+    Sa31 = Sa31 - Stmp1
+    Stmp1 = Ss * Sa22
+    Stmp2 = Ss * Sa32
+    Sa22 = Sc * Sa22
+    Sa32 = Sc * Sa32
+    Sa22 = Sa22 + Stmp2
+    Sa32 = Sa32 - Stmp1
+    Stmp1 = Ss * Sa23
+    Stmp2 = Ss * Sa33
+    Sa23 = Sc * Sa23
+    Sa33 = Sc * Sa33
+    Sa23 = Sa23 + Stmp2
+    Sa33 = Sa33 - Stmp1
+    Stmp1 = Ss * Su12
+    Stmp2 = Ss * Su13
+    Su12 = Sc * Su12
+    Su13 = Sc * Su13
+    Su12 = Su12 + Stmp2
+    Su13 = Su13 - Stmp1
+    Stmp1 = Ss * Su22
+    Stmp2 = Ss * Su23
+    Su22 = Sc * Su22
+    Su23 = Sc * Su23
+    Su22 = Su22 + Stmp2
+    Su23 = Su23 - Stmp1
+    Stmp1 = Ss * Su32
+    Stmp2 = Ss * Su33
+    Su32 = Sc * Su32
+    Su33 = Sc * Su33
+    Su32 = Su32 + Stmp2
+    Su33 = Su33 - Stmp1
 
     U = [[Su11, Su12, Su13], [Su21, Su22, Su23], [Su31, Su32, Su33]]
     V = [[Sv11, Sv12, Sv13], [Sv21, Sv22, Sv23], [Sv31, Sv32, Sv33]]
