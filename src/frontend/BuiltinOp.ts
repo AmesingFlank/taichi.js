@@ -393,11 +393,12 @@ class BuiltinOpFactory {
             new BuiltinUnaryOp("floor", null, (stmt: NativeTaichiAny) => irBuilder.create_floor(stmt)),
             new BuiltinUnaryOp("sgn", PrimitiveType.i32, (stmt: NativeTaichiAny) => irBuilder.create_sgn(stmt)),
             new BuiltinUnaryOp("sqrt", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_sqrt(stmt)),
+            new BuiltinUnaryOp("rsqrt", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_rsqrt(stmt)),
 
             new BuiltinUnaryOp("i32", PrimitiveType.i32, (stmt: NativeTaichiAny) => irBuilder.create_cast(stmt, toNativePrimitiveType(PrimitiveType.i32)), (x) => Math.floor(x)),
             new BuiltinUnaryOp("f32", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_cast(stmt, toNativePrimitiveType(PrimitiveType.f32)), (x) => x),
             new BuiltinUnaryOp("bitcast_f32", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_bit_cast(stmt, toNativePrimitiveType(PrimitiveType.f32)), (x) => x),
-            new BuiltinUnaryOp("bitcast_i32", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_bit_cast(stmt, toNativePrimitiveType(PrimitiveType.f32)), (x) => x),
+            new BuiltinUnaryOp("bitcast_i32", PrimitiveType.i32, (stmt: NativeTaichiAny) => irBuilder.create_bit_cast(stmt, toNativePrimitiveType(PrimitiveType.i32)), (x) => x),
 
             new BuiltinBinaryOp("max", BinaryOpDatatypeTransform.PromoteToMatch, false, false, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_max(l, r), (l, r) => Math.max(l, r)),
             new BuiltinBinaryOp("min", BinaryOpDatatypeTransform.PromoteToMatch, false, false, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_min(l, r), (l, r) => Math.min(l, r)),
