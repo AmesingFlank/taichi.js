@@ -24,7 +24,8 @@ enum TypeCategory {
     Matrix = "Matrix",
     Struct = "Struct",
     Pointer = "Pointer",
-    Void = "Void"
+    Void = "Void",
+    Function = "Function"
 }
 
 class Type {
@@ -237,7 +238,7 @@ class StructType extends Type {
             if (k !== name) {
                 offset += this.getPropertyType(k).getPrimitivesList().length
             }
-            else{
+            else {
                 break;
             }
         }
@@ -297,6 +298,23 @@ class VoidType extends Type {
     }
 }
 
+class FunctionType extends Type {
+    constructor() {
+        super()
+    }
+    override getCategory(): TypeCategory {
+        return TypeCategory.Function
+    }
+
+    override equals(that: Type): boolean {
+        return false
+    }
+
+    override getPrimitivesList(): PrimitiveType[] {
+        error(`getPrimitivesList() called on function type`)
+        return []
+    }
+}
 
 class TypeUtils {
 
@@ -387,4 +405,4 @@ class TypeError {
 }
 
 export { PrimitiveType, toNativePrimitiveType }
-export { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, TypeUtils, TypeError, StructType }
+export { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, TypeUtils, TypeError, StructType, FunctionType }

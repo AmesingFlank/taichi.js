@@ -40,6 +40,7 @@ import { testStruct } from "./TestStruct"
 import { testRets } from "./TestRets"
 import { testArgAnnotation } from "./TestArgAnnotation"
 import { testTemplateArgs } from "./TestTemplateArgs"
+import { testLambda } from "./TestLambda"
 
 async function runAllTests() {
     let passed = true
@@ -83,6 +84,7 @@ async function runAllTests() {
     passed &&= await testRets()
     passed &&= await testArgAnnotation()
     passed &&= await testTemplateArgs()
+    passed &&= await testLambda()
 
     if (passed) {
         console.log("All tests passed")

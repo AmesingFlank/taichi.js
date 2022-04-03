@@ -3,8 +3,10 @@ import { InMemoryHost } from "./InMemoryHost";
 import { error } from '../utils/Logging'
 
 
+// A parsed JS function.
+// The optional argument `parent` is a parent JS function whose scope this function resides in
 export class ParsedFunction {
-    constructor(code: string) {
+    constructor(public code: string, public parent: ParsedFunction | null = null) {
         let host: InMemoryHost = new InMemoryHost()
         let tempFileName = "temp.js"
         host.writeFile(tempFileName, code)
@@ -54,15 +56,24 @@ export class ParsedFunction {
     }
 
     hasNodeSymbol(node: ts.Node): boolean {
-        return this.typeChecker.getSymbolAtLocation(node) !== undefined
+        if (this.typeChecker.getSymbolAtLocation(node) !== undefined) {
+            return true;
+        }
+        if (this.parent !== null) {
+            return this.parent.hasNodeSymbol(node)
+        }
+        return false
     }
 
     getNodeSymbol(node: ts.Node): ts.Symbol {
-        let symbol = this.typeChecker.getSymbolAtLocation(node)
-        if (symbol === undefined) {
-            this.errorNode(node, "symbol not found for " + node.getText())
+        this.assertNode(node, this.hasNodeSymbol(node), "symbol not found for " + node.getText())
+        if (this.typeChecker.getSymbolAtLocation(node) !== undefined) {
+            let symbol = this.typeChecker.getSymbolAtLocation(node)
+            return symbol!
         }
-        return symbol!
+        else{
+            return this.parent!.getNodeSymbol(node)
+        } 
     }
 
     getSourceCodeAt(startPos: number, endPos: number): string {
@@ -95,11 +106,22 @@ export class ParsedFunction {
         }
     }
 
+    private isNodeFromThisFunction(node:ts.Node) {
+        let sourceFile = this.tsProgram!.getSourceFiles()[0]
+        while(node.kind !== ts.SyntaxKind.SourceFile){
+            node = node.parent
+        }
+        return node === sourceFile
+    }
+
     getNodeSourceCode(node: ts.Node): string {
-        let startPos = node.getStart()
-        let endPos = node.getEnd()
-        let code = this.getSourceCodeAt(startPos, endPos)
-        return code
+        if(this.isNodeFromThisFunction(node)){
+            let startPos = node.getStart()
+            let endPos = node.getEnd()
+            let code = this.getSourceCodeAt(startPos, endPos)
+            return code
+        }
+        return this.parent!.getNodeSourceCode(node)
     }
 
     errorNode(node: ts.Node, ...args: any[]) {
@@ -118,4 +140,3 @@ export class ParsedFunction {
         }
     }
 }
- 

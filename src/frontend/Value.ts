@@ -2,15 +2,18 @@ import { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, Vo
 import { nativeTaichi, NativeTaichiAny } from "../native/taichi/GetTaichi"
 import { ResultOrError } from "./Error"
 import { assert } from "../utils/Logging"
+import { ParsedFunction } from "./ParsedFunction"
 
 class Value {
     public constructor(
         type: Type,
-        public stmts: NativeTaichiAny[] = [],
+        public stmts: NativeTaichiAny[] = [], // CHI IR Stmts
         public compileTimeConstants: number[] = []
     ) {
         this.type_ = type
     }
+
+    public parsedFunction : ParsedFunction | null = null // only used when type.getCategory() === TypeCategory.Function
 
     private type_: Type
     getType(): Type {

@@ -11,7 +11,7 @@ import { Program } from "../program/Program";
 import { getStmtKind, StmtKind } from "./Stmt"
 import { getWgslShaderBindings, getWgslShaderStage, WgslShaderStage } from "./WgslReflection"
 import { LibraryFunc } from "./Library";
-import { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, TypeUtils, PrimitiveType, toNativePrimitiveType, TypeError } from "./Type"
+import { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, TypeUtils, PrimitiveType, toNativePrimitiveType, TypeError, FunctionType } from "./Type"
 import { Value, ValueUtils } from "./Value"
 import { BuiltinOp, BuiltinNullaryOp, BuiltinBinaryOp, BuiltinUnaryOp, BuiltinAtomicOp, BuiltinCustomOp, BuiltinOpFactory } from "./BuiltinOp";
 import { ResultOrError } from "./Error";
@@ -190,8 +190,6 @@ class CompilingVisitor extends ASTVisitor<Value>{
     }
 
     protected derefIfPointer(val: Value): Value {
-        this.assertNode(null, val.stmts.length > 0, "value is empty")
-        this.assertNode(null, val.stmts[0] !== undefined, "value is undefined")
         let type = val.getType()
         if (type.getCategory() !== TypeCategory.Pointer) {
             return val
@@ -480,23 +478,6 @@ class CompilingVisitor extends ASTVisitor<Value>{
                 argumentValues.push(this.derefIfPointer(ref))
             }
             return argumentValues
-        }
-
-
-        // function semantics: pass by ref for l-values, pass by value for r-values
-
-        // user defined funcs
-        if (this.canEvalInKernelScopeOrTemplateArgs(node.expression)) {
-            let funcObj = this.tryEvalInKernelScopeOrTemplateArgs(node.expression)
-            if (typeof funcObj == 'function') {
-                let compiler = new InliningCompiler(this.irBuilder, this.builtinOps, this.atomicOps, funcText)
-                let parsedInlinedFunction = new ParsedFunction(funcObj.toString())
-                let result = compiler.runInlining(parsedInlinedFunction, this.kernelScope, getArgumentRefs())
-                if (result) {
-                    return result
-                }
-                return
-            }
         }
 
         // Library funcs
@@ -789,6 +770,16 @@ class CompilingVisitor extends ASTVisitor<Value>{
             }
         }
 
+        let calledFunctionValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.expression)))
+        if (calledFunctionValue.getType().getCategory() === TypeCategory.Function) {
+            let compiler = new InliningCompiler(this.irBuilder, this.builtinOps, this.atomicOps, funcText)
+            let result = compiler.runInlining(calledFunctionValue.parsedFunction!, this.kernelScope, getArgumentRefs())
+            if (result) {
+                return result
+            }
+            return
+        }
+
         this.errorNode(node, "unresolved function call: " + funcText)
     }
 
@@ -947,6 +938,12 @@ class CompilingVisitor extends ASTVisitor<Value>{
                         return ValueUtils.makeConstantScalar(val, this.irBuilder.get_float32(val), PrimitiveType.f32)
                     }
                 }
+                else if( typeof val === "function") {
+                    let parsedFunction = new ParsedFunction(val.toString())
+                    let value = new Value(new FunctionType())
+                    value.parsedFunction = parsedFunction
+                    return value
+                }
                 else if (Array.isArray(val)) {
                     this.assertNode(node, val.length > 0, "cannot use empty array in kernel")
                     let result = getValue(val[0])
@@ -1011,11 +1008,18 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
         let initializer = node.initializer!
         let initValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(initializer)))
-        let localVar = this.createLocalVarCopy(initValue)
-
         let varSymbol = this.getNodeSymbol(identifier)
-        this.symbolTable.set(varSymbol, localVar)
-        return localVar
+
+        if(initValue.getType().getCategory() !== TypeCategory.Function){
+            let localVar = this.createLocalVarCopy(initValue)
+            this.symbolTable.set(varSymbol, localVar)
+            return localVar
+        }
+        else{
+            // don't support alloca/load/store for functions... treated as const
+            this.symbolTable.set(varSymbol, initValue)
+            return initValue
+        }
     }
 
     protected override visitIfStatement(node: ts.IfStatement): VisitorResult<Value> {
@@ -1361,6 +1365,23 @@ class CompilingVisitor extends ASTVisitor<Value>{
     }
     protected override visitForStatement(node: ts.ForStatement): VisitorResult<Value> {
         this.errorNode(node, "Please use `for ... of ...` instead of  arbitrary for loops")
+    }
+
+    protected override visitFunctionDeclaration(node: ts.FunctionDeclaration): VisitorResult<Value> {
+        let value = new Value(new FunctionType())
+        let code = node.getText()
+        value.parsedFunction = new ParsedFunction(code, this.parsedFunction)
+        if(node.name){
+            this.symbolTable.set(this.getNodeSymbol(node.name), value)
+        }
+        return value
+    }
+
+    protected override visitArrowFunction(node: ts.ArrowFunction): VisitorResult<Value> {
+        let value = new Value(new FunctionType())
+        let code = node.getText()
+        value.parsedFunction = new ParsedFunction(code, this.parsedFunction)
+        return value
     }
 }
 
