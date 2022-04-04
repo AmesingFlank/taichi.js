@@ -24,6 +24,7 @@
     "@rollup/plugin-typescript": "^8.3.1",
     "http-server": "^14.0.0",
     "rollup": "^2.70.1",
+    "rollup-plugin-typescript2": "^0.31.2",
     "ts-loader": "^9.2.6",
     "typescript": "^4.4.4",
     "webpack": "^5.64.0",
