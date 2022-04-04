@@ -1,5 +1,7 @@
 console.log("heyy")
 
+import {ti} from "../lib/taichi.js"
+
 let main = async () => {
     await ti.runAllTests()
     await ti.taichiExample6Fractal(document.getElementById("fractal_canvas"))
