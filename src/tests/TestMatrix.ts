@@ -22,7 +22,7 @@ async function testMatrix(): Promise<boolean> {
                     m[[i, j]][[1, 1]] = i * 1000 + j * 100 + 11
                 }
             }
-            v[0] = m[1, 1][1]
+            v[0] = m[[1, 1]][1]
         }
     )
 

@@ -1,5 +1,5 @@
-let fractal = 
-`await ti.init() 
+let fractal =
+    `await ti.init() 
 
 let n = 320
 let pixels = ti.Vector.field(4, ti.f32,[2*n, n])
@@ -46,8 +46,8 @@ async function frame() {
 await frame()
 `
 
-let fractal3D = 
-`await ti.init() 
+let fractal3D =
+    `await ti.init() 
 
 let quat_mul = (v1, v2) => [
     v1.x * v2.x - v1.y * v2.y - v1.z * v2.z - v1.w * v2.w,
@@ -198,8 +198,8 @@ await frame()
 
 `
 
-let vortexRing = 
-`await ti.init() 
+let vortexRing =
+    `await ti.init() 
 
 let resolution = [720,360]
 
@@ -323,8 +323,8 @@ let frame = async () => {
 await frame()
 `
 
-let rasterizer = 
-`
+let rasterizer =
+    `
 await ti.init() 
 
 let tile_size = 8 
@@ -475,8 +475,8 @@ await frame()
 `
 
 
-let mpm99 = 
-`
+let mpm99 =
+    `
 await ti.init() 
 
 let quality = 1 
@@ -674,8 +674,8 @@ async function frame() {
 await frame()
 `
 
-let cornellBox = 
-`
+let cornellBox =
+    `
 await ti.init() 
 
 let res = [800, 800]
@@ -1562,8 +1562,8 @@ async function frame() {
 requestAnimationFrame(frame)
 `
 
-let fractalCloth = 
-`
+let fractalCloth =
+    `
 await ti.init()
 
 let htmlCanvas = document.getElementById("result_canvas")
@@ -1829,8 +1829,8 @@ async function frame() {
 requestAnimationFrame(frame)
 `
 
-let fluid3D = 
-`
+let fluid3D =
+    `
 let htmlCanvas = document.getElementById("result_canvas")
 htmlCanvas.width = 512
 htmlCanvas.height = 512
@@ -2169,8 +2169,8 @@ async function frame() {
 }
 await frame()
 `
-let jelly = 
-`
+let jelly =
+    `
 let htmlCanvas = document.getElementById("result_canvas")
 htmlCanvas.width = 512
 htmlCanvas.height = 512
@@ -2628,4 +2628,4 @@ async function frame() {
 }
 await frame()
 `
-export {fractal, fractal3D, vortexRing, rasterizer, mpm99, cornellBox, rotatingCube, cloth, fractalCloth, fluid3D, jelly}
+export { fractal, fractal3D, vortexRing, rasterizer, mpm99, cornellBox, rotatingCube, cloth, fractalCloth, fluid3D, jelly }
