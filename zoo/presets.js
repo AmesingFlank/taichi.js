@@ -22,8 +22,8 @@ let kernel = ti.kernel(
                 z = complex_sqr(z) + c
                 iterations = iterations + 1
             }
-            pixels[i,j] = 1 - iterations * 0.02
-            pixels[i,j][3] = 1
+            pixels[[i,j]] = 1 - iterations * 0.02
+            pixels[[i,j]][3] = 1
         }
     }
 )
@@ -170,10 +170,10 @@ let march = ti.kernel(
                 let normal = compute_normal(o + t * d, c)
                 let color = abs((o + t * d).xyz) / 1.3
                 let pos = (o + t * d).xyz
-                image[x, y] = (shade(pos, color, normal, o3), 1)
+                image[[x, y]] = (shade(pos, color, normal, o3), 1)
             }
             else{
-                image[x, y] = [0, 0, 0, 1]
+                image[[x, y]] = [0, 0, 0, 1]
             }
         }
     }
@@ -288,7 +288,7 @@ let paint = ti.kernel(
         for(let I of ndrange(resolution[0], resolution[1])){
             let i = I[0]
             let j = I[1]
-            image[i,j] = [1.0,1.0,1.0,1.0]
+            image[[i,j]] = [1.0,1.0,1.0,1.0]
         }
         for(let i of range(n_tracer)){
             let p = tracer[i] * [0.05,0.1] + [0.0,0.5]
@@ -383,7 +383,7 @@ let tile_culling = ti.kernel(
                 let tile_max = [(i + 1) * tile_size, (j + 1) * tile_size]
                 if (bbox_intersect(tile_min, tile_max, tri_min, tri_max)){
                     let my_idx = ti.atomic_add(block_num_triangles[i, j], 1)
-                    block_indicies[i, j, my_idx] = t
+                    block_indicies[[i, j, my_idx]] = t
                 } 
             }
         }
@@ -413,8 +413,8 @@ let rasterize = ti.kernel(
                                 c0[idx]*point_info[1] + 
                                 c1[idx]*point_info[2] + 
                                 c2[idx]*point_info[3]
-                        if(idx > samples[i, j, subi, subj].w){
-                        	samples[i, j, subi, subj] = (color, idx)
+                        if(idx > samples[[i, j, subi, subj]].w){
+                        	samples[[i, j, subi, subj]] = (color, idx)
                         }
                     }
                 } 
@@ -425,7 +425,7 @@ let rasterize = ti.kernel(
                 let subj = sub[1]
                 samples_sum = samples_sum + samples[i, j, subi, subj].rgb
             } 
-            pixels[i, j] = ((samples_sum / num_samples_per_pixel), 1)
+            pixels[[i, j]] = ((samples_sum / num_samples_per_pixel), 1)
         }
     }
 )
@@ -440,7 +440,7 @@ let fill_all = ti.kernel(
             for(let sub of ndrange(num_spp_sqrt,num_spp_sqrt)){
                 let subi = sub[0]
                 let subj = sub[1]
-                samples[i, j, subi, subj] = [1,1,1,-1]
+                samples[[i, j, subi, subj]] = [1,1,1,-1]
             } 
         }
     }
@@ -537,13 +537,13 @@ let substep = ti.kernel(
             ti.svd2D(F[p], U, sig, V)
             let J = 1.0
             for(let d of ti.static(ti.range(2))){
-                let new_sig = sig[d,d]
+                let new_sig = sig[[d,d]]
                 if(material[p]==2){
                     // Plasticity
-                    new_sig = min(max(sig[d, d], 1 - 2.5e-2), 1 + 4.5e-3)  
+                    new_sig = min(max(sig[[d, d]], 1 - 2.5e-2), 1 + 4.5e-3)  
                 }
-                Jp[p] = Jp[p] * sig[d, d] / new_sig
-                sig[d, d] = new_sig
+                Jp[p] = Jp[p] * sig[[d, d]] / new_sig
+                sig[[d, d]] = new_sig
                 J = J * new_sig
             }
             if(material[p]==0){
@@ -561,7 +561,7 @@ let substep = ti.kernel(
                 for(let j of ti.static(ti.range(3))){
                     let offset = [i,j]
                     let dpos = (f32(offset) - fx) * dx
-                    let weight = w[i,0] * w[j,1]
+                    let weight = w[[i,0]] * w[[j,1]]
                     grid_v[base + offset] += weight * (p_mass * v[p] + affine.matmul(dpos))
                     grid_m[base + offset] += weight * p_mass
                 }
@@ -598,7 +598,7 @@ let substep = ti.kernel(
                 for(let j of ti.static(ti.range(3))){
                     let dpos = f32([i,j]) - fx
                     let g_v = grid_v[base + [i,j]]
-                    let weight = w[i,0] * w[j,1]
+                    let weight = w[[i,0]] * w[[j,1]]
                     new_v = new_v + weight * g_v
                     new_C = new_C +  4 * inv_dx * weight * g_v.outer_product(dpos)
                 }
@@ -1219,7 +1219,7 @@ let render = ti.kernel (() => {
                 throughput = throughput * hit_color
             }
         }
-        color_buffer[u, v] = color_buffer[u, v] + acc_color
+        color_buffer[[u, v]] = color_buffer[[u, v]] + acc_color
     }
     count_var[0] = (count_var[0] + 1) % (stratify_res * stratify_res)
 })
@@ -1361,7 +1361,7 @@ let init_scene = ti.kernel(
         for (let I of ti.ndrange(N, N)) {
             let i = I[0]
             let j = I[1]
-            x[i, j] = [
+            x[[i, j]] = [
                 i * cell_size, j * cell_size / ti.sqrt(2),
                 (N - j) * cell_size / ti.sqrt(2)
             ]
@@ -1460,19 +1460,19 @@ let render = ti.kernel(
             let normal_count = 0
             // average the normal of all adjacent triangles
             if (i < N - 1 && j < N - 1) {
-                normal += compute_normal(x[i, j], x[i + 1, j], x[i, j + 1])
+                normal += compute_normal(x[[i, j]], x[[i + 1, j]], x[[i, j + 1]])
                 normal_count += 1
             }
             if (i > 0 && j < N - 1) {
-                normal += compute_normal(x[i, j], x[i, j + 1], x[i - 1, j])
+                normal += compute_normal(x[[i, j]], x[[i, j + 1]], x[[i - 1, j]])
                 normal_count += 1
             }
             if (i > 0 && j > 0) {
-                normal += compute_normal(x[i, j], x[i - 1, j], x[i, j - 1])
+                normal += compute_normal(x[[i, j]], x[[i - 1, j]], x[[i, j - 1]])
                 normal_count += 1
             }
             if (i < N - 1 && j > 0) {
-                normal += compute_normal(x[i, j], x[i, j - 1], x[i + 1, j])
+                normal += compute_normal(x[[i, j]], x[[i, j - 1]], x[[i + 1, j]])
                 normal_count += 1
             }
             normal = normal / normal_count
@@ -1594,7 +1594,7 @@ let init_scene = ti.kernel(
         for (let I of ti.ndrange(N, N)) {
             let i = I[0]
             let j = I[1]
-            x[i, j] = [
+            x[[i, j]] = [
                 i * cell_size, j * cell_size / ti.sqrt(2),
                 (N - j) * cell_size / ti.sqrt(2)
             ]
@@ -1722,19 +1722,19 @@ let render = ti.kernel(
             let normal_count = 0
             // average the normal of all adjacent triangles
             if (i < N - 1 && j < N - 1) {
-                normal += compute_normal(x[i, j], x[i + 1, j], x[i, j + 1])
+                normal += compute_normal(x[[i, j]], x[[i + 1, j]], x[[i, j + 1]])
                 normal_count += 1
             }
             if (i > 0 && j < N - 1) {
-                normal += compute_normal(x[i, j], x[i, j + 1], x[i - 1, j])
+                normal += compute_normal(x[[i, j]], x[[i, j + 1]], x[[i - 1, j]])
                 normal_count += 1
             }
             if (i > 0 && j > 0) {
-                normal += compute_normal(x[i, j], x[i - 1, j], x[i, j - 1])
+                normal += compute_normal(x[[i, j]], x[[i - 1, j]], x[[i, j - 1]])
                 normal_count += 1
             }
             if (i < N - 1 && j > 0) {
-                normal += compute_normal(x[i, j], x[i, j - 1], x[i + 1, j])
+                normal += compute_normal(x[[i, j]], x[[i, j - 1]], x[[i + 1, j]])
                 normal_count += 1
             }
             normal = normal / normal_count
@@ -1901,13 +1901,13 @@ let substep = ti.kernel(
             ti.svd3D(F[p], U, sig, V)
             let J = f32(1.0)
             for (let d of ti.static(ti.range(3))) {
-                let new_sig = sig[d, d]
+                let new_sig = sig[[d, d]]
                 if (material[p] == SNOW) {
                     // Plasticity
-                    new_sig = min(max(sig[d, d], 1 - 2.5e-2), 1 + 4.5e-3)
+                    new_sig = min(max(sig[[d, d]], 1 - 2.5e-2), 1 + 4.5e-3)
                 }
-                Jp[p] = Jp[p] * sig[d, d] / new_sig
-                sig[d, d] = new_sig
+                Jp[p] = Jp[p] * sig[[d, d]] / new_sig
+                sig[[d, d]] = new_sig
                 J = J * new_sig
             }
             if (material[p] == WATER) {
@@ -1926,7 +1926,7 @@ let substep = ti.kernel(
                     for (let k of ti.static(ti.range(3))) {
                         let offset = [i, j, k]
                         let dpos = (f32(offset) - fx) * dx
-                        let weight = w[i, 0] * w[j, 1] * w[k, 2]
+                        let weight = w[[i, 0]] * w[[j, 1]] * w[[k, 2]]
                         grid_v[base + offset] += weight * (p_mass * v[p] + affine.matmul(dpos))
                         grid_m[base + offset] += weight * p_mass
                     }
@@ -1974,7 +1974,7 @@ let substep = ti.kernel(
                         let offset = [i, j, k]
                         let dpos = (f32(offset) - fx) * dx
                         let g_v = grid_v[base + offset]
-                        let weight = w[i, 0] * w[j, 1] * w[k, 2]
+                        let weight = w[[i, 0]] * w[[j, 1]] * w[k, 2]
                         new_v = new_v + weight * g_v
                         new_C = new_C + 4 * weight * g_v.outer_product(dpos) / (dx * dx)
                     }
@@ -2244,13 +2244,13 @@ let substep = ti.kernel(
             ti.svd3D(F[p], U, sig, V)
             let J = f32(1.0)
             for (let d of ti.static(ti.range(3))) {
-                let new_sig = sig[d, d]
+                let new_sig = sig[[d, d]]
                 if (material[p] == SNOW) {
                     // Plasticity
-                    new_sig = min(max(sig[d, d], 1 - 2.5e-2), 1 + 4.5e-3)
+                    new_sig = min(max(sig[[d, d]], 1 - 2.5e-2), 1 + 4.5e-3)
                 }
-                Jp[p] = Jp[p] * sig[d, d] / new_sig
-                sig[d, d] = new_sig
+                Jp[p] = Jp[p] * sig[[d, d]] / new_sig
+                sig[[d, d]] = new_sig
                 J = J * new_sig
             }
             if (material[p] == WATER) {
@@ -2269,7 +2269,7 @@ let substep = ti.kernel(
                     for (let k of ti.static(ti.range(3))) {
                         let offset = [i, j, k]
                         let dpos = (f32(offset) - fx) * dx
-                        let weight = w[i, 0] * w[j, 1] * w[k, 2]
+                        let weight = w[[i, 0]] * w[[j, 1]] * w[[k, 2]]
                         grid_v[base + offset] += weight * (p_mass * v[p] + affine.matmul(dpos))
                         grid_m[base + offset] += weight * p_mass
                     }
@@ -2317,7 +2317,7 @@ let substep = ti.kernel(
                         let offset = [i, j, k]
                         let dpos = (f32(offset) - fx) * dx
                         let g_v = grid_v[base + offset]
-                        let weight = w[i, 0] * w[j, 1] * w[k, 2]
+                        let weight = w[[i, 0]] * w[[j, 1]] * w[[k, 2]]
                         new_v = new_v + weight * g_v
                         new_C = new_C + 4 * weight * g_v.outer_product(dpos) / (dx * dx)
                     }

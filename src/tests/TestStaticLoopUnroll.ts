@@ -19,11 +19,11 @@ async function testStaticLoopUnroll(): Promise<boolean> {
                 }
                 for(let i of ti.static(ti.range(3))){
                     for(let j of ti.static(ti.range(3))){
-                        m[0][i,j] = i*10 + j
+                        m[0][[i,j]] = i*10 + j
                     }
                 }
                 for(let I of ti.static(ti.ndrange(3,3))){
-                    m[1][I[0],I[1]] = I[0]*10 + I[1]
+                    m[1][[I[0],I[1]]] = I[0]*10 + I[1]
                 }
             }
         }

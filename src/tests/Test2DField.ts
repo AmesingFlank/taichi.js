@@ -15,7 +15,7 @@ async function test2DField(): Promise<boolean> {
             //@ts-ignore
             for(let i of range(3)){
                 for(let j of range(3)){
-                    f[i,j] = i * 10 + j
+                    f[[i,j]] = i * 10 + j
                 }
             }            
         }

@@ -16,7 +16,7 @@ async function testNdrange(): Promise<boolean> {
             for(let I of ndrange(3,3)){
                 let i = I[0]
                 let j = I[1]
-                f[i,j] = i * 10 + j
+                f[[i,j]] = i * 10 + j
             }            
         }
     )

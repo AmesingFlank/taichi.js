@@ -17,7 +17,7 @@ async function testVectorArithmetic(): Promise<boolean> {
                 for(let j of range(3)){
                     let v = [i * 10 + j, i * 10 + j] + [0, 10000]
                     v = v * 2
-                    f[i,j] = v / 2
+                    f[[i,j]] = v / 2
                 }
             }            
         }

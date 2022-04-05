@@ -519,6 +519,75 @@ class BuiltinOpFactory {
             }
         )
 
+        let concat = new BuiltinCustomOp("concat", 2,
+            (args: Value[]) => {
+                if (args.length !== 2) {
+                    return TypeError.createError("expecting pointer type")
+                }
+                let leftValue = args[0]
+                let rightValue = args[1]
+                let leftType = leftValue.getType()
+                let rightType = rightValue.getType()
+                if (!TypeUtils.isTensorType(leftType) || !TypeUtils.isTensorType(rightType)) {
+                    return TypeError.createError("Only scalar/vector/matrix types can be grouped together")
+                }
+                let leftCat = leftType.getCategory()
+                let rightCat = rightType.getCategory()
+                if (leftCat === TypeCategory.Scalar && rightCat === TypeCategory.Scalar) {
+                    return TypeError.createNoError()
+                }
+                if (leftCat === TypeCategory.Vector && rightCat === TypeCategory.Scalar) {
+                    return TypeError.createNoError()
+                }
+                if (leftCat === TypeCategory.Vector && rightCat === TypeCategory.Vector) {
+                    let vec0 = leftType as VectorType
+                    let vec1 = rightType as VectorType
+                    if (vec0.getNumRows() !== vec1.getNumRows()) {
+                        return TypeError.createError("vectors with different number of rows cannot be grouped together")
+                    }
+                    return TypeError.createNoError()
+                }
+                if (leftCat === TypeCategory.Matrix && rightCat === TypeCategory.Vector) {
+                    let mat0 = leftType as MatrixType
+                    let vec1 = rightType as VectorType
+                    if (mat0.getNumCols() !== vec1.getNumRows()) {
+                        return TypeError.createError("cannot append to a matrix a vector whose number of rows don't match")
+                    }
+                    return TypeError.createNoError()
+                }
+                return TypeError.createError("invalid grouping")
+            },
+            (args: Value[]) => {
+                let leftValue = args[0]
+                let rightValue = args[1]
+                let leftType = leftValue.getType()
+                let rightType = rightValue.getType()
+                let leftPrim = TypeUtils.getPrimitiveType(leftType)
+                let rightPrim = TypeUtils.getPrimitiveType(rightType)
+                let hasFloat = leftPrim === PrimitiveType.f32 || rightPrim === PrimitiveType.f32
+                if (hasFloat) {
+                    leftValue = opsMap.get("f32")!.apply([leftValue])
+                    rightValue = opsMap.get("f32")!.apply([rightValue])
+                }
+                let leftCat = leftType.getCategory()
+                let rightCat = rightType.getCategory()
+                if (leftCat === TypeCategory.Scalar && rightCat === TypeCategory.Scalar) {
+                    return ValueUtils.makeVectorFromScalars([leftValue, rightValue])
+                }
+                if (leftCat === TypeCategory.Vector && rightCat === TypeCategory.Scalar) {
+                    return ValueUtils.addScalarToVector(leftValue, rightValue)
+                }
+                if (leftCat === TypeCategory.Vector && rightCat === TypeCategory.Vector) {
+                    return ValueUtils.makeMatrixFromVectorsAsRows([leftValue, rightValue])
+                }
+                if (leftCat === TypeCategory.Matrix && rightCat === TypeCategory.Vector) {
+                    return ValueUtils.addRowVectorToMatrix(leftValue, rightValue)
+                }
+                // shouldn't happen
+                return leftValue
+            }
+        ) 
+
         let len = new BuiltinCustomOp("len", 1,
             (args: Value[]) => {
                 if (args.length === 1 && args[0].getType().getCategory() === TypeCategory.Vector) {
@@ -765,7 +834,7 @@ class BuiltinOpFactory {
                 return ValueUtils.transposeMatrix(args[0])
             }
         )
-        let ops2 = [store, load, len, length, sum, norm_sqr, norm, normalized, dot, cross, matmul, transpose, outer_product]
+        let ops2 = [store, load, concat, len, length, sum, norm_sqr, norm, normalized, dot, cross, matmul, transpose, outer_product]
         for (let op of ops2) {
             opsMap.set(op.name, op)
         }

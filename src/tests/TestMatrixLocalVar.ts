@@ -17,7 +17,7 @@ async function testMatrixLocalVar(): Promise<boolean> {
                 for(let j of range(2)){
                     let m = [[ i * 1000 + j * 100, i * 1000 + j * 100 + 1], 
                             [i * 1000 + j * 100 + 10, i * 1000 + j * 100 + 11]]
-                    f[i,j] = m
+                    f[[i,j]] = m
                 }
             }            
         }

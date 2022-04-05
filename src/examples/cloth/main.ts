@@ -26,7 +26,7 @@ let clothExample = async (htmlCanvas: HTMLCanvasElement) => {
             for (let I of ti.ndrange(N, N)) {
                 let i = I[0]
                 let j = I[1]
-                x[i, j] = [
+                x[[i, j]] = [
                     i * cell_size, j * cell_size / ti.sqrt(2),
                     (N - j) * cell_size / ti.sqrt(2)
                 ]
@@ -154,19 +154,19 @@ let clothExample = async (htmlCanvas: HTMLCanvasElement) => {
                 let normal_count = 0
                 // average the normal of all adjacent triangles
                 if (i < N - 1 && j < N - 1) {
-                    normal += compute_normal(x[i, j], x[i + 1, j], x[i, j + 1])
+                    normal += compute_normal(x[[i, j]], x[[i + 1, j]], x[[i, j + 1]])
                     normal_count += 1
                 }
                 if (i > 0 && j < N - 1) {
-                    normal += compute_normal(x[i, j], x[i, j + 1], x[i - 1, j])
+                    normal += compute_normal(x[[i, j]], x[[i, j + 1]], x[[i - 1, j]])
                     normal_count += 1
                 }
                 if (i > 0 && j > 0) {
-                    normal += compute_normal(x[i, j], x[i - 1, j], x[i, j - 1])
+                    normal += compute_normal(x[[i, j]], x[[i - 1, j]], x[[i, j - 1]])
                     normal_count += 1
                 }
                 if (i < N - 1 && j > 0) {
-                    normal += compute_normal(x[i, j], x[i, j - 1], x[i + 1, j])
+                    normal += compute_normal(x[[i, j]], x[[i, j - 1]], x[[i + 1, j]])
                     normal_count += 1
                 }
                 normal = normal / normal_count

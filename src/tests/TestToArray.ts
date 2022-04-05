@@ -29,13 +29,13 @@ async function testToArray(): Promise<boolean> {
                 m1[i] = [[4 * i, 4 * i + 1], [4 * i + 2, 4 * i + 3]]
                 for (let j of range(2)) {
                     let index = i * 2 + j
-                    s2[i, j] = index
-                    v2[i, j] = [index * 2, index * 2 + 1]
-                    m2[i, j] = [[4 * index, 4 * index + 1], [4 * index + 2, 4 * index + 3]]
+                    s2[[i, j]] = index
+                    v2[[i, j]] = [index * 2, index * 2 + 1]
+                    m2[[i, j]] = [[4 * index, 4 * index + 1], [4 * index + 2, 4 * index + 3]]
                     for (let k of range(2)) {
                         let index = i * 4 + j * 2 + k
-                        s3[i, j, k] = index
-                        v3[i, j, k] = [index * 2, index * 2 + 1]
+                        s3[[i, j, k]] = index
+                        v3[[i, j, k]] = [index * 2, index * 2 + 1]
                     }
                 }
             }

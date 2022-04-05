@@ -15,8 +15,8 @@ async function testVector(): Promise<boolean> {
             //@ts-ignore
             for(let i of range(3)){
                 for(let j of range(3)){
-                    f[i,j][0] = i * 10 + j
-                    f[i,j][1] = i * 10 + j + 10000
+                    f[[i,j]][0] = i * 10 + j
+                    f[[i,j]][1] = i * 10 + j + 10000
                 }
             }            
         }

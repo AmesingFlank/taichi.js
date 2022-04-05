@@ -16,7 +16,7 @@ async function testVectorLocalVar(): Promise<boolean> {
             for(let i of range(3)){
                 for(let j of range(3)){
                     let v = [i * 10 + j, i * 10 + j + 10000]
-                    f[i,j] = v
+                    f[[i,j]] = v
                 }
             }            
         }

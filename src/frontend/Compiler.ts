@@ -208,42 +208,13 @@ class CompilingVisitor extends ASTVisitor<Value>{
         return varValue
     }
 
-    protected comma(leftValue: Value, rightValue: Value): Value {
-        let leftType = leftValue.getType()
-        let rightType = rightValue.getType()
-        if (!TypeUtils.isTensorType(leftType) || !TypeUtils.isTensorType(rightType)) {
-            this.errorNode(null, "Only scalar/vector/matrix types can be grouped together")
+    protected concat(leftValue: Value, rightValue: Value): Value {
+        let concatOp = this.builtinOps.get("concat")!
+        let typeError = concatOp.checkType([leftValue, rightValue])
+        if (typeError.hasError) {
+            this.errorNode(null, typeError.msg)
         }
-        let leftPrim = TypeUtils.getPrimitiveType(leftType)
-        let rightPrim = TypeUtils.getPrimitiveType(rightType)
-        let hasFloat = leftPrim === PrimitiveType.f32 || rightPrim === PrimitiveType.f32
-        if (hasFloat) {
-            leftValue = this.castTo(leftValue, PrimitiveType.f32)
-            rightValue = this.castTo(rightValue, PrimitiveType.f32)
-        }
-        let leftCat = leftType.getCategory()
-        let rightCat = rightType.getCategory()
-        if (leftCat === TypeCategory.Scalar && rightCat === TypeCategory.Scalar) {
-            return ValueUtils.makeVectorFromScalars([leftValue, rightValue])
-        }
-        if (leftCat === TypeCategory.Vector && rightCat === TypeCategory.Scalar) {
-            return ValueUtils.addScalarToVector(leftValue, rightValue)
-        }
-        if (leftCat === TypeCategory.Vector && rightCat === TypeCategory.Vector) {
-            let vec0 = leftType as VectorType
-            let vec1 = rightType as VectorType
-            this.assertNode(null, vec0.getNumRows() === vec1.getNumRows(), "vector numRows mismatch")
-            return ValueUtils.makeMatrixFromVectorsAsRows([leftValue, rightValue])
-        }
-        if (leftCat === TypeCategory.Matrix && rightCat === TypeCategory.Vector) {
-            let mat0 = leftType as MatrixType
-            let vec1 = rightType as VectorType
-            this.assertNode(null, mat0.getNumCols() === vec1.getNumRows(), "vector numRows mismatch")
-            return ValueUtils.addRowVectorToMatrix(leftValue, rightValue)
-        }
-        this.errorNode(null, "Invalid comma grouping")
-
-        return leftValue
+        return concatOp.apply([leftValue, rightValue])
     }
 
     protected castTo(val: Value, primType: PrimitiveType): Value {
@@ -260,7 +231,6 @@ class CompilingVisitor extends ASTVisitor<Value>{
             return this.builtinOps.get("i32")!.apply([val])
         }
     }
-
 
     protected override visitNumericLiteral(node: ts.NumericLiteral): VisitorResult<Value> {
         let value = Number(node.getText())
@@ -354,7 +324,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
         }
 
         if (opToken.kind === ts.SyntaxKind.CommaToken) {
-            return this.comma(leftValue, rightValue)
+            return this.concat(leftValue, rightValue)
         }
 
         this.errorNode(node, "unsupported binary operator:" + opTokenText)
@@ -381,7 +351,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
         }
         let result = elementValues[0]
         for (let i = 1; i < elements.length; ++i) {
-            result = this.comma(result, elementValues[i])
+            result = this.concat(result, elementValues[i])
         }
         return result
     }
@@ -771,8 +741,8 @@ class CompilingVisitor extends ASTVisitor<Value>{
         let calledFunctionValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.expression)))
         if (calledFunctionValue.getType().getCategory() === TypeCategory.Function) {
             let compiler = new InliningCompiler(this.irBuilder, this.builtinOps, this.atomicOps, funcText)
-            let additionalSymbolTable : SymbolTable | null = null
-            if(calledFunctionValue.parsedFunction!.tsProgram === this.parsedFunction!.tsProgram){
+            let additionalSymbolTable: SymbolTable | null = null
+            if (calledFunctionValue.parsedFunction!.tsProgram === this.parsedFunction!.tsProgram) {
                 // this means that the funtion is embedded in this kernel/function. 
                 // so we should pass in this function's symbol table, to allow variable captures
                 additionalSymbolTable = this.symbolTable
@@ -802,9 +772,10 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
                     let argumentValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(argument)))
                     let argType = argumentValue.getType()
-                    this.assertNode(node, argType.getCategory() === TypeCategory.Scalar || argType.getCategory() === TypeCategory.Vector, "index must be scalar or vector")
+                    this.assertNode(node, TypeUtils.isTensorType(argType), "invalid field index")
 
-                    this.assertNode(node, argumentValue.stmts.length === field.dimensions.length, "field access dimension mismatch ", argumentValue.stmts.length, field.dimensions.length)
+                    this.assertNode(node, argumentValue.stmts.length === field.dimensions.length,
+                        `field access dimension mismatch, received ${argumentValue.stmts.length} components, but expecting ${field.dimensions.length} components`)
                     let accessVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
                     for (let stmt of argumentValue.stmts) {
                         accessVec.push_back(stmt)
@@ -828,14 +799,14 @@ class CompilingVisitor extends ASTVisitor<Value>{
         this.assertNode(node, TypeUtils.getPrimitiveType(argType) === PrimitiveType.i32, "Indices of be of i32 type")
 
         if (TypeUtils.isValueOrPointerOfCategory(baseType, TypeCategory.Vector)) {
-            this.assertNode(node, argType.getCategory() === TypeCategory.Scalar, "index for a vector must be a scalar")
+            this.assertNode(node, argType.getPrimitivesList().length === 1, "index for a vector must have only 1 component")
             let components = ValueUtils.getVectorComponents(baseValue)
             return components[argumentValue.compileTimeConstants[0]]
         }
         else if (TypeUtils.isValueOrPointerOfCategory(baseType, TypeCategory.Matrix)) {
             if (argType.getCategory() === TypeCategory.Vector) {
                 let argVecType = argType as VectorType
-                this.assertNode(node, argVecType.getNumRows() === 2, "a vector index of matrix must be a 2D vector")
+                this.assertNode(node, argVecType.getNumRows() === 2, "a vector index of matrix have exactly two components")
                 let components = ValueUtils.getMatrixComponents(baseValue)
                 return components[argumentValue.compileTimeConstants[0]][argumentValue.compileTimeConstants[1]]
             }
@@ -970,7 +941,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
                         if (thisValue === undefined) {
                             fail()!
                         }
-                        let maybeResult = this.comma(result!, thisValue!)
+                        let maybeResult = this.concat(result!, thisValue!)
                         if (maybeResult === null) {
                             this.errorNode(node, "Array element type mistach at " + node.getText())
                         }
@@ -1404,8 +1375,8 @@ export class InliningCompiler extends CompilingVisitor {
 
     runInlining(parsedFunction: ParsedFunction, kernelScope: Scope, argValues: Value[], parentFunctionSymbolTable: SymbolTable | null = null): Value | null {
         this.argValues = argValues
-        if(parentFunctionSymbolTable!==null){
-            for(let symbol of parentFunctionSymbolTable.keys()){
+        if (parentFunctionSymbolTable !== null) {
+            for (let symbol of parentFunctionSymbolTable.keys()) {
                 let val = parentFunctionSymbolTable.get(symbol)!
                 this.symbolTable.set(symbol, val)
             }

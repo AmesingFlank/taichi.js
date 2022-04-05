@@ -1,15 +1,15 @@
 //@ts-nocheck
-import {ti} from "../../taichi" 
-import {Program} from '../../program/Program' 
-async function taichiExample7VortexRing(htmlCanvas:HTMLCanvasElement): Promise<boolean> {
+import { ti } from "../../taichi"
+import { Program } from '../../program/Program'
+async function taichiExample7VortexRing(htmlCanvas: HTMLCanvasElement): Promise<boolean> {
     console.log("taichiExample7VortexRing")
-     
-    await ti.init() 
+
+    await ti.init()
 
     let resolution = [1024, 512]
 
     let eps = 0.01
-    let dt = 0.01 
+    let dt = 0.01
 
     let n_vortex = 4
     let n_tracer = 200000
@@ -17,7 +17,7 @@ async function taichiExample7VortexRing(htmlCanvas:HTMLCanvasElement): Promise<b
     let pos = ti.Vector.field(2, ti.f32, n_vortex)
     let new_pos = ti.Vector.field(2, ti.f32, n_vortex)
     let vort = ti.field(ti.f32, n_vortex)
-    
+
     let tracer = ti.Vector.field(2, ti.f32, n_tracer)
     let image = ti.Vector.field(4, ti.f32, resolution)
 
@@ -26,33 +26,33 @@ async function taichiExample7VortexRing(htmlCanvas:HTMLCanvasElement): Promise<b
     let compute_u_single = (p, i) => {
         let r2 = (p - pos[i]).norm_sqr()
         let uv = [pos[i].y - p.y, p.x - pos[i].x]
-        return vort[i] * uv / (r2 * pi) * 0.5 * (1.0 - exp(-r2 / eps**2))
+        return vort[i] * uv / (r2 * pi) * 0.5 * (1.0 - exp(-r2 / eps ** 2))
     }
-       
+
     let compute_u_full = (p) => {
         let u = [0.0, 0.0]
-        for(let i of range(n_vortex)){
+        for (let i of range(n_vortex)) {
             u = u + compute_u_single(p, i)
         }
         return u
     }
 
     ti.addToKernelScope({
-        resolution, eps, dt, n_vortex, n_tracer, image,pos,new_pos,vort,tracer,pi,compute_u_single,compute_u_full
+        resolution, eps, dt, n_vortex, n_tracer, image, pos, new_pos, vort, tracer, pi, compute_u_single, compute_u_full
     })
-        
+
     let integrate_vortex = ti.kernel(
         () => {
-            for(let i of range(n_vortex)){
-                let v = [0.0,0.0]
-                for(let j of range(n_vortex)){
-                    if(i!=j){
+            for (let i of range(n_vortex)) {
+                let v = [0.0, 0.0]
+                for (let j of range(n_vortex)) {
+                    if (i != j) {
                         v = v + compute_u_single(pos[i], j)
                     }
                 }
-                new_pos[i] = pos[i] + dt *  v
+                new_pos[i] = pos[i] + dt * v
             }
-            for(let i of range(n_vortex)) {
+            for (let i of range(n_vortex)) {
                 pos[i] = new_pos[i]
             }
         }
@@ -60,7 +60,7 @@ async function taichiExample7VortexRing(htmlCanvas:HTMLCanvasElement): Promise<b
 
     let advect = ti.kernel(
         () => {
-            for(let i of range(n_tracer)){
+            for (let i of range(n_tracer)) {
                 let p = tracer[i]
                 let v1 = compute_u_full(p)
                 let v2 = compute_u_full(p + v1 * dt * 0.5)
@@ -69,7 +69,7 @@ async function taichiExample7VortexRing(htmlCanvas:HTMLCanvasElement): Promise<b
             }
         }
     )
-  
+
     let init_tracers = ti.kernel(
         () => {
             pos[0] = [0.0, 1.0]
@@ -80,40 +80,40 @@ async function taichiExample7VortexRing(htmlCanvas:HTMLCanvasElement): Promise<b
             vort[1] = -1.0
             vort[2] = 1.0
             vort[3] = -1.0
-            for(let i of range(n_tracer)){
-                let numX = 258 
-                let numY = 3*numX
+            for (let i of range(n_tracer)) {
+                let numX = 258
+                let numY = 3 * numX
                 let x = i32(i % numX)
-                let y = i32((i - x)/ numX)
-                tracer[i] = [x/numX - 0.5, (y/numY)*3 - 1.5]
+                let y = i32((i - x) / numX)
+                tracer[i] = [x / numX - 0.5, (y / numY) * 3 - 1.5]
             }
         }
     )
 
     let paint = ti.kernel(
         () => {
-            for(let I of ndrange(resolution[0], resolution[1])){
+            for (let I of ndrange(resolution[0], resolution[1])) {
                 let i = I[0]
                 let j = I[1]
-                image[i,j] = [1.0,1.0,1.0,1.0]
+                image[[i, j]] = [1.0, 1.0, 1.0, 1.0]
             }
-            for(let i of range(n_tracer)){
-                let p = tracer[i] * [0.05,0.1] + [0.0,0.5]
+            for (let i of range(n_tracer)) {
+                let p = tracer[i] * [0.05, 0.1] + [0.0, 0.5]
                 p[0] = p[0] * resolution[0]
                 p[1] = p[1] * resolution[1]
                 let ipos = i32(p)
-                image[ipos] =  [0.0,0.0,0.0,1.0]
+                image[ipos] = [0.0, 0.0, 0.0, 1.0]
             }
         }
     )
 
-    init_tracers() 
-    paint() 
+    init_tracers()
+    paint()
 
     let canvas = new ti.Canvas(htmlCanvas)
 
     let tick = async () => {
-        for(let i = 0; i< 4; ++i){
+        for (let i = 0; i < 4; ++i) {
             advect()
             integrate_vortex()
         }
@@ -121,11 +121,11 @@ async function taichiExample7VortexRing(htmlCanvas:HTMLCanvasElement): Promise<b
         canvas.setImage(image)
         requestAnimationFrame(frame)
     }
-  
+
     async function frame() {
         await tick()
     }
     requestAnimationFrame(frame)
 }
 
-export {taichiExample7VortexRing}
+export { taichiExample7VortexRing }
