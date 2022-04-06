@@ -2564,7 +2564,7 @@ let render = ti.kernel(
 
         // vert shader for vertices
         for (let v of ti.input_vertices(VBO, IBO)) {
-            let pos = mvp.matmul((v.pos, 1.0))
+            let pos = mvp.matmul(v.pos.concat([1.0]))
             ti.outputPosition(pos)
             ti.outputVertex(v)
         }
@@ -2588,7 +2588,7 @@ let render = ti.kernel(
             let refr_back = back_light_color * max(0.0, refract(N, V, IOR).dot(L_back)) * (1-fr) * jelly_color
 
             let color = refl_front + refl_back + refr_back + refr_front
-            ti.outputColor(renderTarget, (color, 1.0))
+            ti.outputColor(renderTarget, color.concat([1.0]))
         }
     }
 )

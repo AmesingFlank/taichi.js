@@ -519,10 +519,10 @@ class BuiltinOpFactory {
             }
         )
 
-        let concat = new BuiltinCustomOp("concat", 2,
+        let comma = new BuiltinCustomOp(",", 2,
             (args: Value[]) => {
                 if (args.length !== 2) {
-                    return TypeError.createError("expecting pointer type")
+                    return TypeError.createError("expecting 2 values being")
                 }
                 let leftValue = args[0]
                 let rightValue = args[1]
@@ -582,6 +582,55 @@ class BuiltinOpFactory {
                 }
                 if (leftCat === TypeCategory.Matrix && rightCat === TypeCategory.Vector) {
                     return ValueUtils.addRowVectorToMatrix(leftValue, rightValue)
+                }
+                // shouldn't happen
+                return leftValue
+            }
+        ) 
+
+        let concat = new BuiltinCustomOp("concat", 2,
+            (args: Value[]) => {
+                if (args.length !== 2) {
+                    return TypeError.createError("can only concat among two values")
+                }
+                let leftValue = args[0]
+                let rightValue = args[1]
+                let leftType = leftValue.getType()
+                let rightType = rightValue.getType()
+                let leftCat = leftType.getCategory()
+                let rightCat = rightType.getCategory() 
+                if (leftCat === TypeCategory.Vector && rightCat === TypeCategory.Vector) {
+                    return TypeError.createNoError()
+                }
+                if (leftCat === TypeCategory.Matrix && rightCat === TypeCategory.Matrix) {
+                    let mat0 = leftType as MatrixType
+                    let mat1 = rightType as MatrixType
+                    if (mat0.getNumCols() !== mat1.getNumCols()) {
+                        return TypeError.createError("cannot concat matrices with different amount of columns")
+                    }
+                    return TypeError.createNoError()
+                }
+                return TypeError.createError("cannot only concat two vectors or two matrices")
+            },
+            (args: Value[]) => {
+                let leftValue = args[0]
+                let rightValue = args[1]
+                let leftType = leftValue.getType()
+                let rightType = rightValue.getType()
+                let leftCat = leftType.getCategory()
+                let rightCat = rightType.getCategory() 
+                let leftPrim = TypeUtils.getPrimitiveType(leftType)
+                let rightPrim = TypeUtils.getPrimitiveType(rightType)
+                let hasFloat = leftPrim === PrimitiveType.f32 || rightPrim === PrimitiveType.f32
+                if (hasFloat) {
+                    leftValue = opsMap.get("f32")!.apply([leftValue])
+                    rightValue = opsMap.get("f32")!.apply([rightValue])
+                }
+                if (leftCat === TypeCategory.Vector && rightCat === TypeCategory.Vector) {
+                    return ValueUtils.concatVectors(leftValue, rightValue)
+                }
+                if (leftCat === TypeCategory.Matrix && rightCat === TypeCategory.Matrix) {
+                    return ValueUtils.concatMatrices(leftValue, rightValue)
                 }
                 // shouldn't happen
                 return leftValue
@@ -834,7 +883,7 @@ class BuiltinOpFactory {
                 return ValueUtils.transposeMatrix(args[0])
             }
         )
-        let ops2 = [store, load, concat, len, length, sum, norm_sqr, norm, normalized, dot, cross, matmul, transpose, outer_product]
+        let ops2 = [store, load, comma, concat, len, length, sum, norm_sqr, norm, normalized, dot, cross, matmul, transpose, outer_product]
         for (let op of ops2) {
             opsMap.set(op.name, op)
         }

@@ -1,5 +1,6 @@
 //@ts-nocheck
 import {assertEqual} from "./Utils"
+import { ti } from "../taichi"
 
 async function testRandom(): Promise<boolean> {
     console.log("testRandom")
@@ -14,7 +15,7 @@ async function testRandom(): Promise<boolean> {
     let kernel = ti.kernel(
         () => {
             for(let i of range(N)){
-                f[i] = ti.random()
+                f[i] = random()
             }
         }
     )

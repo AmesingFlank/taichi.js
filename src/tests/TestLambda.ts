@@ -29,8 +29,8 @@ async function testLambda(): Promise<boolean> {
             let f2 = (x) => {
                 return x * 2
             }
-            let f3 = (x) => {
-                x = 3
+            let f3 = () => {
+                f[3] = 3
             }
             let one = 1
             let f5 = () => {
@@ -39,7 +39,7 @@ async function testLambda(): Promise<boolean> {
             f[0] = f0();
             f[1] = f1();
             f[2] = f2(1);
-            f3(f[3])
+            f3()
             f[4] = globalFunc()
             f[5] = f5()
         }

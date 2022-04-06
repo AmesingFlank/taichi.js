@@ -30,7 +30,7 @@ export class InMemoryHost implements tsCompilerHost {
 	}
 
 	public getDefaultLibFileName(options: tsCompilerOptions): string {
-		return ts.getDefaultLibFilePath(options)
+		return "typescript.js"
 	}
 
 	public writeFile(path: string, content: string) {

@@ -208,13 +208,13 @@ class CompilingVisitor extends ASTVisitor<Value>{
         return varValue
     }
 
-    protected concat(leftValue: Value, rightValue: Value): Value {
-        let concatOp = this.builtinOps.get("concat")!
-        let typeError = concatOp.checkType([leftValue, rightValue])
+    protected comma(leftValue: Value, rightValue: Value): Value {
+        let commaOp = this.builtinOps.get(",")!
+        let typeError = commaOp.checkType([leftValue, rightValue])
         if (typeError.hasError) {
             this.errorNode(null, typeError.msg)
         }
-        return concatOp.apply([leftValue, rightValue])
+        return commaOp.apply([leftValue, rightValue])
     }
 
     protected castTo(val: Value, primType: PrimitiveType): Value {
@@ -324,7 +324,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
         }
 
         if (opToken.kind === ts.SyntaxKind.CommaToken) {
-            return this.concat(leftValue, rightValue)
+            return this.comma(leftValue, rightValue)
         }
 
         this.errorNode(node, "unsupported binary operator:" + opTokenText)
@@ -351,7 +351,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
         }
         let result = elementValues[0]
         for (let i = 1; i < elements.length; ++i) {
-            result = this.concat(result, elementValues[i])
+            result = this.comma(result, elementValues[i])
         }
         return result
     }
@@ -918,6 +918,11 @@ class CompilingVisitor extends ASTVisitor<Value>{
                     let value = new Value(new FunctionType())
                     value.parsedFunction = parsedFunction
                     return value
+                } else if (typeof val === "string") {
+                    let parsedFunction = ParsedFunction.makeFromCode(val)
+                    let value = new Value(new FunctionType())
+                    value.parsedFunction = parsedFunction
+                    return value
                 }
                 else if (Array.isArray(val)) {
                     this.assertNode(node, val.length > 0, "cannot use empty array in kernel")
@@ -941,7 +946,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
                         if (thisValue === undefined) {
                             fail()!
                         }
-                        let maybeResult = this.concat(result!, thisValue!)
+                        let maybeResult = this.comma(result!, thisValue!)
                         if (maybeResult === null) {
                             this.errorNode(node, "Array element type mistach at " + node.getText())
                         }

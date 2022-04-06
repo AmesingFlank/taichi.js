@@ -1,5 +1,6 @@
 //@ts-nocheck
 import {assertEqual} from "./Utils"
+import { ti } from "../taichi"
 
 async function testAtomic(): Promise<boolean> {
     console.log("testAtomic")
@@ -24,14 +25,14 @@ async function testAtomic(): Promise<boolean> {
         () => {
             for(let i of range(n1)){
                 f1[0] += i
-                ti.atomic_add(i1[0], i)
+                atomic_add(i1[0], i)
             }
             for(let i of range(n2)){
                 let my_index = (f2[0] += 1)
                 i2[i] = i32(my_index)
             }
             for(let i of range(n3)){
-                ti.atomic_add(f3[0], 1)
+                atomic_add(f3[0], 1)
                 i3[0] += 1
             }
         }

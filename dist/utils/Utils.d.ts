@@ -1,0 +1,16 @@
+import { StructType, Type } from "../frontend/Type";
+import { MultiDimensionalArray } from "./MultiDimensionalArray";
+export declare function divUp(a: number, b: number): number;
+export declare function product(arr: number[]): number;
+export declare function nextPowerOf2(n: number): number;
+export declare function groupByN<T>(arr: T[], n: number): T[][];
+export declare function toTensorElement(intArray: number[], floatArray: number[], elementType: Type): any;
+export declare function toStructElement(intArray: number[], floatArray: number[], elementType: StructType): any;
+export declare function toElement(intArray: number[], floatArray: number[], elementType: Type): any;
+export declare function int32ArrayToElement(int32Array: Int32Array, elementType: Type): any;
+export declare function groupElements(intArray: number[], floatArray: number[], elementType: Type): any[];
+export declare function reshape<T>(elements: T[], dimensions: number[]): MultiDimensionalArray<T>;
+export declare function tensorToNumberArray(tensorValue: number | number[] | number[][], tensorType: Type): number[];
+export declare function tensorToInt32Array(tensorValue: number | number[] | number[][], tensorType: Type): Int32Array;
+export declare function structToInt32Array(val: any, structType: StructType): Int32Array;
+export declare function elementToInt32Array(element: any, elementType: Type): Int32Array;

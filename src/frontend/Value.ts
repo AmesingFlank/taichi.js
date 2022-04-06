@@ -238,6 +238,24 @@ class ValueUtils {
         return ValueUtils.makeVectorFromScalars(components)
     }
 
+    static concatVectors(v0: Value, v1: Value): Value {
+        assert(TypeUtils.isValueOrPointerOfCategory(v0.getType(), TypeCategory.Vector))
+        assert(TypeUtils.isValueOrPointerOfCategory(v1.getType(), TypeCategory.Vector))
+        let components0 = ValueUtils.getVectorComponents(v0)
+        let components1 = ValueUtils.getVectorComponents(v1)
+        let components = components0.concat(components1) 
+        return ValueUtils.makeVectorFromScalars(components)
+    }
+
+    static concatMatrices(m0: Value, m1: Value): Value {
+        assert(TypeUtils.isValueOrPointerOfCategory(m0.getType(), TypeCategory.Matrix))
+        assert(TypeUtils.isValueOrPointerOfCategory(m1.getType(), TypeCategory.Matrix))
+        let rows0 = ValueUtils.getMatrixRowVectors(m0)
+        let rows1 = ValueUtils.getMatrixRowVectors(m1)
+        let rows = rows0.concat(rows1)
+        return ValueUtils.makeMatrixFromVectorsAsRows(rows)
+    }
+
     static addRowVectorToMatrix(matrix: Value, vector: Value): Value {
         assert(TypeUtils.isValueOrPointerOfCategory(vector.getType(), TypeCategory.Vector))
         assert(TypeUtils.isValueOrPointerOfCategory(matrix.getType(), TypeCategory.Matrix))

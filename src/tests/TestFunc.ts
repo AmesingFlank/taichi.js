@@ -18,7 +18,9 @@ async function testFunc(): Promise<boolean> {
     let plusOne = (x) => { return returnOne() + identity(x) }
 
     let getMirrorVec = (x) => [x, -x]
-    let modify = (x, i) => { x = x + i }
+    // some compiler optimizes this to `(x,y) => {}` .... 
+    // need to figure out how to address the inconsistency between taichi semantics and JS semantics.
+    let modify =   `(x, i) => { x = x + i }` 
     let modifyUseless = (i, useless) => {
         useless = i;
         return useless

@@ -1,0 +1,34 @@
+import * as ts from "typescript";
+declare type VisitorResult<T> = T | void | undefined;
+declare class ASTVisitor<T> {
+    protected extractVisitorResult(result: VisitorResult<T>): T;
+    protected dispatchVisit(node: ts.Node): VisitorResult<T>;
+    protected visitEachChild(node: ts.Node, combiner?: ((results: VisitorResult<T>[]) => VisitorResult<T>) | null): VisitorResult<T>;
+    protected visitUnknown(node: ts.Node): VisitorResult<T>;
+    protected visitNumericLiteral(node: ts.NumericLiteral): VisitorResult<T>;
+    protected visitIdentifier(node: ts.Node): VisitorResult<T>;
+    protected visitVariableDeclaration(node: ts.VariableDeclaration): VisitorResult<T>;
+    protected visitVariableStatement(node: ts.VariableStatement): VisitorResult<T>;
+    protected visitFunctionDeclaration(node: ts.FunctionDeclaration): VisitorResult<T>;
+    protected visitArrowFunction(node: ts.ArrowFunction): VisitorResult<T>;
+    protected visitVariableDeclarationList(node: ts.VariableDeclarationList): VisitorResult<T>;
+    protected visitForOfStatement(node: ts.ForOfStatement): VisitorResult<T>;
+    protected visitForInStatement(node: ts.ForInStatement): VisitorResult<T>;
+    protected visitForStatement(node: ts.ForStatement): VisitorResult<T>;
+    protected visitIfStatement(node: ts.IfStatement): VisitorResult<T>;
+    protected visitWhileStatement(node: ts.WhileStatement): VisitorResult<T>;
+    protected visitBreakStatement(node: ts.BreakStatement): VisitorResult<T>;
+    protected visitContinueStatement(node: ts.ContinueStatement): VisitorResult<T>;
+    protected visitReturnStatement(node: ts.ReturnStatement): VisitorResult<T>;
+    protected visitBlock(node: ts.Block): VisitorResult<T>;
+    protected visitExpressionStatement(node: ts.ExpressionStatement): VisitorResult<T>;
+    protected visitBinaryExpression(node: ts.BinaryExpression): VisitorResult<T>;
+    protected visitPrefixUnaryExpression(node: ts.PrefixUnaryExpression): VisitorResult<T>;
+    protected visitCallExpression(node: ts.CallExpression): VisitorResult<T>;
+    protected visitPropertyAccessExpression(node: ts.PropertyAccessExpression): VisitorResult<T>;
+    protected visitElementAccessExpression(node: ts.ElementAccessExpression): VisitorResult<T>;
+    protected visitParenthesizedExpression(node: ts.ParenthesizedExpression): VisitorResult<T>;
+    protected visitArrayLiteralExpression(node: ts.ArrayLiteralExpression): VisitorResult<T>;
+    protected visitObjectLiteralExpression(node: ts.ObjectLiteralExpression): VisitorResult<T>;
+}
+export { ASTVisitor, VisitorResult };
