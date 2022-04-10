@@ -1,6 +1,6 @@
 {
   "name": "taichi.js",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Modern GPU Compute Framework in Javascript",
   "homepage": "https://github.com/AmesingFlank/taichi.js",
   "repository": {
@@ -12,7 +12,7 @@
     "email": "ldfrank533@outlook.com"
   },
   "main": "./dist/taichi.umd.js",
-  "module": "/dist/taichi.js",
+  "module": "./dist/taichi.js",
   "scripts": {
     "build_dev": "rollup --config rollup/rollup.config.dev.mjs",
     "build_prod": "rollup --config rollup/rollup.config.prod.mjs",
