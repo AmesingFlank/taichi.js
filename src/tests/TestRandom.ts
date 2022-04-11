@@ -1,6 +1,6 @@
 //@ts-nocheck
 import {assertEqual} from "./Utils"
-import { ti } from "../taichi"
+import * as ti from "../taichi"
 
 async function testRandom(): Promise<boolean> {
     console.log("testRandom")

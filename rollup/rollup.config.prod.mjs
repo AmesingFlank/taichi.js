@@ -13,7 +13,7 @@ export default {
     },
     {
       file: "dist/taichi.umd.js",
-      name: "taichi",
+      name: "ti",
       format: 'umd',
     }
   ],

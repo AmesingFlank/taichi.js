@@ -14,8 +14,7 @@ import { range, ndrange } from "./api/KernelScopeBuiltin"
 import { types } from './api/Types'
 import { clothExample } from './examples/cloth/main'
 
-const ti = {
-
+export  {
     taichiExample6Fractal,
     taichiExample7VortexRing,
     simpleGraphicsExample,
@@ -35,11 +34,27 @@ const ti = {
 
     Canvas
 }
-
-export { ti }
-
 declare module globalThis {
     let ti: any;
 }
 
-globalThis.ti = ti;
+globalThis.ti = {
+    taichiExample6Fractal,
+    taichiExample7VortexRing,
+    simpleGraphicsExample,
+    clothExample,
+
+    runAllTests,
+
+    init,
+    kernel, func, template,
+    addToKernelScope, clearKernelScope,
+    field, Vector, Matrix, Struct, 
+    texture , canvasTexture, depthTexture,
+    i32, f32,
+    range, ndrange,
+    sync,
+    types,
+
+    Canvas
+}

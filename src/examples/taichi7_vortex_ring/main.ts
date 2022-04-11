@@ -1,5 +1,5 @@
 //@ts-nocheck
-import { ti } from "../../taichi"
+import * as ti from "../../taichi"
 import { Program } from '../../program/Program'
 async function taichiExample7VortexRing(htmlCanvas: HTMLCanvasElement): Promise<boolean> {
     console.log("taichiExample7VortexRing")

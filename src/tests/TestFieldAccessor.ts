@@ -1,5 +1,5 @@
 //@ts-nocheck
-import { ti } from "../taichi"
+import * as ti from "../taichi"
 import { assertEqual } from "./Utils"
 
 async function testFieldAccessor(): Promise<boolean> {

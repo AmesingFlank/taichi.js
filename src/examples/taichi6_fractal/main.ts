@@ -1,5 +1,5 @@
 //@ts-nocheck
-import { ti } from "../../taichi"
+import * as ti from "../../taichi"
 import { Program } from '../../program/Program'
 
 async function taichiExample6Fractal(htmlCanvas: HTMLCanvasElement): Promise<boolean> {

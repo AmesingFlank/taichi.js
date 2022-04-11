@@ -1,6 +1,6 @@
-console.log("heyy")
-
-import {ti} from "../dist/taichi.dev.js"
+import * as ti from "../dist/taichi.dev.js"
+console.log("running tests")
+ 
 
 let main = async () => {
     await ti.runAllTests()
