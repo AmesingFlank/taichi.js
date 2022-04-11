@@ -9,6 +9,11 @@ export default {
     {
       file: "dist/taichi.dev.js",
       format: 'es',
+    },
+    {
+      file: "dist/taichi.dev.umd.js",
+      name: "ti",
+      format: 'umd',
     }
   ],
   plugins: [
