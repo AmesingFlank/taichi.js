@@ -2,7 +2,7 @@
   "name": "taichi.js",
   "version": "0.0.7",
   "description": "Modern GPU Compute Framework in Javascript",
-  "homepage": "https://github.com/AmesingFlank/taichi.js",
+  "homepage": "https://taichi-js.com",
   "repository": {
     "type": "git",
     "url": "https://github.com/AmesingFlank/taichi.js"

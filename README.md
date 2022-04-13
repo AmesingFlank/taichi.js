@@ -4,7 +4,7 @@
 
 ## Zoo
 
-On Chrome v98+, visit https://amesingflank.github.io/taichi.js/zoo/index.html to see taichi.js in action. The webpage provides an interactive code editor that allows you to write, compile, and run taichi code.
+On Chrome v98+, visit https://taichi-js.com to see taichi.js in action. The webpage provides an interactive code editor that allows you to write, compile, and run taichi code.
 
 ## Sample Program
 

@@ -1,143 +1,15 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8"/>
-    <meta http-equiv="origin-trial" content="AmLeIKgIO7v4LsGlggOO+uPfu+0GtBaIufDglDXjaD3phTLW7aH6OrNqfgx67gTCplF0JnRVrI/xXOpFRACrLwIAAABJeyJvcmlnaW4iOiJodHRwOi8vMTI3LjAuMC4xOjgwODAiLCJmZWF0dXJlIjoiV2ViR1BVIiwiZXhwaXJ5IjoxNjUyODMxOTk5fQ==">
-    <meta http-equiv="origin-trial" content="AnPej64PUlmdP+01TRppcic6bY+k7eDZ2MURRriM+2uk95EWZxNgY2Vj8DtZ0h8633L1OITVV0LVbxkVbQ1DpAoAAABpeyJvcmlnaW4iOiJodHRwczovL2FtZXNpbmdmbGFuay5naXRodWIuaW86NDQzIiwiZmVhdHVyZSI6IldlYkdQVSIsImV4cGlyeSI6MTY1MjgzMTk5OSwiaXNTdWJkb21haW4iOnRydWV9">
-    <title>taichi.js zoo</title>
-    <style type="text/css">
-      header h1 {
-          margin: 0;
-          text-align: center;
-          color: rgb(255, 255, 255);
-          font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
-          padding: 0.5%;
-      }
-      html, body {
-        height: 90%;
-      }
-      body {
-          margin: 0;
-          padding: 0;
-          font-family:  'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
-      }
-      header {
-          background-color: rgb(105, 177, 245);
-          height:8%;
-      }
-      .card {
-        box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
-        transition: 0.3s;
-      }
-      .column1 {
-        flex: 18%;
-        font-family: 'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
-        padding: 2%;
-      }
-      .column2 {
-        flex: 40%;
-        padding: 1.5%;
-        height: 100%;
-      }
-      .EditorTitle {
-         display: inline-block;
-      }
-      .CompileRunButton{
-        float: right;
-      }
-      .StopButton{
-        float: right;
-        margin-left: 5%;
-      }
-      .column2after {
-        flex: 2%;
-      }
-      .column3 {
-        flex: 40%;
-        padding: 1.5%;
-        height: 100%;
-      }
-      #wrap {
-        display: flex;
-        padding: 1%;
-        height: 100%;
-      }
-    </style>
-    <link rel="stylesheet" href="codemirror.css">
-    <script src="codemirror.js"></script>
-    <script src="codemirror_javascript.js"></script>
-    
-  </head>
-
-
-
-  <body>
-    <header>
-      <h1>taichi.js zoo</h1> 
-    </header>
-    <div id="wrap">
-      <div class="column1" >
-        <p>Examples</p>
-        <ul>
-          <li>
-            <a href="#" id="Fractal">Fractal</a>
-          </li>
-          <li>
-            <a href="#" id="Fractal3D">Fractal 3D</a>
-          </li> 
-          <li>
-            <a href="#" id="VortexRing">Vortex Ring</a>
-          </li> 
-          <li>
-            <a href="#" id="Rasterizer">Rasterizer</a>
-          </li> 
-          <li>
-            <a href="#" id="Mpm99">Mpm99</a>
-          </li> 
-          <li>
-            <a href="#" id="CornellBox">CornellBox</a>
-          </li> 
-          <li>
-            <a href="#" id="RotatingCube">RotatingCube</a>
-          </li> 
-          <li>
-            <a href="#" id="Cloth">Cloth</a>
-          </li> 
-          <li>
-            <a href="#" id="FractalCloth">Fractal on Cloth</a>
-          </li> 
-          <li>
-            <a href="#" id="Fluid3D">Fluid 3D</a>
-          </li> 
-          <li>
-            <a href="#" id="Jelly">Jelly</a>
-          </li> 
-        </ul>
-        <br>
-        <p>
-          <a href="https://github.com/AmesingFlank/taichi.js">Github Homepage</a>
-        </p>
-      </div>
-      <div class="column2 card" >
-        <p class="EditorTitle">Code Editor</p> 
-        <button class="StopButton" id="StopButton">Stop</button>
-        <button class="CompileRunButton" id="CompileRunButton">Compile & Run</button>
-        <textarea name="editor" id="editor"></textarea>
-        <p>Log</p>
-        <textarea name="logger" id="logger"></textarea>
-      </div>
-      <div class="column2after" >
-        <p></p>
-      </div>
-      <div class="column3 card">
-        <p>Result</p>
-        <canvas id="result_canvas" width="512" height="512"></canvas>
-      </div>
-    </div>
-  </body>
-
-  <script src="presets.js" type="module"></script>
-  <script src="../dist/taichi.js" type="module"></script>
-  <script src="zoo.js" type="module"></script>
-
+<!DOCTYPE HTML>
+<html lang="en-US">
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="refresh" content="0; url=https://taichi-js.com/playground">
+        <script type="text/javascript">
+            window.location.href = "https://taichi-js.com/playground"
+        </script>
+        <title>Page Redirection</title>
+    </head>
+    <body>
+        <!-- Note: don't tell people to `click` the link, just tell them that it is a link. -->
+        If you are not redirected automatically, follow this <a href='https://taichi-js.com/playground'>link to the new website for taichi.js</a>.
+    </body>
 </html>
