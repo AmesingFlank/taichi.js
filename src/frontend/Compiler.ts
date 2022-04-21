@@ -913,12 +913,21 @@ class CompilingVisitor extends ASTVisitor<Value>{
                         return ValueUtils.makeConstantScalar(val, this.irBuilder.get_float32(val), PrimitiveType.f32)
                     }
                 }
+                else if (typeof val === "boolean") {
+                    if (val) {
+                        return ValueUtils.makeConstantScalar(1, this.irBuilder.get_int32(1), PrimitiveType.i32)
+                    }
+                    else {
+                        return ValueUtils.makeConstantScalar(0, this.irBuilder.get_int32(0), PrimitiveType.i32)
+                    }
+                } 
                 else if (typeof val === "function") {
                     let parsedFunction = ParsedFunction.makeFromCode(val.toString())
                     let value = new Value(new FunctionType())
                     value.parsedFunction = parsedFunction
                     return value
-                } else if (typeof val === "string") {
+                } 
+                else if (typeof val === "string") {
                     let parsedFunction = ParsedFunction.makeFromCode(val)
                     let value = new Value(new FunctionType())
                     value.parsedFunction = parsedFunction

@@ -214,7 +214,7 @@ let main = async () => {
 
         // vertex shader for cloth
         for (let v of ti.input_vertices(vertices, indices)) {
-            let pos = mvp.matmul((v.pos, 1.0));
+            let pos = mvp.matmul(v.pos.concat([1.0]));
             ti.outputPosition(pos);
             ti.outputVertex(v);
         }
@@ -232,13 +232,13 @@ let main = async () => {
             let distance = (eye - ball_center[0]).norm();
             let tanHalfFov = ti.tan((fov * Math.PI) / (180 * 2));
             let screen_radius = ball_radius / (tanHalfFov * distance);
-            let clip_pos = mvp.matmul((ball_center[0], 1.0));
+            let clip_pos = mvp.matmul(ball_center[0].concat([1.0]));
             clip_pos.y += screen_radius * v.y * clip_pos.w;
             clip_pos.x += (screen_radius * v.x * clip_pos.w) / aspectRatio;
             ti.outputPosition(clip_pos);
             ti.outputVertex({
                 point_coord: v,
-                center_pos_camera_space: view.matmul((ball_center[0], 1.0)).xyz,
+                center_pos_camera_space: view.matmul(ball_center[0].concat([1.0])).xyz,
             });
         }
         // frag shader for ball
@@ -248,16 +248,16 @@ let main = async () => {
             }
 
             let z_in_sphere = ti.sqrt(1 - f.point_coord.norm_sqr());
-            let coord_in_sphere = (f.point_coord, z_in_sphere);
+            let coord_in_sphere = f.point_coord.concat([z_in_sphere]);
             let frag_pos_camera_space =
                 f.center_pos_camera_space + coord_in_sphere * ball_radius * 0.99;
 
-            let clip_pos = proj.matmul((frag_pos_camera_space, 1.0));
+            let clip_pos = proj.matmul(frag_pos_camera_space.concat([1.0]));
             let z = clip_pos.z / clip_pos.w;
             ti.outputDepth(z);
 
             let normal_camera_space = coord_in_sphere;
-            let light_pos_camera_space = view.matmul((light_pos, 1.0)).xyz;
+            let light_pos_camera_space = view.matmul(light_pos.concat([1.0])).xyz;
             let light_dir = (
                 light_pos_camera_space - frag_pos_camera_space
             ).normalized();

@@ -342,16 +342,16 @@ let main = async () => {
             }
 
             let z_in_sphere = ti.sqrt(1 - f.point_coord.norm_sqr());
-            let coord_in_sphere = (f.point_coord, z_in_sphere);
+            let coord_in_sphere = f.point_coord.concat([z_in_sphere]);
             let frag_pos_camera_space =
                 f.center_pos_camera_space + coord_in_sphere * particles_radius;
 
-            let clip_pos = proj.matmul((frag_pos_camera_space, 1.0));
+            let clip_pos = proj.matmul(frag_pos_camera_space.concat([1.0]));
             let z = clip_pos.z / clip_pos.w;
             ti.outputDepth(z);
 
             let normal_camera_space = coord_in_sphere;
-            let light_pos_camera_space = view.matmul((light_pos, 1.0)).xyz;
+            let light_pos_camera_space = view.matmul(light_pos.concat([1.0])).xyz;
             let light_dir = (
                 light_pos_camera_space - frag_pos_camera_space
             ).normalized();
@@ -366,7 +366,7 @@ let main = async () => {
                 mat_color = [1, 1, 1, 1.0];
             }
 
-            let color = (c * mat_color.rgb, 1.0);
+            let color = (c * mat_color.rgb).concat([1.0]);
             ti.outputColor(renderTarget, color);
         }
     });

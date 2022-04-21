@@ -19,15 +19,16 @@ export class Scene {
     indices: number[] = []
     materials: Material[] = []
 
-    getKernelData(): SceneData {
+    async getKernelData(): Promise<SceneData> {
         let vertexBuffer = ti.field(vertexType, this.vertices.length)
-        vertexBuffer.fromArray(this.vertices)
+        await vertexBuffer.fromArray(this.vertices)
 
         let indexBuffer = ti.field(ti.i32, this.indices.length)
-        indexBuffer.fromArray(this.indices)
+        await indexBuffer.fromArray(this.indices)
 
         let materialInfos = ti.field(new Material(0).getInfoType(), this.materials.length)
-        materialInfos.fromArray(this.materials.map(mat => mat.getInfo()))
+        let infosHost = this.materials.map(mat => mat.getInfo())
+        await materialInfos.fromArray(infosHost)
 
         let materials = this.materials.slice()
 

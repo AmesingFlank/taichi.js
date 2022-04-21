@@ -7,27 +7,27 @@ export class MaterialAttribute {
         public numComponents: number,
         public value: number | number[] | undefined = undefined,
         public texture: TextureBase | undefined = undefined
-    ){
+    ) {
 
     }
 
     getInfo(): MaterialAttributeInfo {
-        let defaultValue:number|number[] = 0.0
-        if(this.numComponents > 1){
+        let defaultValue: number | number[] = 0.0
+        if (this.numComponents > 1) {
             defaultValue = []
-            for(let i = 0; i <this.numComponents;++i){
+            for (let i = 0; i < this.numComponents; ++i) {
                 defaultValue.push(0.0)
             }
         }
         return {
-            hasValue: this.value !== undefined,
-            value:  this.value !== undefined? this.value : defaultValue,
-            hasTexture: this.texture !== undefined
+            hasValue: this.value !== undefined ? 1 : 0,
+            value: this.value !== undefined ? this.value : defaultValue,
+            hasTexture: this.texture !== undefined ? 1 : 0,
         }
     }
 
     getInfoType(): Type {
-        let valueType = this.numComponents === 1 ? ti.f32: ti.types.vector(ti.f32, this.numComponents)
+        let valueType = this.numComponents === 1 ? ti.f32 : ti.types.vector(ti.f32, this.numComponents)
         return ti.types.struct({
             hasValue: ti.i32,
             value: valueType,
@@ -37,17 +37,17 @@ export class MaterialAttribute {
 }
 
 export class Material {
-    constructor(public materialID:number){
+    constructor(public materialID: number) {
 
     }
 
-    name:string = ""
-    baseColor:MaterialAttribute = new MaterialAttribute(4)
+    name: string = ""
+    baseColor: MaterialAttribute = new MaterialAttribute(4)
 
     getInfo(): MaterialInfo {
         return {
             materialID: this.materialID,
-            baseColor:this.baseColor.getInfo()
+            baseColor: this.baseColor.getInfo()
         }
     }
 
@@ -61,15 +61,15 @@ export class Material {
 
 
 export interface MaterialAttributeInfo {
-    hasValue : boolean
+    hasValue: number // 1 or 0, representing true or false
     value: number | number[]
-    hasTexture : boolean
+    hasTexture: number // 1 or 0, representing true or false
 }
 
 // used by shaders
 export interface MaterialInfo {
     materialID: number
-    baseColor : MaterialAttributeInfo
+    baseColor: MaterialAttributeInfo
     // other stuff
 }
 

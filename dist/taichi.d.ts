@@ -9,4 +9,5 @@ import { field, Vector, Matrix, Struct, texture, canvasTexture, depthTexture } f
 import { range, ndrange } from "./api/KernelScopeBuiltin";
 import { types } from './api/Types';
 import { clothExample } from './examples/cloth/main';
-export { taichiExample6Fractal, taichiExample7VortexRing, simpleGraphicsExample, clothExample, runAllTests, init, kernel, func, template, addToKernelScope, clearKernelScope, field, Vector, Matrix, Struct, texture, canvasTexture, depthTexture, i32, f32, range, ndrange, sync, types, Canvas };
+import * as utils from "./api/Utils/index";
+export { taichiExample6Fractal, taichiExample7VortexRing, simpleGraphicsExample, clothExample, runAllTests, init, kernel, func, template, addToKernelScope, clearKernelScope, field, Vector, Matrix, Struct, texture, canvasTexture, depthTexture, i32, f32, range, ndrange, sync, types, utils, Canvas };

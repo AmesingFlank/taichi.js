@@ -40,12 +40,12 @@ let main = async () => {
         ti.useDepth(depth);
 
         for (let v of ti.input_vertices(VBO, IBO)) {
-            let pos = mvp.matmul((v, 1.0));
+            let pos = mvp.matmul(v.concat([1.0]));
             ti.outputPosition(pos);
             ti.outputVertex(v);
         }
         for (let f of ti.input_fragments()) {
-            let color = (f, 1.0);
+            let color = f.concat([1.0]);
             ti.outputColor(target, color);
         }
     });

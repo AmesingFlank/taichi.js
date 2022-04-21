@@ -13,6 +13,7 @@ import { field, Vector, Matrix, Struct, texture, canvasTexture, depthTexture } f
 import { range, ndrange } from "./api/KernelScopeBuiltin"
 import { types } from './api/Types'
 import { clothExample } from './examples/cloth/main'
+import * as utils from "./api/Utils/index"
 
 export  {
     taichiExample6Fractal,
@@ -31,6 +32,8 @@ export  {
     range, ndrange,
     sync,
     types,
+
+    utils,
 
     Canvas
 }
@@ -55,6 +58,8 @@ globalThis.ti = {
     range, ndrange,
     sync,
     types,
+    
+    utils,
 
     Canvas
 }
