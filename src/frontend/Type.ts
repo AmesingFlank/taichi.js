@@ -2,12 +2,12 @@
 import { nativeTaichi, NativeTaichiAny } from "../native/taichi/GetTaichi"
 import { assert, error } from "../utils/Logging"
 
-enum PrimitiveType {
+export enum PrimitiveType {
     i32 = "i32",
     f32 = "f32"
 }
 
-function toNativePrimitiveType(type: PrimitiveType): NativeTaichiAny {
+export function toNativePrimitiveType(type: PrimitiveType): NativeTaichiAny {
     switch (type) {
         case PrimitiveType.i32: {
             return nativeTaichi.PrimitiveType.i32
@@ -18,7 +18,7 @@ function toNativePrimitiveType(type: PrimitiveType): NativeTaichiAny {
     }
 }
 
-enum TypeCategory {
+export enum TypeCategory {
     Scalar = "Scalar",
     Vector = "Vector",
     Matrix = "Matrix",
@@ -29,7 +29,7 @@ enum TypeCategory {
     HostObjectReference = "HostObjectReference"
 }
 
-class Type {
+export class Type {
     constructor() {
 
     }
@@ -50,7 +50,7 @@ class Type {
     }
 }
 
-class ScalarType extends Type {
+export class ScalarType extends Type {
     constructor(primitiveType: PrimitiveType) {
         super()
         this.primitiveType_ = primitiveType
@@ -78,7 +78,7 @@ class ScalarType extends Type {
     }
 }
 
-class VectorType extends Type {
+export class VectorType extends Type {
     constructor(primitiveType: PrimitiveType, numRows: number) {
         super()
         this.primitiveType_ = primitiveType
@@ -119,7 +119,7 @@ class VectorType extends Type {
 }
 
 
-class MatrixType extends Type {
+export class MatrixType extends Type {
     constructor(primitiveType: PrimitiveType, numRows: number, numCols: number) {
         super()
         this.primitiveType_ = primitiveType
@@ -166,7 +166,7 @@ class MatrixType extends Type {
     }
 }
 
-class PointerType extends Type {
+export class PointerType extends Type {
     constructor(valueType: Type, isGlobal: boolean) {
         super()
         this.valueType_ = valueType
@@ -202,7 +202,7 @@ class PointerType extends Type {
     }
 }
 
-class StructType extends Type {
+export class StructType extends Type {
     constructor(membersMap: any) {
         super()
         this.keys_ = Object.keys(membersMap)
@@ -279,7 +279,7 @@ class StructType extends Type {
     }
 }
 
-class VoidType extends Type {
+export class VoidType extends Type {
     constructor() {
         super()
     }
@@ -299,7 +299,7 @@ class VoidType extends Type {
     }
 }
 
-class FunctionType extends Type {
+export class FunctionType extends Type {
     constructor() {
         super()
     }
@@ -317,7 +317,25 @@ class FunctionType extends Type {
     }
 }
 
-class TypeUtils {
+export class HostObjectReferenceType extends Type {
+    constructor() {
+        super()
+    }
+    override getCategory(): TypeCategory {
+        return TypeCategory.HostObjectReference
+    }
+
+    override equals(that: Type): boolean {
+        return false
+    }
+
+    override getPrimitivesList(): PrimitiveType[] {
+        error(`getPrimitivesList() called on HostObjectReferenceType type`)
+        return []
+    }
+}
+
+export class TypeUtils {
 
     static isTensorType(type: Type): boolean {
         let cat = type.getCategory();
@@ -393,7 +411,7 @@ class TypeUtils {
     }
 }
 
-class TypeError {
+export class TypeError {
     private constructor(public hasError: boolean, public msg: string = "") {
 
     }
@@ -403,7 +421,4 @@ class TypeError {
     public static createError(msg: string) {
         return new TypeError(true, msg)
     }
-}
-
-export { PrimitiveType, toNativePrimitiveType }
-export { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, TypeUtils, TypeError, StructType, FunctionType }
+} 

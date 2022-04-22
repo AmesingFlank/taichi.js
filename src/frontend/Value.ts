@@ -4,7 +4,7 @@ import { ResultOrError } from "./Error"
 import { assert } from "../utils/Logging"
 import { ParsedFunction } from "./ParsedFunction"
 
-class Value {
+export class Value {
     public constructor(
         type: Type,
         public stmts: NativeTaichiAny[] = [], // CHI IR Stmts
@@ -28,7 +28,7 @@ class Value {
     }
 }
 
-class ValueUtils {
+export class ValueUtils {
     static makeScalar(stmt: NativeTaichiAny, primitiveType: PrimitiveType): Value {
         return new Value(new ScalarType(primitiveType), [stmt], [])
     }
@@ -313,5 +313,4 @@ class ValueUtils {
         return result
     }
 }
-
-export { Value, ValueUtils }
+ 

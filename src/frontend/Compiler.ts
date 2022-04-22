@@ -11,7 +11,7 @@ import { Program } from "../program/Program";
 import { getStmtKind, StmtKind } from "./Stmt"
 import { getWgslShaderBindings, getWgslShaderStage, WgslShaderStage } from "./WgslReflection"
 import { LibraryFunc } from "./Library";
-import { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, TypeUtils, PrimitiveType, toNativePrimitiveType, TypeError, FunctionType } from "./Type"
+import { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, TypeUtils, PrimitiveType, toNativePrimitiveType, TypeError, FunctionType, HostObjectReferenceType } from "./Type"
 import { Value, ValueUtils } from "./Value"
 import { BuiltinOp, BuiltinNullaryOp, BuiltinBinaryOp, BuiltinUnaryOp, BuiltinAtomicOp, BuiltinCustomOp, BuiltinOpFactory } from "./BuiltinOp";
 import { ResultOrError } from "./Error";
@@ -762,39 +762,31 @@ class CompilingVisitor extends ASTVisitor<Value>{
     protected override visitElementAccessExpression(node: ts.ElementAccessExpression): VisitorResult<Value> {
         let base = node.expression
         let argument = node.argumentExpression
-        if (base.kind === ts.SyntaxKind.Identifier) {
-            let baseName = base.getText()
-            // taichi global scope function added via `ti.addToKernelScope`, or template arguments
-            if (this.canEvalInKernelScopeOrTemplateArgs(base)) {
-                let hostSideValue: any = this.tryEvalInKernelScopeOrTemplateArgs(base)
-                if (hostSideValue instanceof Field) {
-                    let field = hostSideValue as Field
-
-                    let result = new Value(new PointerType(field.elementType, true), [])
-
-                    let argumentValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(argument)))
-                    let argType = argumentValue.getType()
-                    this.assertNode(node, TypeUtils.isTensorType(argType), "invalid field index")
-
-                    this.assertNode(node, argumentValue.stmts.length === field.dimensions.length,
-                        `field access dimension mismatch, received ${argumentValue.stmts.length} components, but expecting ${field.dimensions.length} components`)
-                    let accessVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
-                    for (let stmt of argumentValue.stmts) {
-                        accessVec.push_back(stmt)
-                    }
-
-                    for (let place of field.placeNodes) {
-                        let ptr = this.irBuilder.create_global_ptr(place, accessVec);
-                        result.stmts.push(ptr)
-                    }
-                    return result
-                }
-            }
-        }
+        
         let baseValue = this.extractVisitorResult(this.dispatchVisit(base))
         let argumentValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(argument)))
         let baseType = baseValue.getType()
         let argType = argumentValue.getType()
+
+        if (baseType.getCategory() === TypeCategory.HostObjectReference && baseValue.hostSideValue instanceof Field) {
+            let field = baseValue.hostSideValue as Field
+            let result = new Value(new PointerType(field.elementType, true), [])
+            
+            this.assertNode(node, TypeUtils.isTensorType(argType), "invalid field index")
+
+            this.assertNode(node, argumentValue.stmts.length === field.dimensions.length,
+                `field access dimension mismatch, received ${argumentValue.stmts.length} components, but expecting ${field.dimensions.length} components`)
+            let accessVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
+            for (let stmt of argumentValue.stmts) {
+                accessVec.push_back(stmt)
+            }
+
+            for (let place of field.placeNodes) {
+                let ptr = this.irBuilder.create_global_ptr(place, accessVec);
+                result.stmts.push(ptr)
+            }
+            return result
+        }
 
         this.assertNode(node, argType.getCategory() === TypeCategory.Scalar || argType.getCategory() === TypeCategory.Vector, "index must be scalar or vector")
         this.assertNode(node, argumentValue.isCompileTimeConstant(), "Indices of vectors/matrices must be a compile-time constant")
@@ -826,7 +818,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
         if (this.canEvalInKernelScopeOrTemplateArgs(node)) {
             let hostResult = this.tryEvalInKernelScopeOrTemplateArgs(node)
             let value = this.getValueFromAnyHostValue(hostResult)
-            if(typeof value === "string"){
+            if (typeof value === "string") {
                 this.errorNode(node, `failed to evaluate ${node.getText()}`)
             }
             return value as Value
@@ -905,7 +897,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
     // returns a value if successful, otherwise returns an error msg
     protected getValueFromAnyHostValue(val: any, recursionDepth = 0): Value | string {
-        if(recursionDepth > 1024) {
+        if (recursionDepth > 1024) {
             return "The object is too big to be evaluated in kernel scope (or it might has a circular reference structure)."
         }
         if (typeof val === "number") {
@@ -937,7 +929,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             return value
         }
         else if (Array.isArray(val)) {
-            if(val.length === 0){
+            if (val.length === 0) {
                 return "cannot use empty arrays"
             }
             let result = this.getValueFromAnyHostValue(val[0], recursionDepth + 1)
@@ -960,9 +952,19 @@ class CompilingVisitor extends ASTVisitor<Value>{
                 if (typeof thisValue === "string") {
                     return thisValue
                 }
-                result = this.comma(result, thisValue) 
+                result = this.comma(result, thisValue)
             }
             return result
+        }
+        else if (val instanceof Field) {
+            let value = new Value(new HostObjectReferenceType())
+            value.hostSideValue = val
+            return value
+        }
+        else if (isTexture(val)) {
+            let value = new Value(new HostObjectReferenceType())
+            value.hostSideValue = val
+            return value
         }
         else {
             let valuesMap = new Map<string, Value>()
@@ -987,10 +989,10 @@ class CompilingVisitor extends ASTVisitor<Value>{
         }
         let name = node.getText()
         if (this.canEvalInKernelScopeOrTemplateArgs(node)) {
-            let val = this.tryEvalInKernelScopeOrTemplateArgs(node) 
+            let val = this.tryEvalInKernelScopeOrTemplateArgs(node)
             let value = this.getValueFromAnyHostValue(val)
-            if(typeof value === "string"){
-                this.errorNode(node, "failed to evaluate " + name + " in kernel scope: "+value) 
+            if (typeof value === "string") {
+                this.errorNode(node, "failed to evaluate " + name + " in kernel scope: " + value)
             }
             return value as Value
         }
