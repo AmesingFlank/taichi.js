@@ -742,12 +742,14 @@ class CompilingVisitor extends ASTVisitor<Value>{
         if (calledFunctionValue.getType().getCategory() === TypeCategory.Function) {
             let compiler = new InliningCompiler(this.irBuilder, this.builtinOps, this.atomicOps, funcText)
             let additionalSymbolTable: SymbolTable | null = null
-            if (calledFunctionValue.parsedFunction!.tsProgram === this.parsedFunction!.tsProgram) {
+            this.assertNode(node, calledFunctionValue.hostSideValue instanceof ParsedFunction, "[Compiler Bug] could not find parsed function")
+            let parsedFunction = calledFunctionValue.hostSideValue as ParsedFunction
+            if (parsedFunction.tsProgram === this.parsedFunction!.tsProgram) {
                 // this means that the funtion is embedded in this kernel/function. 
                 // so we should pass in this function's symbol table, to allow variable captures
                 additionalSymbolTable = this.symbolTable
             }
-            let result = compiler.runInlining(calledFunctionValue.parsedFunction!, this.kernelScope, getArgumentRefs(), additionalSymbolTable)
+            let result = compiler.runInlining(parsedFunction, this.kernelScope, getArgumentRefs(), additionalSymbolTable)
             if (result) {
                 return result
             }
@@ -902,7 +904,10 @@ class CompilingVisitor extends ASTVisitor<Value>{
     }
 
     // returns a value if successful, otherwise returns an error msg
-    protected getValueFromAnyHostValue(val: any): Value | string {
+    protected getValueFromAnyHostValue(val: any, recursionDepth = 0): Value | string {
+        if(recursionDepth > 1024) {
+            return "The object is too big to be evaluated in kernel scope (or it might has a circular reference structure)."
+        }
         if (typeof val === "number") {
             if (val % 1 === 0) {
                 return ValueUtils.makeConstantScalar(val, this.irBuilder.get_int32(val), PrimitiveType.i32)
@@ -922,20 +927,20 @@ class CompilingVisitor extends ASTVisitor<Value>{
         else if (typeof val === "function") {
             let parsedFunction = ParsedFunction.makeFromCode(val.toString())
             let value = new Value(new FunctionType())
-            value.parsedFunction = parsedFunction
+            value.hostSideValue = parsedFunction
             return value
         }
         else if (typeof val === "string") {
             let parsedFunction = ParsedFunction.makeFromCode(val)
             let value = new Value(new FunctionType())
-            value.parsedFunction = parsedFunction
+            value.hostSideValue = parsedFunction
             return value
         }
         else if (Array.isArray(val)) {
             if(val.length === 0){
                 return "cannot use empty arrays"
             }
-            let result = this.getValueFromAnyHostValue(val[0])
+            let result = this.getValueFromAnyHostValue(val[0], recursionDepth + 1)
             if (typeof result === "string") {
                 return result
             }
@@ -951,7 +956,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
                 }
             }
             for (let i = 1; i < val.length; ++i) {
-                let thisValue = this.getValueFromAnyHostValue(val[i])
+                let thisValue = this.getValueFromAnyHostValue(val[i], recursionDepth + 1)
                 if (typeof thisValue === "string") {
                     return thisValue
                 }
@@ -963,7 +968,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             let valuesMap = new Map<string, Value>()
             let keys = Object.keys(val)
             for (let k of keys) {
-                let propVal = this.getValueFromAnyHostValue(val[k])
+                let propVal = this.getValueFromAnyHostValue(val[k], recursionDepth + 1)
                 if (typeof propVal === "string") {
                     return propVal
                 }
@@ -1371,7 +1376,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
     protected override visitFunctionDeclaration(node: ts.FunctionDeclaration): VisitorResult<Value> {
         let value = new Value(new FunctionType())
-        value.parsedFunction = ParsedFunction.makeFromParsedNode(node, this.parsedFunction!)
+        value.hostSideValue = ParsedFunction.makeFromParsedNode(node, this.parsedFunction!)
         if (node.name) {
             this.symbolTable.set(this.getNodeSymbol(node.name), value)
         }
@@ -1380,7 +1385,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
     protected override visitArrowFunction(node: ts.ArrowFunction): VisitorResult<Value> {
         let value = new Value(new FunctionType())
-        value.parsedFunction = ParsedFunction.makeFromParsedNode(node, this.parsedFunction!)
+        value.hostSideValue = ParsedFunction.makeFromParsedNode(node, this.parsedFunction!)
         return value
     }
 }

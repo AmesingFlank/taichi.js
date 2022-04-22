@@ -25,7 +25,8 @@ enum TypeCategory {
     Struct = "Struct",
     Pointer = "Pointer",
     Void = "Void",
-    Function = "Function"
+    Function = "Function",
+    HostObjectReference = "HostObjectReference"
 }
 
 class Type {

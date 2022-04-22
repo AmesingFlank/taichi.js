@@ -13,7 +13,10 @@ class Value {
         this.type_ = type
     }
 
-    public parsedFunction : ParsedFunction | null = null // only used when type.getCategory() === TypeCategory.Function
+    // only used when 
+    // type.getCategory() === TypeCategory.Function, in which case it is a ParsedFunction
+    // type.getCategory() === TypeCategory.HostObjectReference, in which case it can be anything
+    hostSideValue:any = undefined 
 
     private type_: Type
     getType(): Type {
