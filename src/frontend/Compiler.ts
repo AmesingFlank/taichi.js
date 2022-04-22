@@ -821,6 +821,14 @@ class CompilingVisitor extends ASTVisitor<Value>{
     }
 
     protected override visitPropertyAccessExpression(node: ts.PropertyAccessExpression): VisitorResult<Value> {
+        if (this.canEvalInKernelScopeOrTemplateArgs(node)) {
+            let hostResult = this.tryEvalInKernelScopeOrTemplateArgs(node)
+            let value = this.getValueFromAnyHostValue(hostResult)
+            if(typeof value === "string"){
+                this.errorNode(node, `failed to evaluate ${node.getText()}`)
+            }
+            return value as Value
+        }
         let objExpr = node.expression
         let propExpr = node.name
         let propText = propExpr.getText()!
@@ -893,6 +901,78 @@ class CompilingVisitor extends ASTVisitor<Value>{
         this.errorNode(node, "invalid propertyAccess: " + node.getText())
     }
 
+    // returns a value if successful, otherwise returns an error msg
+    protected getValueFromAnyHostValue(val: any): Value | string {
+        if (typeof val === "number") {
+            if (val % 1 === 0) {
+                return ValueUtils.makeConstantScalar(val, this.irBuilder.get_int32(val), PrimitiveType.i32)
+            }
+            else {
+                return ValueUtils.makeConstantScalar(val, this.irBuilder.get_float32(val), PrimitiveType.f32)
+            }
+        }
+        else if (typeof val === "boolean") {
+            if (val) {
+                return ValueUtils.makeConstantScalar(1, this.irBuilder.get_int32(1), PrimitiveType.i32)
+            }
+            else {
+                return ValueUtils.makeConstantScalar(0, this.irBuilder.get_int32(0), PrimitiveType.i32)
+            }
+        }
+        else if (typeof val === "function") {
+            let parsedFunction = ParsedFunction.makeFromCode(val.toString())
+            let value = new Value(new FunctionType())
+            value.parsedFunction = parsedFunction
+            return value
+        }
+        else if (typeof val === "string") {
+            let parsedFunction = ParsedFunction.makeFromCode(val)
+            let value = new Value(new FunctionType())
+            value.parsedFunction = parsedFunction
+            return value
+        }
+        else if (Array.isArray(val)) {
+            if(val.length === 0){
+                return "cannot use empty arrays"
+            }
+            let result = this.getValueFromAnyHostValue(val[0])
+            if (typeof result === "string") {
+                return result
+            }
+            if (val.length === 1) {
+                if (result!.getType().getCategory() === TypeCategory.Scalar) {
+                    return ValueUtils.makeVectorFromScalars([result!])
+                }
+                else if (result!.getType().getCategory() === TypeCategory.Vector) {
+                    return ValueUtils.makeMatrixFromVectorsAsRows([result!])
+                }
+                else {
+                    return "can only use arrays of scalars or vectors"
+                }
+            }
+            for (let i = 1; i < val.length; ++i) {
+                let thisValue = this.getValueFromAnyHostValue(val[i])
+                if (typeof thisValue === "string") {
+                    return thisValue
+                }
+                result = this.comma(result, thisValue) 
+            }
+            return result
+        }
+        else {
+            let valuesMap = new Map<string, Value>()
+            let keys = Object.keys(val)
+            for (let k of keys) {
+                let propVal = this.getValueFromAnyHostValue(val[k])
+                if (typeof propVal === "string") {
+                    return propVal
+                }
+                valuesMap.set(k, propVal)
+            }
+            return ValueUtils.makeStruct(keys, valuesMap)
+        }
+    }
+
     protected override visitIdentifier(node: ts.Identifier): VisitorResult<Value> {
         if (this.hasNodeSymbol(node)) {
             let symbol = this.getNodeSymbol(node)
@@ -902,83 +982,12 @@ class CompilingVisitor extends ASTVisitor<Value>{
         }
         let name = node.getText()
         if (this.canEvalInKernelScopeOrTemplateArgs(node)) {
-            let val = this.tryEvalInKernelScopeOrTemplateArgs(node)
-            let getValue = (val: any): Value | undefined => {
-                let fail = () => { this.errorNode(node, "failed to evaluate " + name + " in kernel scope") }
-                if (typeof val === "number") {
-                    if (val % 1 === 0) {
-                        return ValueUtils.makeConstantScalar(val, this.irBuilder.get_int32(val), PrimitiveType.i32)
-                    }
-                    else {
-                        return ValueUtils.makeConstantScalar(val, this.irBuilder.get_float32(val), PrimitiveType.f32)
-                    }
-                }
-                else if (typeof val === "boolean") {
-                    if (val) {
-                        return ValueUtils.makeConstantScalar(1, this.irBuilder.get_int32(1), PrimitiveType.i32)
-                    }
-                    else {
-                        return ValueUtils.makeConstantScalar(0, this.irBuilder.get_int32(0), PrimitiveType.i32)
-                    }
-                } 
-                else if (typeof val === "function") {
-                    let parsedFunction = ParsedFunction.makeFromCode(val.toString())
-                    let value = new Value(new FunctionType())
-                    value.parsedFunction = parsedFunction
-                    return value
-                } 
-                else if (typeof val === "string") {
-                    let parsedFunction = ParsedFunction.makeFromCode(val)
-                    let value = new Value(new FunctionType())
-                    value.parsedFunction = parsedFunction
-                    return value
-                }
-                else if (Array.isArray(val)) {
-                    this.assertNode(node, val.length > 0, "cannot use empty array in kernel")
-                    let result = getValue(val[0])
-                    if (result === undefined) {
-                        fail()
-                    }
-                    if (val.length === 1) {
-                        if (result!.getType().getCategory() === TypeCategory.Scalar) {
-                            return ValueUtils.makeVectorFromScalars([result!])
-                        }
-                        else if (result!.getType().getCategory() === TypeCategory.Vector) {
-                            return ValueUtils.makeMatrixFromVectorsAsRows([result!])
-                        }
-                        else {
-                            fail()
-                        }
-                    }
-                    for (let i = 1; i < val.length; ++i) {
-                        let thisValue = getValue(val[i])
-                        if (thisValue === undefined) {
-                            fail()!
-                        }
-                        let maybeResult = this.comma(result!, thisValue!)
-                        if (maybeResult === null) {
-                            this.errorNode(node, "Array element type mistach at " + node.getText())
-                        }
-                        else {
-                            result = maybeResult
-                        }
-                    }
-                    return result
-                }
-                else {
-                    let valuesMap = new Map<string, Value>()
-                    let keys = Object.keys(val)
-                    for (let k of keys) {
-                        let propVal = getValue(val[k])
-                        if (propVal === undefined) {
-                            fail()
-                        }
-                        valuesMap.set(k, propVal!)
-                    }
-                    return ValueUtils.makeStruct(keys, valuesMap)
-                }
+            let val = this.tryEvalInKernelScopeOrTemplateArgs(node) 
+            let value = this.getValueFromAnyHostValue(val)
+            if(typeof value === "string"){
+                this.errorNode(node, "failed to evaluate " + name + " in kernel scope: "+value) 
             }
-            return getValue(val)
+            return value as Value
         }
         this.errorNode(node, "unresolved identifier: " + node.getText())
     }
@@ -1187,7 +1196,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
         let callExpr = forOfNode.expression as ts.CallExpression
         let calledFunctionExpr = callExpr.expression
         let calledFunctionText = calledFunctionExpr.getText()
-        return calledFunctionText === "input_fragments" || calledFunctionText === "ti.input_fragments"
+        return calledFunctionText === "inputFragments" || calledFunctionText === "ti.inputFragments"
     }
 
     protected visitVertexFor(indexSymbols: ts.Symbol[], vertexArgs: ts.NodeArray<ts.Expression>, body: ts.Statement): VisitorResult<Value> {
@@ -1274,7 +1283,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
         this.assertNode(null, this.currentRenderPipelineParams !== null, "[Compiler bug]")
         if (fragmentArgs.length !== 0) {
-            this.errorNode(null, "Expecting no arguments in input_fragments()")
+            this.errorNode(null, "Expecting no arguments in inputFragments()")
         }
 
         let loop = this.irBuilder.create_fragment_for();
@@ -1330,10 +1339,10 @@ class CompilingVisitor extends ASTVisitor<Value>{
             else if (calledFunctionText === "ndrange" || calledFunctionText === "ti.ndrange") {
                 return this.visitNdrangeFor(loopIndexSymbols, callExpr.arguments, node.statement, false)
             }
-            else if (calledFunctionText === "input_vertices" || calledFunctionText === "ti.input_vertices") {
+            else if (calledFunctionText === "inputVertices" || calledFunctionText === "ti.inputVertices") {
                 return this.visitVertexFor(loopIndexSymbols, callExpr.arguments, node.statement)
             }
-            else if (calledFunctionText === "input_fragments" || calledFunctionText === "ti.input_fragments") {
+            else if (calledFunctionText === "inputFragments" || calledFunctionText === "ti.inputFragments") {
                 return this.visitFragmentFor(loopIndexSymbols, callExpr.arguments, node.statement)
             }
             else if (calledFunctionText === "static" || calledFunctionText === "ti.static") {

@@ -1,8 +1,9 @@
-import * as ti from "../../dist/taichi.js"
+import * as ti from "../../dist/taichi.dev.js"
+
 let main = async () => {
     await ti.init();
 
-    let htmlCanvas = document.getElementById('result_canvas');
+    let htmlCanvas = document.getElementById('fractalClothCanvas');
     htmlCanvas.width = 512;
     htmlCanvas.height = 512;
 
@@ -213,13 +214,13 @@ let main = async () => {
         ti.useDepth(depth);
 
         // vertex shader for cloth
-        for (let v of ti.input_vertices(vertices, indices)) {
+        for (let v of ti.inputVertices(vertices, indices)) {
             let pos = mvp.matmul(v.pos.concat([1.0]));
             ti.outputPosition(pos);
             ti.outputVertex(v);
         }
         // fragment shader for cloth
-        for (let f of ti.input_fragments()) {
+        for (let f of ti.inputFragments()) {
             let normal = f.normal.normalized();
             let frag_to_light = (light_pos - f.pos).normalized();
             let c = abs(normal.dot(frag_to_light));
@@ -228,7 +229,7 @@ let main = async () => {
             ti.outputColor(renderTarget, color);
         }
         // vertex shader for ball
-        for (let v of ti.input_vertices(ball_vertices, ball_indices)) {
+        for (let v of ti.inputVertices(ball_vertices, ball_indices)) {
             let distance = (eye - ball_center[0]).norm();
             let tanHalfFov = ti.tan((fov * Math.PI) / (180 * 2));
             let screen_radius = ball_radius / (tanHalfFov * distance);
@@ -242,7 +243,7 @@ let main = async () => {
             });
         }
         // frag shader for ball
-        for (let f of ti.input_fragments()) {
+        for (let f of ti.inputFragments()) {
             if (f.point_coord.norm() > 1) {
                 ti.discard();
             }

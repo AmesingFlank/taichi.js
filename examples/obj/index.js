@@ -1,4 +1,4 @@
-import * as ti from "../../dist/taichi.js"
+import * as ti from "../../dist/taichi.dev.js"
 
 let main = async () => {
     await ti.init();
@@ -27,12 +27,12 @@ let main = async () => {
         ti.clearColor(target, [0.1, 0.2, 0.3, 1]);
         ti.useDepth(depth);
 
-        for (let v of ti.input_vertices(sceneData.vertexBuffer, sceneData.indexBuffer)) {
+        for (let v of ti.inputVertices(sceneData.vertexBuffer, sceneData.indexBuffer)) {
             let pos = mvp.matmul(v.position.concat([1.0]));
             ti.outputPosition(pos);
             ti.outputVertex(v);
         }
-        for (let f of ti.input_fragments()) {
+        for (let f of ti.inputFragments()) {
             let normal = f.normal.normalized()
             let c = normal.dot([0.0,1.0,0.0]) * 0.7
             let color = [c,c,c,1.0];

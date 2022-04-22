@@ -473,13 +473,13 @@ let main = async () => {
         };
 
         // vert shader for vertices
-        for (let v of ti.input_vertices(VBO, IBO)) {
+        for (let v of ti.inputVertices(VBO, IBO)) {
             let pos = mvp.matmul(v.pos.concat([1.0]));
             ti.outputPosition(pos);
             ti.outputVertex(v);
         }
         // frag shader for vertices
-        for (let f of ti.input_fragments()) {
+        for (let f of ti.inputFragments()) {
             let N = f.normal.normalized();
             let V = (eye - f.pos).normalized();
 

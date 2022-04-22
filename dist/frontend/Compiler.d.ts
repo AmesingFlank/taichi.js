@@ -64,6 +64,7 @@ declare class CompilingVisitor extends ASTVisitor<Value> {
     protected visitCallExpression(node: ts.CallExpression): VisitorResult<Value>;
     protected visitElementAccessExpression(node: ts.ElementAccessExpression): VisitorResult<Value>;
     protected visitPropertyAccessExpression(node: ts.PropertyAccessExpression): VisitorResult<Value>;
+    protected getValueFromAnyHostValue(val: any): Value | string;
     protected visitIdentifier(node: ts.Identifier): VisitorResult<Value>;
     protected visitVariableDeclaration(node: ts.VariableDeclaration): VisitorResult<Value>;
     protected visitIfStatement(node: ts.IfStatement): VisitorResult<Value>;

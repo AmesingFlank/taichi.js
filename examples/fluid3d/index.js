@@ -321,7 +321,7 @@ let main = async () => {
         ti.useDepth(depth);
 
         // vert shader for vertices
-        for (let v of ti.input_vertices(VBO, IBO)) {
+        for (let v of ti.inputVertices(VBO, IBO)) {
             let distance = (eye - v.particle_pos).norm();
             let tanHalfFov = ti.tan((fov * Math.PI) / (180 * 2));
             let screen_radius = particles_radius / (tanHalfFov * distance);
@@ -336,7 +336,7 @@ let main = async () => {
             });
         }
         // frag shader for vertices
-        for (let f of ti.input_fragments()) {
+        for (let f of ti.inputFragments()) {
             if (f.point_coord.norm() > 1) {
                 ti.discard();
             }

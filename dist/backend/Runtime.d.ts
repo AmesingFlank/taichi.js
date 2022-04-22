@@ -35,5 +35,6 @@ declare class Runtime {
     deviceToHost(field: Field, offsetBytes?: number, sizeBytes?: number): Promise<FieldHostSideCopy>;
     hostToDevice(field: Field, hostArray: Int32Array, offsetBytes?: number): Promise<void>;
     getRootBuffer(treeId: number): GPUBuffer;
+    copyHtmlImageToTexture(image: HTMLImageElement, texture: GPUTexture): Promise<void>;
 }
 export { Runtime };

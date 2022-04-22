@@ -40,7 +40,7 @@ import { testStruct } from "./TestStruct"
 import { testRets } from "./TestRets"
 import { testArgAnnotation } from "./TestArgAnnotation"
 import { testTemplateArgs } from "./TestTemplateArgs"
-import { testLambda } from "./TestLambda"
+import { testLambda } from "./TestLambda" 
 
 async function runAllTests() {
     let passed = true
@@ -91,7 +91,7 @@ async function runAllTests() {
     }
     else {
         error("TESTS FAILED")
-    }
+    } 
 }
 
 

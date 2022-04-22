@@ -101,6 +101,17 @@ class Texture extends TextureBase {
                 return TextureDimensionality.Dim2d
         }
     }
+
+    static async createFromURL(url:string): Promise<Texture>{
+        let img = new Image();
+        img.src = url;
+        await img.decode();
+
+        let dimensions = [img.width, img.height]
+        let texture = new Texture(4, dimensions)
+        await Program.getCurrentProgram().runtime!.copyHtmlImageToTexture(img, texture.getGPUTexture())
+        return texture
+    }
 }
 
 class CanvasTexture extends TextureBase {

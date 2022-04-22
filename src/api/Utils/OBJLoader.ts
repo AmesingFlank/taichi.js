@@ -1,6 +1,7 @@
 import { Vertex } from "./Vertex";
 import { Scene } from "./Scene"
 import { Material } from "./Material";
+import { Texture } from "../../data/Texture";
 class Parser {
     static beginsWith(line: string, firstWord: string) {
         let words = line.trim().split(" ").filter(x => x.length !== 0);
@@ -10,7 +11,7 @@ class Parser {
         let words = line.trim().split(" ").filter(x => x.length !== 0);
         return words.splice(1);
     }
-    static lastTailWords(line: string) {
+    static lastWord(line: string) {
         let tailWords = this.tailWords(line)
         return tailWords[tailWords.length - 1]
     }
@@ -130,6 +131,9 @@ export class MtlLoader {
         let mtlString: string = await response.text()
         let materials: Material[] = []
 
+        let urlParts = url.split("/")
+        let baseURL = urlParts.slice(0, urlParts.length - 1).join("/") + "/";
+
         let lines = mtlString.split("\n");
         let currentMaterial : Material|null = null;
         for (let l = 0; l < lines.length; ++l) {
@@ -151,7 +155,10 @@ export class MtlLoader {
                 currentMaterial!.baseColor.value = color;
             }
             else if (Parser.beginsWith(thisLine, "map_Kd")) {
-                //
+                let fileName = Parser.lastWord(thisLine)
+                let url = baseURL + fileName
+                let texture = await Texture.createFromURL(url)
+                currentMaterial!.baseColor.texture = texture
             } 
         }
         if (currentMaterial != null) {

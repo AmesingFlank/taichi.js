@@ -28,6 +28,7 @@ declare class Texture extends TextureBase {
     getGPUTextureView(): GPUTextureView;
     getGPUSampler(): GPUSampler;
     getTextureDimensionality(): TextureDimensionality;
+    static createFromURL(url: string): Promise<Texture>;
 }
 declare class CanvasTexture extends TextureBase {
     htmlCanvas: HTMLCanvasElement;
