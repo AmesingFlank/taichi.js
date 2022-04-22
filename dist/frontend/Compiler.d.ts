@@ -61,10 +61,12 @@ declare class CompilingVisitor extends ASTVisitor<Value> {
     protected visitParenthesizedExpression(node: ts.ParenthesizedExpression): VisitorResult<Value>;
     protected ensureRenderPassParams(): void;
     protected ensureColorAttachment(target: TextureBase): number;
+    protected isRenderingBuiltinFunction(funcText: string): boolean;
+    protected handleRenderingBuiltinFunction(funcText: string, argumentValues: Value[], node: ts.CallExpression): VisitorResult<Value>;
     protected visitCallExpression(node: ts.CallExpression): VisitorResult<Value>;
     protected visitElementAccessExpression(node: ts.ElementAccessExpression): VisitorResult<Value>;
     protected visitPropertyAccessExpression(node: ts.PropertyAccessExpression): VisitorResult<Value>;
-    protected getValueFromAnyHostValue(val: any): Value | string;
+    protected getValueFromAnyHostValue(val: any, recursionDepth?: number): Value | string;
     protected visitIdentifier(node: ts.Identifier): VisitorResult<Value>;
     protected visitVariableDeclaration(node: ts.VariableDeclaration): VisitorResult<Value>;
     protected visitIfStatement(node: ts.IfStatement): VisitorResult<Value>;

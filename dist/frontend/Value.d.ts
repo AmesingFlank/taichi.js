@@ -1,17 +1,16 @@
 import { Type, PrimitiveType } from "./Type";
 import { NativeTaichiAny } from "../native/taichi/GetTaichi";
-import { ParsedFunction } from "./ParsedFunction";
-declare class Value {
+export declare class Value {
     stmts: NativeTaichiAny[];
     compileTimeConstants: number[];
     constructor(type: Type, stmts?: NativeTaichiAny[], // CHI IR Stmts
     compileTimeConstants?: number[]);
-    parsedFunction: ParsedFunction | null;
+    hostSideValue: any;
     private type_;
     getType(): Type;
     isCompileTimeConstant(): boolean;
 }
-declare class ValueUtils {
+export declare class ValueUtils {
     static makeScalar(stmt: NativeTaichiAny, primitiveType: PrimitiveType): Value;
     static makeConstantScalar(val: number, stmt: NativeTaichiAny, primitiveType: PrimitiveType): Value;
     static getVectorComponents(vec: Value): Value[];
@@ -30,4 +29,3 @@ declare class ValueUtils {
     static makeStruct(keys: string[], valuesMap: Map<string, Value>): Value;
     static getStructMembers(structValue: Value): Map<string, Value>;
 }
-export { Value, ValueUtils };

@@ -408,6 +408,239 @@ class CompilingVisitor extends ASTVisitor<Value>{
         return targetLocation
     }
 
+    protected isRenderingBuiltinFunction(funcText: string): boolean {
+        let functions = [
+            "outputVertex",
+            "outputPosition",
+            "clearColor",
+            "useDepth",
+            "outputColor",
+            "outputDepth",
+            "discard",
+            "textureSample",
+            "textureLoad",
+            "textureStore",
+        ]
+        for (let f of functions) {
+            if (funcText === f || funcText === "ti." + f) {
+                return true;
+            }
+        }
+        return false
+    }
+
+    protected handleRenderingBuiltinFunction(funcText: string, argumentValues: Value[], node: ts.CallExpression): VisitorResult<Value> {
+        if (funcText === "outputVertex") {
+            this.assertNode(node, argumentValues.length === 1, "outputVertex() must have exactly 1 argument")
+            let vertexOutput = argumentValues[0]
+            this.assertNode(node, this.startedVertex && !this.finishedVertex, "outputVertex() can only be used inside a vertex-for")
+            this.assertNode(node, this.currentRenderPipelineParams !== null, "[Compiler bug]")
+            this.currentRenderPipelineParams!.interpolatedType = vertexOutput.getType()
+            let prims = vertexOutput.getType().getPrimitivesList()
+            for (let i = 0; i < prims.length; ++i) {
+                this.irBuilder.create_vertex_output(i, vertexOutput.stmts[i])
+            }
+            return
+        }
+        if (funcText === "outputPosition") {
+            this.assertNode(node, argumentValues.length === 1, "outputPosition must have exactly 1 argument")
+            let posOutput = argumentValues[0]
+            this.assertNode(node, this.startedVertex && !this.finishedVertex, "outputPosition() can only be used inside a vertex-for")
+            this.assertNode(node, this.currentRenderPipelineParams !== null, "[Compiler bug]")
+
+            this.assertNode(node, posOutput.getType().getCategory() === TypeCategory.Vector, "position output must be a vector")
+            let outputVecType = posOutput.getType() as VectorType
+            this.assertNode(node, outputVecType.getNumRows() === 4, "position output must be a 4D f32 vector")
+            this.assertNode(node, outputVecType.getPrimitiveType() === PrimitiveType.f32, "position output must be a 4D f32 vector")
+
+            let stmtsVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
+
+            for (let i = 0; i < posOutput.stmts.length; ++i) {
+                stmtsVec.push_back(posOutput.stmts[i])
+            }
+
+            this.irBuilder.create_position_output(stmtsVec)
+            return
+        }
+
+        if (funcText === "clearColor") {
+            this.assertNode(node, this.isAtTopLevel(), "clearColor() can only be called at top level")
+            this.ensureRenderPassParams()
+
+            this.assertNode(node, node.arguments.length === 2, "clearColor() must have exactly 2 arguments, one for cleared texture, the other for the clear value")
+
+            this.assertNode(node, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && isTexture(argumentValues[0].hostSideValue), "the first argument of clearColor() must be a texture object that's visible in kernel scope")
+            let targetTexture = argumentValues[0].hostSideValue as TextureBase
+            let targetLocation = this.ensureColorAttachment(targetTexture)
+
+            let clearValue = argumentValues[1]
+            this.assertNode(node, clearValue.getType().getCategory() === TypeCategory.Vector, "clear value must be a vector")
+            let clearVecType = clearValue.getType() as VectorType
+            this.assertNode(node, clearVecType.getNumRows() === 4, "color clear value must have 4 components")
+            this.assertNode(node, clearValue.isCompileTimeConstant(), "color clear value must be a compile-time constant")
+
+            this.renderPassParams!.colorAttachments[targetLocation].clearColor = clearValue.compileTimeConstants
+            return
+        }
+
+        if (funcText === "useDepth") {
+            this.assertNode(node, this.isAtTopLevel(), "useDepth() can only be called at top level")
+            this.ensureRenderPassParams()
+
+            this.assertNode(node, node.arguments.length === 1, "useDepth() must have exactly 1 argument, i.e. the depth texture")
+
+            this.assertNode(node, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && argumentValues[0].hostSideValue instanceof DepthTexture, "the first argument of useDepth() must be a depth texture object that's visible in kernel scope")
+            let depthTexture = argumentValues[0].hostSideValue as DepthTexture
+
+            this.assertNode(node, this.renderPassParams!.depthAttachment === null, "the depth texture has already been specified")
+            this.renderPassParams!.depthAttachment = {
+                texture: depthTexture,
+                clearDepth: 1.0,
+                storeDepth: true
+            }
+            return
+        }
+
+        if (funcText === "outputColor") {
+            this.assertNode(node, this.startedFragment, "outputColor() can only be used inside a fragment-for")
+            this.assertNode(node, this.currentRenderPipelineParams !== null, "[Compiler bug]")
+
+            this.assertNode(node, node.arguments.length === 2, "outputColor() must have exactly 2 arguments, one for output texture, the other for the output value")
+            this.assertNode(node, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && isTexture(argumentValues[0].hostSideValue), "the first argument of outputColor() must be a texture object that's visible in kernel scope")
+            let targetTexture = argumentValues[0].hostSideValue as TextureBase
+            let targetLocation = this.ensureColorAttachment(targetTexture)
+
+            let fragOutput = argumentValues[1]
+            this.assertNode(node, fragOutput.getType().getCategory() === TypeCategory.Vector, "frag output must be a vector")
+            let outputVecType = fragOutput.getType() as VectorType
+            this.assertNode(node, outputVecType.getNumRows() === 1 || outputVecType.getNumRows() === 2 || outputVecType.getNumRows() === 4, "output vector component count must be 1, 2, or 4")
+            this.assertNode(node, outputVecType.getPrimitiveType() === PrimitiveType.f32, "position output must be a f32 vector")
+
+            let stmtsVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
+
+            for (let i = 0; i < fragOutput.stmts.length; ++i) {
+                stmtsVec.push_back(fragOutput.stmts[i])
+            }
+
+            this.irBuilder.create_color_output(targetLocation, stmtsVec)
+            return
+        }
+
+        if (funcText === "outputDepth") {
+            this.assertNode(node, this.startedFragment, "outputDepth() can only be used inside a fragment-for")
+            this.assertNode(node, this.currentRenderPipelineParams !== null, "[Compiler bug]")
+
+            this.assertNode(node, node.arguments.length === 1, "outputDepth() must have exactly 1 arguments")
+            let depthOutput = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.arguments[0])))
+            this.assertNode(node, depthOutput.getType().getCategory() === TypeCategory.Scalar, "depth output must be a scalar")
+            let outputScalarType = depthOutput.getType() as ScalarType
+            this.assertNode(node, outputScalarType.getPrimitiveType() === PrimitiveType.f32, "depth output must be a f32 scalar")
+
+            this.irBuilder.create_depth_output(depthOutput.stmts[0])
+            return
+        }
+
+        if (funcText === "discard") {
+            this.assertNode(node, this.startedFragment, "discard() can only be used inside a fragment-for")
+            this.irBuilder.create_discard()
+            return
+        }
+
+        if (funcText === "textureSample") {
+            this.assertNode(node, this.startedFragment, "textureSample() can only be used inside a fragment-for")
+            this.assertNode(node, this.currentRenderPipelineParams !== null, "[Compiler bug]")
+
+            this.assertNode(node, node.arguments.length === 2, "textureSample() must have exactly 2 arguments, one for texture, the other for the coordinates")
+            this.assertNode(node, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && isTexture(argumentValues[0].hostSideValue), "the first argument of textureSample() must be a texture object that's visible in kernel scope")
+            let texture = argumentValues[0].hostSideValue as TextureBase
+            let dim = texture.getTextureDimensionality()
+
+            let coords = argumentValues[1]
+            this.assertNode(node, coords.getType().getCategory() === TypeCategory.Vector, "coords must be a vector")
+            let vecType = coords.getType() as VectorType
+            let requiredComponentCount = getTextureCoordsNumComponents(dim)
+            this.assertNode(node, vecType.getNumRows() === requiredComponentCount, `coords component count must be ${requiredComponentCount}`)
+            this.assertNode(node, vecType.getPrimitiveType() === PrimitiveType.f32, "coords must be a f32 vector")
+
+            let stmtsVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
+
+            for (let i = 0; i < coords.stmts.length; ++i) {
+                stmtsVec.push_back(coords.stmts[i])
+            }
+
+            let sampleResultStmt = this.irBuilder.create_texture_sample(texture.nativeTexture, stmtsVec)
+
+            let resultType = new VectorType(PrimitiveType.f32, 4)
+            let result = new Value(resultType)
+            for (let i = 0; i < 4; ++i) {
+                result.stmts.push(this.irBuilder.create_composite_extract(sampleResultStmt, i))
+            }
+            return result
+        }
+
+        if (funcText === "textureLoad") {
+
+            this.assertNode(node, node.arguments.length === 2, "textureLoad() must have exactly 2 arguments, one for texture, the other for the coordinates")
+            this.assertNode(node, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && isTexture(argumentValues[0].hostSideValue), "the first argument of textureLoad() must be a texture object that's visible in kernel scope")
+            let texture = argumentValues[0].hostSideValue as TextureBase
+            let dim = texture.getTextureDimensionality()
+
+            let coords = argumentValues[1]
+            this.assertNode(node, coords.getType().getCategory() === TypeCategory.Vector, "coords must be a vector")
+            let vecType = coords.getType() as VectorType
+            let requiredComponentCount = getTextureCoordsNumComponents(dim)
+            this.assertNode(node, vecType.getNumRows() === requiredComponentCount, `coords component count must be ${requiredComponentCount}`)
+            this.assertNode(node, vecType.getPrimitiveType() === PrimitiveType.i32, "coords must be a i32 vector")
+
+            let stmtsVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
+
+            for (let i = 0; i < coords.stmts.length; ++i) {
+                stmtsVec.push_back(coords.stmts[i])
+            }
+
+            let sampleResultStmt = this.irBuilder.create_texture_load(texture.nativeTexture, stmtsVec)
+
+            let resultType = new VectorType(PrimitiveType.f32, 4)
+            let result = new Value(resultType)
+            for (let i = 0; i < 4; ++i) {
+                result.stmts.push(this.irBuilder.create_composite_extract(sampleResultStmt, i))
+            }
+            return result
+        }
+
+        if (funcText === "textureStore") {
+            this.assertNode(node, node.arguments.length === 3, "textureStore() must have exactly 3 arguments, one for texture, one for the coordinates, and one for the texel value")
+            this.assertNode(node, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && isTexture(argumentValues[0].hostSideValue), "the first argument of textureStore() must be a texture object that's visible in kernel scope")
+            let texture = argumentValues[0].hostSideValue as TextureBase
+            let dim = texture.getTextureDimensionality()
+
+            let coords = argumentValues[1]
+            this.assertNode(node, coords.getType().getCategory() === TypeCategory.Vector, "coords must be a vector")
+            let coordsVecType = coords.getType() as VectorType
+            let requiredComponentCount = getTextureCoordsNumComponents(dim)
+            this.assertNode(node, coordsVecType.getNumRows() === requiredComponentCount, `coords component count must be ${requiredComponentCount}`)
+            this.assertNode(node, coordsVecType.getPrimitiveType() === PrimitiveType.i32, "coords must be a i32 vector")
+
+            let value = argumentValues[2]
+            this.assertNode(node, value.getType().getCategory() === TypeCategory.Vector, "coords must be a vector")
+            let valueVecType = value.getType() as VectorType
+            this.assertNode(node, valueVecType.getNumRows() === 4, `value component count must be 4`)
+            this.assertNode(node, valueVecType.getPrimitiveType() === PrimitiveType.f32, "value must be a f32 vector")
+
+            let coordsStmtVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
+            for (let i = 0; i < coords.stmts.length; ++i) {
+                coordsStmtVec.push_back(coords.stmts[i])
+            }
+
+            let valueStmtVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
+            for (let i = 0; i < value.stmts.length; ++i) {
+                valueStmtVec.push_back(value.stmts[i])
+            }
+            this.irBuilder.create_texture_store(texture.nativeTexture, coordsStmtVec, valueStmtVec)
+            return
+        }
+    }
+
     protected override visitCallExpression(node: ts.CallExpression): VisitorResult<Value> {
         let funcText = node.expression.getText()
 
@@ -415,35 +648,50 @@ class CompilingVisitor extends ASTVisitor<Value>{
             this.assertNode(node, node.arguments.length === n, funcText + " requires " + n.toString() + " args")
         }
 
+        let rawArgumentValues: Value[] = []
+        for (let arg of node.arguments) {
+            let argVal = this.extractVisitorResult(this.dispatchVisit(arg))
+            rawArgumentValues.push(argVal)
+        }
 
-        let argumentRefs: Value[] | null = null  // pointer for l-values, newly created alloca copies for r-values
+        // lazily evaluated. pointer for l-values, newly created alloca copies for r-values
+        let argumentRefs: Value[] | null = null
         let getArgumentRefs = (): Value[] => {
             if (argumentRefs !== null) {
                 return argumentRefs
             }
             argumentRefs = []
-            for (let arg of node.arguments) {
-                let argVal = this.extractVisitorResult(this.dispatchVisit(arg))
-                if (argVal.getType().getCategory() === TypeCategory.Pointer) {
-                    argumentRefs.push(argVal)
+            for (let rawVal of rawArgumentValues) {
+                if (rawVal.getType().getCategory() === TypeCategory.Pointer) {
+                    argumentRefs.push(rawVal)
+                }
+                else if (rawVal.getType().getCategory() === TypeCategory.Function || rawVal.getType().getCategory() === TypeCategory.HostObjectReference) {
+                    // cannot create alloca for these types
+                    argumentRefs.push(rawVal)
                 }
                 else {
                     // passing r value. Create a local var copy, so that it can be assigned in the func
-                    let copy = this.createLocalVarCopy(argVal)
+                    let copy = this.createLocalVarCopy(rawVal)
                     argumentRefs.push(copy)
                 }
             }
             return argumentRefs
         }
 
+        // lazily evaluated. r-values
         let argumentValues: Value[] | null = null
         let getArgumentValues = (): Value[] => {
             if (argumentValues !== null) {
                 return argumentValues
             }
             argumentValues = []
-            for (let ref of getArgumentRefs()) {
-                argumentValues.push(this.derefIfPointer(ref))
+            for (let i = 0; i < node.arguments.length; ++i) {
+                if (rawArgumentValues[i].getType().getCategory() === TypeCategory.Pointer) {
+                    argumentValues.push(this.derefIfPointer(getArgumentRefs()[i]))
+                }
+                else {
+                    argumentValues.push(rawArgumentValues[i])
+                }
             }
             return argumentValues
         }
@@ -493,224 +741,11 @@ class CompilingVisitor extends ASTVisitor<Value>{
             }
         }
 
-        if (funcText === "ti.outputVertex" || funcText === "outputVertex") {
-            this.assertNode(node, getArgumentValues().length === 1, "outputVertex() must have exactly 1 argument")
-            let vertexOutput = getArgumentValues()[0]
-            this.assertNode(node, this.startedVertex && !this.finishedVertex, "outputVertex() can only be used inside a vertex-for")
-            this.assertNode(node, this.currentRenderPipelineParams !== null, "[Compiler bug]")
-            this.currentRenderPipelineParams!.interpolatedType = vertexOutput.getType()
-            let prims = vertexOutput.getType().getPrimitivesList()
-            for (let i = 0; i < prims.length; ++i) {
-                this.irBuilder.create_vertex_output(i, vertexOutput.stmts[i])
+        if (this.isRenderingBuiltinFunction(funcText)) {
+            if (funcText.slice(0, 3) === "ti.") {
+                funcText = funcText.slice(3)
             }
-            return
-        }
-
-        if (funcText === "ti.outputPosition" || funcText === "outputPosition") {
-            this.assertNode(node, getArgumentValues().length === 1, "outputPosition must have exactly 1 argument")
-            let posOutput = getArgumentValues()[0]
-            this.assertNode(node, this.startedVertex && !this.finishedVertex, "outputPosition() can only be used inside a vertex-for")
-            this.assertNode(node, this.currentRenderPipelineParams !== null, "[Compiler bug]")
-
-            this.assertNode(node, posOutput.getType().getCategory() === TypeCategory.Vector, "position output must be a vector")
-            let outputVecType = posOutput.getType() as VectorType
-            this.assertNode(node, outputVecType.getNumRows() === 4, "position output must be a 4D f32 vector")
-            this.assertNode(node, outputVecType.getPrimitiveType() === PrimitiveType.f32, "position output must be a 4D f32 vector")
-
-            let stmtsVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
-
-            for (let i = 0; i < posOutput.stmts.length; ++i) {
-                stmtsVec.push_back(posOutput.stmts[i])
-            }
-
-            this.irBuilder.create_position_output(stmtsVec)
-            return
-        }
-
-        if (funcText === "ti.clearColor" || funcText === "clearColor") {
-            this.assertNode(node, this.isAtTopLevel(), "clearColor() can only be called at top level")
-            this.ensureRenderPassParams()
-
-            this.assertNode(node, node.arguments.length === 2, "clearColor() must have exactly 2 arguments, one for cleared texture, the other for the clear value")
-            this.assertNode(node, this.canEvalInKernelScopeOrTemplateArgs(node.arguments[0]), "the first argument of clearColor() must be a texture object that's visible in kernel scope")
-            let targetTexture = this.tryEvalInKernelScopeOrTemplateArgs(node.arguments[0])
-            this.assertNode(node, isTexture(targetTexture), "the first argument of clearColor() must be a texture object that's visible in kernel scope")
-            targetTexture = targetTexture as TextureBase
-            let targetLocation = this.ensureColorAttachment(targetTexture)
-
-            let clearValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.arguments[1])))
-            this.assertNode(node, clearValue.getType().getCategory() === TypeCategory.Vector, "clear value must be a vector")
-            let clearVecType = clearValue.getType() as VectorType
-            this.assertNode(node, clearVecType.getNumRows() === 4, "color clear value must have 4 components")
-            this.assertNode(node, clearValue.isCompileTimeConstant(), "color clear value must be a compile-time constant")
-
-            this.renderPassParams!.colorAttachments[targetLocation].clearColor = clearValue.compileTimeConstants
-            return
-        }
-
-        if (funcText === "ti.useDepth" || funcText === "useDepth") {
-            this.assertNode(node, this.isAtTopLevel(), "useDepth() can only be called at top level")
-            this.ensureRenderPassParams()
-
-            this.assertNode(node, node.arguments.length === 1, "useDepth() must have exactly 1 argument, i.e. the depth texture")
-            this.assertNode(node, this.canEvalInKernelScopeOrTemplateArgs(node.arguments[0]), "the first argument of useDepth() must be a depth texture object that's visible in kernel scope")
-            let depthTexture = this.tryEvalInKernelScopeOrTemplateArgs(node.arguments[0])
-            this.assertNode(node, depthTexture instanceof DepthTexture, "the first argument of useDepth() must be a depth texture object that's visible in kernel scope")
-            depthTexture = depthTexture as DepthTexture
-            this.assertNode(node, this.renderPassParams!.depthAttachment === null, "the depth texture has already been specified")
-            this.renderPassParams!.depthAttachment = {
-                texture: depthTexture,
-                clearDepth: 1.0,
-                storeDepth: true
-            }
-            return
-        }
-
-        if (funcText === "ti.outputColor" || funcText === "outputColor") {
-            this.assertNode(node, this.startedFragment, "outputColor() can only be used inside a fragment-for")
-            this.assertNode(node, this.currentRenderPipelineParams !== null, "[Compiler bug]")
-
-            this.assertNode(node, node.arguments.length === 2, "outputColor() must have exactly 2 arguments, one for output texture, the other for the output value")
-            this.assertNode(node, this.canEvalInKernelScopeOrTemplateArgs(node.arguments[0]), "the first argument of outputColor() must be a texture object that's visible in kernel scope")
-            let targetTexture = this.tryEvalInKernelScopeOrTemplateArgs(node.arguments[0])
-            this.assertNode(node, isTexture(targetTexture), "the first argument of outputColor() must be a texture object that's visible in kernel scope")
-            targetTexture = targetTexture as TextureBase
-            let targetLocation = this.ensureColorAttachment(targetTexture)
-
-            let fragOutput = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.arguments[1])))
-            this.assertNode(node, fragOutput.getType().getCategory() === TypeCategory.Vector, "frag output must be a vector")
-            let outputVecType = fragOutput.getType() as VectorType
-            this.assertNode(node, outputVecType.getNumRows() === 1 || outputVecType.getNumRows() === 2 || outputVecType.getNumRows() === 4, "output vector component count must be 1, 2, or 4")
-            this.assertNode(node, outputVecType.getPrimitiveType() === PrimitiveType.f32, "position output must be a f32 vector")
-
-            let stmtsVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
-
-            for (let i = 0; i < fragOutput.stmts.length; ++i) {
-                stmtsVec.push_back(fragOutput.stmts[i])
-            }
-
-            this.irBuilder.create_color_output(targetLocation, stmtsVec)
-            return
-        }
-
-        if (funcText === "ti.outputDepth" || funcText === "outputDepth") {
-            this.assertNode(node, this.startedFragment, "outputDepth() can only be used inside a fragment-for")
-            this.assertNode(node, this.currentRenderPipelineParams !== null, "[Compiler bug]")
-
-            this.assertNode(node, node.arguments.length === 1, "outputDepth() must have exactly 1 arguments")
-            let depthOutput = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.arguments[0])))
-            this.assertNode(node, depthOutput.getType().getCategory() === TypeCategory.Scalar, "depth output must be a scalar")
-            let outputScalarType = depthOutput.getType() as ScalarType
-            this.assertNode(node, outputScalarType.getPrimitiveType() === PrimitiveType.f32, "depth output must be a f32 scalar")
-
-            this.irBuilder.create_depth_output(depthOutput.stmts[0])
-            return
-        }
-
-        if (funcText === "ti.discard" || funcText === "discard") {
-            this.assertNode(node, this.startedFragment, "discard() can only be used inside a fragment-for")
-            this.irBuilder.create_discard()
-            return
-        }
-
-        if (funcText === "ti.textureSample" || funcText === "textureSample") {
-            this.assertNode(node, this.startedFragment, "textureSample() can only be used inside a fragment-for")
-            this.assertNode(node, this.currentRenderPipelineParams !== null, "[Compiler bug]")
-
-            this.assertNode(node, node.arguments.length === 2, "textureSample() must have exactly 2 arguments, one for texture, the other for the coordinates")
-            this.assertNode(node, this.canEvalInKernelScopeOrTemplateArgs(node.arguments[0]), "the first argument of textureSample() must be a texture object that's visible in kernel scope")
-            let texture = this.tryEvalInKernelScopeOrTemplateArgs(node.arguments[0])
-            this.assertNode(node, isTexture(texture), "the first argument of textureSample() must be a texture object that's visible in kernel scope")
-            texture = texture as TextureBase
-            let dim = texture.getTextureDimensionality()
-
-            let coords = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.arguments[1])))
-            this.assertNode(node, coords.getType().getCategory() === TypeCategory.Vector, "coords must be a vector")
-            let vecType = coords.getType() as VectorType
-            let requiredComponentCount = getTextureCoordsNumComponents(dim)
-            this.assertNode(node, vecType.getNumRows() === requiredComponentCount, `coords component count must be ${requiredComponentCount}`)
-            this.assertNode(node, vecType.getPrimitiveType() === PrimitiveType.f32, "coords must be a f32 vector")
-
-            let stmtsVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
-
-            for (let i = 0; i < coords.stmts.length; ++i) {
-                stmtsVec.push_back(coords.stmts[i])
-            }
-
-            let sampleResultStmt = this.irBuilder.create_texture_sample(texture.nativeTexture, stmtsVec)
-
-            let resultType = new VectorType(PrimitiveType.f32, 4)
-            let result = new Value(resultType)
-            for (let i = 0; i < 4; ++i) {
-                result.stmts.push(this.irBuilder.create_composite_extract(sampleResultStmt, i))
-            }
-            return result
-        }
-
-        if (funcText === "ti.textureLoad" || funcText === "textureLoad") {
-
-            this.assertNode(node, node.arguments.length === 2, "textureLoad() must have exactly 2 arguments, one for texture, the other for the coordinates")
-            this.assertNode(node, this.canEvalInKernelScopeOrTemplateArgs(node.arguments[0]), "the first argument of textureLoad() must be a texture object that's visible in kernel scope")
-            let texture = this.tryEvalInKernelScopeOrTemplateArgs(node.arguments[0])
-            this.assertNode(node, isTexture(texture), "the first argument of textureLoad() must be a texture object that's visible in kernel scope")
-            texture = texture as TextureBase
-            let dim = texture.getTextureDimensionality()
-
-            let coords = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.arguments[1])))
-            this.assertNode(node, coords.getType().getCategory() === TypeCategory.Vector, "coords must be a vector")
-            let vecType = coords.getType() as VectorType
-            let requiredComponentCount = getTextureCoordsNumComponents(dim)
-            this.assertNode(node, vecType.getNumRows() === requiredComponentCount, `coords component count must be ${requiredComponentCount}`)
-            this.assertNode(node, vecType.getPrimitiveType() === PrimitiveType.i32, "coords must be a i32 vector")
-
-            let stmtsVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
-
-            for (let i = 0; i < coords.stmts.length; ++i) {
-                stmtsVec.push_back(coords.stmts[i])
-            }
-
-            let sampleResultStmt = this.irBuilder.create_texture_load(texture.nativeTexture, stmtsVec)
-
-            let resultType = new VectorType(PrimitiveType.f32, 4)
-            let result = new Value(resultType)
-            for (let i = 0; i < 4; ++i) {
-                result.stmts.push(this.irBuilder.create_composite_extract(sampleResultStmt, i))
-            }
-            return result
-        }
-
-        if (funcText === "ti.textureStore" || funcText === "textureStore") {
-            this.assertNode(node, node.arguments.length === 3, "textureStore() must have exactly 3 arguments, one for texture, one for the coordinates, and one for the texel value")
-            this.assertNode(node, this.canEvalInKernelScopeOrTemplateArgs(node.arguments[0]), "the first argument of textureStore() must be a texture object that's visible in kernel scope")
-            let texture = this.tryEvalInKernelScopeOrTemplateArgs(node.arguments[0])
-            this.assertNode(node, isTexture(texture), "the first argument of textureStore() must be a texture object that's visible in kernel scope")
-            texture = texture as TextureBase
-            let dim = texture.getTextureDimensionality()
-
-            let coords = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.arguments[1])))
-            this.assertNode(node, coords.getType().getCategory() === TypeCategory.Vector, "coords must be a vector")
-            let coordsVecType = coords.getType() as VectorType
-            let requiredComponentCount = getTextureCoordsNumComponents(dim)
-            this.assertNode(node, coordsVecType.getNumRows() === requiredComponentCount, `coords component count must be ${requiredComponentCount}`)
-            this.assertNode(node, coordsVecType.getPrimitiveType() === PrimitiveType.i32, "coords must be a i32 vector")
-
-            let value = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.arguments[2])))
-            this.assertNode(node, value.getType().getCategory() === TypeCategory.Vector, "coords must be a vector")
-            let valueVecType = value.getType() as VectorType
-            this.assertNode(node, valueVecType.getNumRows() === 4, `value component count must be 4`)
-            this.assertNode(node, valueVecType.getPrimitiveType() === PrimitiveType.f32, "value must be a f32 vector")
-
-            let coordsStmtVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
-            for (let i = 0; i < coords.stmts.length; ++i) {
-                coordsStmtVec.push_back(coords.stmts[i])
-            }
-
-            let valueStmtVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
-            for (let i = 0; i < value.stmts.length; ++i) {
-                valueStmtVec.push_back(value.stmts[i])
-            }
-            this.irBuilder.create_texture_store(texture.nativeTexture, coordsStmtVec, valueStmtVec)
-            return
+            return this.handleRenderingBuiltinFunction(funcText, getArgumentValues(), node)
         }
 
         if (node.expression.kind === ts.SyntaxKind.PropertyAccessExpression) {
@@ -762,7 +797,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
     protected override visitElementAccessExpression(node: ts.ElementAccessExpression): VisitorResult<Value> {
         let base = node.expression
         let argument = node.argumentExpression
-        
+
         let baseValue = this.extractVisitorResult(this.dispatchVisit(base))
         let argumentValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(argument)))
         let baseType = baseValue.getType()
@@ -771,7 +806,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
         if (baseType.getCategory() === TypeCategory.HostObjectReference && baseValue.hostSideValue instanceof Field) {
             let field = baseValue.hostSideValue as Field
             let result = new Value(new PointerType(field.elementType, true), [])
-            
+
             this.assertNode(node, TypeUtils.isTensorType(argType), "invalid field index")
 
             this.assertNode(node, argumentValue.stmts.length === field.dimensions.length,
@@ -1221,34 +1256,18 @@ class CompilingVisitor extends ASTVisitor<Value>{
         if (vertexArgs.length === 0) {
             this.errorNode(null, "Expecting vertex buffer and optionally index buffer")
         }
-        if (vertexArgs.length >= 1) {
-
-            if (this.canEvalInKernelScopeOrTemplateArgs(vertexArgs[0])) {
-                let arg = this.tryEvalInKernelScopeOrTemplateArgs(vertexArgs[0])
-                if (arg instanceof Field) {
-                    this.currentRenderPipelineParams.vertex.VBO = arg
-                }
-                else {
-                    this.errorNode(null, `the vertex buffer must be an instance of taichi field`)
-                }
-            }
-            else {
-                this.errorNode(null, `the vertex buffer ${vertexArgs[0].getText()} cannot be evaluated in kernel scope`)
-            }
+        let argumentValues: Value[] = vertexArgs.map((expr: ts.Expression) => this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(expr))))
+        if (argumentValues.length >= 1) {
+            this.assertNode(null, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && argumentValues[0].hostSideValue instanceof Field, `the vertex buffer ${vertexArgs[0].getText()} must be an instance of taichi field that's visible in kernel scope`)
+            let VBO = argumentValues[0].hostSideValue as Field
+            this.assertNode(null, VBO.dimensions.length === 1 , "the vertex buffer must be a 1D field ")
+            this.currentRenderPipelineParams.vertex.VBO = VBO
         }
-        if (vertexArgs.length >= 2) {
-            if (this.canEvalInKernelScopeOrTemplateArgs(vertexArgs[1])) {
-                let arg = this.tryEvalInKernelScopeOrTemplateArgs(vertexArgs[1])
-                if (arg instanceof Field) {
-                    this.currentRenderPipelineParams.vertex.IBO = arg
-                }
-                else {
-                    this.errorNode(null, `the index buffer must be an instance of taichi field`)
-                }
-            }
-            else {
-                this.errorNode(null, `the vertex buffer ${vertexArgs[1].getText()} cannot be evaluated in kernel scope`)
-            }
+        if (argumentValues.length >= 2) {
+            this.assertNode(null, argumentValues[1].getType().getCategory() === TypeCategory.HostObjectReference && argumentValues[1].hostSideValue instanceof Field, `the index buffer ${vertexArgs[0].getText()} must be an instance of taichi field that's visible in kernel scope`)
+            let IBO = argumentValues[1].hostSideValue as Field
+            this.assertNode(null, IBO.dimensions.length === 1 && IBO.elementType.getCategory() === TypeCategory.Scalar && TypeUtils.getPrimitiveType(IBO.elementType) === PrimitiveType.i32, "the index buffer must be a 1D field of i32 scalars")
+            this.currentRenderPipelineParams.vertex.IBO = IBO
         }
         if (vertexArgs.length >= 3) {
             this.errorNode(null, "Expecting only vertex buffer and index buffer")
