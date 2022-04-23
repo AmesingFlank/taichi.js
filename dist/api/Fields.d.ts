@@ -1,5 +1,5 @@
 import { Field } from '../data/Field';
-import { CanvasTexture, DepthTexture, Texture } from '../data/Texture';
+import { CanvasTexture, CubeTexture, DepthTexture, Texture } from '../data/Texture';
 import { PrimitiveType, Type } from "../frontend/Type";
 declare function field(type: PrimitiveType | Type, dimensions: number[] | number): Field;
 declare let Vector: {
@@ -14,4 +14,6 @@ declare let Struct: {
 declare let texture: (numComponents: number, dimensions: number[]) => Texture;
 declare let canvasTexture: (canvas: HTMLCanvasElement) => CanvasTexture;
 declare let depthTexture: (dimensions: number[]) => DepthTexture;
-export { field, Vector, Matrix, Struct, texture, canvasTexture, depthTexture };
+declare let createTextureFromURL: (url: string) => Promise<Texture>;
+declare let createCubeTextureFromURL: (urls: string[]) => Promise<CubeTexture>;
+export { field, Vector, Matrix, Struct, texture, canvasTexture, depthTexture, createTextureFromURL, createCubeTextureFromURL };

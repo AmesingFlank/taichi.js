@@ -1,8 +1,9 @@
 import { Program } from '../program/Program'
 import { Field} from '../data/Field'
-import { CanvasTexture, DepthTexture, Texture } from '../data/Texture'
+import { CanvasTexture, CubeTexture, DepthTexture, Texture } from '../data/Texture'
 import { PrimitiveType, Type, ScalarType, VectorType, MatrixType, StructType } from "../frontend/Type"
 import { product } from '../utils/Utils'
+import { error } from '../utils/Logging'
 
 
 function field(type: PrimitiveType | Type, dimensions: number[] | number): Field {
@@ -54,4 +55,15 @@ let depthTexture = (dimensions: number[]) => {
     return new DepthTexture(dimensions)
 }
 
-export { field, Vector, Matrix, Struct, texture, canvasTexture, depthTexture }
+let createTextureFromURL = async (url:string) => {
+    return await Texture.createFromURL(url)
+}
+
+let createCubeTextureFromURL = async (urls:string[]) => {
+    if(urls.length !== 6){
+        error("expecting 6 urls for cube texture")
+    }
+    return await CubeTexture.createFromURL(urls)
+}
+
+export { field, Vector, Matrix, Struct, texture, canvasTexture, depthTexture, createTextureFromURL, createCubeTextureFromURL }

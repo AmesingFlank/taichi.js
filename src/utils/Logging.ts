@@ -10,6 +10,6 @@ export function error(...args: any[]) {
 
 export function assert(val: boolean, ...args:any[]) {
     if(!val){
-        error(args)
+        error("Assertion failed", args)
     }
 }

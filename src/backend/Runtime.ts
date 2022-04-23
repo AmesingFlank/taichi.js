@@ -4,7 +4,7 @@ import { divUp, elementToInt32Array, int32ArrayToElement } from '../utils/Utils'
 import { assert, error } from "../utils/Logging"
 import { Field } from '../data/Field'
 import { TypeCategory } from '../frontend/Type'
-import { TextureBase } from '../data/Texture'
+import { TextureBase, TextureDimensionality } from '../data/Texture'
 
 class FieldHostSideCopy {
     constructor(
@@ -128,13 +128,13 @@ class Runtime {
 
         let endCompute = () => {
             if (computeEncoder) {
-                computeEncoder.endPass()
+                computeEncoder.end()
             }
             computeEncoder = null
         }
         let endRender = () => {
             if (renderEncoder) {
-                renderEncoder.endPass()
+                renderEncoder.end()
             }
             renderEncoder = null
         }
@@ -351,7 +351,7 @@ class Runtime {
             size: size,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
         })
-        tree.rootBuffer = rootBuffer 
+        tree.rootBuffer = rootBuffer
         this.materializedTrees.push(tree)
     }
 
@@ -359,13 +359,14 @@ class Runtime {
         this.textures.push(texture)
     }
 
-    createGPUTexture(dimensions: number[], format: GPUTextureFormat, renderAttachment: boolean, requires_storage: boolean): GPUTexture {
+    createGPUTexture(dimensions: number[], dimensionality: TextureDimensionality, format: GPUTextureFormat, renderAttachment: boolean, requires_storage: boolean): GPUTexture {
         let getDescriptor = (): GPUTextureDescriptor => {
             let usage = GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC | GPUTextureUsage.TEXTURE_BINDING
             if (requires_storage) {
                 usage = usage | GPUTextureUsage.STORAGE_BINDING;
             }
             if (dimensions.length === 1) {
+                error("1d texture not supported yet")
                 return {
                     size: { width: dimensions[0] },
                     dimension: "1d",
@@ -374,17 +375,23 @@ class Runtime {
                 }
             }
             else if (dimensions.length === 2) {
+                assert(dimensionality === TextureDimensionality.Dim2d || dimensionality === TextureDimensionality.DimCube)
                 if (renderAttachment) {
                     usage = usage | GPUTextureUsage.RENDER_ATTACHMENT
                 }
+                let size: GPUExtent3DStrict = { width: dimensions[0], height: dimensions[1] }
+                if (dimensionality === TextureDimensionality.DimCube) {
+                    size.depthOrArrayLayers = 6
+                }
                 return {
-                    size: { width: dimensions[0], height: dimensions[1] },
+                    size: size,
                     dimension: "2d",
                     format: format,
                     usage: usage
                 }
             }
-            else {// if(dimensions.length === 2){
+            else {// if(dimensions.length === 3){
+                error("3d texture not supported yet")
                 return {
                     size: { width: dimensions[0], height: dimensions[1], depthOrArrayLayers: dimensions[2] },
                     dimension: "3d",
@@ -462,19 +469,37 @@ class Runtime {
         return this.materializedTrees[treeId].rootBuffer!
     }
 
-    async copyHtmlImageToTexture(image: HTMLImageElement, texture:GPUTexture) { 
+    async copyHtmlImageToTexture(image: HTMLImageElement, texture: GPUTexture) {
         let bitmap = await createImageBitmap(image)
         let copySource: GPUImageCopyExternalImage = {
-            source:bitmap
+            source: bitmap
         }
         let copyDest: GPUImageCopyTextureTagged = {
-            texture: texture 
+            texture: texture
         }
         let extent: GPUExtent3D = {
             width: image.width,
             height: image.height
-        } 
-        this.device!.queue.copyExternalImageToTexture(copySource,copyDest,extent)
+        }
+        this.device!.queue.copyExternalImageToTexture(copySource, copyDest, extent)
+        await this.device!.queue.onSubmittedWorkDone()
+    }
+    async copyHtmlImagesToCubeTexture(images: HTMLImageElement[], texture: GPUTexture) {
+        for (let i = 0; i < 6; ++i) {
+            let bitmap = await createImageBitmap(images[i])
+            let copySource: GPUImageCopyExternalImage = {
+                source: bitmap
+            }
+            let copyDest: GPUImageCopyTextureTagged = {
+                texture: texture,
+                origin: [0, 0, i]
+            }
+            let extent: GPUExtent3D = {
+                width: images[i].width,
+                height: images[i].height
+            }
+            this.device!.queue.copyExternalImageToTexture(copySource, copyDest, extent)
+        }
         await this.device!.queue.onSubmittedWorkDone()
     }
 }
