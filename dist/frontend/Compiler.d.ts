@@ -45,6 +45,7 @@ declare class CompilingVisitor extends ASTVisitor<Value> {
     protected registerArguments(args: ts.NodeArray<ts.ParameterDeclaration>): void;
     protected hasNodeSymbol(node: ts.Node): boolean;
     protected getNodeSymbol(node: ts.Node): ts.Symbol;
+    protected getNodeBaseSymbol(node: ts.Node): ts.Symbol | undefined;
     protected tryEvalInKernelScopeOrTemplateArgs(node: ts.Node): any;
     protected canEvalInKernelScopeOrTemplateArgs(node: ts.Node): boolean;
     protected errorNode(node: ts.Node | null, ...args: any[]): void;
@@ -66,7 +67,7 @@ declare class CompilingVisitor extends ASTVisitor<Value> {
     protected visitCallExpression(node: ts.CallExpression): VisitorResult<Value>;
     protected visitElementAccessExpression(node: ts.ElementAccessExpression): VisitorResult<Value>;
     protected visitPropertyAccessExpression(node: ts.PropertyAccessExpression): VisitorResult<Value>;
-    protected getValueFromAnyHostValue(val: any, recursionDepth?: number): Value | string;
+    protected getValueFromAnyHostValue(val: any, recursionDepth?: number): Value;
     protected visitIdentifier(node: ts.Identifier): VisitorResult<Value>;
     protected visitVariableDeclaration(node: ts.VariableDeclaration): VisitorResult<Value>;
     protected visitIfStatement(node: ts.IfStatement): VisitorResult<Value>;

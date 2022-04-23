@@ -586,7 +586,7 @@ class BuiltinOpFactory {
                 // shouldn't happen
                 return leftValue
             }
-        ) 
+        )
 
         let concat = new BuiltinCustomOp("concat", 2,
             (args: Value[]) => {
@@ -598,7 +598,7 @@ class BuiltinOpFactory {
                 let leftType = leftValue.getType()
                 let rightType = rightValue.getType()
                 let leftCat = leftType.getCategory()
-                let rightCat = rightType.getCategory() 
+                let rightCat = rightType.getCategory()
                 if (leftCat === TypeCategory.Vector && rightCat === TypeCategory.Vector) {
                     return TypeError.createNoError()
                 }
@@ -618,7 +618,7 @@ class BuiltinOpFactory {
                 let leftType = leftValue.getType()
                 let rightType = rightValue.getType()
                 let leftCat = leftType.getCategory()
-                let rightCat = rightType.getCategory() 
+                let rightCat = rightType.getCategory()
                 let leftPrim = TypeUtils.getPrimitiveType(leftType)
                 let rightPrim = TypeUtils.getPrimitiveType(rightType)
                 let hasFloat = leftPrim === PrimitiveType.f32 || rightPrim === PrimitiveType.f32
@@ -635,7 +635,7 @@ class BuiltinOpFactory {
                 // shouldn't happen
                 return leftValue
             }
-        ) 
+        )
 
         let len = new BuiltinCustomOp("len", 1,
             (args: Value[]) => {
@@ -883,7 +883,21 @@ class BuiltinOpFactory {
                 return ValueUtils.transposeMatrix(args[0])
             }
         )
-        let ops2 = [store, load, comma, concat, len, length, sum, norm_sqr, norm, normalized, dot, cross, matmul, transpose, outer_product]
+        let static_ = new BuiltinCustomOp("static", 1,
+            (args: Value[]) => {
+                if (args.length !== 1) {
+                    return TypeError.createError("static(...) requires exactly 1 argument")
+                }
+                if (!args[0].isCompileTimeConstant()) {
+                    return TypeError.createError("static(...) requires a compile-time constant argument")
+                }
+                return TypeError.createNoError()
+            },
+            (args: Value[]) => {
+                return args[0]
+            }
+        )
+        let ops2 = [store, load, comma, concat, len, length, sum, norm_sqr, norm, normalized, dot, cross, matmul, transpose, outer_product, static_]
         for (let op of ops2) {
             opsMap.set(op.name, op)
         }

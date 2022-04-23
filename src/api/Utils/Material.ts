@@ -9,7 +9,7 @@ export class MaterialAttribute {
         public texture: TextureBase | undefined = undefined
     ) {
 
-    }
+    } 
 
     getInfo(): MaterialAttributeInfo {
         let defaultValue: number | number[] = 0.0

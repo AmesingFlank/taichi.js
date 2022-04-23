@@ -28,4 +28,5 @@ export declare class ValueUtils {
     static addRowVectorToMatrix(matrix: Value, vector: Value): Value;
     static makeStruct(keys: string[], valuesMap: Map<string, Value>): Value;
     static getStructMembers(structValue: Value): Map<string, Value>;
+    static makeHostObjectReference(val: any): Value;
 }

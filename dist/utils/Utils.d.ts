@@ -14,3 +14,5 @@ export declare function tensorToNumberArray(tensorValue: number | number[] | num
 export declare function tensorToInt32Array(tensorValue: number | number[] | number[][], tensorType: Type): Int32Array;
 export declare function structToInt32Array(val: any, structType: StructType): Int32Array;
 export declare function elementToInt32Array(element: any, elementType: Type): Int32Array;
+export declare function beginWith(str: string, substr: string): boolean;
+export declare function isPlainOldData(val: any, recursionDepth?: number): boolean;

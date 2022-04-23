@@ -16,6 +16,7 @@ import { Value, ValueUtils } from "./Value"
 import { BuiltinOp, BuiltinNullaryOp, BuiltinBinaryOp, BuiltinUnaryOp, BuiltinAtomicOp, BuiltinCustomOp, BuiltinOpFactory } from "./BuiltinOp";
 import { ResultOrError } from "./Error";
 import { ParsedFunction } from "./ParsedFunction";
+import { beginWith, isPlainOldData } from "../utils/Utils";
 
 
 
@@ -127,22 +128,48 @@ class CompilingVisitor extends ASTVisitor<Value>{
         return this.parsedFunction!.getNodeSymbol(node)
     }
 
+    /*
+    * e.g.:
+    * "x.y" => symbol(x)
+    * "x.y.z" => symbol(x)
+    * "x.y.z[0]" => symbol(x)
+    * "x.y.z[0].f()" => symbol(x)
+    */
+    protected getNodeBaseSymbol(node: ts.Node): ts.Symbol | undefined {
+        while (true) {
+            if (this.hasNodeSymbol(node)) {
+                return this.getNodeSymbol(node)
+            }
+            else if (node.kind === ts.SyntaxKind.PropertyAccessExpression) {
+                let access = node as ts.PropertyAccessExpression
+                node = access.expression
+            }
+            else if (node.kind === ts.SyntaxKind.ElementAccessExpression) {
+                let access = node as ts.ElementAccessExpression
+                node = access.expression
+            }
+            else if (node.kind === ts.SyntaxKind.CallExpression) {
+                let call = node as ts.CallExpression
+                node = call.expression
+            }
+            else {
+                return undefined
+            }
+        }
+    }
+
     // node: an identifier or property access epxreesion
     // returns a JS value if the expr can be evaluated in kernel scope (i.e. the scope created by ti.addToKernelScope) or in template args
     protected tryEvalInKernelScopeOrTemplateArgs(node: ts.Node): any {
         let exprText = node.getText()
-        while (node.kind === ts.SyntaxKind.PropertyAccessExpression) {
-            let access = node as ts.PropertyAccessExpression
-            node = access.expression
-        }
-        if (this.hasNodeSymbol(node)) {
+        let baseSymbol = this.getNodeBaseSymbol(node)
+        if (baseSymbol !== undefined) {
             // ts has created a symbol for this node. 
             // This means the expr isn't "free", in the sense of https://en.wikipedia.org/wiki/Free_variables_and_bound_variables
             // As a result, it mustn't be treated as a kernel scope expr. 
-            let symbol = this.getNodeSymbol(node)
             let foundInArgs = false
             for (let argNode of this.parsedFunction!.argNodes) {
-                if (this.getNodeSymbol(argNode.name) === symbol) {
+                if (this.getNodeSymbol(argNode.name) === baseSymbol) {
                     foundInArgs = true
                     break
                 }
@@ -313,6 +340,18 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
         let leftValue = this.derefIfPointer(left)
         let opTokenText = opToken.getText()
+
+        if (leftValue.getType().getCategory() === TypeCategory.HostObjectReference && rightValue.getType().getCategory() === TypeCategory.HostObjectReference) {
+            try {
+                let evaluator = Function(`x`, `y`, `return x ${opTokenText} y;`)
+                let result = evaluator(leftValue.hostSideValue, rightValue.hostSideValue)
+                return this.getValueFromAnyHostValue(result)
+            }
+            catch (e) {
+                this.errorNode(node, "can not evaluate " + node.getText())
+            }
+        }
+
         let builtinOps = this.builtinOps
         if (builtinOps.has(opTokenText)) {
             let op = builtinOps.get(opTokenText)!
@@ -547,8 +586,8 @@ class CompilingVisitor extends ASTVisitor<Value>{
         }
 
         if (funcText === "textureSample") {
-            this.assertNode(node, this.startedFragment, "textureSample() can only be used inside a fragment-for")
-            this.assertNode(node, this.currentRenderPipelineParams !== null, "[Compiler bug]")
+            // TODO: error check this, but also handle textureSample callde inside functions
+            //this.assertNode(node, this.startedFragment, "textureSample() can only be used inside a fragment-for") 
 
             this.assertNode(node, node.arguments.length === 2, "textureSample() must have exactly 2 arguments, one for texture, the other for the coordinates")
             this.assertNode(node, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && isTexture(argumentValues[0].hostSideValue), "the first argument of textureSample() must be a texture object that's visible in kernel scope")
@@ -802,28 +841,36 @@ class CompilingVisitor extends ASTVisitor<Value>{
         let argumentValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(argument)))
         let baseType = baseValue.getType()
         let argType = argumentValue.getType()
+        this.assertNode(node, argType.getCategory() === TypeCategory.Scalar || argType.getCategory() === TypeCategory.Vector, "index must be scalar or vector")
 
-        if (baseType.getCategory() === TypeCategory.HostObjectReference && baseValue.hostSideValue instanceof Field) {
-            let field = baseValue.hostSideValue as Field
-            let result = new Value(new PointerType(field.elementType, true), [])
+        if (baseType.getCategory() === TypeCategory.HostObjectReference) {
+            if (baseValue.hostSideValue instanceof Field) {
+                let field = baseValue.hostSideValue as Field
+                let result = new Value(new PointerType(field.elementType, true), [])
 
-            this.assertNode(node, TypeUtils.isTensorType(argType), "invalid field index")
+                this.assertNode(node, TypeUtils.isTensorType(argType), "invalid field index")
 
-            this.assertNode(node, argumentValue.stmts.length === field.dimensions.length,
-                `field access dimension mismatch, received ${argumentValue.stmts.length} components, but expecting ${field.dimensions.length} components`)
-            let accessVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
-            for (let stmt of argumentValue.stmts) {
-                accessVec.push_back(stmt)
+                this.assertNode(node, argumentValue.stmts.length === field.dimensions.length,
+                    `field access dimension mismatch, received ${argumentValue.stmts.length} components, but expecting ${field.dimensions.length} components`)
+                let accessVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
+                for (let stmt of argumentValue.stmts) {
+                    accessVec.push_back(stmt)
+                }
+
+                for (let place of field.placeNodes) {
+                    let ptr = this.irBuilder.create_global_ptr(place, accessVec);
+                    result.stmts.push(ptr)
+                }
+                return result
             }
-
-            for (let place of field.placeNodes) {
-                let ptr = this.irBuilder.create_global_ptr(place, accessVec);
-                result.stmts.push(ptr)
+            if (Array.isArray(baseValue.hostSideValue)) {
+                this.assertNode(node, argumentValue.isCompileTimeConstant(), "index for accessing a host-side array must be compile-time evaluable")
+                this.assertNode(node, argType.getPrimitivesList().length === 1, "can only use 1D access on host-side arrays")
+                let element = baseValue.hostSideValue[argumentValue.compileTimeConstants[0]]
+                return this.getValueFromAnyHostValue(element)
             }
-            return result
         }
 
-        this.assertNode(node, argType.getCategory() === TypeCategory.Scalar || argType.getCategory() === TypeCategory.Vector, "index must be scalar or vector")
         this.assertNode(node, argumentValue.isCompileTimeConstant(), "Indices of vectors/matrices must be a compile-time constant")
         this.assertNode(node, TypeUtils.getPrimitiveType(argType) === PrimitiveType.i32, "Indices of be of i32 type")
 
@@ -853,10 +900,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
         if (this.canEvalInKernelScopeOrTemplateArgs(node)) {
             let hostResult = this.tryEvalInKernelScopeOrTemplateArgs(node)
             let value = this.getValueFromAnyHostValue(hostResult)
-            if (typeof value === "string") {
-                this.errorNode(node, `failed to evaluate ${node.getText()}`)
-            }
-            return value as Value
+            return value
         }
         let objExpr = node.expression
         let propExpr = node.name
@@ -927,92 +971,109 @@ class CompilingVisitor extends ASTVisitor<Value>{
                 return memberValues.get(propText)!
             }
         }
+        else if (objRef.getType().getCategory() === TypeCategory.HostObjectReference) {
+            let objHostValue = objRef.hostSideValue
+            if (typeof objHostValue === "object" && objHostValue && propText in objHostValue) {
+                return this.getValueFromAnyHostValue(objHostValue[propText])
+            }
+        }
         this.errorNode(node, "invalid propertyAccess: " + node.getText())
     }
 
-    // returns a value if successful, otherwise returns an error msg
-    protected getValueFromAnyHostValue(val: any, recursionDepth = 0): Value | string {
-        if (recursionDepth > 1024) {
-            return "The object is too big to be evaluated in kernel scope (or it might has a circular reference structure)."
-        }
-        if (typeof val === "number") {
-            if (val % 1 === 0) {
-                return ValueUtils.makeConstantScalar(val, this.irBuilder.get_int32(val), PrimitiveType.i32)
+    protected getValueFromAnyHostValue(val: any, recursionDepth = 0): Value {
+        // returns a value if successful, otherwise returns an error msg
+        let tryGetValue = (val: any, recursionDepth: number): Value | string => {
+            if (recursionDepth > 1024) {
+                return "The object is too big to be evaluated in kernel scope (or it might has a circular reference structure)."
             }
-            else {
-                return ValueUtils.makeConstantScalar(val, this.irBuilder.get_float32(val), PrimitiveType.f32)
-            }
-        }
-        else if (typeof val === "boolean") {
-            if (val) {
-                return ValueUtils.makeConstantScalar(1, this.irBuilder.get_int32(1), PrimitiveType.i32)
-            }
-            else {
-                return ValueUtils.makeConstantScalar(0, this.irBuilder.get_int32(0), PrimitiveType.i32)
-            }
-        }
-        else if (typeof val === "function") {
-            let parsedFunction = ParsedFunction.makeFromCode(val.toString())
-            let value = new Value(new FunctionType())
-            value.hostSideValue = parsedFunction
-            return value
-        }
-        else if (typeof val === "string") {
-            let parsedFunction = ParsedFunction.makeFromCode(val)
-            let value = new Value(new FunctionType())
-            value.hostSideValue = parsedFunction
-            return value
-        }
-        else if (Array.isArray(val)) {
-            if (val.length === 0) {
-                return "cannot use empty arrays"
-            }
-            let result = this.getValueFromAnyHostValue(val[0], recursionDepth + 1)
-            if (typeof result === "string") {
-                return result
-            }
-            if (val.length === 1) {
-                if (result!.getType().getCategory() === TypeCategory.Scalar) {
-                    return ValueUtils.makeVectorFromScalars([result!])
-                }
-                else if (result!.getType().getCategory() === TypeCategory.Vector) {
-                    return ValueUtils.makeMatrixFromVectorsAsRows([result!])
+            if (typeof val === "number") {
+                if (val % 1 === 0) {
+                    return ValueUtils.makeConstantScalar(val, this.irBuilder.get_int32(val), PrimitiveType.i32)
                 }
                 else {
-                    return "can only use arrays of scalars or vectors"
+                    return ValueUtils.makeConstantScalar(val, this.irBuilder.get_float32(val), PrimitiveType.f32)
                 }
             }
-            for (let i = 1; i < val.length; ++i) {
-                let thisValue = this.getValueFromAnyHostValue(val[i], recursionDepth + 1)
-                if (typeof thisValue === "string") {
-                    return thisValue
+            else if (typeof val === "boolean") {
+                if (val) {
+                    return ValueUtils.makeConstantScalar(1, this.irBuilder.get_int32(1), PrimitiveType.i32)
                 }
-                result = this.comma(result, thisValue)
-            }
-            return result
-        }
-        else if (val instanceof Field) {
-            let value = new Value(new HostObjectReferenceType())
-            value.hostSideValue = val
-            return value
-        }
-        else if (isTexture(val)) {
-            let value = new Value(new HostObjectReferenceType())
-            value.hostSideValue = val
-            return value
-        }
-        else {
-            let valuesMap = new Map<string, Value>()
-            let keys = Object.keys(val)
-            for (let k of keys) {
-                let propVal = this.getValueFromAnyHostValue(val[k], recursionDepth + 1)
-                if (typeof propVal === "string") {
-                    return propVal
+                else {
+                    return ValueUtils.makeConstantScalar(0, this.irBuilder.get_int32(0), PrimitiveType.i32)
                 }
-                valuesMap.set(k, propVal)
             }
-            return ValueUtils.makeStruct(keys, valuesMap)
+            else if (typeof val === "function") {
+                if (recursionDepth !== 0) {
+                    return "calling member functions are not supported"
+                }
+                let parsedFunction = ParsedFunction.makeFromCode(val.toString())
+                let value = new Value(new FunctionType())
+                value.hostSideValue = parsedFunction
+                return value
+            }
+            else if (typeof val === "string") {
+                if (recursionDepth !== 0) {
+                    return " member functions / strings are not supported"
+                }
+                let parsedFunction = ParsedFunction.makeFromCode(val)
+                let value = new Value(new FunctionType())
+                value.hostSideValue = parsedFunction
+                return value
+            }
+            else if (isPlainOldData(val) && Array.isArray(val)) {
+                if (val.length === 0) {
+                    return "cannot use empty arrays"
+                }
+                let result = tryGetValue(val[0], recursionDepth + 1)
+                if (typeof result === "string") {
+                    return result
+                }
+                if (val.length === 1) {
+                    if (result!.getType().getCategory() === TypeCategory.Scalar) {
+                        return ValueUtils.makeVectorFromScalars([result!])
+                    }
+                    else if (result!.getType().getCategory() === TypeCategory.Vector) {
+                        return ValueUtils.makeMatrixFromVectorsAsRows([result!])
+                    }
+                    else {
+                        return "can only use arrays of scalars or vectors"
+                    }
+                }
+                for (let i = 1; i < val.length; ++i) {
+                    let thisValue = tryGetValue(val[i], recursionDepth + 1)
+                    if (typeof thisValue === "string") {
+                        return thisValue
+                    }
+                    result = this.comma(result, thisValue)
+                }
+                return result
+            } 
+            else if (isPlainOldData(val) && typeof val === "object") {
+                let valuesMap = new Map<string, Value>()
+                let keys = Object.keys(val)
+                for (let k of keys) {
+                    let propVal = tryGetValue(val[k], recursionDepth + 1)
+                    if (typeof propVal === "string") {
+                        return propVal
+                    }
+                    valuesMap.set(k, propVal)
+                }
+                return ValueUtils.makeStruct(keys, valuesMap)
+            }
+            else if (val instanceof Field || isTexture(val) || val === null || val === undefined) {
+                return ValueUtils.makeHostObjectReference(val)
+            }
+            else {
+                return "cannot evaluate"
+            }
         }
+        let maybeValue = tryGetValue(val, 0);
+        if (typeof maybeValue === "string") {
+            // tryGetValue failed.
+            // fallback to a HostObjectReference
+            return ValueUtils.makeHostObjectReference(val)
+        }
+        return maybeValue
     }
 
     protected override visitIdentifier(node: ts.Identifier): VisitorResult<Value> {
@@ -1022,14 +1083,16 @@ class CompilingVisitor extends ASTVisitor<Value>{
                 return this.symbolTable.get(symbol)
             }
         }
-        let name = node.getText()
         if (this.canEvalInKernelScopeOrTemplateArgs(node)) {
-            let val = this.tryEvalInKernelScopeOrTemplateArgs(node)
-            let value = this.getValueFromAnyHostValue(val)
-            if (typeof value === "string") {
-                this.errorNode(node, "failed to evaluate " + name + " in kernel scope: " + value)
-            }
-            return value as Value
+            let hostSideValue = this.tryEvalInKernelScopeOrTemplateArgs(node)
+            let value = this.getValueFromAnyHostValue(hostSideValue)
+            return value
+        }
+        if (node.getText() === "undefined") {
+            return ValueUtils.makeHostObjectReference(undefined)
+        }
+        if (node.getText() === "null") {
+            return ValueUtils.makeHostObjectReference(null)
         }
         this.errorNode(node, "unresolved identifier: " + node.getText())
     }
@@ -1039,7 +1102,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
         if (!node.initializer) {
             this.errorNode(node, "variable declaration must have an identifier")
         }
-        let illegal_names = ["taichi", "ti", "Math"]
+        let illegal_names = ["taichi", "ti", "Math", "null", "undefined"]
         for (let name of illegal_names) {
             if (name === node.name.getText()) {
                 this.errorNode(node, name + " cannot be used as a local variable name")
@@ -1065,18 +1128,32 @@ class CompilingVisitor extends ASTVisitor<Value>{
     protected override visitIfStatement(node: ts.IfStatement): VisitorResult<Value> {
         let condValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.expression)))
         this.assertNode(node, condValue.getType().getCategory() === TypeCategory.Scalar, "condition of if statement must be scalar")
-        //this.assertNode(node, TypeUtils.getPrimitiveType(condValue.getType()) === PrimitiveType.i32, "condition of if statement must be i32")
-        let nativeIfStmt = this.irBuilder.create_if(condValue.stmts[0])
-        this.branchDepth += 1
-        let trueGuard = this.irBuilder.get_if_guard(nativeIfStmt, true)
-        this.dispatchVisit(node.thenStatement)
-        trueGuard.delete()
-        if (node.elseStatement) {
-            let falseGuard = this.irBuilder.get_if_guard(nativeIfStmt, false)
-            this.dispatchVisit(node.elseStatement)
-            falseGuard.delete()
+        if (beginWith(node.expression.getText(), "ti.static") || beginWith(node.expression.getText(), "static")) {
+            this.assertNode(node, condValue.isCompileTimeConstant(), "if(ti.static(...)) requires a compile-time constant condition")
+            let cond = condValue.compileTimeConstants[0]
+            if (cond !== 0) {
+                this.dispatchVisit(node.thenStatement)
+            }
+            else {
+                if (node.elseStatement) {
+                    this.dispatchVisit(node.elseStatement)
+                }
+            }
         }
-        this.branchDepth -= 1
+        else {
+            //this.assertNode(node, TypeUtils.getPrimitiveType(condValue.getType()) === PrimitiveType.i32, "condition of if statement must be i32")
+            let nativeIfStmt = this.irBuilder.create_if(condValue.stmts[0])
+            this.branchDepth += 1
+            let trueGuard = this.irBuilder.get_if_guard(nativeIfStmt, true)
+            this.dispatchVisit(node.thenStatement)
+            trueGuard.delete()
+            if (node.elseStatement) {
+                let falseGuard = this.irBuilder.get_if_guard(nativeIfStmt, false)
+                this.dispatchVisit(node.elseStatement)
+                falseGuard.delete()
+            }
+            this.branchDepth -= 1
+        }
     }
 
     protected override visitBreakStatement(node: ts.BreakStatement): VisitorResult<Value> {
@@ -1260,7 +1337,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
         if (argumentValues.length >= 1) {
             this.assertNode(null, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && argumentValues[0].hostSideValue instanceof Field, `the vertex buffer ${vertexArgs[0].getText()} must be an instance of taichi field that's visible in kernel scope`)
             let VBO = argumentValues[0].hostSideValue as Field
-            this.assertNode(null, VBO.dimensions.length === 1 , "the vertex buffer must be a 1D field ")
+            this.assertNode(null, VBO.dimensions.length === 1, "the vertex buffer must be a 1D field ")
             this.currentRenderPipelineParams.vertex.VBO = VBO
         }
         if (argumentValues.length >= 2) {

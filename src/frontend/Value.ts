@@ -1,4 +1,4 @@
-import { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, PrimitiveType, TypeUtils, StructType } from "./Type"
+import { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, PrimitiveType, TypeUtils, StructType, HostObjectReferenceType } from "./Type"
 import { nativeTaichi, NativeTaichiAny } from "../native/taichi/GetTaichi"
 import { ResultOrError } from "./Error"
 import { assert } from "../utils/Logging"
@@ -310,6 +310,12 @@ export class ValueUtils {
             let val = new Value(memberType, stmts)
             result.set(k, val)
         }
+        return result
+    }
+
+    static makeHostObjectReference(val:any){
+        let result = new Value(new HostObjectReferenceType())
+        result.hostSideValue = val
         return result
     }
 }

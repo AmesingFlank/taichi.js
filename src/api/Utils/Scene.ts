@@ -28,6 +28,7 @@ export class Scene {
 
         let materialInfos = ti.field(new Material(0).getInfoType(), this.materials.length)
         let infosHost = this.materials.map(mat => mat.getInfo())
+        console.log(infosHost)
         await materialInfos.fromArray(infosHost)
 
         let materials = this.materials.slice()

@@ -27,18 +27,18 @@ class Scope {
     }
 
     tryEvaluate(str:string): any {
-        let parts = str.split(".")
-        let curr = this.obj
-        for(let name of parts){
-            if(typeof curr !== "object"){
-                return undefined
-            }
-            if(!(name in curr)){
-                return undefined
-            }
-            curr = curr[name]
+        // magic.
+        // https://stackoverflow.com/questions/9781285/specify-scope-for-eval-in-javascript
+        let scopedEval = (context:any, expr:string):any  =>  {
+            const evaluator = Function.apply(null, [...Object.keys(context), 'expr', "return eval('expr = undefined;' + expr)"]);
+            return evaluator.apply(null, [...Object.values(context), expr]);
         }
-        return curr
+        try{
+            return scopedEval(this.obj, str)
+        }
+        catch(e){
+            return undefined
+        }
     }
 
     clone(){

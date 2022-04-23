@@ -183,3 +183,43 @@ export function elementToInt32Array(element: any, elementType: Type): Int32Array
         return Int32Array.from([])
     }
 }
+
+export function beginWith(str: string, substr: string):boolean {
+    return str.slice(0, substr.length) === substr
+}
+
+
+export function isPlainOldData(val: any, recursionDepth:number = 0) : boolean {
+    if(recursionDepth > 1024){
+        return false
+    }
+    switch(typeof val){ 
+        case "object":{
+            if(!val){
+                return false;
+            }
+            if(Array.isArray(val)){
+                for(let e of val){
+                    if(!isPlainOldData(e, recursionDepth + 1)){
+                        return false
+                    }
+                }
+                return true
+            }
+            for(let key in val){
+                if(!isPlainOldData(val[key], recursionDepth + 1)){
+                    return false
+                }
+            }
+            return true
+        } 
+        case "number":{
+            return true
+        }
+        case "boolean":{
+            return true
+        }
+        default:
+            return false
+    }
+}

@@ -41,6 +41,8 @@ import { testRets } from "./TestRets"
 import { testArgAnnotation } from "./TestArgAnnotation"
 import { testTemplateArgs } from "./TestTemplateArgs"
 import { testLambda } from "./TestLambda" 
+import { testHostObjectReference } from "./TestHostObjectReferece"
+import { testStaticIf } from "./TestStaticIf"
 
 async function runAllTests() {
     let passed = true
@@ -85,6 +87,8 @@ async function runAllTests() {
     passed &&= await testArgAnnotation()
     passed &&= await testTemplateArgs()
     passed &&= await testLambda()
+    passed &&= await testHostObjectReference()
+    passed &&= await testStaticIf()
 
     if (passed) {
         console.log("All tests passed")
