@@ -1,8 +1,6 @@
 import { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, PrimitiveType, TypeUtils, StructType, HostObjectReferenceType } from "./Type"
-import { nativeTaichi, NativeTaichiAny } from "../native/taichi/GetTaichi"
-import { ResultOrError } from "./Error"
+import { NativeTaichiAny } from "../native/taichi/GetTaichi"
 import { assert } from "../utils/Logging"
-import { ParsedFunction } from "./ParsedFunction"
 
 export class Value {
     public constructor(

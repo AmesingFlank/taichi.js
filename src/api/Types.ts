@@ -1,4 +1,4 @@
-import { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, PrimitiveType, TypeUtils, StructType } from "../frontend/Type"
+import { VectorType, MatrixType, PrimitiveType, StructType } from "../frontend/Type"
 
 
 let types = {

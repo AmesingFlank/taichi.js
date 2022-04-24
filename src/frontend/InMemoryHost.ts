@@ -1,4 +1,3 @@
-import * as nodePath from "path";
 import type { CompilerHost as tsCompilerHost, CompilerOptions as tsCompilerOptions, ScriptTarget as tsScriptTarget, SourceFile as tsSourceFile } from "typescript";
 import { log } from "../utils/Logging";
 import * as ts from "typescript";

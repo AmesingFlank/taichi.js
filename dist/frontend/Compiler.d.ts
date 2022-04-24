@@ -1,7 +1,7 @@
 import * as ts from "typescript";
 import { ASTVisitor, VisitorResult } from "./ast/Visiter";
 import { ResourceBinding, KernelParams, RenderPipelineParams, RenderPassParams } from "../backend/Kernel";
-import { NativeTaichiAny } from '../native/taichi/GetTaichi';
+import { NativeTaichiAny } from "../native/taichi/GetTaichi";
 import { Scope } from "../program/Scope";
 import { TextureBase } from "../data/Texture";
 import { Type, PrimitiveType } from "./Type";

@@ -1,5 +1,5 @@
 
-import { error, log } from "../utils/Logging"
+import { error } from "../utils/Logging"
 import { testSimple } from "./TestSimple"
 import { testCopyFieldToHost1D } from "./TestCopyFieldToHost1D"
 import { test2DField } from "./Test2DField"

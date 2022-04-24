@@ -1,7 +1,7 @@
 
-import {error} from "../utils/Logging"
+import { error } from "../utils/Logging"
 
-enum StmtKind{
+enum StmtKind {
     ConstStmt = "ConstStmt",
     RangeForStmt = "RangeForStmt",
     LoopIndexStmt = "LoopIndexStmt",

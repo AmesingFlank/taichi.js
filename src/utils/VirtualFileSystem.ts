@@ -1,5 +1,3 @@
-import {log} from "./Logging"
-
 interface File {
 	content: string;
 	version: number;
