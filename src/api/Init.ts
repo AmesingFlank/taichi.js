@@ -1,5 +1,5 @@
-import { nativeTaichi, createNativeTaichi } from "../native/taichi/GetTaichi";
-import {Program} from '../program/Program'
+import { createNativeTaichi } from "../native/taichi/GetTaichi";
+import { Program } from '../program/Program'
 
 let initialized = false
 

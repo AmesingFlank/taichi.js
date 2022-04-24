@@ -1,9 +1,8 @@
 import type { SNodeTree } from './SNodeTree'
-import { NativeTaichiAny, nativeTaichi } from "../native/taichi/GetTaichi"
-import { MatrixType, PrimitiveType, StructType, Type, TypeCategory, TypeUtils, VectorType } from "../frontend/Type"
+import { NativeTaichiAny } from "../native/taichi/GetTaichi"
+import { PrimitiveType, Type, TypeUtils } from "../frontend/Type"
 import { Program } from "../program/Program"
 import { assert, error } from '../utils/Logging'
-import { MultiDimensionalArray } from '../utils/MultiDimensionalArray'
 import { elementToInt32Array, groupElements, reshape, toElement } from '../utils/Utils'
 
 class Field {
