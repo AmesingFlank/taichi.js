@@ -1,8 +1,8 @@
-import { Runtime } from '../backend/Runtime';
-import { SNodeTree } from '../data/SNodeTree';
-import { NativeTaichiAny } from '../native/taichi/GetTaichi';
+import { Runtime } from "../backend/Runtime";
+import { SNodeTree } from "../data/SNodeTree";
+import { NativeTaichiAny } from "../native/taichi/GetTaichi";
 import { Scope } from "./Scope";
-import { TextureBase } from '../data/Texture';
+import { TextureBase } from "../data/Texture";
 declare class Program {
     runtime: Runtime | null;
     partialTree: SNodeTree;

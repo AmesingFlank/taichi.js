@@ -1,10 +1,10 @@
 // @ts-ignore
-import {createTaichiModule} from './taichi'
+import { createTaichiModule } from "./taichi"
 
 
 type NativeTaichiAny = any
 
-let nativeTaichiInstance:NativeTaichiAny = undefined
+let nativeTaichiInstance: NativeTaichiAny = undefined
 
 async function createNativeTaichi() {
     if(nativeTaichiInstance !== undefined){
@@ -15,11 +15,11 @@ async function createNativeTaichi() {
 }
 
 let nativeTaichiProxy = {
-    get: function(unused:NativeTaichiAny, prop:string) {
+    get: function(unused: NativeTaichiAny, prop: string) {
         return  nativeTaichiInstance[prop]
     }
 }
 
 let nativeTaichi = new Proxy({},nativeTaichiProxy)
 
-export {nativeTaichi, createNativeTaichi, NativeTaichiAny}
+export { nativeTaichi, createNativeTaichi, NativeTaichiAny }

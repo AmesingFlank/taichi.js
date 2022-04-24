@@ -1,6 +1,5 @@
 import { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, TypeUtils, PrimitiveType, toNativePrimitiveType, TypeError } from "./Type"
-import { nativeTaichi, NativeTaichiAny } from "../native/taichi/GetTaichi"
-import { ResultOrError } from "./Error"
+import { NativeTaichiAny } from "../native/taichi/GetTaichi"
 import { assert, error } from "../utils/Logging"
 import { Value, ValueUtils } from "./Value"
 

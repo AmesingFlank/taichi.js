@@ -1,10 +1,9 @@
-import { Runtime } from '../backend/Runtime'
-import { SNodeTree } from '../data/SNodeTree'
-import { nativeTaichi, NativeTaichiAny } from '../native/taichi/GetTaichi'
-import { error } from '../utils/Logging'
+import { Runtime } from "../backend/Runtime"
+import { SNodeTree } from "../data/SNodeTree"
+import { nativeTaichi, NativeTaichiAny } from "../native/taichi/GetTaichi"
 import { Scope } from "./Scope"
-import { DepthTexture, TextureBase, toNativeImageDimensionality } from '../data/Texture'
-import { PrimitiveType, toNativePrimitiveType } from '../frontend/Type'
+import { DepthTexture, TextureBase, toNativeImageDimensionality } from "../data/Texture"
+import { PrimitiveType, toNativePrimitiveType } from "../frontend/Type"
 
 class Program {
     runtime: Runtime | null = null

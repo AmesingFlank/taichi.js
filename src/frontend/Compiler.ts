@@ -1,19 +1,17 @@
 import * as ts from "typescript";
-import { InMemoryHost } from "./InMemoryHost";
 import { ASTVisitor, VisitorResult } from "./ast/Visiter"
-import { CompiledKernel, TaskParams, ResourceBinding, ResourceType, KernelParams, RenderPipelineParams, VertexShaderParams, FragmentShaderParams, RenderPassParams } from "../backend/Kernel";
-import { nativeTaichi, NativeTaichiAny } from '../native/taichi/GetTaichi'
-import { error, assert } from '../utils/Logging'
+import { TaskParams, ResourceBinding, ResourceType, KernelParams, RenderPipelineParams, VertexShaderParams, FragmentShaderParams, RenderPassParams } from "../backend/Kernel";
+import { nativeTaichi, NativeTaichiAny } from "../native/taichi/GetTaichi"
+import { error } from "../utils/Logging"
 import { Scope } from "../program/Scope";
 import { Field } from "../data/Field";
-import { CanvasTexture, DepthTexture, getTextureCoordsNumComponents, isTexture, Texture, TextureBase } from "../data/Texture";
+import { DepthTexture, getTextureCoordsNumComponents, isTexture, TextureBase } from "../data/Texture";
 import { Program } from "../program/Program";
-import { getStmtKind, StmtKind } from "./Stmt"
 import { getWgslShaderBindings, getWgslShaderStage, WgslShaderStage } from "./WgslReflection"
 import { LibraryFunc } from "./Library";
-import { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, TypeUtils, PrimitiveType, toNativePrimitiveType, TypeError, FunctionType, HostObjectReferenceType } from "./Type"
+import { Type, TypeCategory, ScalarType, VectorType, PointerType, VoidType, TypeUtils, PrimitiveType, toNativePrimitiveType, FunctionType } from "./Type"
 import { Value, ValueUtils } from "./Value"
-import { BuiltinOp, BuiltinNullaryOp, BuiltinBinaryOp, BuiltinUnaryOp, BuiltinAtomicOp, BuiltinCustomOp, BuiltinOpFactory } from "./BuiltinOp";
+import { BuiltinOp, BuiltinAtomicOp, BuiltinOpFactory } from "./BuiltinOp";
 import { ResultOrError } from "./Error";
 import { ParsedFunction } from "./ParsedFunction";
 import { beginWith, isPlainOldData } from "../utils/Utils";
