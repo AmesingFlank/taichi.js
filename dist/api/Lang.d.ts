@@ -1,8 +1,7 @@
 import { PrimitiveType } from "../frontend/Type";
+import { Template } from '../frontend/KernelFactory';
 declare function addToKernelScope(obj: any): void;
 declare function clearKernelScope(): void;
-declare class Template {
-}
 declare function template(): Template;
 declare function kernel(argTypesOrCode: any, codeOrUndefined: any): ((...args: any[]) => void);
 declare function func(f: any): ((...args: any[]) => any);

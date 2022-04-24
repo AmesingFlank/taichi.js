@@ -3,7 +3,7 @@ import { ASTVisitor, VisitorResult } from "./ast/Visiter"
 import { TaskParams, ResourceBinding, ResourceType, KernelParams, RenderPipelineParams, VertexShaderParams, FragmentShaderParams, RenderPassParams } from "../backend/Kernel";
 import { nativeTaichi, NativeTaichiAny } from "../native/taichi/GetTaichi"
 import { error } from "../utils/Logging"
-import { Scope } from "../program/Scope";
+import { Scope } from "./Scope";
 import { Field } from "../data/Field";
 import { DepthTexture, getTextureCoordsNumComponents, isTexture, TextureBase } from "../data/Texture";
 import { Program } from "../program/Program";
