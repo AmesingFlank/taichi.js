@@ -11,18 +11,15 @@ async function testSimple(): Promise<boolean> {
     ti.addToKernelScope({f}) 
 
     let kernel = ti.kernel(
-        function k() {
-            //@ts-ignore
+        function k() { 
             for(let i of range(10)){
                 f[i] = i + i
-            }
-            //@ts-ignore
+            } 
             for(let i of range(10)){
                 f[i] = f[i] + i
-            }
-            //@ts-ignore
+            } 
             for(let i of range(10)){
-                f[i+1-1] = f[i-1+1] / 3
+                f[i+1-1] = i32(f[i-1+1] / 3)
             }
         }
     )

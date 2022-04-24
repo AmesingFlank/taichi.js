@@ -199,7 +199,7 @@ class SetImage {
             passEncoder.setVertexBuffer(0, this.vertexBuffer!);
             passEncoder.setBindGroup(0, bindGroup)
             passEncoder.draw(6,1, 0, 0);
-            passEncoder.endPass();
+            passEncoder.end();
         }
         this.device.queue.submit([commandEncoder.finish()]);
     }

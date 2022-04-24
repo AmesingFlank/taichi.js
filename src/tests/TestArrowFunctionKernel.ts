@@ -7,20 +7,17 @@ async function testArrowFunctionKernel(): Promise<boolean> {
      
     await ti.init() 
 
-    let f = ti.field(ti.i32, [10])
+    let f = ti.field(ti.f32, [10])
     ti.addToKernelScope({f}) 
 
     let kernel = ti.kernel(
         () => {
-            //@ts-ignore
             for(let i of range(10)){
                 f[i] = i + i
             }
-            //@ts-ignore
             for(let i of range(10)){
                 f[i] = f[i] + i
             }
-            //@ts-ignore
             for(let i of range(10)){
                 f[i+1-1] = f[i-1+1] / 3
             }
