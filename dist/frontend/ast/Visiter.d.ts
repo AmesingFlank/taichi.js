@@ -30,5 +30,6 @@ declare class ASTVisitor<T> {
     protected visitParenthesizedExpression(node: ts.ParenthesizedExpression): VisitorResult<T>;
     protected visitArrayLiteralExpression(node: ts.ArrayLiteralExpression): VisitorResult<T>;
     protected visitObjectLiteralExpression(node: ts.ObjectLiteralExpression): VisitorResult<T>;
+    protected visitThisKeyword(): VisitorResult<T>;
 }
 export { ASTVisitor, VisitorResult };

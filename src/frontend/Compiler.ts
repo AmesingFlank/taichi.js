@@ -136,6 +136,11 @@ class CompilingVisitor extends ASTVisitor<Value>{
     protected getNodeBaseSymbol(node: ts.Node): ts.Symbol | undefined {
         while (true) {
             if (this.hasNodeSymbol(node)) {
+                if (node.kind === ts.SyntaxKind.ThisKeyword) {
+                    // TS always recognizes assigns the `globalThis` symbol to `this`.
+                    // we shuold consider it as No-symbol.
+                    return undefined
+                }
                 return this.getNodeSymbol(node)
             }
             else if (node.kind === ts.SyntaxKind.PropertyAccessExpression) {
@@ -974,7 +979,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             if (typeof objHostValue === "object" && objHostValue && propText in objHostValue) {
                 return this.getValueFromAnyHostValue(objHostValue[propText])
             }
-        }
+        } 
         this.errorNode(node, "invalid propertyAccess: " + node.getText())
     }
 
@@ -1045,7 +1050,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
                     result = this.comma(result, thisValue)
                 }
                 return result
-            } 
+            }
             else if (isPlainOldData(val) && typeof val === "object") {
                 let valuesMap = new Map<string, Value>()
                 let keys = Object.keys(val)
@@ -1483,6 +1488,14 @@ class CompilingVisitor extends ASTVisitor<Value>{
         let value = new Value(new FunctionType())
         value.hostSideValue = ParsedFunction.makeFromParsedNode(node, this.parsedFunction!)
         return value
+    }
+
+    protected override visitThisKeyword(): VisitorResult<Value> {
+        return ValueUtils.makeHostObjectReference(this.kernelScope.thisObj)
+    }
+
+    protected override visitUnknown(node: ts.Node): VisitorResult<Value> {
+        this.errorNode(node, "Unsupported JS language construct")
     }
 }
 

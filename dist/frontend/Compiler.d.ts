@@ -87,6 +87,8 @@ declare class CompilingVisitor extends ASTVisitor<Value> {
     protected visitForStatement(node: ts.ForStatement): VisitorResult<Value>;
     protected visitFunctionDeclaration(node: ts.FunctionDeclaration): VisitorResult<Value>;
     protected visitArrowFunction(node: ts.ArrowFunction): VisitorResult<Value>;
+    protected visitThisKeyword(): VisitorResult<Value>;
+    protected visitUnknown(node: ts.Node): VisitorResult<Value>;
 }
 export declare class InliningCompiler extends CompilingVisitor {
     funcName: string;

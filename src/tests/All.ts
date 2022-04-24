@@ -40,9 +40,10 @@ import { testStruct } from "./TestStruct"
 import { testRets } from "./TestRets"
 import { testArgAnnotation } from "./TestArgAnnotation"
 import { testTemplateArgs } from "./TestTemplateArgs"
-import { testLambda } from "./TestLambda" 
+import { testLambda } from "./TestLambda"
 import { testHostObjectReference } from "./TestHostObjectReferece"
 import { testStaticIf } from "./TestStaticIf"
+import { testClassKernel } from "./TestClassKernel"
 
 async function runAllTests() {
     let passed = true
@@ -89,13 +90,14 @@ async function runAllTests() {
     passed &&= await testLambda()
     passed &&= await testHostObjectReference()
     passed &&= await testStaticIf()
+    passed &&= await testClassKernel()
 
     if (passed) {
         console.log("All tests passed")
     }
     else {
         error("TESTS FAILED")
-    } 
+    }
 }
 
 

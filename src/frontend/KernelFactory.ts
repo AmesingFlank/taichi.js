@@ -39,9 +39,9 @@ export class KernelFactory {
     static kernel(scope: Scope, argTypes: any, code: any): ((...args: any[]) => void) {
         let argsMapObj: any = {}
         code = code.toString() as string
-        if(argTypes){
+        if (argTypes) {
             argsMapObj = argTypes
-        } 
+        }
 
         let argTypesMap = new Map<string, Type>()
         let templateArgNamesSet = new Set<string>()

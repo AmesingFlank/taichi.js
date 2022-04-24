@@ -60,6 +60,8 @@ class ASTVisitor<T> {
                 return this.visitArrayLiteralExpression(node as ts.ArrayLiteralExpression)
             case ts.SyntaxKind.ObjectLiteralExpression:
                 return this.visitObjectLiteralExpression(node as ts.ObjectLiteralExpression)
+            case ts.SyntaxKind.ThisKeyword:
+                return this.visitThisKeyword()
             default:
                 return this.visitUnknown(node)
         }
@@ -178,6 +180,10 @@ class ASTVisitor<T> {
 
     protected visitObjectLiteralExpression(node: ts.ObjectLiteralExpression): VisitorResult<T> {
         return this.visitEachChild(node)
+    }
+
+    protected visitThisKeyword(): VisitorResult<T> {
+
     }
 }
 
