@@ -1,5 +1,5 @@
 
-import { Canvas } from "./ui/Canvas"
+import { Canvas } from "./api/ui/Canvas"
 
 import { runAllTests } from "./tests/All"
 

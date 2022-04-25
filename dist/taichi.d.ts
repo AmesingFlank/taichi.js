@@ -1,4 +1,4 @@
-import { Canvas } from "./ui/Canvas";
+import { Canvas } from "./api/ui/Canvas";
 import { runAllTests } from "./tests/All";
 import { init } from './api/Init';
 import { addToKernelScope, clearKernelScope, kernel, func, i32, f32, sync, template, classKernel } from './api/Lang';
