@@ -188,6 +188,9 @@ export function beginWith(str: string, substr: string):boolean {
     return str.slice(0, substr.length) === substr
 }
 
+export function endWith(str: string, substr: string):boolean {
+    return str.slice(-substr.length) === substr
+}
 
 export function isPlainOldData(val: any, recursionDepth:number = 0) : boolean {
     if(recursionDepth > 1024){
