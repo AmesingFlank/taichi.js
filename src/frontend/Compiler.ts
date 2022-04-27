@@ -1350,8 +1350,8 @@ class CompilingVisitor extends ASTVisitor<Value>{
             this.currentRenderPipelineParams.indexBuffer = indexBuffer
         }
         if (vertexArgs.length >= 3) {
-            this.assertNode(null, argumentValues[1].getType().getCategory() === TypeCategory.HostObjectReference && argumentValues[1].hostSideValue instanceof Field, `the indirect buffer ${vertexArgs[0].getText()} must be an instance of taichi field that's visible in kernel scope`)
-            let indirectBuffer = argumentValues[1].hostSideValue as Field
+            this.assertNode(null, argumentValues[2].getType().getCategory() === TypeCategory.HostObjectReference && argumentValues[2].hostSideValue instanceof Field, `the indirect buffer ${vertexArgs[0].getText()} must be an instance of taichi field that's visible in kernel scope`)
+            let indirectBuffer = argumentValues[2].hostSideValue as Field
             this.assertNode(null, indirectBuffer.dimensions.length === 1, "the indirect buffer must be a 1D field ")
             this.currentRenderPipelineParams.indirectBuffer = indirectBuffer
         }

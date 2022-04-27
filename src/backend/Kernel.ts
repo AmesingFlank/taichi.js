@@ -62,6 +62,7 @@ class RenderPipelineParams {
     }
 
     public bindings: ResourceBinding[]
+    public indirectCount : number | Field = 1
 
     public getBindings() {
         let bindings: ResourceBinding[] = []

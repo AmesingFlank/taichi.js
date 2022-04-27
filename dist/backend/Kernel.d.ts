@@ -45,6 +45,7 @@ declare class RenderPipelineParams {
     indirectBuffer: Field | null;
     constructor(vertex: VertexShaderParams, fragment: FragmentShaderParams, interpolatedType?: Type, vertexBuffer?: Field | null, indexBuffer?: Field | null, indirectBuffer?: Field | null);
     bindings: ResourceBinding[];
+    indirectCount: number | Field;
     getBindings(): ResourceBinding[];
 }
 interface ColorAttachment {

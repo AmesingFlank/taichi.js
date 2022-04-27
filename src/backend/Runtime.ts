@@ -187,19 +187,31 @@ class Runtime {
                 renderEncoder!.setBindGroup(0, task.bindGroup!)
 
                 if (task.params.vertexBuffer) {
-                    let vboTree = this.materializedTrees[task.params.vertexBuffer.snodeTree.treeId]
-                    renderEncoder!.setVertexBuffer(0, vboTree.rootBuffer!, task.params.vertexBuffer.offsetBytes, task.params.vertexBuffer.sizeBytes)
+                    let vertexBufferTree = this.materializedTrees[task.params.vertexBuffer.snodeTree.treeId]
+                    renderEncoder!.setVertexBuffer(0, vertexBufferTree.rootBuffer!, task.params.vertexBuffer.offsetBytes, task.params.vertexBuffer.sizeBytes)
                 }
 
                 if (task.params.indexBuffer) {
-                    let iboTree = this.materializedTrees[task.params.indexBuffer.snodeTree.treeId]
-                    renderEncoder!.setIndexBuffer(iboTree.rootBuffer!, "uint32", task.params.indexBuffer.offsetBytes, task.params.indexBuffer.sizeBytes)
+                    let indexBufferTree = this.materializedTrees[task.params.indexBuffer.snodeTree.treeId]
+                    renderEncoder!.setIndexBuffer(indexBufferTree.rootBuffer!, "uint32", task.params.indexBuffer.offsetBytes, task.params.indexBuffer.sizeBytes)
                 }
-                if (task.params.indexBuffer) {
-                    renderEncoder!.drawIndexed(task.getVertexCount())
+                if(!task.params.indirectBuffer){
+                    if (task.params.indexBuffer) {
+                        renderEncoder!.drawIndexed(task.getVertexCount())
+                    }
+                    else {
+                        renderEncoder!.draw(task.getVertexCount())
+                    }
                 }
-                else {
-                    renderEncoder!.draw(task.getVertexCount())
+                else{
+                    if(task.params.indirectCount === 1){
+                        let indirectBufferTree = this.materializedTrees[task.params.indirectBuffer.snodeTree.treeId]
+                        renderEncoder!.drawIndexedIndirect(indirectBufferTree.rootBuffer!, task.params.indirectBuffer.offsetBytes)
+                    }
+                    else{
+                        // WebGPU doesn't support multiple indirect draw natively, so we have to simulate
+                        error("multiple indirect draw not supported yet")
+                    }
                 }
             }
         }
