@@ -28,10 +28,8 @@ declare class TaskParams {
 }
 declare class VertexShaderParams {
     code: string;
-    VBO: Field | null;
     bindings: ResourceBinding[];
-    IBO: Field | null;
-    constructor(code?: string, VBO?: Field | null, bindings?: ResourceBinding[], IBO?: Field | null);
+    constructor(code?: string, bindings?: ResourceBinding[]);
 }
 declare class FragmentShaderParams {
     code: string;
@@ -42,7 +40,10 @@ declare class RenderPipelineParams {
     vertex: VertexShaderParams;
     fragment: FragmentShaderParams;
     interpolatedType: Type;
-    constructor(vertex: VertexShaderParams, fragment: FragmentShaderParams, interpolatedType?: Type);
+    vertexBuffer: Field | null;
+    indexBuffer: Field | null;
+    indirectBuffer: Field | null;
+    constructor(vertex: VertexShaderParams, fragment: FragmentShaderParams, interpolatedType?: Type, vertexBuffer?: Field | null, indexBuffer?: Field | null, indirectBuffer?: Field | null);
     bindings: ResourceBinding[];
     getBindings(): ResourceBinding[];
 }

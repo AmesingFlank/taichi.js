@@ -186,16 +186,16 @@ class Runtime {
                 renderEncoder!.setPipeline(task.pipeline!)
                 renderEncoder!.setBindGroup(0, task.bindGroup!)
 
-                if (task.params.vertex.VBO) {
-                    let vboTree = this.materializedTrees[task.params.vertex.VBO.snodeTree.treeId]
-                    renderEncoder!.setVertexBuffer(0, vboTree.rootBuffer!, task.params.vertex.VBO.offsetBytes, task.params.vertex.VBO.sizeBytes)
+                if (task.params.vertexBuffer) {
+                    let vboTree = this.materializedTrees[task.params.vertexBuffer.snodeTree.treeId]
+                    renderEncoder!.setVertexBuffer(0, vboTree.rootBuffer!, task.params.vertexBuffer.offsetBytes, task.params.vertexBuffer.sizeBytes)
                 }
 
-                if (task.params.vertex.IBO) {
-                    let iboTree = this.materializedTrees[task.params.vertex.IBO.snodeTree.treeId]
-                    renderEncoder!.setIndexBuffer(iboTree.rootBuffer!, "uint32", task.params.vertex.IBO.offsetBytes, task.params.vertex.IBO.sizeBytes)
+                if (task.params.indexBuffer) {
+                    let iboTree = this.materializedTrees[task.params.indexBuffer.snodeTree.treeId]
+                    renderEncoder!.setIndexBuffer(iboTree.rootBuffer!, "uint32", task.params.indexBuffer.offsetBytes, task.params.indexBuffer.sizeBytes)
                 }
-                if (task.params.vertex.IBO) {
+                if (task.params.indexBuffer) {
                     renderEncoder!.drawIndexed(task.getVertexCount())
                 }
                 else {
@@ -349,7 +349,7 @@ class Runtime {
         }
         let rootBuffer = this.device!.createBuffer({
             size: size,
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC | GPUBufferUsage.INDIRECT,
         })
         tree.rootBuffer = rootBuffer
         this.materializedTrees.push(tree)

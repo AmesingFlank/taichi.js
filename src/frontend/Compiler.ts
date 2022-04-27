@@ -979,7 +979,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             if (typeof objHostValue === "object" && objHostValue && propText in objHostValue) {
                 return this.getValueFromAnyHostValue(objHostValue[propText])
             }
-        } 
+        }
         this.errorNode(node, "invalid propertyAccess: " + node.getText())
     }
 
@@ -1339,25 +1339,31 @@ class CompilingVisitor extends ASTVisitor<Value>{
         let argumentValues: Value[] = vertexArgs.map((expr: ts.Expression) => this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(expr))))
         if (argumentValues.length >= 1) {
             this.assertNode(null, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && argumentValues[0].hostSideValue instanceof Field, `the vertex buffer ${vertexArgs[0].getText()} must be an instance of taichi field that's visible in kernel scope`)
-            let VBO = argumentValues[0].hostSideValue as Field
-            this.assertNode(null, VBO.dimensions.length === 1, "the vertex buffer must be a 1D field ")
-            this.currentRenderPipelineParams.vertex.VBO = VBO
+            let vertexBuffer = argumentValues[0].hostSideValue as Field
+            this.assertNode(null, vertexBuffer.dimensions.length === 1, "the vertex buffer must be a 1D field ")
+            this.currentRenderPipelineParams.vertexBuffer = vertexBuffer
         }
         if (argumentValues.length >= 2) {
             this.assertNode(null, argumentValues[1].getType().getCategory() === TypeCategory.HostObjectReference && argumentValues[1].hostSideValue instanceof Field, `the index buffer ${vertexArgs[0].getText()} must be an instance of taichi field that's visible in kernel scope`)
-            let IBO = argumentValues[1].hostSideValue as Field
-            this.assertNode(null, IBO.dimensions.length === 1 && IBO.elementType.getCategory() === TypeCategory.Scalar && TypeUtils.getPrimitiveType(IBO.elementType) === PrimitiveType.i32, "the index buffer must be a 1D field of i32 scalars")
-            this.currentRenderPipelineParams.vertex.IBO = IBO
+            let indexBuffer = argumentValues[1].hostSideValue as Field
+            this.assertNode(null, indexBuffer.dimensions.length === 1 && indexBuffer.elementType.getCategory() === TypeCategory.Scalar && TypeUtils.getPrimitiveType(indexBuffer.elementType) === PrimitiveType.i32, "the index buffer must be a 1D field of i32 scalars")
+            this.currentRenderPipelineParams.indexBuffer = indexBuffer
         }
         if (vertexArgs.length >= 3) {
-            this.errorNode(null, "Expecting only vertex buffer and index buffer")
+            this.assertNode(null, argumentValues[1].getType().getCategory() === TypeCategory.HostObjectReference && argumentValues[1].hostSideValue instanceof Field, `the indirect buffer ${vertexArgs[0].getText()} must be an instance of taichi field that's visible in kernel scope`)
+            let indirectBuffer = argumentValues[1].hostSideValue as Field
+            this.assertNode(null, indirectBuffer.dimensions.length === 1, "the indirect buffer must be a 1D field ")
+            this.currentRenderPipelineParams.indirectBuffer = indirectBuffer
+        }
+        if (vertexArgs.length >= 4) {
+            this.errorNode(null, "Expecting up to 3 arguments (vertex buffer, index buffer, indirect buffer) in inputVertices")
         }
         let loop = this.irBuilder.create_vertex_for();
 
         let loopGuard = this.irBuilder.get_vertex_loop_guard(loop);
         this.loopStack.push(LoopKind.VertexFor);
 
-        let vertexType = this.currentRenderPipelineParams.vertex.VBO!.elementType
+        let vertexType = this.currentRenderPipelineParams.vertexBuffer!.elementType
         let vertexInputValue = new Value(vertexType, [])
         let prims = vertexType.getPrimitivesList()
         for (let i = 0; i < prims.length; ++i) {

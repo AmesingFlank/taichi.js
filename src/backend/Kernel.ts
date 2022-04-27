@@ -33,9 +33,8 @@ class TaskParams {
 class VertexShaderParams {
     constructor(
         public code: string = "",
-        public VBO: Field | null = null,
         public bindings: ResourceBinding[] = [],
-        public IBO: Field | null = null
+
     ) {
 
     }
@@ -54,7 +53,10 @@ class RenderPipelineParams {
     constructor(
         public vertex: VertexShaderParams,
         public fragment: FragmentShaderParams,
-        public interpolatedType: Type = new StructType({})
+        public interpolatedType: Type = new StructType({}),
+        public vertexBuffer: Field | null = null,
+        public indexBuffer: Field | null = null,
+        public indirectBuffer: Field | null = null
     ) {
         this.bindings = this.getBindings()
     }
@@ -135,7 +137,7 @@ class CompiledRenderPipeline {
 
     private getGPUVertexBufferStates(): GPUVertexBufferLayout {
         let attrs: GPUVertexAttribute[] = []
-        let vertexInputType = this.params.vertex.VBO!.elementType
+        let vertexInputType = this.params.vertexBuffer!.elementType
         let prims = vertexInputType.getPrimitivesList()
         let getPrimFormat = (prim: PrimitiveType): GPUVertexFormat => {
             if (prim === PrimitiveType.f32) {
@@ -173,11 +175,11 @@ class CompiledRenderPipeline {
         return result
     }
     getVertexCount(): number {
-        if (this.params.vertex.IBO) {
-            return this.params.vertex.IBO.dimensions[0]
+        if (this.params.indexBuffer) {
+            return this.params.indexBuffer.dimensions[0]
         }
         else {
-            return this.params.vertex.VBO!.dimensions[0]
+            return this.params.vertexBuffer!.dimensions[0]
         }
     }
     createPipeline(device: GPUDevice, renderPassParams: RenderPassParams) {
