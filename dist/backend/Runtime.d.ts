@@ -3,11 +3,6 @@ import { CompiledKernel, KernelParams, ResourceBinding } from './Kernel';
 import { SNodeTree } from '../data/SNodeTree';
 import { Field } from '../data/Field';
 import { TextureBase, TextureDimensionality } from '../data/Texture';
-declare class FieldHostSideCopy {
-    intArray: number[];
-    floatArray: number[];
-    constructor(intArray: number[], floatArray: number[]);
-}
 declare class Runtime {
     adapter: GPUAdapter | null;
     device: GPUDevice | null;
@@ -37,5 +32,10 @@ declare class Runtime {
     getRootBuffer(treeId: number): GPUBuffer;
     copyHtmlImageToTexture(image: HTMLImageElement, texture: GPUTexture): Promise<void>;
     copyHtmlImagesToCubeTexture(images: HTMLImageElement[], texture: GPUTexture): Promise<void>;
+}
+declare class FieldHostSideCopy {
+    intArray: number[];
+    floatArray: number[];
+    constructor(intArray: number[], floatArray: number[]);
 }
 export { Runtime };

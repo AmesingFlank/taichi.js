@@ -33,6 +33,11 @@ class Field {
         }
     }
 
+    async toInt32Array(): Promise<number[]>{
+        let copy = await Program.getCurrentProgram().runtime!.deviceToHost(this);
+        return copy.intArray
+    }
+
     private ensureMaterialized() {
         Program.getCurrentProgram().materializeCurrentTree()
     }

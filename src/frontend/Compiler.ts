@@ -1356,7 +1356,25 @@ class CompilingVisitor extends ASTVisitor<Value>{
             this.currentRenderPipelineParams.indirectBuffer = indirectBuffer
         }
         if (vertexArgs.length >= 4) {
-            this.errorNode(null, "Expecting up to 3 arguments (vertex buffer, index buffer, indirect buffer) in inputVertices")
+            this.assertNode(null, argumentValues[3].getType().getCategory() === TypeCategory.Scalar && TypeUtils.getPrimitiveType(argumentValues[3].getType()) == PrimitiveType.i32, `the indirect count must be a i32 scalar`)
+            if (argumentValues[3].isCompileTimeConstant()) {
+                this.currentRenderPipelineParams.indirectCount = argumentValues[3].compileTimeConstants[0]
+            }
+            else {
+                // this.currentRenderPipelineParams.indirectCount = 
+                // let accessVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
+                // accessVec.push_back(this.irBuilder.get_int32(0))
+                // let ptr = this.irBuilder.create_global_ptr(, accessVec)
+
+                // for (let place of field.placeNodes) {
+                //     let ptr = this.irBuilder.create_global_ptr(place, accessVec);
+                //     result.stmts.push(ptr)
+                // }
+                error("dynamic draw count not supported")
+            }
+        }
+        if (vertexArgs.length >= 5) {
+            this.errorNode(null, "Expecting up to 4 arguments (vertex buffer, index buffer, indirect buffer, indirect count) in inputVertices")
         }
         let loop = this.irBuilder.create_vertex_for();
 

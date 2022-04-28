@@ -10,6 +10,7 @@ declare class Field {
     elementType: Type;
     constructor(snodeTree: SNodeTree, offsetBytes: number, sizeBytes: number, dimensions: number[], placeNodes: NativeTaichiAny[], elementType: Type);
     toArray1D(): Promise<number[]>;
+    toInt32Array(): Promise<number[]>;
     private ensureMaterialized;
     toArray(): Promise<any[]>;
     get(indices: number[]): Promise<any>;

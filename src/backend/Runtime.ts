@@ -6,14 +6,7 @@ import { Field } from '../data/Field'
 import { TypeCategory } from '../frontend/Type'
 import { TextureBase, TextureDimensionality } from '../data/Texture'
 
-class FieldHostSideCopy {
-    constructor(
-        public intArray: number[],
-        public floatArray: number[]
-    ) {
 
-    }
-}
 
 class Runtime {
     adapter: GPUAdapter | null = null
@@ -152,6 +145,21 @@ class Runtime {
             }
         }
 
+
+
+        let indirectPolyfills = new Map<CompiledRenderPipeline, IndirectPolyfillInfo>()
+        for(let task of kernel.tasks){
+            if(task instanceof CompiledRenderPipeline){
+                if(task.params.indirectBuffer){
+                    if(task.params.indirectCount !== 1){
+                        let polyfill = new IndirectPolyfillInfo(task.params.indirectBuffer, task.params.indirectCount)
+                        await polyfill.fillInfo()
+                        indirectPolyfills.set(task, polyfill)
+                    }
+                }
+            }
+        } 
+
         for (let task of kernel.tasks) {
             task.bindGroup = this.device!.createBindGroup({
                 layout: task.pipeline!.getBindGroupLayout(0),
@@ -195,7 +203,7 @@ class Runtime {
                     let indexBufferTree = this.materializedTrees[task.params.indexBuffer.snodeTree.treeId]
                     renderEncoder!.setIndexBuffer(indexBufferTree.rootBuffer!, "uint32", task.params.indexBuffer.offsetBytes, task.params.indexBuffer.sizeBytes)
                 }
-                if(!task.params.indirectBuffer){
+                if (!task.params.indirectBuffer) {
                     if (task.params.indexBuffer) {
                         renderEncoder!.drawIndexed(task.getVertexCount())
                     }
@@ -203,14 +211,18 @@ class Runtime {
                         renderEncoder!.draw(task.getVertexCount())
                     }
                 }
-                else{
-                    if(task.params.indirectCount === 1){
+                else {
+                    if (task.params.indirectCount === 1) {
                         let indirectBufferTree = this.materializedTrees[task.params.indirectBuffer.snodeTree.treeId]
                         renderEncoder!.drawIndexedIndirect(indirectBufferTree.rootBuffer!, task.params.indirectBuffer.offsetBytes)
                     }
-                    else{
-                        // WebGPU doesn't support multiple indirect draw natively, so we have to simulate
-                        error("multiple indirect draw not supported yet")
+                    else {
+                        assert(indirectPolyfills.has(task))
+                        let polyfill = indirectPolyfills.get(task)!
+                        //console.log(polyfill)
+                        for(let draw of polyfill.commands){
+                            renderEncoder!.drawIndexed(draw.indexCount,draw.instanceCount,draw.firstIndex,draw.baseVertex,draw.firstInstance)
+                        } 
                     }
                 }
             }
@@ -513,6 +525,46 @@ class Runtime {
             this.device!.queue.copyExternalImageToTexture(copySource, copyDest, extent)
         }
         await this.device!.queue.onSubmittedWorkDone()
+    }
+}
+
+class FieldHostSideCopy {
+    constructor(
+        public intArray: number[],
+        public floatArray: number[]
+    ) {
+
+    }
+}
+
+class IndirectDrawCommand {
+    constructor(
+        public indexCount: number,
+        public instanceCount: number,
+        public firstIndex: number,
+        public baseVertex: number,
+        public firstInstance: number
+    ) {
+
+    }
+}
+
+class IndirectPolyfillInfo {
+    constructor(public indirectBuffer: Field, public indirectCount: number | Field) {
+
+    }
+    commands: IndirectDrawCommand[] = []
+    async fillInfo() {
+        if (this.indirectCount instanceof Field) {
+            this.indirectCount = (await this.indirectCount.toInt32Array())[0]
+        }
+        let indirectBufferHost = await this.indirectBuffer.toInt32Array()
+        this.commands = []
+        for (let i = 0; i < this.indirectCount; ++i) {
+            let values = indirectBufferHost.slice(i * 5, i * 5 + 5)
+            let cmd = new IndirectDrawCommand(values[0], values[1], values[2], values[3], values[4])
+            this.commands.push(cmd)
+        }
     }
 }
 export { Runtime }
