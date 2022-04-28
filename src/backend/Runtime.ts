@@ -219,7 +219,6 @@ class Runtime {
                     else {
                         assert(indirectPolyfills.has(task))
                         let polyfill = indirectPolyfills.get(task)!
-                        //console.log(polyfill)
                         for(let draw of polyfill.commands){
                             renderEncoder!.drawIndexed(draw.indexCount,draw.instanceCount,draw.firstIndex,draw.baseVertex,draw.firstInstance)
                         } 

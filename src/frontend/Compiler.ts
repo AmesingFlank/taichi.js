@@ -15,6 +15,7 @@ import { BuiltinOp, BuiltinAtomicOp, BuiltinOpFactory } from "./BuiltinOp";
 import { ResultOrError } from "./Error";
 import { ParsedFunction } from "./ParsedFunction";
 import { beginWith, isPlainOldData } from "../utils/Utils";
+import { FieldFactory } from "../data/FieldFactory";
 
 
 
@@ -1361,16 +1362,12 @@ class CompilingVisitor extends ASTVisitor<Value>{
                 this.currentRenderPipelineParams.indirectCount = argumentValues[3].compileTimeConstants[0]
             }
             else {
-                // this.currentRenderPipelineParams.indirectCount = 
-                // let accessVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
-                // accessVec.push_back(this.irBuilder.get_int32(0))
-                // let ptr = this.irBuilder.create_global_ptr(, accessVec)
-
-                // for (let place of field.placeNodes) {
-                //     let ptr = this.irBuilder.create_global_ptr(place, accessVec);
-                //     result.stmts.push(ptr)
-                // }
-                error("dynamic draw count not supported")
+                this.currentRenderPipelineParams.indirectCount = FieldFactory.createField(new ScalarType(PrimitiveType.i32),[1])
+                Program.getCurrentProgram().materializeCurrentTree()
+                let accessVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
+                accessVec.push_back(this.irBuilder.get_int32(0))
+                let ptr = this.irBuilder.create_global_ptr(this.currentRenderPipelineParams.indirectCount.placeNodes[0], accessVec)
+                this.irBuilder.create_global_ptr_global_store(ptr, argumentValues[3].stmts[0]) 
             }
         }
         if (vertexArgs.length >= 5) {
