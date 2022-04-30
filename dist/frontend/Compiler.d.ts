@@ -12,9 +12,8 @@ import { ParsedFunction } from "./ParsedFunction";
 declare enum LoopKind {
     For = 0,
     While = 1,
-    StaticFor = 2,
-    VertexFor = 3,
-    FragmentFor = 4
+    VertexFor = 2,
+    FragmentFor = 3
 }
 declare type SymbolTable = Map<ts.Symbol, Value>;
 declare class CompilingVisitor extends ASTVisitor<Value> {

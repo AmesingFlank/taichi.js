@@ -1,7 +1,9 @@
-import { Vertex } from "./Vertex";
+import { Vertex, VertexAttrib, VertexAttribSet } from "./Vertex";
 import { Scene } from "./Scene"
 import { Material } from "./Material";
 import { Texture } from "../../data/Texture";
+import { Mesh, MeshPrimitive } from "./Mesh";
+import { SceneNode } from "./SceneNode";
 class Parser {
     static beginsWith(line: string, firstWord: string) {
         let words = line.trim().split(" ").filter(x => x.length !== 0);
@@ -36,15 +38,19 @@ export class ObjLoader {
         let response = await fetch(url)
         let objString: string = await response.text()
         let resultScene = new Scene()
+        resultScene.vertexAttribSet.set(VertexAttrib.Position)
+        resultScene.vertexAttribSet.set(VertexAttrib.TexCoords)
+        resultScene.vertexAttribSet.set(VertexAttrib.Normal)
 
         let urlParts = url.split("/")
         let baseURL = urlParts.slice(0, urlParts.length - 1).join("/") + "/";
 
         let lines = objString.split("\n");
         let texCoords = [];
-        let normals = [];
+        let normals = []; 
 
-        let currentMaterialId = 0
+        let currentPrimitive: MeshPrimitive | null = null
+        let meshPrimitivs: MeshPrimitive[] = []
 
         for (let l = 0; l < lines.length; ++l) {
             let thisLine = lines[l];
@@ -56,11 +62,14 @@ export class ObjLoader {
                 resultScene.materials = resultScene.materials.concat(materials)
             }
             else if (Parser.beginsWith(thisLine, "g") || Parser.beginsWith(thisLine, "o")) {
-
+                if(currentPrimitive){
+                    meshPrimitivs.push(currentPrimitive)
+                }
+                currentPrimitive = new MeshPrimitive(-1, 0, -1)
             }
             else if (Parser.beginsWith(thisLine, "v")) {
                 let pos = Parser.stringArrayToVec(tailWords, 3);
-                let newVertex = this.getNewVertex(pos, currentMaterialId)
+                let newVertex = this.getNewVertex(pos, resultScene.vertexAttribSet)
                 resultScene.vertices.push(newVertex)
             }
             else if (Parser.beginsWith(thisLine, "vt")) {
@@ -75,7 +84,7 @@ export class ObjLoader {
                 for (let i = 0; i < resultScene.materials.length; ++i) {
                     if (resultScene.materials[i].name === materialName) {
                         found = true
-                        currentMaterialId = i
+                        currentPrimitive!.materialID = i
                         break
                     }
                 }
@@ -84,6 +93,9 @@ export class ObjLoader {
                 }
             }
             else if (Parser.beginsWith(thisLine, "f")) {
+                if(currentPrimitive!.firstIndex === -1){
+                    currentPrimitive!.firstIndex = resultScene.indices.length
+                } 
                 let newIndices = [];
                 let vertexStrings = tailWords;
                 for (let v = 0; v < vertexStrings.length; ++v) {
@@ -102,24 +114,43 @@ export class ObjLoader {
                 resultScene.indices.push(newIndices[0])
                 resultScene.indices.push(newIndices[1])
                 resultScene.indices.push(newIndices[2])
+                currentPrimitive!.indexCount += 3
                 if (newIndices.length === 4) {
                     resultScene.indices.push(newIndices[0])
                     resultScene.indices.push(newIndices[2])
                     resultScene.indices.push(newIndices[3])
+                    currentPrimitive!.indexCount += 3
                 }
             }
-
         }
+        
+        if(currentPrimitive){
+            meshPrimitivs.push(currentPrimitive)
+        }
+
+        let rootNode = new SceneNode()
+        let rootNodeIndex = resultScene.nodes.length
+        resultScene.nodes.push(rootNode)
+
+        for(let prim of meshPrimitivs){
+            let mesh = new Mesh([prim])
+            let meshIndex = resultScene.meshes.length
+            resultScene.meshes.push(mesh)
+            let node = new SceneNode
+            let nodeIndex = resultScene.nodes.length
+            node.mesh = meshIndex
+            node.parent = rootNodeIndex
+            rootNode.children.push(nodeIndex)
+            resultScene.nodes.push(node)
+        }
+        resultScene.computeDrawInfo()
         return resultScene
     }
 
-    static getNewVertex(position: number[], materialID: number): Vertex {
-        return {
-            position,
-            normal: [0, 0, 0],
-            texCoords: [0, 0],
-            materialID,
-        }
+    static getNewVertex(position: number[], attribs:VertexAttribSet): Vertex {
+        let vertex = new Vertex(attribs)
+        vertex.position = position
+        return vertex
     }
 }
 

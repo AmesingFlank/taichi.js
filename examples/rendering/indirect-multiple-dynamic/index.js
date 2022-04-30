@@ -78,9 +78,7 @@ let main = async () => {
         if (window.shouldStop) {
             return;
         }
-        await render(i * 0.03);
-        if(i == 0)
-        console.log(await indirectBuffer.toArray())
+        render(i * 0.03); 
         i = i + 1;
         requestAnimationFrame(frame);
     }

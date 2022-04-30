@@ -15,6 +15,8 @@ class Runtime {
     materializedTrees: SNodeTree[] = []
     textures: TextureBase[] = []
 
+    supportsIndirectFirstInstance: boolean = false
+
     private globalTmpsBuffer: GPUBuffer | null = null
     private randStatesBuffer: GPUBuffer | null = null
 
@@ -28,16 +30,26 @@ class Runtime {
 
     async createDevice() {
         let alertWebGPUError = () => {
-            alert(`Webgpu not supported. Please ensure that you have Chrome 98+ with WebGPU Origin Trial Tokens, Chrome Canary, Firefox Nightly, or Safary Tech Preview`)
+            alert(`Webgpu not supported. Please ensure that you have Chrome 100w+ with WebGPU Origin Trial Tokens, Chrome Canary, Firefox Nightly, or Safary Tech Preview`)
         }
         if (!navigator.gpu) {
             alertWebGPUError()
         }
-        const adapter = await navigator.gpu.requestAdapter();
+        const adapter = await navigator.gpu.requestAdapter({
+            powerPreference: "high-performance"
+        });
         if (!adapter) {
             alertWebGPUError()
         }
-        const device = await adapter!.requestDevice();
+        const requiredFeatures: GPUFeatureName[] = [];
+        if (adapter!.features.has('indirect-first-instance')) {
+            this.supportsIndirectFirstInstance = true
+            requiredFeatures.push('indirect-first-instance')
+        } 
+
+        const device = await adapter!.requestDevice({
+            requiredFeatures
+        });
         if (!device) {
             alertWebGPUError()
         }
@@ -148,17 +160,17 @@ class Runtime {
 
 
         let indirectPolyfills = new Map<CompiledRenderPipeline, IndirectPolyfillInfo>()
-        for(let task of kernel.tasks){
-            if(task instanceof CompiledRenderPipeline){
-                if(task.params.indirectBuffer){
-                    if(task.params.indirectCount !== 1){
+        for (let task of kernel.tasks) {
+            if (task instanceof CompiledRenderPipeline) {
+                if (task.params.indirectBuffer) {
+                    if (task.params.indirectCount !== 1 || !this.supportsIndirectFirstInstance) {
                         let polyfill = new IndirectPolyfillInfo(task.params.indirectBuffer, task.params.indirectCount)
                         await polyfill.fillInfo()
                         indirectPolyfills.set(task, polyfill)
                     }
                 }
             }
-        } 
+        }
 
         for (let task of kernel.tasks) {
             task.bindGroup = this.device!.createBindGroup({
@@ -212,16 +224,16 @@ class Runtime {
                     }
                 }
                 else {
-                    if (task.params.indirectCount === 1) {
+                    if (task.params.indirectCount === 1 && this.supportsIndirectFirstInstance) {
                         let indirectBufferTree = this.materializedTrees[task.params.indirectBuffer.snodeTree.treeId]
                         renderEncoder!.drawIndexedIndirect(indirectBufferTree.rootBuffer!, task.params.indirectBuffer.offsetBytes)
                     }
                     else {
                         assert(indirectPolyfills.has(task))
                         let polyfill = indirectPolyfills.get(task)!
-                        for(let draw of polyfill.commands){
-                            renderEncoder!.drawIndexed(draw.indexCount,draw.instanceCount,draw.firstIndex,draw.baseVertex,draw.firstInstance)
-                        } 
+                        for (let draw of polyfill.commands) {
+                            renderEncoder!.drawIndexed(draw.indexCount, draw.instanceCount, draw.firstIndex, draw.baseVertex, draw.firstInstance)
+                        }
                     }
                 }
             }

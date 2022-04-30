@@ -9,6 +9,7 @@ declare class Runtime {
     kernels: CompiledKernel[];
     materializedTrees: SNodeTree[];
     textures: TextureBase[];
+    supportsIndirectFirstInstance: boolean;
     private globalTmpsBuffer;
     private randStatesBuffer;
     constructor();

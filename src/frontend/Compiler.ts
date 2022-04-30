@@ -20,7 +20,7 @@ import { FieldFactory } from "../data/FieldFactory";
 
 
 enum LoopKind {
-    For, While, StaticFor, VertexFor, FragmentFor
+    For, While, VertexFor, FragmentFor
 }
 
 type SymbolTable = Map<ts.Symbol, Value>
@@ -1206,13 +1206,11 @@ class CompilingVisitor extends ASTVisitor<Value>{
         if (shouldUnroll) {
             this.assertNode(null, rangeLengthValue.isCompileTimeConstant(), "for static range loops, the range must be a compile time constant")
             let rangeLength = rangeLengthValue.compileTimeConstants[0]
-            this.loopStack.push(LoopKind.StaticFor)
             for (let i = 0; i < rangeLength; ++i) {
                 let indexValue = ValueUtils.makeConstantScalar(i, this.irBuilder.get_int32(i), PrimitiveType.i32)
                 this.symbolTable.set(indexSymbols[0], indexValue)
                 this.dispatchVisit(body)
             }
-            this.loopStack.pop()
         }
         else {
             let zero = this.irBuilder.get_int32(0)
@@ -1248,7 +1246,6 @@ class CompilingVisitor extends ASTVisitor<Value>{
                 this.assertNode(null, len.isCompileTimeConstant(), "for static ndrange loops, each range must be a compile time constant")
                 totalLength *= len.compileTimeConstants[0]
             }
-            this.loopStack.push(LoopKind.StaticFor)
             for (let i = 0; i < totalLength; ++i) {
                 let indexType = new VectorType(PrimitiveType.i32, numDimensions)
                 let indexValue = new Value(indexType, [], [])
@@ -1266,7 +1263,6 @@ class CompilingVisitor extends ASTVisitor<Value>{
                 this.symbolTable.set(indexSymbols[0], indexValue)
                 this.dispatchVisit(body)
             }
-            this.loopStack.pop()
         }
         else {
             let product = lengthValues[0].stmts[0]
@@ -1362,12 +1358,12 @@ class CompilingVisitor extends ASTVisitor<Value>{
                 this.currentRenderPipelineParams.indirectCount = argumentValues[3].compileTimeConstants[0]
             }
             else {
-                this.currentRenderPipelineParams.indirectCount = FieldFactory.createField(new ScalarType(PrimitiveType.i32),[1])
+                this.currentRenderPipelineParams.indirectCount = FieldFactory.createField(new ScalarType(PrimitiveType.i32), [1])
                 Program.getCurrentProgram().materializeCurrentTree()
                 let accessVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
                 accessVec.push_back(this.irBuilder.get_int32(0))
                 let ptr = this.irBuilder.create_global_ptr(this.currentRenderPipelineParams.indirectCount.placeNodes[0], accessVec)
-                this.irBuilder.create_global_ptr_global_store(ptr, argumentValues[3].stmts[0]) 
+                this.irBuilder.create_global_ptr_global_store(ptr, argumentValues[3].stmts[0])
             }
         }
         if (vertexArgs.length >= 5) {
@@ -1671,7 +1667,7 @@ export class KernelCompiler extends CompilingVisitor {
         let returnType = new VoidType()
         if (this.returnValue !== null) {
             returnType = this.returnValue!.getType()
-        }
+        } 
         return new KernelParams(taskParams, this.kernelArgTypes, returnType, this.renderPassParams)
     }
 

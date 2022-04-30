@@ -52,32 +52,34 @@ let main = async () => {
         let mvp = proj.matmul(view);
 
         ti.clearColor(target, [0.1, 0.2, 0.3, 1]);
-        ti.useDepth(depth); 
+        ti.useDepth(depth);
         for (let v of ti.inputVertices(cubeVBO, cubeIBO)) {
             let pos = mvp.matmul((v * 500 + eye).concat([1.0]));
             ti.outputPosition(pos);
             ti.outputVertex(v);
         }
         for (let f of ti.inputFragments()) {
-            let color = ti.textureSample(cubemap, f) 
+            let color = ti.textureSample(cubemap, f)
             color[3] = 1.0
             ti.outputColor(target, color);
         }
-        for (let v of ti.inputVertices(sceneData.vertexBuffer, sceneData.indexBuffer)) {
-            let pos = mvp.matmul(v.position.concat([1.0]));
-            ti.outputPosition(pos);
-            ti.outputVertex(v);
-        }
-        for (let f of ti.inputFragments()) {
-            //let baseColor = getMaterialBaseColor(f.texCoords, f.materialID)
-            let normal = f.normal.normalized()
-            let viewDir = (eye-f.position).normalized()
-            //let color = baseColor * normal.dot([0.0, 1.0, 0.0])
-            let reflected = normal * 2 * normal.dot(viewDir) - viewDir
-            reflected = reflected.normalized()
-            let color = ti.textureSample(cubemap, reflected)
-            color[3] = 1.0
-            ti.outputColor(target, color);
+        for (let materialID of ti.static(ti.range(sceneData.materials.length))) {
+            for (let v of ti.inputVertices(sceneData.vertexBuffer, sceneData.indexBuffer, sceneData.drawInfoBuffers[materialID], sceneData.drawInfoBuffers[materialID].dimensions[0])) {
+                let pos = mvp.matmul(v.position.concat([1.0]));
+                ti.outputPosition(pos);
+                ti.outputVertex(v);
+            }
+            for (let f of ti.inputFragments()) {
+                //let baseColor = getMaterialBaseColor(f.texCoords, f.materialID)
+                let normal = f.normal.normalized()
+                let viewDir = (eye - f.position).normalized()
+                //let color = baseColor * normal.dot([0.0, 1.0, 0.0])
+                let reflected = normal * 2 * normal.dot(viewDir) - viewDir
+                reflected = reflected.normalized()
+                let color = ti.textureSample(cubemap, reflected)
+                color[3] = 1.0
+                ti.outputColor(target, color);
+            }
         }
     });
 

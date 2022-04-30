@@ -50,7 +50,7 @@ let main = async () => {
             instanceCount: 1,
             firstIndex: 0,
             baseVertex: 0,
-            firstInstance: 0
+            firstInstance: 1
         }
 
         ti.clearColor(target, [0.1, 0.2, 0.3, 1]);
