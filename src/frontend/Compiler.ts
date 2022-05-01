@@ -463,6 +463,8 @@ class CompilingVisitor extends ASTVisitor<Value>{
             "textureSample",
             "textureLoad",
             "textureStore",
+            "getVertexIndex",
+            "getInstanceIndex"
         ]
         for (let f of functions) {
             if (funcText === f || funcText === "ti." + f) {
@@ -681,6 +683,18 @@ class CompilingVisitor extends ASTVisitor<Value>{
             }
             this.irBuilder.create_texture_store(texture.nativeTexture, coordsStmtVec, valueStmtVec)
             return
+        }
+        if (funcText === "getVertexIndex") {
+            let resultType = new ScalarType(PrimitiveType.i32)
+            let result = new Value(resultType)
+            result.stmts.push(this.irBuilder.create_vertex_index_input())
+            return result
+        }
+        if (funcText === "getInstanceIndex") {
+            let resultType = new ScalarType(PrimitiveType.i32)
+            let result = new Value(resultType)
+            result.stmts.push(this.irBuilder.create_instance_index_input())
+            return result
         }
     }
 
@@ -1667,7 +1681,7 @@ export class KernelCompiler extends CompilingVisitor {
         let returnType = new VoidType()
         if (this.returnValue !== null) {
             returnType = this.returnValue!.getType()
-        } 
+        }
         return new KernelParams(taskParams, this.kernelArgTypes, returnType, this.renderPassParams)
     }
 

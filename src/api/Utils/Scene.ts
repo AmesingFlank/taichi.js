@@ -5,12 +5,17 @@ import { getVertexAttribSetKernelType, Vertex, VertexAttrib, VertexAttribSet } f
 import { SceneNode } from "./SceneNode";
 import { Mesh } from "./Mesh";
 import { DrawInfo, drawInfoKernelType } from "./DrawInfo";
+import { Transform } from "./Transform";
+import { InstanceInfo } from "./InstanceInfo";
 
 export interface SceneData {
     vertexBuffer: Field, // Field of Vertex
     indexBuffer: Field,  // Field of int
     drawInfoBuffers: Field[]
-    materialInfosBuffer: Field, // Field of MaterialInfo
+    drawInstanceInfoBuffers: Field[]
+    materialInfoBuffer: Field, // Field of MaterialInfo 
+    nodesBuffer:Field,
+
     materials: Material[]
     drawInfos: DrawInfo[][]
 }
@@ -27,6 +32,7 @@ export class Scene {
     rootNodes: number[] = []
     meshes: Mesh[] = []
     materialDrawInfos: DrawInfo[][] = []
+    materialDrawInstanceInfos: InstanceInfo[][] = []
 
     vertexAttribSet: VertexAttribSet = new VertexAttribSet(VertexAttrib.None)
 
@@ -37,9 +43,9 @@ export class Scene {
         let indexBuffer = ti.field(ti.i32, this.indices.length)
         await indexBuffer.fromArray(this.indices)
 
-        let materialInfosBuffer = ti.field(new Material(0).getInfoType(), this.materials.length)
+        let materialInfoBuffer = ti.field(new Material(0).getInfoType(), this.materials.length)
         let infosHost = this.materials.map(mat => mat.getInfo())
-        await materialInfosBuffer.fromArray(infosHost)
+        await materialInfoBuffer.fromArray(infosHost)
 
         let drawInfoBuffers:Field[] = []
         for(let drawInfos of this.materialDrawInfos){
@@ -48,13 +54,26 @@ export class Scene {
             drawInfoBuffers.push(buffer)
         }
 
+        let drawInstanceInfoBuffers: Field[] = []
+        for(let drawInstanceInfos of this.materialDrawInstanceInfos){
+            let buffer = ti.field(InstanceInfo.getKernelType(), drawInstanceInfos.length)
+            await buffer.fromArray(drawInstanceInfos)
+            drawInstanceInfoBuffers.push(buffer)
+        }
+
+        let nodesBuffer: Field = ti.field(SceneNode.getKernelType(), this.nodes.length)
+        await nodesBuffer.fromArray(this.nodes)
+
         let materials = this.materials.slice() 
         let drawInfos = this.materialDrawInfos.slice()
         return {
             vertexBuffer,
             indexBuffer,
             drawInfoBuffers,
-            materialInfosBuffer,
+            drawInstanceInfoBuffers,
+            materialInfoBuffer,
+            nodesBuffer,
+
             materials, 
             drawInfos
         }
@@ -62,10 +81,13 @@ export class Scene {
 
     computeDrawInfo() {
         this.materialDrawInfos = []
+        this.materialDrawInstanceInfos = []
         for (let i = 0; i < this.materials.length; ++i) {
             let thisMaterialDrawInfo: DrawInfo[] = []
+            let thisInstanceInfo: InstanceInfo[] = []
             let nextInstanceId = 0;
-            for (let node of this.nodes) {
+            for (let nodeIndex = 0; nodeIndex < this.nodes.length; ++nodeIndex) {
+                let node = this.nodes[nodeIndex]
                 if (node.mesh >= 0) {
                     let mesh = this.meshes[node.mesh]
                     for (let prim of mesh.primitives) {
@@ -78,12 +100,27 @@ export class Scene {
                                 nextInstanceId++
                             )
                             thisMaterialDrawInfo.push(drawInfo)
+                            let instanceInfo = new InstanceInfo(nodeIndex)
+                            thisInstanceInfo.push(instanceInfo)
                         }
                     }
                 }
             }
             this.materialDrawInfos.push(thisMaterialDrawInfo)
+            this.materialDrawInstanceInfos.push(thisInstanceInfo)
+        } 
+    }
+
+    computeGlobalTransforms(){
+        let visit = (nodeIndex:number, parentGlobalTransform:Transform) => {
+            let node = this.nodes[nodeIndex]
+            node.globalTransform = parentGlobalTransform.mul(node.localTransform)
+            for(let child of node.children){
+                visit(child, node.globalTransform)
+            }
         }
-        return this.materialDrawInfos
+        for(let rootIndex of this.rootNodes){
+            visit(rootIndex, new Transform)
+        }
     }
 }

@@ -17,7 +17,6 @@ let main = async () => {
 
     console.log(scene)
     console.log(sceneData)
-    console.log(await sceneData.vertexBuffer.toArray())
     ti.addToKernelScope({ sceneData, aspectRatio, target, depth })
 
     let render = ti.kernel(
@@ -26,12 +25,12 @@ let main = async () => {
             let eye = [sin(t), 0.0, cos(t)] * 100 + [0.0, 100.0, 0.0] + center;
             let view = ti.lookAt(eye, center, [0.0, 1.0, 0.0]);
             let proj = ti.perspective(45.0, aspectRatio, 0.1, 1000);
-            let mvp = proj.matmul(view);
+            let vp = proj.matmul(view);
             let getMaterialBaseColor = (texCoords, materialID) => {
                 let result = [0.0, 0.0, 0.0, 0.0]
                 for (let i of ti.static(range(sceneData.materials.length))) {
                     if (i === materialID) {
-                        let info = sceneData.materialInfosBuffer[i]
+                        let info = sceneData.materialInfoBuffer[i]
                         if (ti.static(sceneData.materials[i].baseColor.texture !== undefined)) {
                             result = ti.textureSample(sceneData.materials[i].baseColor.texture, texCoords)
                         }
@@ -48,6 +47,10 @@ let main = async () => {
 
             for (let materialID of ti.static(ti.range(sceneData.materials.length))) {
                 for (let v of ti.inputVertices(sceneData.vertexBuffer, sceneData.indexBuffer, sceneData.drawInfoBuffers[materialID], sceneData.drawInfoBuffers[materialID].dimensions[0])) {
+                    let instanceIndex = ti.getInstanceIndex()
+                    let nodeIndex = sceneData.drawInstanceInfoBuffers[materialID][instanceIndex].nodeIndex
+                    let modelMatrix = sceneData.nodesBuffer[nodeIndex].globalTransform.matrix
+                    let mvp = vp.matmul(modelMatrix)
                     let pos = mvp.matmul(v.position.concat([1.0]));
                     ti.outputPosition(pos);
                     ti.outputVertex(v);

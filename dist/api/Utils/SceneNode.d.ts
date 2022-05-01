@@ -3,6 +3,8 @@ export declare class SceneNode {
     constructor();
     parent: number;
     children: number[];
-    transform: Transform;
+    localTransform: Transform;
+    globalTransform: Transform;
     mesh: number;
+    static getKernelType(): import("../../frontend/Type").StructType;
 }

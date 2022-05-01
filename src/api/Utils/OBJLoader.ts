@@ -143,6 +143,7 @@ export class ObjLoader {
             rootNode.children.push(nodeIndex)
             resultScene.nodes.push(node)
         }
+        resultScene.rootNodes.push(rootNodeIndex)
         resultScene.computeDrawInfo()
         return resultScene
     }

@@ -4,11 +4,14 @@ import { Vertex, VertexAttribSet } from "./Vertex";
 import { SceneNode } from "./SceneNode";
 import { Mesh } from "./Mesh";
 import { DrawInfo } from "./DrawInfo";
+import { InstanceInfo } from "./InstanceInfo";
 export interface SceneData {
     vertexBuffer: Field;
     indexBuffer: Field;
     drawInfoBuffers: Field[];
-    materialInfosBuffer: Field;
+    drawInstanceInfoBuffers: Field[];
+    materialInfoBuffer: Field;
+    nodesBuffer: Field;
     materials: Material[];
     drawInfos: DrawInfo[][];
 }
@@ -21,7 +24,9 @@ export declare class Scene {
     rootNodes: number[];
     meshes: Mesh[];
     materialDrawInfos: DrawInfo[][];
+    materialDrawInstanceInfos: InstanceInfo[][];
     vertexAttribSet: VertexAttribSet;
     getKernelData(): Promise<SceneData>;
-    computeDrawInfo(): DrawInfo[][];
+    computeDrawInfo(): void;
+    computeGlobalTransforms(): void;
 }

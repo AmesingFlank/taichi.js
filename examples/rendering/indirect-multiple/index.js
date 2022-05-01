@@ -54,7 +54,7 @@ let main = async () => {
                 baseVertex: 0,
                 firstInstance: 0
             }
-        } 
+        }
 
         ti.clearColor(target, [0.1, 0.2, 0.3, 1]);
         ti.useDepth(depth);
@@ -75,7 +75,7 @@ let main = async () => {
         if (window.shouldStop) {
             return;
         }
-        render(i * 0.03); 
+        render(i * 0.03);
         i = i + 1;
         requestAnimationFrame(frame);
     }
