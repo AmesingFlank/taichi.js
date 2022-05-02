@@ -18,7 +18,6 @@ export declare class Material {
     hasTexture(): boolean;
 }
 export interface MaterialAttributeInfo {
-    hasValue: number;
     value: number | number[];
     hasTexture: number;
 }

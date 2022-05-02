@@ -15,27 +15,51 @@ import { matmul } from "../math";
 export class GltfLoader {
     static async loadFromURL(url: string): Promise<Scene> {
         let resultScene = new Scene()
-        const gltf = await load(url, endWith(url, ".gltf") ? GLTFLoader : GLBLoader);
+
+        let isGLB = endWith(url, ".glb")
+        const gltf = await load(url, isGLB ? GLBLoader : GLTFLoader, {
+            gltf: {
+                loadBuffers: true,
+                loadImages: true
+            }
+        });
+
         console.log(gltf)
         let buffers: Buffer[] = []
-        for (let chunk of gltf.binChunks) {
-            buffers.push(chunk.arrayBuffer)
+        let gltfJson: any
+        if (isGLB) {
+            for (let chunk of gltf.binChunks) {
+                buffers.push(new Buffer(chunk.arrayBuffer))
+            }
+            gltfJson = gltf.json
+        }
+        else {
+            gltfJson = gltf
         }
 
         let bufferViews: BufferView[] = []
-        for (let view of gltf.json.bufferViews) {
-            bufferViews.push(new BufferView(
-                buffers[view.buffer],
-                view.byteOffset,
-                view.byteLength,
-                view.byteStride ? view.byteStride : null
-            ))
+        for (let view of gltfJson.bufferViews) {
+            if (isGLB) {
+                bufferViews.push(BufferView.fromBuffer(
+                    buffers[view.buffer],
+                    view.byteOffset,
+                    view.byteLength,
+                    view.byteStride
+                ))
+            }
+            else {
+                bufferViews.push(BufferView.fromData(view.data,
+                    view.byteOffset,
+                    view.byteLength,
+                    view.byteStride))
+            }
         }
 
         let accessors: Accessor[] = []
-        for (let acc of gltf.json.accessors) {
+        for (let acc of gltfJson.accessors) {
+            let bufferViewIndex: number = getIndex(acc.bufferView)
             accessors.push(new Accessor(
-                bufferViews[acc.bufferView],
+                bufferViews[bufferViewIndex],
                 acc.byteOffset,
                 acc.count,
                 acc.componentType,
@@ -45,8 +69,8 @@ export class GltfLoader {
             ))
         }
 
-        for (let i = 0; i < gltf.json.materials.length; ++i) {
-            let inputMaterial = gltf.json.materials[i]
+        for (let i = 0; i < gltfJson.materials.length; ++i) {
+            let inputMaterial = gltfJson.materials[i]
             let resultMaterial = new Material(i);
             let pbr = inputMaterial.pbrMetallicRoughness
             if (pbr.baseColorFactor) {
@@ -55,8 +79,8 @@ export class GltfLoader {
             resultScene.materials.push(resultMaterial)
         }
 
-        for (let i = 0; i < gltf.json.meshes.length; ++i) {
-            let inputMesh = gltf.json.meshes[i]
+        for (let i = 0; i < gltfJson.meshes.length; ++i) {
+            let inputMesh = gltfJson.meshes[i]
             let resultMesh = new Mesh()
             for (let prim of inputMesh.primitives) {
                 if (prim.mode != 4) {
@@ -69,7 +93,7 @@ export class GltfLoader {
                 }
                 let thisPrimVertices: Vertex[] = []
 
-                let acc0: Accessor = accessors[prim.attributes[attrNames[0]]]
+                let acc0: Accessor = accessors[getIndex(prim.attributes[attrNames[0]])]
                 assert(Array.isArray(acc0.at(0)), "vertex attrib must be a vector", acc0.at(0), prim)
                 let attrib0 = getVeritexAttribFromGltfName(attrNames[0])
                 for (let j = 0; j < acc0.count; ++j) {
@@ -83,7 +107,7 @@ export class GltfLoader {
                     if (name === attrNames[0]) {
                         continue
                     }
-                    let acc: Accessor = accessors[prim.attributes[name]]
+                    let acc: Accessor = accessors[getIndex(prim.attributes[name])]
                     assert(Array.isArray(acc.at(0)), "vertex attrib must be a vector")
                     let attrib = getVeritexAttribFromGltfName(name)
                     assert(acc.count === thisPrimVertices.length, "accessor size mismatch")
@@ -102,7 +126,7 @@ export class GltfLoader {
                     }
                 }
                 else {
-                    let indicesAcc = accessors[prim.indices]
+                    let indicesAcc = accessors[getIndex(prim.indices)]
                     assert(typeof (indicesAcc.at(0)) === "number", "indices must be number")
                     for (let i = 0; i < indicesAcc.count; ++i) {
                         indices.push(indicesAcc.at(i) as number + baseVertex)
@@ -115,7 +139,7 @@ export class GltfLoader {
                 let indexCount = indices.length
                 let materialId = 0
                 if (prim.material !== undefined) {
-                    materialId = prim.material
+                    materialId = getIndex(prim.material)
                 }
 
                 let resultPrim = new MeshPrimitive(baseIndex, indexCount, materialId)
@@ -124,17 +148,20 @@ export class GltfLoader {
             resultScene.meshes.push(resultMesh)
         }
 
-        for (let i = 0; i < gltf.json.nodes.length; ++i) {
+        for (let i = 0; i < gltfJson.nodes.length; ++i) {
             resultScene.nodes.push(new SceneNode)
         }
-        for (let i = 0; i < gltf.json.nodes.length; ++i) {
-            let inputNode = gltf.json.nodes[i]
+        for (let i = 0; i < gltfJson.nodes.length; ++i) {
+            let inputNode = gltfJson.nodes[i]
             let resultNode = resultScene.nodes[i]
-            resultNode.mesh = inputNode.mesh
+            if (inputNode.mesh !== undefined) {
+                resultNode.mesh = getIndex(inputNode.mesh)
+            }
             if (inputNode.children) {
                 for (let child of inputNode.children) {
-                    resultNode.children.push(child)
-                    resultScene.nodes[child].parent = i
+                    let childIndex = getIndex(child)
+                    resultNode.children.push(childIndex)
+                    resultScene.nodes[childIndex].parent = i
                 }
             }
             if (inputNode.matrix) {
@@ -172,8 +199,7 @@ export class GltfLoader {
             }
         }
 
-        resultScene.computeDrawBatches()
-        resultScene.computeGlobalTransforms()
+        resultScene.init()
         return resultScene
     }
 }
@@ -188,12 +214,19 @@ class Buffer {
 
 class BufferView {
     constructor(
-        public buffer: Buffer,
+        public data: Uint8Array,
         public byteOffset: number,
         public byteLength: number,
-        public byteStride: number | null = null
+        public byteStride: number | undefined = undefined
     ) {
 
+    }
+    static fromBuffer(buffer: Buffer, byteOffset: number, byteLength: number, byteStride: number | undefined = undefined) {
+        let dataView = new Uint8Array(buffer.arrayBuffer, byteOffset, byteLength).slice()
+        return new BufferView(dataView, byteOffset, byteLength, byteStride)
+    }
+    static fromData(dataView: Uint8Array, byteOffset: number, byteLength: number, byteStride: number | undefined = undefined) {
+        return new BufferView(dataView.slice(), byteOffset, byteLength, byteStride)
     }
 }
 
@@ -253,17 +286,15 @@ class Accessor {
         public max: number | number[],
         public min: number | number[]
     ) {
-        let bufferConstructor = getComponentTypeJavascriptBufferType(componentType)
-        this.componentBufferView = new bufferConstructor(bufferView.buffer)
-
         this.componentNumBytes = getComponentTypeNumBytes(componentType)
         this.numComponents = getTypeNumComponents(type)
+        this.componentOffset = this.byteOffset / this.componentNumBytes
 
-        let totalByteOffset = byteOffset + bufferView.byteOffset
-        this.componentOffset = totalByteOffset / this.componentNumBytes
+        let bufferConstructor = getComponentTypeJavascriptBufferType(componentType)
+        this.componentBufferView = new bufferConstructor(bufferView.data.buffer, byteOffset, count * this.numComponents)
 
         let byteStride = this.numComponents * this.componentNumBytes
-        if (bufferView.byteStride !== null) {
+        if (bufferView.byteStride !== undefined) {
             byteStride = bufferView.byteStride
         }
         this.componentStride = byteStride / this.componentNumBytes
@@ -277,7 +308,7 @@ class Accessor {
     componentStride: number
 
     at(index: number): number | number[] {
-        let componentIndex = this.componentOffset + index * this.componentStride
+        let componentIndex = index * this.componentStride
         if (this.numComponents === 1) {
             return this.componentBufferView[componentIndex]
         }
@@ -291,11 +322,11 @@ function getVeritexAttribFromGltfName(name: string): VertexAttrib {
     switch (name) {
         case "POSITION": return VertexAttrib.Position
         case "NORMAL": return VertexAttrib.Normal
-        case "TEXCOORDS_0": return VertexAttrib.TexCoords
+        case "TEXCOORD_0": return VertexAttrib.TexCoords
         case "COLOR_0": return VertexAttrib.Color
         case "TANGENT": return VertexAttrib.Tangent
         default:
-            error("unsupported vertex attr name")
+            error(`unsupported vertex attr name: ${name}`)
             return VertexAttrib.None
     }
 }
@@ -336,4 +367,16 @@ function quatToMatrix(q: number[]): number[][] {
     m[2][1] = 2.0 * (tmp1 + tmp2) * invs;
     m[1][2] = 2.0 * (tmp1 - tmp2) * invs;
     return m
+}
+
+
+function getIndexFromIDString(idStr: string) {
+    return Number(idStr.split("-")[1])
+}
+
+function getIndex(x: any) {
+    if (typeof (x) === "number") {
+        return x
+    }
+    return getIndexFromIDString(x.id)
 }

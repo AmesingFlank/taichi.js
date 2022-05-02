@@ -38,7 +38,7 @@ export class Scene {
     batchesDrawInfos: DrawInfo[][] = []
     batchesDrawInstanceInfos: InstanceInfo[][] = []
 
-    vertexAttribSet: VertexAttribSet = new VertexAttribSet(VertexAttrib.None)
+    vertexAttribSet: VertexAttribSet = new VertexAttribSet(VertexAttrib.None) 
 
     async getKernelData(): Promise<SceneData> {
         let vertexBuffer = ti.field(getVertexAttribSetKernelType(this.vertexAttribSet), this.vertices.length)
@@ -77,6 +77,11 @@ export class Scene {
             nodesBuffer,
         }
     }
+
+    init() {
+        this.computeDrawBatches()
+        this.computeGlobalTransforms() 
+    } 
 
     computeDrawBatches() {
         this.batchesDrawInfos = []
@@ -124,8 +129,8 @@ export class Scene {
             this.batchesDrawInstanceInfos.push(textureFreeBatchInstanceInfo)
             this.batchInfos.push(new BatchInfo(-1)) // -1 stands for "this batch contains more than one (texture-free) materials"
         }
-        for(let batch of this.batchesDrawInfos){
-            for(let i = 0; i <batch.length;++i){
+        for (let batch of this.batchesDrawInfos) {
+            for (let i = 0; i < batch.length; ++i) {
                 batch[i].firstInstance = i
             }
         }

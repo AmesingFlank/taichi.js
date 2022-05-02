@@ -16,11 +16,10 @@ export class MaterialAttribute {
         if (this.numComponents > 1) {
             defaultValue = []
             for (let i = 0; i < this.numComponents; ++i) {
-                defaultValue.push(0.0)
+                defaultValue.push(1.0)
             }
         }
         return {
-            hasValue: this.value !== undefined ? 1 : 0,
             value: this.value !== undefined ? this.value : defaultValue,
             hasTexture: this.texture !== undefined ? 1 : 0,
         }
@@ -29,7 +28,6 @@ export class MaterialAttribute {
     getInfoType(): Type {
         let valueType = this.numComponents === 1 ? ti.f32 : ti.types.vector(ti.f32, this.numComponents)
         return ti.types.struct({
-            hasValue: ti.i32,
             value: valueType,
             hasTexture: ti.i32
         })
@@ -65,7 +63,6 @@ export class Material {
 
 
 export interface MaterialAttributeInfo {
-    hasValue: number // 1 or 0, representing true or false
     value: number | number[]
     hasTexture: number // 1 or 0, representing true or false
 }

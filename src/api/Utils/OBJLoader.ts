@@ -144,8 +144,8 @@ export class ObjLoader {
             resultScene.nodes.push(node)
         }
         resultScene.rootNodes.push(rootNodeIndex)
-        resultScene.computeDrawBatches()
-        resultScene.computeGlobalTransforms()
+        
+        resultScene.init()
 
         return resultScene
     }

@@ -856,7 +856,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
         let argument = node.argumentExpression
 
         let baseValue = this.extractVisitorResult(this.dispatchVisit(base))
-        let argumentValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(argument))) 
+        let argumentValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(argument)))
         let baseType = baseValue.getType()
         let argType = argumentValue.getType()
         this.assertNode(node, argType.getCategory() === TypeCategory.Scalar || argType.getCategory() === TypeCategory.Vector, "index must be scalar or vector")
@@ -998,7 +998,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
         console.log(objRef)
     }
 
-    protected getValueFromAnyHostValue(val: any, recursionDepth = 0): Value {
+    protected getValueFromAnyHostValue(val: any): Value {
         // returns a value if successful, otherwise returns an error msg
         let tryGetValue = (val: any, recursionDepth: number): Value | string => {
             if (recursionDepth > 1024) {

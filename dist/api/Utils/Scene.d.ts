@@ -27,6 +27,7 @@ export declare class Scene {
     batchesDrawInstanceInfos: InstanceInfo[][];
     vertexAttribSet: VertexAttribSet;
     getKernelData(): Promise<SceneData>;
+    init(): void;
     computeDrawBatches(): void;
     computeGlobalTransforms(): void;
 }
