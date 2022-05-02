@@ -184,42 +184,82 @@ export function elementToInt32Array(element: any, elementType: Type): Int32Array
     }
 }
 
-export function beginWith(str: string, substr: string):boolean {
+export function beginWith(str: string, substr: string): boolean {
     return str.slice(0, substr.length) === substr
 }
 
-export function endWith(str: string, substr: string):boolean {
+export function endWith(str: string, substr: string): boolean {
     return str.slice(-substr.length) === substr
 }
 
-export function isPlainOldData(val: any, recursionDepth:number = 0) : boolean {
-    if(recursionDepth > 1024){
+export function isHostSideVector(val: any): boolean {
+    if (!Array.isArray(val)) {
         return false
     }
-    switch(typeof val){ 
-        case "object":{
-            if(!val){
+    if (val.length === 0) {
+        return false
+    }
+    for (let n of val) {
+        if (typeof (n) !== "number") {
+            return false
+        }
+    }
+    return true
+}
+
+export function isHostSideMatrix(val: any): boolean {
+    if (!Array.isArray(val)) {
+        return false
+    }
+    if (val.length === 0) {
+        return false
+    }
+    for (let v of val) {
+        if (!isHostSideVector(v)) {
+            return false
+        }
+    }
+    let numCols = val[0].length
+    for (let v of val) {
+        if (v.length !== numCols) {
+            return false
+        }
+    }
+    return true
+}
+
+export function isHostSideVectorOrMatrix(val: any): boolean {
+    return isHostSideVector(val) || isHostSideMatrix(val)
+}
+
+export function isPlainOldData(val: any, recursionDepth: number = 0): boolean {
+    if (recursionDepth > 1024) {
+        return false
+    }
+    switch (typeof val) {
+        case "object": {
+            if (!val) {
                 return false;
             }
-            if(Array.isArray(val)){
-                for(let e of val){
-                    if(!isPlainOldData(e, recursionDepth + 1)){
+            if (Array.isArray(val)) {
+                for (let e of val) {
+                    if (!isPlainOldData(e, recursionDepth + 1)) {
                         return false
                     }
                 }
                 return true
             }
-            for(let key in val){
-                if(!isPlainOldData(val[key], recursionDepth + 1)){
+            for (let key in val) {
+                if (!isPlainOldData(val[key], recursionDepth + 1)) {
                     return false
                 }
             }
             return true
-        } 
-        case "number":{
+        }
+        case "number": {
             return true
         }
-        case "boolean":{
+        case "boolean": {
             return true
         }
         default:

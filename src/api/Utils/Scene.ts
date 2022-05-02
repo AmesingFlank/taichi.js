@@ -7,6 +7,7 @@ import { Mesh } from "./Mesh";
 import { DrawInfo, drawInfoKernelType } from "./DrawInfo";
 import { Transform } from "./Transform";
 import { InstanceInfo } from "./InstanceInfo";
+import { BatchInfo } from "./BatchInfo";
 
 export interface SceneData {
     vertexBuffer: Field, // Field of Vertex
@@ -33,6 +34,7 @@ export class Scene {
     rootNodes: number[] = []
     meshes: Mesh[] = []
 
+    batchInfos: BatchInfo[] = []
     batchesDrawInfos: DrawInfo[][] = []
     batchesDrawInstanceInfos: InstanceInfo[][] = []
 
@@ -110,6 +112,7 @@ export class Scene {
             if (material.hasTexture()) {
                 this.batchesDrawInfos.push(thisMaterialDrawInfo)
                 this.batchesDrawInstanceInfos.push(thisMaterialInstanceInfo)
+                this.batchInfos.push(new BatchInfo(i))
             }
             else {
                 textureFreeBatchDrawInfo = textureFreeBatchDrawInfo.concat(thisMaterialDrawInfo)
@@ -119,6 +122,7 @@ export class Scene {
         if (textureFreeBatchDrawInfo.length > 0 && textureFreeBatchInstanceInfo.length > 0) {
             this.batchesDrawInfos.push(textureFreeBatchDrawInfo)
             this.batchesDrawInstanceInfos.push(textureFreeBatchInstanceInfo)
+            this.batchInfos.push(new BatchInfo(-1)) // -1 stands for "this batch contains more than one (texture-free) materials"
         }
         for(let batch of this.batchesDrawInfos){
             for(let i = 0; i <batch.length;++i){

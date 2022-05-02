@@ -14,7 +14,7 @@ import { Value, ValueUtils } from "./Value"
 import { BuiltinOp, BuiltinAtomicOp, BuiltinOpFactory } from "./BuiltinOp";
 import { ResultOrError } from "./Error";
 import { ParsedFunction } from "./ParsedFunction";
-import { beginWith, isPlainOldData } from "../utils/Utils";
+import { beginWith, isHostSideVectorOrMatrix, isPlainOldData } from "../utils/Utils";
 import { FieldFactory } from "../data/FieldFactory";
 
 
@@ -856,7 +856,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
         let argument = node.argumentExpression
 
         let baseValue = this.extractVisitorResult(this.dispatchVisit(base))
-        let argumentValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(argument)))
+        let argumentValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(argument))) 
         let baseType = baseValue.getType()
         let argType = argumentValue.getType()
         this.assertNode(node, argType.getCategory() === TypeCategory.Scalar || argType.getCategory() === TypeCategory.Vector, "index must be scalar or vector")
@@ -882,7 +882,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
                 return result
             }
             if (Array.isArray(baseValue.hostSideValue)) {
-                this.assertNode(node, argumentValue.isCompileTimeConstant(), "index for accessing a host-side array must be compile-time evaluable")
+                this.assertNode(node, argumentValue.isCompileTimeConstant(), `index for accessing a host-side array must be compile-time evaluable. Bad index: ${node.argumentExpression.getText()}`)
                 this.assertNode(node, argType.getPrimitivesList().length === 1, "can only use 1D access on host-side arrays")
                 let element = baseValue.hostSideValue[argumentValue.compileTimeConstants[0]]
                 return this.getValueFromAnyHostValue(element)
@@ -910,7 +910,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             }
         }
         else {
-            this.errorNode(node, "only vectors and matrices can be indexed")
+            this.errorNode(node, "only vectors, matrices, and JS-scope arrays can be indexed")
         }
     }
 
@@ -995,7 +995,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
                 return this.getValueFromAnyHostValue(objHostValue[propText])
             }
         }
-        this.errorNode(node, "invalid propertyAccess: " + node.getText())
+        console.log(objRef)
     }
 
     protected getValueFromAnyHostValue(val: any, recursionDepth = 0): Value {
@@ -1038,10 +1038,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
                 value.hostSideValue = parsedFunction
                 return value
             }
-            else if (isPlainOldData(val) && Array.isArray(val)) {
-                if (val.length === 0) {
-                    return "cannot use empty arrays"
-                }
+            else if (isHostSideVectorOrMatrix(val)) {
                 let result = tryGetValue(val[0], recursionDepth + 1)
                 if (typeof result === "string") {
                     return result
@@ -1066,7 +1063,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
                 }
                 return result
             }
-            else if (isPlainOldData(val) && typeof val === "object") {
+            else if (isPlainOldData(val) && typeof val === "object" && !Array.isArray(val)) {
                 let valuesMap = new Map<string, Value>()
                 let keys = Object.keys(val)
                 for (let k of keys) {

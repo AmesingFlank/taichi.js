@@ -26,26 +26,20 @@ let main = async () => {
             let view = ti.lookAt(eye, center, [0.0, 1.0, 0.0]);
             let proj = ti.perspective(45.0, aspectRatio, 0.1, 1000);
             let vp = proj.matmul(view);
-            let getMaterialBaseColor = (texCoords, materialID) => {
-                let result = [0.0, 0.0, 0.0, 0.0]
-                for (let i of ti.static(range(scene.materials.length))) {
-                    if (i === materialID) {
-                        let info = sceneData.materialInfoBuffer[i]
-                        if (ti.static(scene.materials[i].baseColor.texture !== undefined)) {
-                            result = ti.textureSample(scene.materials[i].baseColor.texture, texCoords) * info.baseColor.value
-                        }
-                        else {
-                            result = info.baseColor.value
-                        }
-                    }
-                }
-                return result
-            }
+
 
             ti.useDepth(depth);
             ti.clearColor(target, [0.1, 0.2, 0.3, 1]);
 
             for (let batchID of ti.static(ti.range(sceneData.batchesDrawInfoBuffers.length))) {
+                let getMaterialBaseColor = (texCoords, materialID) => {
+                    let materialInfo = sceneData.materialInfoBuffer[materialID]
+                    let baseColor = materialInfo.baseColor.value
+                    if (ti.static(scene.batchInfos[batchID].materialIndex != -1)) {
+                        baseColor = baseColor * ti.textureSample(scene.materials[scene.batchInfos[batchID].materialIndex].baseColor.texture, texCoords)
+                    }
+                    return baseColor
+                }
                 for (let v of ti.inputVertices(sceneData.vertexBuffer, sceneData.indexBuffer, sceneData.batchesDrawInfoBuffers[batchID], sceneData.batchesDrawInfoBuffers[batchID].dimensions[0])) {
                     let instanceIndex = ti.getInstanceIndex()
                     let instanceInfo = sceneData.batchesDrawInstanceInfoBuffers[batchID][instanceIndex]

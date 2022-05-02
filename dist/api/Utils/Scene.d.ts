@@ -5,6 +5,7 @@ import { SceneNode } from "./SceneNode";
 import { Mesh } from "./Mesh";
 import { DrawInfo } from "./DrawInfo";
 import { InstanceInfo } from "./InstanceInfo";
+import { BatchInfo } from "./BatchInfo";
 export interface SceneData {
     vertexBuffer: Field;
     indexBuffer: Field;
@@ -21,6 +22,7 @@ export declare class Scene {
     nodes: SceneNode[];
     rootNodes: number[];
     meshes: Mesh[];
+    batchInfos: BatchInfo[];
     batchesDrawInfos: DrawInfo[][];
     batchesDrawInstanceInfos: InstanceInfo[][];
     vertexAttribSet: VertexAttribSet;

@@ -14,7 +14,7 @@ export class Value {
     // only used when 
     // type.getCategory() === TypeCategory.Function, in which case it is a ParsedFunction
     // type.getCategory() === TypeCategory.HostObjectReference, in which case it can be anything
-    hostSideValue:any = undefined 
+    hostSideValue: any = undefined
 
     private type_: Type
     getType(): Type {
@@ -244,7 +244,7 @@ export class ValueUtils {
         assert(TypeUtils.isValueOrPointerOfCategory(v1.getType(), TypeCategory.Vector))
         let components0 = ValueUtils.getVectorComponents(v0)
         let components1 = ValueUtils.getVectorComponents(v1)
-        let components = components0.concat(components1) 
+        let components = components0.concat(components1)
         return ValueUtils.makeVectorFromScalars(components)
     }
 
@@ -276,6 +276,18 @@ export class ValueUtils {
             let stmts = valuesMap.get(k)!.stmts
             result.stmts = result.stmts.concat(stmts)
         }
+        let isCompileTimeConstant = true
+        for (let k of keys) {
+            if (!valuesMap.get(k)!.isCompileTimeConstant()) {
+                isCompileTimeConstant = false
+            }
+        }
+        if (isCompileTimeConstant) {
+            for (let k of keys) {
+                let compileTimeConstants = valuesMap.get(k)!.compileTimeConstants
+                result.compileTimeConstants = result.compileTimeConstants.concat(compileTimeConstants)
+            }
+        }
         return result
     }
 
@@ -306,15 +318,17 @@ export class ValueUtils {
             }
             let stmts = structValue.stmts.slice(offset, offset + numPrims)
             let val = new Value(memberType, stmts)
+            if (structValue.isCompileTimeConstant()) {
+                val.compileTimeConstants = structValue.compileTimeConstants.slice(offset, offset + numPrims)
+            }
             result.set(k, val)
         }
         return result
     }
 
-    static makeHostObjectReference(val:any){
+    static makeHostObjectReference(val: any) {
         let result = new Value(new HostObjectReferenceType())
         result.hostSideValue = val
         return result
     }
 }
- 
