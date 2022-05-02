@@ -47,7 +47,7 @@ export class ObjLoader {
 
         let lines = objString.split("\n");
         let texCoords = [];
-        let normals = []; 
+        let normals = [];
 
         let currentPrimitive: MeshPrimitive | null = null
         let meshPrimitivs: MeshPrimitive[] = []
@@ -62,7 +62,7 @@ export class ObjLoader {
                 resultScene.materials = resultScene.materials.concat(materials)
             }
             else if (Parser.beginsWith(thisLine, "g") || Parser.beginsWith(thisLine, "o")) {
-                if(currentPrimitive){
+                if (currentPrimitive) {
                     meshPrimitivs.push(currentPrimitive)
                 }
                 currentPrimitive = new MeshPrimitive(-1, 0, -1)
@@ -93,9 +93,9 @@ export class ObjLoader {
                 }
             }
             else if (Parser.beginsWith(thisLine, "f")) {
-                if(currentPrimitive!.firstIndex === -1){
+                if (currentPrimitive!.firstIndex === -1) {
                     currentPrimitive!.firstIndex = resultScene.indices.length
-                } 
+                }
                 let newIndices = [];
                 let vertexStrings = tailWords;
                 for (let v = 0; v < vertexStrings.length; ++v) {
@@ -123,8 +123,8 @@ export class ObjLoader {
                 }
             }
         }
-        
-        if(currentPrimitive){
+
+        if (currentPrimitive) {
             meshPrimitivs.push(currentPrimitive)
         }
 
@@ -132,7 +132,7 @@ export class ObjLoader {
         let rootNodeIndex = resultScene.nodes.length
         resultScene.nodes.push(rootNode)
 
-        for(let prim of meshPrimitivs){
+        for (let prim of meshPrimitivs) {
             let mesh = new Mesh([prim])
             let meshIndex = resultScene.meshes.length
             resultScene.meshes.push(mesh)
@@ -144,11 +144,13 @@ export class ObjLoader {
             resultScene.nodes.push(node)
         }
         resultScene.rootNodes.push(rootNodeIndex)
-        resultScene.computeDrawInfo()
+        resultScene.computeDrawBatches()
+        resultScene.computeGlobalTransforms()
+
         return resultScene
     }
 
-    static getNewVertex(position: number[], attribs:VertexAttribSet): Vertex {
+    static getNewVertex(position: number[], attribs: VertexAttribSet): Vertex {
         let vertex = new Vertex(attribs)
         vertex.position = position
         return vertex
@@ -167,7 +169,7 @@ export class MtlLoader {
         let baseURL = urlParts.slice(0, urlParts.length - 1).join("/") + "/";
 
         let lines = mtlString.split("\n");
-        let currentMaterial : Material|null = null;
+        let currentMaterial: Material | null = null;
         for (let l = 0; l < lines.length; ++l) {
             let thisLine = lines[l];
             let tailWords = Parser.tailWords(thisLine);
@@ -181,7 +183,7 @@ export class MtlLoader {
             }
             else if (Parser.beginsWith(thisLine, "Kd")) {
                 let color = Parser.stringArrayToVec(tailWords, 4)
-                if(tailWords.length === 3){
+                if (tailWords.length === 3) {
                     color[3] = 1
                 }
                 currentMaterial!.baseColor.value = color;
@@ -191,7 +193,7 @@ export class MtlLoader {
                 let url = baseURL + fileName
                 let texture = await Texture.createFromURL(url)
                 currentMaterial!.baseColor.texture = texture
-            } 
+            }
         }
         if (currentMaterial != null) {
             materials.push(currentMaterial)

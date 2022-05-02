@@ -19,6 +19,7 @@ export declare function getVertexAttribSetKernelType(attribs: VertexAttribSet): 
 export declare class Vertex {
     attribs: VertexAttribSet;
     constructor(attribs: VertexAttribSet);
+    setAttribValue(attrib: VertexAttrib, value: number[]): void;
     ensureAttrib(attrib: VertexAttrib): void;
     ensureAttribs(attribs: VertexAttribSet): void;
     position: number[] | null;

@@ -8,12 +8,10 @@ import { InstanceInfo } from "./InstanceInfo";
 export interface SceneData {
     vertexBuffer: Field;
     indexBuffer: Field;
-    drawInfoBuffers: Field[];
-    drawInstanceInfoBuffers: Field[];
+    batchesDrawInfoBuffers: Field[];
+    batchesDrawInstanceInfoBuffers: Field[];
     materialInfoBuffer: Field;
     nodesBuffer: Field;
-    materials: Material[];
-    drawInfos: DrawInfo[][];
 }
 export declare class Scene {
     constructor();
@@ -23,10 +21,10 @@ export declare class Scene {
     nodes: SceneNode[];
     rootNodes: number[];
     meshes: Mesh[];
-    materialDrawInfos: DrawInfo[][];
-    materialDrawInstanceInfos: InstanceInfo[][];
+    batchesDrawInfos: DrawInfo[][];
+    batchesDrawInstanceInfos: InstanceInfo[][];
     vertexAttribSet: VertexAttribSet;
     getKernelData(): Promise<SceneData>;
-    computeDrawInfo(): void;
+    computeDrawBatches(): void;
     computeGlobalTransforms(): void;
 }

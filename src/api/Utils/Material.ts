@@ -57,6 +57,10 @@ export class Material {
             baseColor: this.baseColor.getInfoType()
         })
     }
+
+    hasTexture():boolean {
+        return this.baseColor.texture !== undefined
+    }
 }
 
 

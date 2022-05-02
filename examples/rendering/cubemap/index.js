@@ -63,10 +63,10 @@ let main = async () => {
             color[3] = 1.0
             ti.outputColor(target, color);
         }
-        for (let materialID of ti.static(ti.range(sceneData.materials.length))) {
-            for (let v of ti.inputVertices(sceneData.vertexBuffer, sceneData.indexBuffer, sceneData.drawInfoBuffers[materialID], sceneData.drawInfoBuffers[materialID].dimensions[0])) {
+        for (let batchID of ti.static(ti.range(sceneData.batchesDrawInfoBuffers.length))) {
+            for (let v of ti.inputVertices(sceneData.vertexBuffer, sceneData.indexBuffer, sceneData.batchesDrawInfoBuffers[batchID], sceneData.batchesDrawInfoBuffers[batchID].dimensions[0])) {
                 let instanceIndex = ti.getInstanceIndex()
-                let nodeIndex = sceneData.drawInstanceInfoBuffers[materialID][instanceIndex].nodeIndex
+                let nodeIndex = sceneData.batchesDrawInstanceInfoBuffers[batchID][instanceIndex].nodeIndex
                 let modelMatrix = sceneData.nodesBuffer[nodeIndex].globalTransform.matrix
                 let mvp = vp.matmul(modelMatrix)
                 let pos = mvp.matmul(v.position.concat([1.0]));

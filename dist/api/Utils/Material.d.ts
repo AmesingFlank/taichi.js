@@ -15,6 +15,7 @@ export declare class Material {
     baseColor: MaterialAttribute;
     getInfo(): MaterialInfo;
     getInfoType(): Type;
+    hasTexture(): boolean;
 }
 export interface MaterialAttributeInfo {
     hasValue: number;

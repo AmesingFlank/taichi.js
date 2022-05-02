@@ -69,43 +69,36 @@ export class Vertex {
             this.ensureAttrib(attr)
         })
     }
-    ensureAttrib(attrib: VertexAttrib) {
-        let numComponents = getVertexAttribNumComponents(attrib)
-        let zeros = Array(numComponents).fill(0)
+    setAttribValue(attrib: VertexAttrib, value: number[]) {
         switch (attrib) {
             case VertexAttrib.Position: {
-                if (!this.position) {
-                    this.position = zeros
-                }
+                this.position = value
                 break;
             }
             case VertexAttrib.Normal: {
-                if (!this.normal) {
-                    this.normal = zeros
-                }
+                this.normal = value
                 break;
             }
             case VertexAttrib.Tangent: {
-                if (!this.tangent) {
-                    this.tangent = zeros
-                }
+                this.tangent = value
                 break;
             }
             case VertexAttrib.TexCoords: {
-                if (!this.texCoords) {
-                    this.texCoords = zeros
-                }
+                this.texCoords = value
                 break;
             }
             case VertexAttrib.Color: {
-                if (!this.color) {
-                    this.color = zeros
-                }
+                this.color = value
                 break;
             }
             default:
-                error("ensureAttrib called on None or All")
+                error("setAttribValue called on None or All")
         }
+    }
+    ensureAttrib(attrib: VertexAttrib) {
+        let numComponents = getVertexAttribNumComponents(attrib)
+        let zeros = Array(numComponents).fill(0)
+        this.setAttribValue(attrib, zeros)
     }
     ensureAttribs(attribs: VertexAttribSet) {
         attribs.foreach((attr) => this.ensureAttrib(attr))

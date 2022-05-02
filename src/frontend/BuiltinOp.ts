@@ -1,4 +1,4 @@
-import { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, TypeUtils, PrimitiveType, toNativePrimitiveType, TypeError } from "./Type"
+import { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, TypeUtils, PrimitiveType, toNativePrimitiveType, TypeError, StructType } from "./Type"
 import { NativeTaichiAny } from "../native/taichi/GetTaichi"
 import { assert, error } from "../utils/Logging"
 import { Value, ValueUtils } from "./Value"
@@ -895,7 +895,46 @@ class BuiltinOpFactory {
                 return args[0]
             }
         )
-        let ops2 = [store, load, comma, concat, len, length, sum, norm_sqr, norm, normalized, dot, cross, matmul, transpose, outer_product, static_]
+
+        let mergeStructs = new BuiltinCustomOp("mergeStructs", 2,
+            (args: Value[]) => {
+                if (args.length !== 2) {
+                    return TypeError.createError("ti.mergeStructs(...) requires 2 structs to be merged")
+                }
+                if (args[0].getType().getCategory() !== TypeCategory.Struct || args[1].getType().getCategory() !== TypeCategory.Struct) {
+                    return TypeError.createError("arguments to ti.mergeStructs(...) must be structs")
+                }
+                let struct0 = args[0].getType() as StructType
+                let struct1 = args[1].getType() as StructType
+                for (let name0 of struct0.getPropertyNames()) {
+                    for (let name1 of struct1.getPropertyNames()) {
+                        if (name0 === name1) {
+                            return TypeError.createError("structs to be named cannot have overlapping property names")
+                        }
+                    }
+                }
+                return TypeError.createNoError()
+            },
+            (args: Value[]) => {
+                let struct0 = args[0].getType() as StructType
+                let struct1 = args[1].getType() as StructType
+                let names0 = struct0.getPropertyNames()
+                let names1 = struct1.getPropertyNames()
+                let names = names0.concat(names1)
+                let members0 = ValueUtils.getStructMembers(args[0])
+                let members1 = ValueUtils.getStructMembers(args[1])
+                let members = new Map<string, Value>()
+                for (let name of names0) {
+                    members.set(name, members0.get(name)!)
+                }
+                for (let name of names1) {
+                    members.set(name, members1.get(name)!)
+                }
+                return ValueUtils.makeStruct(names, members)
+            }
+        )
+
+        let ops2 = [store, load, comma, concat, len, length, sum, norm_sqr, norm, normalized, dot, cross, matmul, transpose, outer_product, static_, mergeStructs]
         for (let op of ops2) {
             opsMap.set(op.name, op)
         }
