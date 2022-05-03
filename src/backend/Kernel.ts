@@ -1,5 +1,5 @@
 import { PrimitiveType, StructType, Type, VoidType } from "../frontend/Type"
-import { DepthTexture, TextureBase } from "../data/Texture"
+import { CanvasTexture, DepthTexture, TextureBase } from "../data/Texture"
 import { Field } from "../data/Field"
 
 import { error } from "../utils/Logging"
@@ -62,7 +62,7 @@ class RenderPipelineParams {
     }
 
     public bindings: ResourceBinding[]
-    public indirectCount : number | Field = 1
+    public indirectCount: number | Field = 1
 
     public getBindings() {
         let bindings: ResourceBinding[] = []
@@ -184,6 +184,21 @@ class CompiledRenderPipeline {
         }
     }
     createPipeline(device: GPUDevice, renderPassParams: RenderPassParams) {
+        let sampleCount = 1
+        if (renderPassParams.colorAttachments.length > 0) {
+            sampleCount = renderPassParams.colorAttachments[0].texture.sampleCount
+        }
+        else if (renderPassParams.depthAttachment !== null) {
+            sampleCount = renderPassParams.depthAttachment.texture.sampleCount
+        }
+        for (let attachment of renderPassParams.colorAttachments) {
+            if (attachment.texture.sampleCount != sampleCount) {
+                error("all render target attachments (color or depth) must have the same sample count")
+            }
+        }
+        if (renderPassParams.depthAttachment !== null && renderPassParams.depthAttachment.texture.sampleCount !== sampleCount) {
+            error("all render target attachments (color or depth) must have the same sample count")
+        }
         let desc: GPURenderPipelineDescriptor = {
             vertex: {
                 module: device.createShaderModule({
@@ -205,6 +220,9 @@ class CompiledRenderPipeline {
                 topology: 'triangle-list',
                 cullMode: "none"
             },
+            multisample: {
+                count: sampleCount
+            }
         }
         if (renderPassParams.depthAttachment !== null) {
             let depthWrite = true
@@ -230,10 +248,19 @@ class CompiledRenderPassInfo {
     public getGPURenderPassDescriptor(): GPURenderPassDescriptor {
         let colorAttachments: GPURenderPassColorAttachment[] = []
         for (let attach of this.params.colorAttachments) {
+            let view: GPUTextureView = attach.texture.getGPUTextureView()
+            let resolveTarget: GPUTextureView | undefined = undefined
+            if (attach.texture.sampleCount > 1) {
+                if (attach.texture instanceof CanvasTexture) {
+                    view = attach.texture.renderTexture!.createView()
+                    resolveTarget = attach.texture.getGPUTextureView()
+                }
+            }
             if (attach.clearColor === undefined) {
                 colorAttachments.push(
                     {
-                        view: attach.texture.getGPUTextureView(),
+                        view,
+                        resolveTarget,
                         clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
                         loadValue: "load",
                         loadOp: "load",
@@ -250,7 +277,8 @@ class CompiledRenderPassInfo {
                 }
                 colorAttachments.push(
                     {
-                        view: attach.texture.getGPUTextureView(),
+                        view,
+                        resolveTarget,
                         clearValue: clearValue,
                         loadValue: clearValue,
                         loadOp: "clear",

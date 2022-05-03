@@ -38,16 +38,16 @@ let Struct = {
     }
 }
 
-let texture = (numComponents: number, dimensions: number[]) => {
-    return new Texture(numComponents, dimensions)
+let texture = (numComponents: number, dimensions: number[], sampleCount: number = 1) => {
+    return new Texture(numComponents, dimensions, sampleCount)
 }
 
-let canvasTexture = (canvas: HTMLCanvasElement) => {
-    return new CanvasTexture(canvas)
+let canvasTexture = (canvas: HTMLCanvasElement, sampleCount: number = 1) => {
+    return new CanvasTexture(canvas, sampleCount)
 }
 
-let depthTexture = (dimensions: number[]) => {
-    return new DepthTexture(dimensions)
+let depthTexture = (dimensions: number[], sampleCount: number = 1) => {
+    return new DepthTexture(dimensions, sampleCount)
 }
 
 let createTextureFromURL = async (url: string) => {

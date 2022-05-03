@@ -47,20 +47,23 @@ abstract class TextureBase {
     abstract getTextureDimensionality(): TextureDimensionality
     textureId: number = -1
     nativeTexture: NativeTaichiAny
+    sampleCount: number = 1
 }
 
 class Texture extends TextureBase {
     constructor(
         public numComponents: number,
         public dimensions: number[],
+        sampleCount: number
     ) {
         super()
         assert(dimensions.length <= 3 && dimensions.length >= 1, "texture dimensions must be >= 1 and <= 3")
         assert(numComponents === 1 || numComponents === 2 || numComponents === 4, "texture dimensions must be 1, 2, or 4")
-        this.texture = Program.getCurrentProgram().runtime!.createGPUTexture(dimensions, this.getTextureDimensionality(), this.getGPUTextureFormat(), this.canUseAsRengerTarget(), true)
+        this.texture = Program.getCurrentProgram().runtime!.createGPUTexture(dimensions, this.getTextureDimensionality(), this.getGPUTextureFormat(), this.canUseAsRengerTarget(), true, sampleCount)
         Program.getCurrentProgram().addTexture(this)
         this.textureView = this.texture.createView()
         this.sampler = Program.getCurrentProgram().runtime!.createGPUSampler(false)
+        this.sampleCount = sampleCount
     }
 
     private texture: GPUTexture
@@ -111,21 +114,26 @@ class Texture extends TextureBase {
         await img.decode();
 
         let dimensions = [img.width, img.height]
-        let texture = new Texture(4, dimensions)
+        let texture = new Texture(4, dimensions, 1)
         await Program.getCurrentProgram().runtime!.copyHtmlImageToTexture(img, texture.getGPUTexture())
         return texture
     }
 }
 
 class CanvasTexture extends TextureBase {
-    constructor(public htmlCanvas: HTMLCanvasElement) {
+    constructor(public htmlCanvas: HTMLCanvasElement, sampleCount: number) {
         super()
         let contextAndFormat = Program.getCurrentProgram().runtime!.createGPUCanvasContext(htmlCanvas)
         this.context = contextAndFormat[0]
         this.format = contextAndFormat[1]
         Program.getCurrentProgram().addTexture(this)
         this.sampler = Program.getCurrentProgram().runtime!.createGPUSampler(false)
+        this.sampleCount = sampleCount
+        if (this.sampleCount > 1) {
+            this.renderTexture = Program.getCurrentProgram().runtime!.createGPUTexture([htmlCanvas.width, htmlCanvas.height], this.getTextureDimensionality(), this.getGPUTextureFormat(), this.canUseAsRengerTarget(), false, sampleCount)
+        }
     }
+    renderTexture: GPUTexture | null = null
     context: GPUCanvasContext
     format: GPUTextureFormat
     private sampler: GPUSampler
@@ -158,13 +166,15 @@ class CanvasTexture extends TextureBase {
 class DepthTexture extends TextureBase {
     constructor(
         public dimensions: number[],
+        sampleCount: number
     ) {
         super()
         assert(dimensions.length === 2, "depth texture must be 2D")
-        this.texture = Program.getCurrentProgram().runtime!.createGPUTexture(dimensions, this.getTextureDimensionality(), this.getGPUTextureFormat(), this.canUseAsRengerTarget(), false)
+        this.texture = Program.getCurrentProgram().runtime!.createGPUTexture(dimensions, this.getTextureDimensionality(), this.getGPUTextureFormat(), this.canUseAsRengerTarget(), false, sampleCount)
         Program.getCurrentProgram().addTexture(this)
         this.textureView = this.texture.createView()
         this.sampler = Program.getCurrentProgram().runtime!.createGPUSampler(true)
+        this.sampleCount = sampleCount
     }
 
     private texture: GPUTexture
@@ -199,10 +209,11 @@ export class CubeTexture extends TextureBase {
     ) {
         super()
         assert(dimensions.length === 2, "cube texture must be 2D")
-        this.texture = Program.getCurrentProgram().runtime!.createGPUTexture(dimensions, this.getTextureDimensionality(), this.getGPUTextureFormat(), this.canUseAsRengerTarget(), false)
+        this.texture = Program.getCurrentProgram().runtime!.createGPUTexture(dimensions, this.getTextureDimensionality(), this.getGPUTextureFormat(), this.canUseAsRengerTarget(), false, 1)
         Program.getCurrentProgram().addTexture(this)
-        this.textureView = this.texture.createView({dimension: "cube"})
+        this.textureView = this.texture.createView({ dimension: "cube" })
         this.sampler = Program.getCurrentProgram().runtime!.createGPUSampler(false)
+        this.sampleCount = 1
     }
 
     private texture: GPUTexture
@@ -237,7 +248,7 @@ export class CubeTexture extends TextureBase {
             await img.decode();
             imgs.push(img)
         }
-        for(let img of imgs){
+        for (let img of imgs) {
             assert(img.width === imgs[0].width && img.height === imgs[0].height, "all 6 images in a cube texture must have identical dimensions")
         }
 

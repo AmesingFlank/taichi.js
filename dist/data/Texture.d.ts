@@ -15,11 +15,12 @@ declare abstract class TextureBase {
     abstract getTextureDimensionality(): TextureDimensionality;
     textureId: number;
     nativeTexture: NativeTaichiAny;
+    sampleCount: number;
 }
 declare class Texture extends TextureBase {
     numComponents: number;
     dimensions: number[];
-    constructor(numComponents: number, dimensions: number[]);
+    constructor(numComponents: number, dimensions: number[], sampleCount: number);
     private texture;
     private textureView;
     private sampler;
@@ -33,7 +34,8 @@ declare class Texture extends TextureBase {
 }
 declare class CanvasTexture extends TextureBase {
     htmlCanvas: HTMLCanvasElement;
-    constructor(htmlCanvas: HTMLCanvasElement);
+    constructor(htmlCanvas: HTMLCanvasElement, sampleCount: number);
+    renderTexture: GPUTexture | null;
     context: GPUCanvasContext;
     format: GPUTextureFormat;
     private sampler;
@@ -46,7 +48,7 @@ declare class CanvasTexture extends TextureBase {
 }
 declare class DepthTexture extends TextureBase {
     dimensions: number[];
-    constructor(dimensions: number[]);
+    constructor(dimensions: number[], sampleCount: number);
     private texture;
     private textureView;
     private sampler;

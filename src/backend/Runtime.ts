@@ -45,7 +45,7 @@ class Runtime {
         if (adapter!.features.has('indirect-first-instance')) {
             this.supportsIndirectFirstInstance = true
             requiredFeatures.push('indirect-first-instance')
-        } 
+        }
 
         const device = await adapter!.requestDevice({
             requiredFeatures
@@ -394,10 +394,10 @@ class Runtime {
         this.textures.push(texture)
     }
 
-    createGPUTexture(dimensions: number[], dimensionality: TextureDimensionality, format: GPUTextureFormat, renderAttachment: boolean, requires_storage: boolean): GPUTexture {
+    createGPUTexture(dimensions: number[], dimensionality: TextureDimensionality, format: GPUTextureFormat, renderAttachment: boolean, requiresStorage: boolean, sampleCount: number): GPUTexture {
         let getDescriptor = (): GPUTextureDescriptor => {
             let usage = GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC | GPUTextureUsage.TEXTURE_BINDING
-            if (requires_storage) {
+            if (requiresStorage) {
                 usage = usage | GPUTextureUsage.STORAGE_BINDING;
             }
             if (dimensions.length === 1) {
@@ -422,7 +422,8 @@ class Runtime {
                     size: size,
                     dimension: "2d",
                     format: format,
-                    usage: usage
+                    usage: usage,
+                    sampleCount
                 }
             }
             else {// if(dimensions.length === 3){

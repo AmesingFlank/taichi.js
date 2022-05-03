@@ -9,8 +9,8 @@ let main = async () => {
 
     let aspectRatio = htmlCanvas.width / htmlCanvas.height;
 
-    let target = ti.canvasTexture(htmlCanvas);
-    let depth = ti.depthTexture([htmlCanvas.width, htmlCanvas.height]);
+    let target = ti.canvasTexture(htmlCanvas, 4);
+    let depth = ti.depthTexture([htmlCanvas.width, htmlCanvas.height], 4);
 
     //let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Buggy/glTF-Binary/Buggy.glb")
     let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Buggy/glTF/Buggy.gltf")
