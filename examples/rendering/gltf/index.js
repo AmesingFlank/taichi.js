@@ -20,7 +20,7 @@ let main = async () => {
 
     console.log(scene)
     console.log(sceneData)
-    for(let v of scene.vertices){
+    for (let v of scene.vertices) {
         //console.log(v.position)
     }
     ti.addToKernelScope({ scene, sceneData, aspectRatio, target, depth })
@@ -52,6 +52,7 @@ let main = async () => {
                     let nodeIndex = instanceInfo.nodeIndex
                     let materialIndex = instanceInfo.materialIndex
                     let modelMatrix = sceneData.nodesBuffer[nodeIndex].globalTransform.matrix
+                    v.normal = ti.transpose(ti.inverse(modelMatrix.slice([0, 0], [3, 3]))).matmul(v.normal)
                     let mvp = vp.matmul(modelMatrix)
                     let pos = mvp.matmul(v.position.concat([1.0]));
                     ti.outputPosition(pos);

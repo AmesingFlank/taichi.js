@@ -1,7 +1,7 @@
 // using raw strings to avoid mimification problems..
 
-let polar2dCode = 
-`
+let polar2dCode =
+    `
 (A, U, P) => {
     let x = A[0,0] + A[1,1]
     let y = A[1,0] - A[0,1]
@@ -14,8 +14,8 @@ let polar2dCode =
 }
 `
 
-let svd2dCode = 
-`
+let svd2dCode =
+    `
 (A, U, E, V) => {
     let R = [[0.0, 0.0],[0.0, 0.0]]
     let S = [[0.0, 0.0],[0.0, 0.0]]
@@ -59,8 +59,8 @@ let svd2dCode =
 }
 `
 
-let svd3dCode = 
-`
+let svd3dCode =
+    `
 (A, U, E, V) => {
 
     let a00 = A[0, 0]
@@ -949,8 +949,8 @@ let lookAtCode = `
 }
 `
 
-let perspectiveCode = 
-`
+let perspectiveCode =
+    `
 (fovy, aspect, zNear, zFar) => {
     let rad = fovy * Math.PI / 180.0 
     let tanHalfFovy = ti.tan(rad / 2.0)
@@ -967,23 +967,51 @@ let perspectiveCode =
 }
 `
 
+let inverseCode =
+    `
+(m) => {
+    let det = m[[0, 0]] * (m[[1, 1]] * m[[2, 2]] - m[[2, 1]] * m[[1, 2]]) -
+             m[[0, 1]] * (m[[1, 0]] * m[[2, 2]] - m[[1, 2]] * m[[2, 0]]) +
+             m[[0, 2]] * (m[[1, 0]] * m[[2, 1]] - m[[1, 1]] * m[[2, 0]]);
+
+    let invdet = 1 / det;
+
+    let minv = [
+        [0.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0],
+    ];
+    minv[[0, 0]] = (m[[1, 1]] * m[[2, 2]] - m[[2, 1]] * m[[1, 2]]) * invdet;
+    minv[[0, 1]] = (m[[0, 2]] * m[[2, 1]] - m[[0, 1]] * m[[2, 2]]) * invdet;
+    minv[[0, 2]] = (m[[0, 1]] * m[[1, 2]] - m[[0, 2]] * m[[1, 1]]) * invdet;
+    minv[[1, 0]] = (m[[1, 2]] * m[[2, 0]] - m[[1, 0]] * m[[2, 2]]) * invdet;
+    minv[[1, 1]] = (m[[0, 0]] * m[[2, 2]] - m[[0, 2]] * m[[2, 0]]) * invdet;
+    minv[[1, 2]] = (m[[1, 0]] * m[[0, 2]] - m[[0, 0]] * m[[1, 2]]) * invdet;
+    minv[[2, 0]] = (m[[1, 0]] * m[[2, 1]] - m[[2, 0]] * m[[1, 1]]) * invdet;
+    minv[[2, 1]] = (m[[2, 0]] * m[[0, 1]] - m[[0, 0]] * m[[2, 1]]) * invdet;
+    minv[[2, 2]] = (m[[0, 0]] * m[[1, 1]] - m[[1, 0]] * m[[0, 1]]) * invdet;
+    return minv;
+}
+`
+
 class LibraryFunc {
-    constructor(public name:string, public numArgs:number, public code:string){
+    constructor(public name: string, public numArgs: number, public code: string) {
 
     }
 
-    public static getLibraryFuncs():Map<string,LibraryFunc>{
-        let funcs:LibraryFunc[] = [
-            new LibraryFunc("polarDecompose2D", 3,polar2dCode),
+    public static getLibraryFuncs(): Map<string, LibraryFunc> {
+        let funcs: LibraryFunc[] = [
+            new LibraryFunc("polarDecompose2D", 3, polar2dCode),
             new LibraryFunc("svd2D", 4, svd2dCode),
             new LibraryFunc("svd3D", 4, svd3dCode),
             new LibraryFunc("lookAt", 3, lookAtCode),
             new LibraryFunc("perspective", 4, perspectiveCode),
+            new LibraryFunc("inverse", 1, inverseCode),
         ]
 
-        let funcsMap = new Map<string,LibraryFunc>()
-        for(let f of funcs){
-            funcsMap.set(f.name,f)
+        let funcsMap = new Map<string, LibraryFunc>()
+        for (let f of funcs) {
+            funcsMap.set(f.name, f)
         }
         return funcsMap
     }
@@ -991,4 +1019,4 @@ class LibraryFunc {
 
 
 
-export {LibraryFunc}
+export { LibraryFunc }

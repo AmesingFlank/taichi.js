@@ -934,7 +934,83 @@ class BuiltinOpFactory {
             }
         )
 
-        let ops2 = [store, load, comma, concat, len, length, sum, norm_sqr, norm, normalized, dot, cross, matmul, transpose, outer_product, static_, mergeStructs]
+        let slice = new BuiltinCustomOp("slice", 3,
+            (args: Value[]) => {
+                if (args.length < 2 || args.length > 3) {
+                    return TypeError.createError("unsupported overload of slice()")
+                }
+                let val = args[0]
+                let valType = val.getType()
+                for (let i = 1; i < args.length; ++i) {
+                    if (!args[i].isCompileTimeConstant()) {
+                        return TypeError.createError("slice() begin and end must be compile-time constants")
+                    }
+                }
+                if (valType.getCategory() === TypeCategory.Vector) {
+                    if (args[1].getType().getCategory() !== TypeCategory.Scalar) {
+                        return TypeError.createError("vectors can only be sliced with scalar indices")
+                    }
+                    if (args.length === 3 && args[2].getType().getCategory() !== TypeCategory.Scalar) {
+                        return TypeError.createError("vectors can only be sliced with scalar indices")
+                    }
+                    return TypeError.createNoError()
+                }
+                else if (valType.getCategory() === TypeCategory.Matrix) {
+                    if (args[1].getType().getCategory() !== TypeCategory.Scalar && args[1].getType().getCategory() !== TypeCategory.Vector) {
+                        return TypeError.createError("matrices can only be sliced with scalar or vector indices")
+                    }
+                    if (args.length === 3) {
+                        if (args[1].getType().getCategory() !== args[2].getType().getCategory()) {
+                            return TypeError.createError("when slicing a matrix, begin and end must both be scalars or both be vectors")
+                        }
+                    }
+                    return TypeError.createNoError()
+                }
+                else {
+                    return TypeError.createError("matrices can only be sliced with scalar or vector indices")
+                }
+            },
+            (args: Value[]) => {
+                let val = args[0]
+                let valType = val.getType()
+                if (valType.getCategory() === TypeCategory.Vector) {
+                    let begin = args[1].compileTimeConstants[0]
+                    let end = val.stmts.length
+                    if (args.length === 3) {
+                        end = args[2].compileTimeConstants[0]
+                    }
+                    let numRows = end - begin
+                    let components = ValueUtils.getVectorComponents(val)
+                    components = components.slice(begin, end)
+                    return ValueUtils.makeVectorFromScalars(components)
+                }
+                else {// if (valType.getCategory() === TypeCategory.Matrix) {
+                    let matType = valType as MatrixType
+                    let begin = args[1].compileTimeConstants
+                    let end = [matType.getNumRows(), matType.getNumCols()]
+                    if (args.length === 3) {
+                        end = args[2].compileTimeConstants
+                    }
+                    if (begin.length === 1) {
+                        begin.push(matType.getNumCols())
+                    }
+                    if (end.length === 1) {
+                        end.push(matType.getNumCols())
+                    }
+                    let numRows = end[0] - begin[0]
+                    let numCols = end[1] - begin[1]
+
+                    let components = ValueUtils.getMatrixComponents(val)
+                    components = components.slice(begin[0], end[0]);
+                    for (let i = 0; i < numRows; ++i) {
+                        components[i] = components[i].slice(begin[1], end[1])
+                    }
+                    return ValueUtils.makeMatrixFromScalars(components)
+                }
+            }
+        )
+
+        let ops2 = [store, load, comma, concat, len, length, sum, norm_sqr, norm, normalized, dot, cross, matmul, transpose, outer_product, static_, mergeStructs, slice]
         for (let op of ops2) {
             opsMap.set(op.name, op)
         }
