@@ -29,7 +29,7 @@ export class GltfLoader {
         let gltfJson: any
         if (isGLB) {
             for (let chunk of gltf.binChunks) {
-                buffers.push(new Buffer(chunk.arrayBuffer))
+                buffers.push(new Buffer(chunk.arrayBuffer.slice(chunk.byteOffset)))
             }
             gltfJson = gltf.json
         }
