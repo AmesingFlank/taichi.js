@@ -3,6 +3,7 @@ import typescript from 'rollup-plugin-typescript2';
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import { terser } from 'rollup-plugin-terser';
+import replace from '@rollup/plugin-replace';
 
 export default {
   input: 'src/taichi.ts',
@@ -23,6 +24,10 @@ export default {
     resolve({
       browser: true
     }),
-    terser()
+    terser(),
+    replace({
+      'require("source-map-support").install()': '',
+      delimiters: ['', '']
+    })
   ]
 };
