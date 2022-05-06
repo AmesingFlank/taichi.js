@@ -299,12 +299,7 @@ class CompiledRenderPassInfo {
             depthClearValue: depth.clearDepth,
             depthLoadValue: depth.clearDepth === undefined ? "load" : depth.clearDepth,
             depthLoadOp: depth.clearDepth === undefined ? "load" : "clear",
-            depthStoreOp: depth.storeDepth === true ? "store" : "discard",
-
-            stencilClearValue: 0,
-            stencilLoadOp: 'clear',
-            stencilStoreOp: 'store',
-            stencilLoadValue: 0
+            depthStoreOp: depth.storeDepth === true ? "store" : "discard", 
         }
         return {
             colorAttachments,
