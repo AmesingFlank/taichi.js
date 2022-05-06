@@ -8,6 +8,7 @@ import { DrawInfo, drawInfoKernelType } from "./DrawInfo";
 import { Transform } from "./Transform";
 import { InstanceInfo } from "./InstanceInfo";
 import { BatchInfo } from "./BatchInfo";
+import { LightInfo } from "./LightInfo";
 
 export interface SceneData {
     vertexBuffer: Field, // Field of Vertex
@@ -18,6 +19,8 @@ export interface SceneData {
 
     materialInfoBuffer: Field, // Field of MaterialInfo 
     nodesBuffer: Field,
+
+    lightsInfoBuffer: Field|undefined
 }
 
 export class Scene {
@@ -34,11 +37,13 @@ export class Scene {
     rootNodes: number[] = []
     meshes: Mesh[] = []
 
+    lights: LightInfo[] = []
+
     batchInfos: BatchInfo[] = []
     batchesDrawInfos: DrawInfo[][] = []
     batchesDrawInstanceInfos: InstanceInfo[][] = []
 
-    vertexAttribSet: VertexAttribSet = new VertexAttribSet(VertexAttrib.None) 
+    vertexAttribSet: VertexAttribSet = new VertexAttribSet(VertexAttrib.None)
 
     async getKernelData(): Promise<SceneData> {
         let vertexBuffer = ti.field(getVertexAttribSetKernelType(this.vertexAttribSet), this.vertices.length)
@@ -68,6 +73,12 @@ export class Scene {
         let nodesBuffer: Field = ti.field(SceneNode.getKernelType(), this.nodes.length)
         await nodesBuffer.fromArray(this.nodes)
 
+        let lightsInfoBuffer: Field | undefined = undefined
+        if (this.lights.length > 0) {
+            lightsInfoBuffer =  ti.field(LightInfo.getKernelType(), this.lights.length)
+            await lightsInfoBuffer.fromArray(this.lights)
+        }
+
         return {
             vertexBuffer,
             indexBuffer,
@@ -75,13 +86,14 @@ export class Scene {
             batchesDrawInstanceInfoBuffers,
             materialInfoBuffer,
             nodesBuffer,
+            lightsInfoBuffer
         }
     }
 
     init() {
         this.computeDrawBatches()
-        this.computeGlobalTransforms() 
-    } 
+        this.computeGlobalTransforms()
+    }
 
     computeDrawBatches() {
         this.batchesDrawInfos = []

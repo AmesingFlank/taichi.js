@@ -16,13 +16,18 @@ let main = async () => {
     //let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Buggy/glTF/Buggy.gltf")
     //let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Cube/glTF/Cube.gltf")
 
+    scene.lights.push(new ti.utils.LightInfo(
+        ti.utils.LightType.Point,
+        [300, 300, 300],
+        1000000,
+        [1, 1, 1],
+        1000
+    ))
+
     let sceneData = await scene.getKernelData()
- 
+
     console.log(sceneData)
-    for (let v of scene.vertices) {
-        //console.log(v.position)
-    }
-    ti.addToKernelScope({ scene, sceneData, aspectRatio, target, depth })
+    ti.addToKernelScope({ scene, sceneData, aspectRatio, target, depth, LightType: ti.utils.LightType })
 
     let render = ti.kernel(
         (t) => {
@@ -45,6 +50,16 @@ let main = async () => {
                     }
                     return baseColor
                 }
+                let getLightBrightness = (light, fragToLight) => {
+                    let brightness = [0.0, 0.0, 0.0]
+                    if (light.type === LightType.Point) {
+                        let distance = fragToLight.norm()
+                        let attenuation = 1.0 / (ti.max(distance * distance, 0.01 * 0.01))
+                        let window = (1 - (distance / light.influenceRadius) ** 2) ** 4
+                        brightness = light.brightness * attenuation * window
+                    }
+                    return brightness
+                }
                 for (let v of ti.inputVertices(sceneData.vertexBuffer, sceneData.indexBuffer, sceneData.batchesDrawInfoBuffers[batchID], sceneData.batchesDrawInfoBuffers[batchID].dimensions[0])) {
                     let instanceIndex = ti.getInstanceIndex()
                     let instanceInfo = sceneData.batchesDrawInstanceInfoBuffers[batchID][instanceIndex]
@@ -52,19 +67,30 @@ let main = async () => {
                     let materialIndex = instanceInfo.materialIndex
                     let modelMatrix = sceneData.nodesBuffer[nodeIndex].globalTransform.matrix
                     v.normal = ti.transpose(ti.inverse(modelMatrix.slice([0, 0], [3, 3]))).matmul(v.normal)
-                    let mvp = vp.matmul(modelMatrix)
-                    let pos = mvp.matmul(v.position.concat([1.0]));
+                    v.position = modelMatrix.matmul(v.position.concat([1.0])).xyz
+                    let pos = vp.matmul(v.position.concat([1.0]));
                     ti.outputPosition(pos);
                     let vertexOutput = ti.mergeStructs(v, { materialIndex: materialIndex })
                     ti.outputVertex(vertexOutput);
                 }
                 for (let f of ti.inputFragments()) {
-                    let materialID = f.materialIndex
-                    let baseColor = getMaterialBaseColor(f.texCoords, materialID)
                     let normal = f.normal.normalized()
-                    let color = baseColor * (normal.dot([0.0, 1.0, 0.0]) + 0.3)
-                    color[3] = 1.0
-                    ti.outputColor(target, color);
+                    let materialID = f.materialIndex
+                    let baseColor = getMaterialBaseColor(f.texCoords, materialID).rgb
+
+                    if (ti.static(scene.lights.length > 0)) {
+                        let color = [0.0, 0.0, 0.0]
+                        for (let i of range(scene.lights.length)) {
+                            let light = sceneData.lightsInfoBuffer[i]
+                            let fragToLight = light.position - f.position
+                            let brightness = getLightBrightness(light, fragToLight)
+                            color = color + brightness * normal.dot(fragToLight.normalized()) * baseColor
+                        }
+                        ti.outputColor(target, color.concat([1.0]));
+                    }
+                    else {
+                        ti.outputColor(target, baseColor.concat([1.0]));
+                    }
                 }
             }
         }
