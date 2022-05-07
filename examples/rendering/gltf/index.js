@@ -15,7 +15,8 @@ let main = async () => {
     //let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Buggy/glTF-Binary/Buggy.glb")
     //let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Buggy/glTF/Buggy.gltf")
     //let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Cube/glTF/Cube.gltf")
-    let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb")
+    //let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb")
+    let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF/DamagedHelmet.gltf")
 
 
     scene.lights.push(new ti.utils.LightInfo(
@@ -25,16 +26,25 @@ let main = async () => {
         [1, 1, 1],
         1000
     ))
+    scene.lights.push(new ti.utils.LightInfo(
+        ti.utils.LightType.Point,
+        [-300, -300, -300],
+        1000000,
+        [1, 1, 1],
+        1000
+    ))
 
     let sceneData = await scene.getKernelData()
 
     console.log(sceneData)
+    console.log(scene)
+    console.log(await sceneData.vertexBuffer.toArray())
     ti.addToKernelScope({ scene, sceneData, aspectRatio, target, depth, LightType: ti.utils.LightType })
 
     let render = ti.kernel(
         (t) => {
             let center = [0, 0, 0];
-            let eye = [sin(t), 0.0, cos(t)] * 10 + [0.0, 10.0, 0.0] + center;
+            let eye = [sin(t), 0.0, cos(t)] * 5 + [0.0, 5.0, 0.0] + center;
             let view = ti.lookAt(eye, center, [0.0, 1.0, 0.0]);
             let proj = ti.perspective(45.0, aspectRatio, 0.1, 1000);
             let vp = proj.matmul(view);
@@ -86,13 +96,13 @@ let main = async () => {
                             let light = sceneData.lightsInfoBuffer[i]
                             let fragToLight = light.position - f.position
                             let brightness = getLightBrightness(light, fragToLight)
-                            color = color + brightness * normal.dot(fragToLight.normalized()) * baseColor
+                            color = color + brightness * max(0.0, normal.dot(fragToLight.normalized())) * baseColor
                         }
                         ti.outputColor(target, color.concat([1.0]));
                     }
                     else {
                         ti.outputColor(target, baseColor.concat([1.0]));
-                    }
+                    } 
                 }
             }
         }

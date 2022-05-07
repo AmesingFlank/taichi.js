@@ -441,6 +441,9 @@ class Runtime {
 
     createGPUSampler(depth: boolean): GPUSampler {
         let desc: GPUSamplerDescriptor = {}
+        desc.addressModeU = "repeat"
+        desc.addressModeV = "repeat"
+        desc.addressModeW = "repeat"
         if (depth) {
             desc.compare = "less"
         }

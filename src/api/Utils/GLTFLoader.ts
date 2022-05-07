@@ -69,21 +69,42 @@ export class GltfLoader {
             ))
         }
 
-        let images:ImageBitmap[] = []
-        for(let img of gltfJson.images){
-            if(img.bufferView !== undefined){
+        let images: ImageBitmap[] = []
+        for (let img of gltfJson.images) {
+            if (img.bufferView !== undefined) {
                 let bufferViewIndex = getIndex(img.bufferView)
                 let bufferView = bufferViews[bufferViewIndex]
-
+                let blob = new Blob([bufferView.data], { type: img.mimeType });
+                let urlCreator = window.URL || window.webkitURL;
+                let imageUrl = urlCreator.createObjectURL(blob);
+                let htmlImage = new Image()
+                htmlImage.src = imageUrl
+                await htmlImage.decode();
+                urlCreator.revokeObjectURL(imageUrl)
+                let bitmap = await createImageBitmap(htmlImage)
+                images.push(bitmap)
             }
+            else {
+                images.push(img.image)
+            }
+        } 
+
+        let textures: GltfTexture[] = []
+        for (let texture of gltfJson.textures) {
+            textures.push(new GltfTexture(getIndex(texture.source)))
         }
 
         for (let i = 0; i < gltfJson.materials.length; ++i) {
             let inputMaterial = gltfJson.materials[i]
             let resultMaterial = new Material(i);
             let pbr = inputMaterial.pbrMetallicRoughness
-            if (pbr.baseColorFactor) {
+            if (pbr.baseColorFactor !== undefined) {
                 resultMaterial.baseColor.value = pbr.baseColorFactor
+            }
+            if (pbr.baseColorTexture !== undefined) {
+                let index = getIndex(pbr.baseColorTexture.index)
+                let bitmapIndex = textures[index].imageIndex
+                resultMaterial.baseColor.texture = await Texture.createFromBitmap(images[bitmapIndex])
             }
             resultScene.materials.push(resultMaterial)
         }
@@ -92,7 +113,7 @@ export class GltfLoader {
             let inputMesh = gltfJson.meshes[i]
             let resultMesh = new Mesh()
             for (let prim of inputMesh.primitives) {
-                if (prim.mode !==undefined && prim.mode != 4) {
+                if (prim.mode !== undefined && prim.mode != 4) {
                     error("only supports triangle primitives in gltf")
                 }
                 let attrNames = Object.keys(prim.attributes)
@@ -388,4 +409,12 @@ function getIndex(x: any) {
         return x
     }
     return getIndexFromIDString(x.id)
+}
+
+class GltfTexture {
+    constructor(
+        public imageIndex: number
+    ) {
+
+    }
 }
