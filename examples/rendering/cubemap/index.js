@@ -15,7 +15,7 @@ let main = async () => {
     let scene = await ti.utils.ObjLoader.loadFromURL("../resources/PoolTable.obj")
     let sceneData = await scene.getKernelData()
 
-    let cubemap = await ti.createCubeTextureFromURL([
+    let cubemap = await ti.CubeTexture.createFromURL([
         "../resources/skybox/right.jpg",
         "../resources/skybox/left.jpg",
         "../resources/skybox/top.jpg",

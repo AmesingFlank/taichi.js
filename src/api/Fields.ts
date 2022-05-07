@@ -38,27 +38,4 @@ let Struct = {
     }
 }
 
-let texture = (numComponents: number, dimensions: number[], sampleCount: number = 1) => {
-    return new Texture(numComponents, dimensions, sampleCount)
-}
-
-let canvasTexture = (canvas: HTMLCanvasElement, sampleCount: number = 1) => {
-    return new CanvasTexture(canvas, sampleCount)
-}
-
-let depthTexture = (dimensions: number[], sampleCount: number = 1) => {
-    return new DepthTexture(dimensions, sampleCount)
-}
-
-let createTextureFromURL = async (url: string) => {
-    return await Texture.createFromURL(url)
-}
-
-let createCubeTextureFromURL = async (urls: string[]) => {
-    if (urls.length !== 6) {
-        error("expecting 6 urls for cube texture")
-    }
-    return await CubeTexture.createFromURL(urls)
-}
-
-export { field, Vector, Matrix, Struct, texture, canvasTexture, depthTexture, createTextureFromURL, createCubeTextureFromURL }
+export { field, Vector, Matrix, Struct }

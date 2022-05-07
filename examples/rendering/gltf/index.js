@@ -12,9 +12,11 @@ let main = async () => {
     let target = ti.canvasTexture(htmlCanvas, 4);
     let depth = ti.depthTexture([htmlCanvas.width, htmlCanvas.height], 4);
 
-    let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Buggy/glTF-Binary/Buggy.glb")
+    //let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Buggy/glTF-Binary/Buggy.glb")
     //let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Buggy/glTF/Buggy.gltf")
     //let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Cube/glTF/Cube.gltf")
+    let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb")
+
 
     scene.lights.push(new ti.utils.LightInfo(
         ti.utils.LightType.Point,
@@ -32,7 +34,7 @@ let main = async () => {
     let render = ti.kernel(
         (t) => {
             let center = [0, 0, 0];
-            let eye = [sin(t), 0.0, cos(t)] * 200 + [0.0, 200.0, 0.0] + center;
+            let eye = [sin(t), 0.0, cos(t)] * 10 + [0.0, 10.0, 0.0] + center;
             let view = ti.lookAt(eye, center, [0.0, 1.0, 0.0]);
             let proj = ti.perspective(45.0, aspectRatio, 0.1, 1000);
             let vp = proj.matmul(view);

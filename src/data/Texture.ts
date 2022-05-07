@@ -108,15 +108,23 @@ class Texture extends TextureBase {
         }
     }
 
+    static async createFromBitmap(bitmap: ImageBitmap) {
+        let dimensions = [bitmap.width, bitmap.height]
+        let texture = new Texture(4, dimensions, 1)
+        await Program.getCurrentProgram().runtime!.copyImageBitmapToTexture(bitmap, texture.getGPUTexture())
+        return texture
+    }
+
+    static async createFromHtmlImage(image: HTMLImageElement) {
+        let bitmap = await createImageBitmap(image)
+        return await this.createFromBitmap(bitmap)
+    }
+
     static async createFromURL(url: string): Promise<Texture> {
         let img = new Image();
         img.src = url;
         await img.decode();
-
-        let dimensions = [img.width, img.height]
-        let texture = new Texture(4, dimensions, 1)
-        await Program.getCurrentProgram().runtime!.copyHtmlImageToTexture(img, texture.getGPUTexture())
-        return texture
+        return await this.createFromHtmlImage(img)
     }
 }
 
@@ -240,6 +248,23 @@ export class CubeTexture extends TextureBase {
     getGPUSampler(): GPUSampler {
         return this.sampler
     }
+    static async createFromBitmap(bitmaps: ImageBitmap[]): Promise<CubeTexture> {
+        for (let bitmap of bitmaps) {
+            assert(bitmap.width === bitmaps[0].width && bitmap.height === bitmaps[0].height, "all 6 images in a cube texture must have identical dimensions")
+        }
+
+        let dimensions = [bitmaps[0].width, bitmaps[0].height]
+        let texture = new CubeTexture(dimensions)
+        await Program.getCurrentProgram().runtime!.copyImageBitmapsToCubeTexture(bitmaps, texture.getGPUTexture())
+        return texture
+    }
+    static async createFromHtmlImage(images: HTMLImageElement[]): Promise<CubeTexture> {
+        let bitmaps: ImageBitmap[] = []
+        for (let img of images) {
+            bitmaps.push(await createImageBitmap(img))
+        }
+        return await this.createFromBitmap(bitmaps)
+    }
     static async createFromURL(urls: string[]): Promise<CubeTexture> {
         let imgs: HTMLImageElement[] = []
         for (let url of urls) {
@@ -248,14 +273,7 @@ export class CubeTexture extends TextureBase {
             await img.decode();
             imgs.push(img)
         }
-        for (let img of imgs) {
-            assert(img.width === imgs[0].width && img.height === imgs[0].height, "all 6 images in a cube texture must have identical dimensions")
-        }
-
-        let dimensions = [imgs[0].width, imgs[0].height]
-        let texture = new CubeTexture(dimensions)
-        await Program.getCurrentProgram().runtime!.copyHtmlImagesToCubeTexture(imgs, texture.getGPUTexture())
-        return texture
+        return await this.createFromHtmlImage(imgs)
     }
 }
 

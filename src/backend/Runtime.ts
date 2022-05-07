@@ -504,9 +504,7 @@ class Runtime {
     getRootBuffer(treeId: number): GPUBuffer {
         return this.materializedTrees[treeId].rootBuffer!
     }
-
-    async copyHtmlImageToTexture(image: HTMLImageElement, texture: GPUTexture) {
-        let bitmap = await createImageBitmap(image)
+    async copyImageBitmapToTexture(bitmap: ImageBitmap, texture: GPUTexture) {
         let copySource: GPUImageCopyExternalImage = {
             source: bitmap
         }
@@ -514,15 +512,15 @@ class Runtime {
             texture: texture
         }
         let extent: GPUExtent3D = {
-            width: image.width,
-            height: image.height
+            width: bitmap.width,
+            height: bitmap.height
         }
         this.device!.queue.copyExternalImageToTexture(copySource, copyDest, extent)
         await this.device!.queue.onSubmittedWorkDone()
     }
-    async copyHtmlImagesToCubeTexture(images: HTMLImageElement[], texture: GPUTexture) {
+    async copyImageBitmapsToCubeTexture(bitmaps: ImageBitmap[], texture: GPUTexture) {
         for (let i = 0; i < 6; ++i) {
-            let bitmap = await createImageBitmap(images[i])
+            let bitmap = bitmaps[i]
             let copySource: GPUImageCopyExternalImage = {
                 source: bitmap
             }
@@ -531,8 +529,8 @@ class Runtime {
                 origin: [0, 0, i]
             }
             let extent: GPUExtent3D = {
-                width: images[i].width,
-                height: images[i].height
+                width: bitmap.width,
+                height: bitmap.height
             }
             this.device!.queue.copyExternalImageToTexture(copySource, copyDest, extent)
         }

@@ -30,6 +30,8 @@ declare class Texture extends TextureBase {
     getGPUTextureView(): GPUTextureView;
     getGPUSampler(): GPUSampler;
     getTextureDimensionality(): TextureDimensionality;
+    static createFromBitmap(bitmap: ImageBitmap): Promise<Texture>;
+    static createFromHtmlImage(image: HTMLImageElement): Promise<Texture>;
     static createFromURL(url: string): Promise<Texture>;
 }
 declare class CanvasTexture extends TextureBase {
@@ -71,6 +73,8 @@ export declare class CubeTexture extends TextureBase {
     getTextureDimensionality(): TextureDimensionality;
     getGPUTextureView(): GPUTextureView;
     getGPUSampler(): GPUSampler;
+    static createFromBitmap(bitmaps: ImageBitmap[]): Promise<CubeTexture>;
+    static createFromHtmlImage(images: HTMLImageElement[]): Promise<CubeTexture>;
     static createFromURL(urls: string[]): Promise<CubeTexture>;
 }
 declare function isTexture(x: any): boolean;

@@ -9,7 +9,7 @@ import { endWith } from "../../utils/Utils";
 import { Mesh, MeshPrimitive } from "./Mesh";
 import { assert, error } from "../../utils/Logging";
 import { SceneNode } from "./SceneNode";
-import { matmul } from "../math";
+import { matmul } from "../Math";
 
 
 export class GltfLoader {
@@ -69,6 +69,15 @@ export class GltfLoader {
             ))
         }
 
+        let images:ImageBitmap[] = []
+        for(let img of gltfJson.images){
+            if(img.bufferView !== undefined){
+                let bufferViewIndex = getIndex(img.bufferView)
+                let bufferView = bufferViews[bufferViewIndex]
+
+            }
+        }
+
         for (let i = 0; i < gltfJson.materials.length; ++i) {
             let inputMaterial = gltfJson.materials[i]
             let resultMaterial = new Material(i);
@@ -83,7 +92,7 @@ export class GltfLoader {
             let inputMesh = gltfJson.meshes[i]
             let resultMesh = new Mesh()
             for (let prim of inputMesh.primitives) {
-                if (prim.mode != 4) {
+                if (prim.mode !==undefined && prim.mode != 4) {
                     error("only supports triangle primitives in gltf")
                 }
                 let attrNames = Object.keys(prim.attributes)
