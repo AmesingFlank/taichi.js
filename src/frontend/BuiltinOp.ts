@@ -140,11 +140,13 @@ class BuiltinBinaryOp extends BuiltinOp {
                 return TypeError.createNoError()
             }
             else if (cat0 === TypeCategory.Vector) {
-                if ((type0 as VectorType).getNumRows() === (type1 as VectorType).getNumRows()) {
+                let numRows0 = (type0 as VectorType).getNumRows()
+                let numRows1 = (type1 as VectorType).getNumRows()
+                if (numRows0 === numRows1) {
                     return TypeError.createNoError()
                 }
                 else {
-                    return TypeError.createError("numRows mismatch")
+                    return TypeError.createError(`numRows mismatch during vector-vector binary op: LHS num rows is ${numRows0}, but RHS num rows is ${numRows1}`)
                 }
             }
             else if (cat0 === TypeCategory.Matrix) {
@@ -153,7 +155,7 @@ class BuiltinBinaryOp extends BuiltinOp {
                 if (mat0.getNumRows() === mat0.getNumRows() && mat1.getNumCols() === mat1.getNumCols()) {
                     return TypeError.createNoError()
                 } else {
-                    return TypeError.createError("matrix shape mismatch")
+                    return TypeError.createError(`matrix shape mismatch during matrix-matrix binary op: LHS is a ${mat0.getNumRows()} by ${mat0.getNumRows()} matrix, but RHS is a ${mat1.getNumRows()} by ${mat1.getNumRows()} matrix.`)
                 }
             }
             error("[Compiler Bug]", "cat0 is not tensor type");
@@ -817,7 +819,7 @@ class BuiltinOpFactory {
                         return TypeError.createNoError()
                     }
                     else {
-                        return TypeError.createError("Matrix size mismatch")
+                        return TypeError.createError(`size mismatch during matrix-matrix multiplication: LHS num cols = ${mat0.getNumCols()}, but RHS num rows = ${mat1.getNumRows()}`)
                     }
                 } else if (type1.getCategory() === TypeCategory.Vector) {
                     let vec1 = type1 as VectorType
@@ -825,7 +827,7 @@ class BuiltinOpFactory {
                         return TypeError.createNoError()
                     }
                     else {
-                        return TypeError.createError("Matrix-Vector size mismatch")
+                        return TypeError.createError(`size mismatch during matrix-vector multiplication: LHS num cols = ${mat0.getNumCols()}, but RHS num rows = ${vec1.getNumRows()}`)
                     }
                 }
                 else {
