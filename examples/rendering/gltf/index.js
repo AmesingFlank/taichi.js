@@ -34,11 +34,11 @@ let main = async () => {
         1000
     ))
 
-    let sceneData = await scene.getKernelData()
-
-    console.log(sceneData)
     console.log(scene)
-    console.log(await sceneData.vertexBuffer.toArray())
+
+    let sceneData = await scene.getKernelData()
+    console.log(sceneData)
+
     ti.addToKernelScope({ scene, sceneData, aspectRatio, target, depth, LightType: ti.utils.LightType })
 
     let render = ti.kernel(
@@ -54,13 +54,19 @@ let main = async () => {
             ti.clearColor(target, [0.1, 0.2, 0.3, 1]);
 
             for (let batchID of ti.static(ti.range(sceneData.batchesDrawInfoBuffers.length))) {
-                let getMaterialBaseColor = (texCoords, materialID) => {
+                let getMaterial = (texCoords, materialID) => {
                     let materialInfo = sceneData.materialInfoBuffer[materialID]
-                    let baseColor = materialInfo.baseColor.value
-                    if (ti.static(scene.batchInfos[batchID].materialIndex != -1)) {
-                        baseColor = baseColor * ti.textureSample(scene.materials[scene.batchInfos[batchID].materialIndex].baseColor.texture, texCoords)
+                    let material = {
+                        baseColor: materialInfo.baseColor.value,
+                        metallic: materialInfo.metallicRoughness.value[0],
+                        roughness: materialInfo.metallicRoughness.value[1]
                     }
-                    return baseColor
+                    if (ti.static(scene.batchInfos[batchID].materialIndex != -1)) {
+                        material.baseColor *= ti.textureSample(scene.materials[scene.batchInfos[batchID].materialIndex].baseColor.texture, texCoords)
+                        material.metallic *= ti.textureSample(scene.materials[scene.batchInfos[batchID].materialIndex].metallicRoughness.texture, texCoords)[0]
+                        material.roughness *= ti.textureSample(scene.materials[scene.batchInfos[batchID].materialIndex].metallicRoughness.texture, texCoords)[1]
+                    }
+                    return material
                 }
                 let getLightBrightness = (light, fragToLight) => {
                     let brightness = [0.0, 0.0, 0.0]
@@ -88,7 +94,7 @@ let main = async () => {
                 for (let f of ti.inputFragments()) {
                     let normal = f.normal.normalized()
                     let materialID = f.materialIndex
-                    let baseColor = getMaterialBaseColor(f.texCoords, materialID).rgb
+                    let material = getMaterial(f.texCoords, materialID)
 
                     if (ti.static(scene.lights.length > 0)) {
                         let color = [0.0, 0.0, 0.0]
@@ -96,13 +102,13 @@ let main = async () => {
                             let light = sceneData.lightsInfoBuffer[i]
                             let fragToLight = light.position - f.position
                             let brightness = getLightBrightness(light, fragToLight)
-                            color = color + brightness * max(0.0, normal.dot(fragToLight.normalized())) * baseColor
+                            color = color + brightness * max(0.0, normal.dot(fragToLight.normalized())) * material.baseColor.rgb
                         }
                         ti.outputColor(target, color.concat([1.0]));
                     }
                     else {
-                        ti.outputColor(target, baseColor.concat([1.0]));
-                    } 
+                        ti.outputColor(target, material.baseColor.concat([1.0]));
+                    }
                 }
             }
         }

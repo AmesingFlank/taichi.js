@@ -310,6 +310,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
         let leftType = left.getType()
         let rightValue = this.derefIfPointer(right)
         let opToken = node.operatorToken
+        let opTokenText = opToken.getText()
         if (opToken.kind === ts.SyntaxKind.EqualsToken) {
             if (leftType.getCategory() != TypeCategory.Pointer) {
                 this.errorNode(node, "Left hand side of assignment must be an l-value. ", leftType.getCategory())
@@ -327,14 +328,15 @@ class CompilingVisitor extends ASTVisitor<Value>{
             return
         }
 
-        let atomicOps = this.atomicOps
-        let tokenToOp = new Map<ts.SyntaxKind, BuiltinOp>()
-        tokenToOp.set(ts.SyntaxKind.PlusEqualsToken, atomicOps.get("atomic_add")!);
-        tokenToOp.set(ts.SyntaxKind.MinusEqualsToken, atomicOps.get("atomic_sub")!);
-        tokenToOp.set(ts.SyntaxKind.AmpersandEqualsToken, atomicOps.get("atomic_and")!);
-        tokenToOp.set(ts.SyntaxKind.BarEqualsToken, atomicOps.get("atomic_or")!);
-        if (tokenToOp.has(opToken.kind)) {
-            let atomicOp = tokenToOp.get(opToken.kind)!
+        let opAssignTokenToAtomicOp = new Map<ts.SyntaxKind, BuiltinOp>()
+        opAssignTokenToAtomicOp.set(ts.SyntaxKind.PlusEqualsToken, this.atomicOps.get("atomic_add")!);
+        opAssignTokenToAtomicOp.set(ts.SyntaxKind.MinusEqualsToken, this.atomicOps.get("atomic_sub")!);
+        opAssignTokenToAtomicOp.set(ts.SyntaxKind.AmpersandEqualsToken, this.atomicOps.get("atomic_and")!);
+        opAssignTokenToAtomicOp.set(ts.SyntaxKind.BarEqualsToken, this.atomicOps.get("atomic_or")!);
+        opAssignTokenToAtomicOp.set(ts.SyntaxKind.CaretEqualsToken, this.atomicOps.get("atomic_xor")!);
+
+        if (opAssignTokenToAtomicOp.has(opToken.kind)) {
+            let atomicOp = opAssignTokenToAtomicOp.get(opToken.kind)!
             let typeError = atomicOp.checkType([left, rightValue])
             if (typeError.hasError) {
                 this.errorNode(node, "Atomic type error: " + typeError.msg)
@@ -343,7 +345,25 @@ class CompilingVisitor extends ASTVisitor<Value>{
         }
 
         let leftValue = this.derefIfPointer(left)
-        let opTokenText = opToken.getText()
+
+        let opAssignTokenToMathOp = new Map<ts.SyntaxKind, BuiltinOp>()
+        opAssignTokenToMathOp.set(ts.SyntaxKind.AsteriskEqualsToken, this.builtinOps.get("*")!);
+        opAssignTokenToMathOp.set(ts.SyntaxKind.SlashEqualsToken, this.builtinOps.get("/")!);
+        if (opAssignTokenToMathOp.has(opToken.kind)) {
+            let op = opAssignTokenToMathOp.get(opToken.kind)!
+            let typeError = op.checkType([leftValue, rightValue])
+            if (typeError.hasError) {
+                this.errorNode(node, "self assignment type error: " + typeError.msg)
+            }
+            let result = op.apply([leftValue, rightValue])
+            let storeOp = this.builtinOps.get("=")!
+            typeError = storeOp.checkType([left, result])
+            if (typeError.hasError) {
+                this.errorNode(node, "self assignment type error: " + typeError.msg)
+            }
+            storeOp.apply([left, result])
+            return result
+        }
 
         if (leftValue.getType().getCategory() === TypeCategory.HostObjectReference && rightValue.getType().getCategory() === TypeCategory.HostObjectReference) {
             try {

@@ -87,7 +87,7 @@ export class GltfLoader {
             else {
                 images.push(img.image)
             }
-        } 
+        }
 
         let textures: GltfTexture[] = []
         for (let texture of gltfJson.textures) {
@@ -102,9 +102,29 @@ export class GltfLoader {
                 resultMaterial.baseColor.value = pbr.baseColorFactor
             }
             if (pbr.baseColorTexture !== undefined) {
+                if (pbr.baseColorFactor === undefined) {
+                    resultMaterial.baseColor.value = [1, 1, 1, 1]
+                }
                 let index = getIndex(pbr.baseColorTexture.index)
                 let bitmapIndex = textures[index].imageIndex
                 resultMaterial.baseColor.texture = await Texture.createFromBitmap(images[bitmapIndex])
+            }
+            if (pbr.metallicFactor !== undefined) {
+                resultMaterial.metallicRoughness.value[0] = pbr.metallicFactor
+            }
+            if (pbr.roughnessFactor !== undefined) {
+                resultMaterial.metallicRoughness.value[1] = pbr.roughnessFactor
+            }
+            if (pbr.metallicRoughnessTexture !== undefined) {
+                if (pbr.metallicFactor === undefined) {
+                    resultMaterial.metallicRoughness.value[0] = 1.0
+                }
+                if (pbr.roughnessFactor === undefined) {
+                    resultMaterial.metallicRoughness.value[1] = 1.0
+                }
+                let index = getIndex(pbr.metallicRoughnessTexture.index)
+                let bitmapIndex = textures[index].imageIndex
+                resultMaterial.metallicRoughness.texture = await Texture.createFromBitmap(images[bitmapIndex])
             }
             resultScene.materials.push(resultMaterial)
         }

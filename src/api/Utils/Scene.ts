@@ -20,7 +20,7 @@ export interface SceneData {
     materialInfoBuffer: Field, // Field of MaterialInfo 
     nodesBuffer: Field,
 
-    lightsInfoBuffer: Field|undefined
+    lightsInfoBuffer: Field | undefined
 }
 
 export class Scene {
@@ -52,7 +52,7 @@ export class Scene {
         let indexBuffer = ti.field(ti.i32, this.indices.length)
         await indexBuffer.fromArray(this.indices)
 
-        let materialInfoBuffer = ti.field(new Material(0).getInfoType(), this.materials.length)
+        let materialInfoBuffer = ti.field(new Material(0).getInfoKernelType(), this.materials.length)
         let infosHost = this.materials.map(mat => mat.getInfo())
         await materialInfoBuffer.fromArray(infosHost)
 
@@ -75,7 +75,7 @@ export class Scene {
 
         let lightsInfoBuffer: Field | undefined = undefined
         if (this.lights.length > 0) {
-            lightsInfoBuffer =  ti.field(LightInfo.getKernelType(), this.lights.length)
+            lightsInfoBuffer = ti.field(LightInfo.getKernelType(), this.lights.length)
             await lightsInfoBuffer.fromArray(this.lights)
         }
 

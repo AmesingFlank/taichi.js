@@ -2,19 +2,20 @@ import { TextureBase } from "../../data/Texture";
 import { Type } from "../../frontend/Type";
 export declare class MaterialAttribute {
     numComponents: number;
-    value: number | number[] | undefined;
+    value: number[];
     texture: TextureBase | undefined;
-    constructor(numComponents: number, value?: number | number[] | undefined, texture?: TextureBase | undefined);
+    constructor(numComponents: number, value: number[], texture?: TextureBase | undefined);
     getInfo(): MaterialAttributeInfo;
-    getInfoType(): Type;
+    getInfoKernelType(): Type;
 }
 export declare class Material {
     materialID: number;
     constructor(materialID: number);
     name: string;
     baseColor: MaterialAttribute;
+    metallicRoughness: MaterialAttribute;
     getInfo(): MaterialInfo;
-    getInfoType(): Type;
+    getInfoKernelType(): Type;
     hasTexture(): boolean;
 }
 export interface MaterialAttributeInfo {
@@ -24,5 +25,5 @@ export interface MaterialAttributeInfo {
 export interface MaterialInfo {
     materialID: number;
     baseColor: MaterialAttributeInfo;
+    metallicRoughness: MaterialAttributeInfo;
 }
-export declare const materialAttributeInfoType: import("../../frontend/Type").StructType;

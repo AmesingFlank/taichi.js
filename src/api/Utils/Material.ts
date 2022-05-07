@@ -5,28 +5,21 @@ import * as ti from "../../taichi"
 export class MaterialAttribute {
     constructor(
         public numComponents: number,
-        public value: number | number[] | undefined = undefined,
+        public value: number[],
         public texture: TextureBase | undefined = undefined
     ) {
 
-    } 
+    }
 
     getInfo(): MaterialAttributeInfo {
-        let defaultValue: number | number[] = 0.0
-        if (this.numComponents > 1) {
-            defaultValue = []
-            for (let i = 0; i < this.numComponents; ++i) {
-                defaultValue.push(1.0)
-            }
-        }
         return {
-            value: this.value !== undefined ? this.value : defaultValue,
+            value: this.value,
             hasTexture: this.texture !== undefined ? 1 : 0,
         }
     }
 
-    getInfoType(): Type {
-        let valueType = this.numComponents === 1 ? ti.f32 : ti.types.vector(ti.f32, this.numComponents)
+    getInfoKernelType(): Type {
+        let valueType = ti.types.vector(ti.f32, this.numComponents)
         return ti.types.struct({
             value: valueType,
             hasTexture: ti.i32
@@ -40,23 +33,26 @@ export class Material {
     }
 
     name: string = ""
-    baseColor: MaterialAttribute = new MaterialAttribute(4)
+    baseColor: MaterialAttribute = new MaterialAttribute(4, [1, 1, 1, 1])
+    metallicRoughness: MaterialAttribute = new MaterialAttribute(2, [0, 0])
 
     getInfo(): MaterialInfo {
         return {
             materialID: this.materialID,
-            baseColor: this.baseColor.getInfo()
+            baseColor: this.baseColor.getInfo(),
+            metallicRoughness: this.metallicRoughness.getInfo()
         }
     }
 
-    getInfoType(): Type {
+    getInfoKernelType(): Type {
         return ti.types.struct({
             materialID: ti.i32,
-            baseColor: this.baseColor.getInfoType()
+            baseColor: this.baseColor.getInfoKernelType(),
+            metallicRoughness: this.metallicRoughness.getInfoKernelType()
         })
     }
 
-    hasTexture():boolean {
+    hasTexture(): boolean {
         return this.baseColor.texture !== undefined
     }
 }
@@ -70,15 +66,8 @@ export interface MaterialAttributeInfo {
 // used by shaders
 export interface MaterialInfo {
     materialID: number
-    baseColor: MaterialAttributeInfo
+    baseColor: MaterialAttributeInfo,
+    metallicRoughness: MaterialAttributeInfo
     // other stuff
 }
-
-export const materialAttributeInfoType = ti.types.struct({
-    position: ti.types.vector(ti.f32, 3),
-    normal: ti.types.vector(ti.f32, 3),
-    texCoords: ti.types.vector(ti.f32, 2),
-    materialID: ti.i32
-})
-
 
