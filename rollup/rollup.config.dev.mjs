@@ -18,7 +18,6 @@ export default {
     }
   ],
   plugins: [
-    typescript(),
     commonjs(),
     resolve({
       browser: true
@@ -26,6 +25,7 @@ export default {
     replace({
       'require("source-map-support").install()': '',
       delimiters: ['', '']
-    })
+    }),
+    typescript(),
   ]
 };
