@@ -15,8 +15,8 @@ let main = async () => {
     //let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Buggy/glTF-Binary/Buggy.glb")
     //let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Buggy/glTF/Buggy.gltf")
     //let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Cube/glTF/Cube.gltf")
-    //let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb")
-    let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF/DamagedHelmet.gltf")
+    let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb")
+    //let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/FlightHelmet/glTF/FlightHelmet.gltf")
 
 
     scene.lights.push(new ti.utils.LightInfo(
@@ -71,18 +71,13 @@ let main = async () => {
                 return result
             }
 
-            let geometry = (alphaSquared, normal, lightDir, viewDir, halfDir) => {
-                let G1 = (dir) => {
-                    let numerator = 2.0 * abs(dot(dir, normal)) * characteristic(dot(halfDir, dir))
-                    let denominator = abs(dot(dir, normal)) + sqrt(alphaSquared + (1 - alphaSquared) * dot(normal, dir) * dot(normal, dir))
-                    return numerator / denominator
-                }
-                return G1(lightDir) * G1(viewDir)
+            let lerp = (x, y, s) => {
+                return x * (1.0 - s) + y * s
             }
 
-            let distribution = (normal, halfDir, alphaSquared) => {
-                let numerator = alphaSquared * characteristic(dot(normal, halfDir))
-                let temp = dot(normal, halfDir) * dot(normal, halfDir) * (alphaSquared - 1) + 1
+            let distribution = (normal, halfDir, alpha) => {
+                let numerator = alpha * alpha * characteristic(dot(normal, halfDir))
+                let temp = dot(normal, halfDir) * dot(normal, halfDir) * (alpha * alpha - 1) + 1
                 let denominator = Math.PI * temp * temp
                 return numerator / denominator
             }
@@ -91,37 +86,38 @@ let main = async () => {
                 return F0 + (1.0 - F0) * (1.0 - abs(dot(normal, viewDir))) ** 5
             }
 
-            let evalSpecularBRDF = (alphaSquared, Fr, normal, lightDir, viewDir, halfDir) => {
-                let G = geometry(alphaSquared, normal, lightDir, viewDir, halfDir)
-                let D = distribution(normal, halfDir, alphaSquared)
-                return G * D * Fr / (4 * dot(normal, viewDir) * dot(normal, lightDir))
+            let evalSpecularBRDF = (alpha, Fr, normal, lightDir, viewDir, halfDir) => {
+                let D = distribution(normal, halfDir, alpha)
+                let NdotL = abs(dot(normal, lightDir))
+                let NdotV = abs(dot(normal, viewDir))
+                let G2_Over_4_NdotL_NdotV = 0.5 / lerp(2 * NdotL * NdotV, NdotL + NdotV, alpha)
+                return G2_Over_4_NdotL_NdotV * D * Fr
             }
 
             let evalDiffuseBRDF = (albedo) => {
                 return albedo * (1.0 / Math.PI)
             }
 
-            let evalMetalBRDF = (alphaSquared, baseColor, normal, lightDir, viewDir, halfDir) => {
+            let evalMetalBRDF = (alpha, baseColor, normal, lightDir, viewDir, halfDir) => {
                 let F0 = baseColor
                 let microfacetNormal = halfDir
                 let Fr = fresnel(F0, microfacetNormal, viewDir)
-                return evalSpecularBRDF(alphaSquared, Fr, normal, lightDir, viewDir, halfDir)
+                return evalSpecularBRDF(alpha, Fr, normal, lightDir, viewDir, halfDir)
             }
 
-            let evalDielectricBRDF = (alphaSquared, baseColor, normal, lightDir, viewDir, halfDir) => {
+            let evalDielectricBRDF = (alpha, baseColor, normal, lightDir, viewDir, halfDir) => {
                 let F0 = [0.04, 0.04, 0.04]
                 let microfacetNormal = halfDir
                 let Fr = fresnel(F0, microfacetNormal, viewDir)
-                let specular = evalSpecularBRDF(alphaSquared, Fr, normal, lightDir, viewDir, halfDir)
+                let specular = evalSpecularBRDF(alpha, Fr, normal, lightDir, viewDir, halfDir)
                 let diffuse = evalDiffuseBRDF(baseColor)
                 return diffuse * (1 - Fr) + specular
             }
 
             let evalBRDF = (material, normal, lightDir, viewDir, halfDir) => {
                 let alpha = material.roughness * material.roughness
-                let alphaSquared = alpha * alpha
-                let metallicBRDF = evalMetalBRDF(alphaSquared, material.baseColor.rgb, normal, lightDir, viewDir, halfDir)
-                let dielectricBRDF = evalDielectricBRDF(alphaSquared, material.baseColor.rgb, normal, lightDir, viewDir, halfDir)
+                let metallicBRDF = evalMetalBRDF(alpha, material.baseColor.rgb, normal, lightDir, viewDir, halfDir)
+                let dielectricBRDF = evalDielectricBRDF(alpha, material.baseColor.rgb, normal, lightDir, viewDir, halfDir)
                 return material.metallic * metallicBRDF + (1.0 - material.metallic) * dielectricBRDF
             }
 
