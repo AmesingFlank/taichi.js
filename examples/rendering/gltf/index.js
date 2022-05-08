@@ -135,10 +135,18 @@ let main = async () => {
                         emissive: materialInfo.emissive.value
                     }
                     if (ti.static(scene.batchInfos[batchID].materialIndex != -1)) {
-                        material.baseColor *= ti.textureSample(scene.materials[scene.batchInfos[batchID].materialIndex].baseColor.texture, texCoords)
-                        material.metallic *= ti.textureSample(scene.materials[scene.batchInfos[batchID].materialIndex].metallicRoughness.texture, texCoords)[0]
-                        material.roughness *= ti.textureSample(scene.materials[scene.batchInfos[batchID].materialIndex].metallicRoughness.texture, texCoords)[1]
-                        material.emissive *= ti.textureSample(scene.materials[scene.batchInfos[batchID].materialIndex].emissive.texture, texCoords).rgb
+                        let materialRef = scene.materials[scene.batchInfos[batchID].materialIndex]
+                        if (ti.static(materialRef.baseColor.texture !== undefined)) {
+                            material.baseColor *= ti.textureSample(materialRef.baseColor.texture, texCoords)
+                        }
+                        if (ti.static(materialRef.metallicRoughness.texture !== undefined)) {
+                            let metallicRoughness = ti.textureSample(materialRef.metallicRoughness.texture, texCoords)
+                            material.metallic *= metallicRoughness[0]
+                            material.roughness *= metallicRoughness[1]
+                        }
+                        if (ti.static(materialRef.emissive.texture !== undefined)) {
+                            material.emissive *= ti.textureSample(materialRef.emissive.texture, texCoords).rgb
+                        }
                     }
                     return material
                 }

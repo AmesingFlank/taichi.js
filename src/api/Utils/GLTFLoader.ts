@@ -70,28 +70,32 @@ export class GltfLoader {
         }
 
         let images: ImageBitmap[] = []
-        for (let img of gltfJson.images) {
-            if (img.bufferView !== undefined) {
-                let bufferViewIndex = getIndex(img.bufferView)
-                let bufferView = bufferViews[bufferViewIndex]
-                let blob = new Blob([bufferView.data], { type: img.mimeType });
-                let urlCreator = window.URL || window.webkitURL;
-                let imageUrl = urlCreator.createObjectURL(blob);
-                let htmlImage = new Image()
-                htmlImage.src = imageUrl
-                await htmlImage.decode();
-                urlCreator.revokeObjectURL(imageUrl)
-                let bitmap = await createImageBitmap(htmlImage)
-                images.push(bitmap)
-            }
-            else {
-                images.push(img.image)
+        if (gltfJson.images !== undefined) {
+            for (let img of gltfJson.images) {
+                if (img.bufferView !== undefined) {
+                    let bufferViewIndex = getIndex(img.bufferView)
+                    let bufferView = bufferViews[bufferViewIndex]
+                    let blob = new Blob([bufferView.data], { type: img.mimeType });
+                    let urlCreator = window.URL || window.webkitURL;
+                    let imageUrl = urlCreator.createObjectURL(blob);
+                    let htmlImage = new Image()
+                    htmlImage.src = imageUrl
+                    await htmlImage.decode();
+                    urlCreator.revokeObjectURL(imageUrl)
+                    let bitmap = await createImageBitmap(htmlImage)
+                    images.push(bitmap)
+                }
+                else {
+                    images.push(img.image)
+                }
             }
         }
 
         let textures: GltfTexture[] = []
-        for (let texture of gltfJson.textures) {
-            textures.push(new GltfTexture(getIndex(texture.source)))
+        if (gltfJson.textures !== undefined) {
+            for (let texture of gltfJson.textures) {
+                textures.push(new GltfTexture(getIndex(texture.source)))
+            }
         }
 
         for (let i = 0; i < gltfJson.materials.length; ++i) {
@@ -126,12 +130,12 @@ export class GltfLoader {
                 let bitmapIndex = textures[index].imageIndex
                 resultMaterial.metallicRoughness.texture = await Texture.createFromBitmap(images[bitmapIndex])
             }
-            if(inputMaterial.emissiveFactor !== undefined){
+            if (inputMaterial.emissiveFactor !== undefined) {
                 resultMaterial.emissive.value = inputMaterial.emissiveFactor
             }
-            if(inputMaterial.emissiveTexture !== undefined){
-                if(inputMaterial.emissiveFactor === undefined){
-                    resultMaterial.emissive.value = [1,1,1]
+            if (inputMaterial.emissiveTexture !== undefined) {
+                if (inputMaterial.emissiveFactor === undefined) {
+                    resultMaterial.emissive.value = [1, 1, 1]
                 }
                 let index = getIndex(inputMaterial.emissiveTexture.index)
                 let bitmapIndex = textures[index].imageIndex

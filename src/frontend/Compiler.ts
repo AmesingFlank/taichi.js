@@ -1148,13 +1148,13 @@ class CompilingVisitor extends ASTVisitor<Value>{
         let initValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(initializer)))
         let varSymbol = this.getNodeSymbol(identifier)
 
-        if (initValue.getType().getCategory() !== TypeCategory.Function) {
+        if (initValue.getType().getCategory() !== TypeCategory.Function && initValue.getType().getCategory() !== TypeCategory.HostObjectReference) {
             let localVar = this.createLocalVarCopy(initValue)
             this.symbolTable.set(varSymbol, localVar)
             return localVar
         }
         else {
-            // don't support alloca/load/store for functions... treated as const
+            // don't support alloca/load/store for functions and host object references... treated as const
             this.symbolTable.set(varSymbol, initValue)
             return initValue
         }
