@@ -484,7 +484,9 @@ class CompilingVisitor extends ASTVisitor<Value>{
             "textureLoad",
             "textureStore",
             "getVertexIndex",
-            "getInstanceIndex"
+            "getInstanceIndex",
+            "dpdx",
+            "dpdy",
         ]
         for (let f of functions) {
             if (funcText === f || funcText === "ti." + f) {
@@ -714,6 +716,24 @@ class CompilingVisitor extends ASTVisitor<Value>{
             let resultType = new ScalarType(PrimitiveType.i32)
             let result = new Value(resultType)
             result.stmts.push(this.irBuilder.create_instance_index_input())
+            return result
+        }
+        if (funcText === "dpdx" || funcText === "dpdy") {
+            this.assertNode(node, node.arguments.length === 1, "dpdx()/dpdy() must have exactly 1 argument")
+            let val = argumentValues[0]
+            let valType = val.getType()
+            this.assertNode(node, TypeUtils.isTensorType(valType) && TypeUtils.getPrimitiveType(valType) === PrimitiveType.f32, "dpdx()/dpdy() must accept a f32 scalar/vector/matrix argument")
+            let result = new Value(valType)
+            for (let stmt of val.stmts) {
+                let derivative: NativeTaichiAny
+                if (funcText === "dpdx") {
+                    derivative = this.irBuilder.create_dpdx(stmt)
+                }
+                else {
+                    derivative = this.irBuilder.create_dpdy(stmt)
+                }
+                result.stmts.push(derivative)
+            }
             return result
         }
     }

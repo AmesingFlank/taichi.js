@@ -141,6 +141,11 @@ export class GltfLoader {
                 let bitmapIndex = textures[index].imageIndex
                 resultMaterial.emissive.texture = await Texture.createFromBitmap(images[bitmapIndex])
             }
+            if (inputMaterial.normalTexture !== undefined) {
+                let index = getIndex(inputMaterial.normalTexture.index)
+                let bitmapIndex = textures[index].imageIndex
+                resultMaterial.normalMap.texture = await Texture.createFromBitmap(images[bitmapIndex])
+            }
             resultScene.materials.push(resultMaterial)
         }
 

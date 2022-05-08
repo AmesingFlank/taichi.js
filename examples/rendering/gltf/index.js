@@ -44,7 +44,7 @@ let main = async () => {
     let render = ti.kernel(
         (t) => {
             let center = [0, 0, 0];
-            let eye = [0.0, 0.0, 5.0];
+            let eye = [0.0, 0.0, 3.0];
             let view = ti.lookAt(eye, center, [0.0, 1.0, 0.0]);
             let proj = ti.perspective(45.0, aspectRatio, 0.1, 1000);
             let vp = proj.matmul(view);
@@ -125,6 +125,19 @@ let main = async () => {
                 return material.metallic * metallicBRDF + (1.0 - material.metallic) * dielectricBRDF
             }
 
+            let getNormal = (normal, normalMap, texCoords, position) => {
+                let uvDx = ti.dpdx(texCoords)
+                let uvDy = ti.dpdy(texCoords)
+                let posDx = ti.dpdx(position)
+                let posDy = ti.dpdy(position)
+                let temp = (uvDy.y * posDx - uvDx.y * posDy) / (uvDx.x * uvDy.y - uvDy.x * uvDx.y)
+                let tangent = (temp - normal * dot(normal, temp))
+                let bitangent = cross(normal, tangent)
+                let mat = [tangent, bitangent, normal].transpose()
+                let normalMapValue = (normalMap * 2.0 - 1.0).normalized()
+                return ti.matmul(mat, normalMapValue).normalized()
+            }
+
             for (let batchID of ti.static(ti.range(sceneData.batchesDrawInfoBuffers.length))) {
                 let getMaterial = (texCoords, materialID) => {
                     let materialInfo = sceneData.materialInfoBuffer[materialID]
@@ -132,7 +145,8 @@ let main = async () => {
                         baseColor: materialInfo.baseColor.value,
                         metallic: materialInfo.metallicRoughness.value[0],
                         roughness: materialInfo.metallicRoughness.value[1],
-                        emissive: materialInfo.emissive.value
+                        emissive: materialInfo.emissive.value,
+                        normalMap: materialInfo.normalMap.value,
                     }
                     if (ti.static(scene.batchInfos[batchID].materialIndex != -1)) {
                         let materialRef = scene.materials[scene.batchInfos[batchID].materialIndex]
@@ -146,6 +160,9 @@ let main = async () => {
                         }
                         if (ti.static(materialRef.emissive.texture !== undefined)) {
                             material.emissive *= ti.textureSample(materialRef.emissive.texture, texCoords).rgb
+                        }
+                        if (ti.static(materialRef.normalMap.texture !== undefined)) {
+                            material.normalMap = ti.textureSample(materialRef.normalMap.texture, texCoords).rgb
                         }
                     }
                     return material
@@ -166,9 +183,10 @@ let main = async () => {
                     ti.outputVertex(vertexOutput);
                 }
                 for (let f of ti.inputFragments()) {
-                    let normal = f.normal.normalized()
                     let materialID = f.materialIndex
                     let material = getMaterial(f.texCoords, materialID)
+                    let normal = f.normal.normalized()
+                    normal = getNormal(normal, material.normalMap, f.texCoords, f.position)
                     let viewDir = (eye - f.position).normalized()
 
                     if (ti.static(scene.lights.length > 0)) {
@@ -192,7 +210,7 @@ let main = async () => {
             }
         }
     )
-    let t = 0;
+    let t = 100;
     async function frame() {
         render(t * 0.01);
         t = t + 1;

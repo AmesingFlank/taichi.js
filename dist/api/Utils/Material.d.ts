@@ -15,6 +15,7 @@ export declare class Material {
     baseColor: MaterialAttribute;
     metallicRoughness: MaterialAttribute;
     emissive: MaterialAttribute;
+    normalMap: MaterialAttribute;
     getInfo(): MaterialInfo;
     getInfoKernelType(): Type;
     hasTexture(): boolean;
@@ -28,4 +29,5 @@ export interface MaterialInfo {
     baseColor: MaterialAttributeInfo;
     metallicRoughness: MaterialAttributeInfo;
     emissive: MaterialAttributeInfo;
+    normalMap: MaterialAttributeInfo;
 }

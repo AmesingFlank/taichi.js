@@ -36,13 +36,15 @@ export class Material {
     baseColor: MaterialAttribute = new MaterialAttribute(4, [1, 1, 1, 1])
     metallicRoughness: MaterialAttribute = new MaterialAttribute(2, [0, 0])
     emissive: MaterialAttribute = new MaterialAttribute(3, [0, 0, 0])
+    normalMap: MaterialAttribute = new MaterialAttribute(3, [0.5, 0.5, 1.0])
 
     getInfo(): MaterialInfo {
         return {
             materialID: this.materialID,
             baseColor: this.baseColor.getInfo(),
             metallicRoughness: this.metallicRoughness.getInfo(),
-            emissive: this.emissive.getInfo()
+            emissive: this.emissive.getInfo(),
+            normalMap: this.normalMap.getInfo()
         }
     }
 
@@ -51,7 +53,8 @@ export class Material {
             materialID: ti.i32,
             baseColor: this.baseColor.getInfoKernelType(),
             metallicRoughness: this.metallicRoughness.getInfoKernelType(),
-            emissive:this.emissive.getInfoKernelType(),
+            emissive: this.emissive.getInfoKernelType(),
+            normalMap: this.normalMap.getInfoKernelType(),
         })
     }
 
@@ -72,6 +75,7 @@ export interface MaterialInfo {
     baseColor: MaterialAttributeInfo,
     metallicRoughness: MaterialAttributeInfo,
     emissive: MaterialAttributeInfo,
+    normalMap: MaterialAttributeInfo
     // other stuff
 }
 
