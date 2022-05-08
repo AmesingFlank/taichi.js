@@ -75,6 +75,14 @@ let main = async () => {
                 return x * (1.0 - s) + y * s
             }
 
+            let linearTosRGB = (x) => {
+                return Math.pow(x, 1.0 / 2.2)
+            }
+
+            let sRGBToLinear = (x) => {
+                return Math.pow(x, 2.2)
+            }
+
             let distribution = (normal, halfDir, alpha) => {
                 let numerator = alpha * alpha * characteristic(dot(normal, halfDir))
                 let temp = dot(normal, halfDir) * dot(normal, halfDir) * (alpha * alpha - 1) + 1
@@ -147,7 +155,9 @@ let main = async () => {
                     if (ti.static(scene.batchInfos[batchID].materialIndex != -1)) {
                         let materialRef = scene.materials[scene.batchInfos[batchID].materialIndex]
                         if (ti.static(materialRef.baseColor.texture !== undefined)) {
-                            material.baseColor *= ti.textureSample(materialRef.baseColor.texture, texCoords)
+                            let sampledBaseColor = ti.textureSample(materialRef.baseColor.texture, texCoords)
+                            sampledBaseColor.rgb = sRGBToLinear(sampledBaseColor.rgb)
+                            material.baseColor *= sampledBaseColor
                         }
                         if (ti.static(materialRef.metallicRoughness.texture !== undefined)) {
                             let metallicRoughness = ti.textureSample(materialRef.metallicRoughness.texture, texCoords)
@@ -155,10 +165,13 @@ let main = async () => {
                             material.roughness *= metallicRoughness.g
                         }
                         if (ti.static(materialRef.emissive.texture !== undefined)) {
-                            material.emissive *= ti.textureSample(materialRef.emissive.texture, texCoords).rgb
+                            let sampledEmissive = ti.textureSample(materialRef.emissive.texture, texCoords).rgb
+                            sampledEmissive = sRGBToLinear(sampledEmissive)
+                            material.emissive *= sampledEmissive
                         }
                         if (ti.static(materialRef.normalMap.texture !== undefined)) {
-                            material.normalMap = ti.textureSample(materialRef.normalMap.texture, texCoords).rgb
+                            let sampledNormal = ti.textureSample(materialRef.normalMap.texture, texCoords).rgb
+                            material.normalMap = sampledNormal
                         }
                     }
                     return material
@@ -196,7 +209,8 @@ let main = async () => {
                             let brdf = evalBRDF(material, normal, lightDir, viewDir, halfDir)
                             color = color + brightness * brdf
                         }
-                        color += material.emissive
+                        color += material.emissive 
+                        color = linearTosRGB(color)
                         ti.outputColor(target, color.concat([1.0]));
                     }
                     else {

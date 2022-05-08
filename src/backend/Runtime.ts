@@ -440,10 +440,15 @@ class Runtime {
     }
 
     createGPUSampler(depth: boolean): GPUSampler {
-        let desc: GPUSamplerDescriptor = {}
-        desc.addressModeU = "repeat"
-        desc.addressModeV = "repeat"
-        desc.addressModeW = "repeat"
+        let desc: GPUSamplerDescriptor = {
+            addressModeU:"repeat",
+            addressModeV:"repeat",
+            addressModeW:"repeat",
+            minFilter:"linear",
+            magFilter:"linear",
+            mipmapFilter:"linear",
+            maxAnisotropy:16
+        }
         if (depth) {
             desc.compare = "less"
         }
