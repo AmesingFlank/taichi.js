@@ -47,7 +47,7 @@ let main = async () => {
             let eye = [0.0, 0.0, 5.0];
             let view = ti.lookAt(eye, center, [0.0, 1.0, 0.0]);
             let proj = ti.perspective(45.0, aspectRatio, 0.1, 1000);
-            let vp = proj.matmul(view); 
+            let vp = proj.matmul(view);
 
             ti.useDepth(depth);
             ti.clearColor(target, [0.1, 0.2, 0.3, 1]);
@@ -131,12 +131,14 @@ let main = async () => {
                     let material = {
                         baseColor: materialInfo.baseColor.value,
                         metallic: materialInfo.metallicRoughness.value[0],
-                        roughness: materialInfo.metallicRoughness.value[1]
+                        roughness: materialInfo.metallicRoughness.value[1],
+                        emissive: materialInfo.emissive.value
                     }
                     if (ti.static(scene.batchInfos[batchID].materialIndex != -1)) {
                         material.baseColor *= ti.textureSample(scene.materials[scene.batchInfos[batchID].materialIndex].baseColor.texture, texCoords)
                         material.metallic *= ti.textureSample(scene.materials[scene.batchInfos[batchID].materialIndex].metallicRoughness.texture, texCoords)[0]
                         material.roughness *= ti.textureSample(scene.materials[scene.batchInfos[batchID].materialIndex].metallicRoughness.texture, texCoords)[1]
+                        material.emissive *= ti.textureSample(scene.materials[scene.batchInfos[batchID].materialIndex].emissive.texture, texCoords).rgb
                     }
                     return material
                 }
@@ -172,6 +174,7 @@ let main = async () => {
                             let brdf = evalBRDF(material, normal, lightDir, viewDir, halfDir)
                             color = color + brightness * brdf
                         }
+                        color += material.emissive
                         ti.outputColor(target, color.concat([1.0]));
                     }
                     else {

@@ -35,12 +35,14 @@ export class Material {
     name: string = ""
     baseColor: MaterialAttribute = new MaterialAttribute(4, [1, 1, 1, 1])
     metallicRoughness: MaterialAttribute = new MaterialAttribute(2, [0, 0])
+    emissive: MaterialAttribute = new MaterialAttribute(3, [0, 0, 0])
 
     getInfo(): MaterialInfo {
         return {
             materialID: this.materialID,
             baseColor: this.baseColor.getInfo(),
-            metallicRoughness: this.metallicRoughness.getInfo()
+            metallicRoughness: this.metallicRoughness.getInfo(),
+            emissive: this.emissive.getInfo()
         }
     }
 
@@ -48,7 +50,8 @@ export class Material {
         return ti.types.struct({
             materialID: ti.i32,
             baseColor: this.baseColor.getInfoKernelType(),
-            metallicRoughness: this.metallicRoughness.getInfoKernelType()
+            metallicRoughness: this.metallicRoughness.getInfoKernelType(),
+            emissive:this.emissive.getInfoKernelType(),
         })
     }
 
@@ -67,7 +70,8 @@ export interface MaterialAttributeInfo {
 export interface MaterialInfo {
     materialID: number
     baseColor: MaterialAttributeInfo,
-    metallicRoughness: MaterialAttributeInfo
+    metallicRoughness: MaterialAttributeInfo,
+    emissive: MaterialAttributeInfo,
     // other stuff
 }
 

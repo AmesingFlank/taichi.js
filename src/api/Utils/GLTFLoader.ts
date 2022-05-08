@@ -126,6 +126,17 @@ export class GltfLoader {
                 let bitmapIndex = textures[index].imageIndex
                 resultMaterial.metallicRoughness.texture = await Texture.createFromBitmap(images[bitmapIndex])
             }
+            if(inputMaterial.emissiveFactor !== undefined){
+                resultMaterial.emissive.value = inputMaterial.emissiveFactor
+            }
+            if(inputMaterial.emissiveTexture !== undefined){
+                if(inputMaterial.emissiveFactor === undefined){
+                    resultMaterial.emissive.value = [1,1,1]
+                }
+                let index = getIndex(inputMaterial.emissiveTexture.index)
+                let bitmapIndex = textures[index].imageIndex
+                resultMaterial.emissive.texture = await Texture.createFromBitmap(images[bitmapIndex])
+            }
             resultScene.materials.push(resultMaterial)
         }
 
