@@ -17,7 +17,7 @@ let main = async () => {
     //let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Cube/glTF/Cube.gltf")
     let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb")
     //let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/FlightHelmet/glTF/FlightHelmet.gltf")
-
+    //let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/WaterBottle/glTF/WaterBottle.gltf")
 
     scene.lights.push(new ti.utils.LightInfo(
         ti.utils.LightType.Point,
@@ -151,8 +151,8 @@ let main = async () => {
                         }
                         if (ti.static(materialRef.metallicRoughness.texture !== undefined)) {
                             let metallicRoughness = ti.textureSample(materialRef.metallicRoughness.texture, texCoords)
-                            material.metallic *= metallicRoughness[0]
-                            material.roughness *= metallicRoughness[1]
+                            material.metallic *= metallicRoughness.b
+                            material.roughness *= metallicRoughness.g
                         }
                         if (ti.static(materialRef.emissive.texture !== undefined)) {
                             material.emissive *= ti.textureSample(materialRef.emissive.texture, texCoords).rgb
