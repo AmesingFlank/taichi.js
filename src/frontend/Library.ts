@@ -994,6 +994,34 @@ let inverseCode =
 }
 `
 
+let rotateAxisAngleCode = `
+(axis, angle) => {
+    let a = angle
+    let c = Math.cos(a)
+    let s = Math.sin(a)
+    let temp = (1.0 - c) * axis
+
+    let m = [
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ]; 
+    m[0][0] = c + temp[0] * axis[0];
+    m[1][0] = temp[0] * axis[1] + s * axis[2];
+    m[2][0] = temp[0] * axis[2] - s * axis[1];
+
+    m[0][1] = temp[1] * axis[0] - s * axis[2];
+    m[1][1] = c + temp[1] * axis[1];
+    m[2][1] = temp[1] * axis[2] + s * axis[0];
+
+    m[0][2] = temp[2] * axis[0] + s * axis[1];
+    m[1][2] = temp[2] * axis[1] - s * axis[0];
+    m[2][2] = c + temp[2] * axis[2];
+    return m
+}
+`
+
 class LibraryFunc {
     constructor(public name: string, public numArgs: number, public code: string) {
 
@@ -1007,6 +1035,7 @@ class LibraryFunc {
             new LibraryFunc("lookAt", 3, lookAtCode),
             new LibraryFunc("perspective", 4, perspectiveCode),
             new LibraryFunc("inverse", 1, inverseCode),
+            new LibraryFunc("rotateAxisAngle", 2, rotateAxisAngleCode)
         ]
 
         let funcsMap = new Map<string, LibraryFunc>()

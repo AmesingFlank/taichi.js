@@ -44,7 +44,7 @@ let main = async () => {
     let render = ti.kernel(
         (t) => {
             let center = [0, 0, 0];
-            let eye = [sin(t), 0.0, cos(t)] * 5 + [0.0, 0.0, 0.0] + center;
+            let eye = [0.0, 0.0, 5.0];
             let view = ti.lookAt(eye, center, [0.0, 1.0, 0.0]);
             let proj = ti.perspective(45.0, aspectRatio, 0.1, 1000);
             let vp = proj.matmul(view); 
@@ -146,6 +146,8 @@ let main = async () => {
                     let nodeIndex = instanceInfo.nodeIndex
                     let materialIndex = instanceInfo.materialIndex
                     let modelMatrix = sceneData.nodesBuffer[nodeIndex].globalTransform.matrix
+                    let rotation = ti.rotateAxisAngle([0.0, 1.0, 0.0], t)
+                    modelMatrix = ti.matmul(rotation, modelMatrix)
                     v.normal = ti.transpose(ti.inverse(modelMatrix.slice([0, 0], [3, 3]))).matmul(v.normal)
                     v.position = modelMatrix.matmul(v.position.concat([1.0])).xyz
                     let pos = vp.matmul(v.position.concat([1.0]));
