@@ -25,17 +25,10 @@ let main = async () => {
     let x = ti.Vector.field(3, ti.f32, [n_particles]); // position
     let v = ti.Vector.field(3, ti.f32, [n_particles]); // velocity
     let C = ti.Matrix.field(3, 3, ti.f32, [n_particles]); // affine vel field
-    let F = ti.Matrix.field(3, 3, ti.f32, n_particles); // deformation gradient
-    let Jp = ti.field(ti.f32, [n_particles]); // plastic deformation
+    let J = ti.field(ti.f32, [n_particles]); // plastic deformation
     let grid_v = ti.Vector.field(3, ti.f32, [n_grid, n_grid, n_grid]);
     let grid_m = ti.field(ti.f32, [n_grid, n_grid, n_grid]);
 
-    let group_size = n_particles / 3;
-
-    let WATER = 0;
-    let JELLY = 1;
-    let SNOW = 2;
-    let material = ti.field(ti.i32, [n_particles]); // material id
 
     ti.addToKernelScope({
         n_particles,
@@ -53,15 +46,9 @@ let main = async () => {
         x,
         v,
         C,
-        F,
-        material,
-        Jp,
+        J,
         grid_v,
         grid_m,
-        group_size,
-        WATER,
-        SNOW,
-        JELLY,
     });
 
     let substep = ti.kernel(() => {
@@ -78,71 +65,13 @@ let main = async () => {
                 0.75 - (fx - 1) ** 2,
                 0.5 * (fx - 0.5) ** 2,
             ];
-            F[p] = (
-                [
-                    [1.0, 0.0, 0.0],
-                    [0.0, 1.0, 0.0],
-                    [0.0, 0.0, 1.0],
-                ] +
-                dt * C[p]
-            ).matmul(F[p]);
-            let h = f32(ti.exp(10 * (1.0 - Jp[p])));
-            if (material[p] == JELLY) {
-                h = 0.3;
-            }
-            let mu = mu_0 * h;
-            let la = lambda_0 * h;
-            if (material[p] == WATER) {
-                mu = 0.0;
-            }
-            let U = [
-                [0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0],
-            ];
-            let sig = [
-                [0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0],
-            ];
-            let V = [
-                [0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0],
-            ];
-            ti.svd3D(F[p], U, sig, V);
-            let J = f32(1.0);
-            for (let d of ti.static(ti.range(3))) {
-                let new_sig = sig[[d, d]];
-                if (material[p] == SNOW) {
-                    // Plasticity
-                    new_sig = min(max(sig[[d, d]], 1 - 2.5e-2), 1 + 4.5e-3);
-                }
-                Jp[p] = (Jp[p] * sig[[d, d]]) / new_sig;
-                sig[[d, d]] = new_sig;
-                J = J * new_sig;
-            }
-            if (material[p] == WATER) {
-                F[p] = [
-                    [J, 0.0, 0.0],
-                    [0.0, 1.0, 0.0],
-                    [0.0, 0.0, 1.0],
-                ];
-            } else if (material[p] == 2) {
-                F[p] = U.matmul(sig).matmul(V.transpose());
-            }
-            let stress =
-                (2 * mu * (F[p] - U.matmul(V.transpose()))).matmul(F[p].transpose()) +
-                [
-                    [1.0, 0.0, 0.0],
-                    [0.0, 1.0, 0.0],
-                    [0.0, 0.0, 1.0],
-                ] *
-                la *
-                J *
-                (J - 1);
-            stress = (-dt * p_vol * 4 * stress) / dx ** 2;
-            let affine = stress + p_mass * C[p];
+            let stress = -dt * 4 * E * p_vol * (J[p] - 1) / dx ** 2
+            let identity = [
+                [1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.0, 0.0, 1.0]
+            ]
+            let affine = stress * identity + p_mass * C[p];
             for (let i of ti.static(ti.range(3))) {
                 for (let j of ti.static(ti.range(3))) {
                     for (let k of ti.static(ti.range(3))) {
@@ -214,30 +143,7 @@ let main = async () => {
             v[p] = new_v;
             C[p] = new_C;
             x[p] = x[p] + dt * new_v;
-        }
-    });
-
-    let reset_3_materials = ti.kernel(() => {
-        for (let i of range(n_particles)) {
-            let group_id = i32(ti.floor(i / group_size));
-            x[i] = [
-                ti.random() * 0.2 + 0.3 + 0.1 * group_id,
-                ti.random() * 0.2 + 0.05 + 0.32 * group_id,
-                ti.random() * 0.2 + 0.3 + 0.1 * group_id,
-            ];
-            material[i] = group_id;
-            v[i] = [0, 0, 0];
-            F[i] = [
-                [1 + 1e-6, 0, 0],
-                [0, 1 - 1e-6, 0],
-                [0, 0, 1],
-            ];
-            Jp[i] = 1;
-            C[i] = [
-                [0, 0, 0],
-                [0, 0, 0],
-                [0, 0, 0],
-            ];
+            J[p] *= 1 + dt * (new_C[[0, 0]] + new_C[[1, 1]] + new_C[[2, 2]])
         }
     });
 
@@ -248,14 +154,8 @@ let main = async () => {
                 ti.random() * 0.3 + 0.05 + 0.32,
                 ti.random() * 0.3 + 0.05,
             ];
-            material[i] = WATER;
             v[i] = [0, 0, 0];
-            F[i] = [
-                [1 + 1e-6, 0, 0],
-                [0, 1 - 1e-6, 0],
-                [0, 0, 1],
-            ];
-            Jp[i] = 1;
+            J[i] = 1;
             C[i] = [
                 [0, 0, 0],
                 [0, 0, 0],
@@ -267,7 +167,6 @@ let main = async () => {
     let vertex_type = ti.types.struct({
         particle_pos: ti.types.vector(ti.f32, 3),
         vertex_pos: ti.types.vector(ti.f32, 2),
-        material: ti.i32,
     });
 
     let VBO = ti.field(vertex_type, n_particles * 4);
@@ -288,10 +187,7 @@ let main = async () => {
             VBO[i * 4 + 1].vertex_pos = [1, -1];
             VBO[i * 4 + 2].vertex_pos = [-1, 1];
             VBO[i * 4 + 3].vertex_pos = [1, 1];
-
-            for (let v of range(4)) {
-                VBO[i * 4 + v].material = material[i];
-            }
+            
         }
     });
 
@@ -332,7 +228,6 @@ let main = async () => {
             ti.outputVertex({
                 point_coord: v.vertex_pos,
                 center_pos_camera_space: view.matmul((v.particle_pos, 1.0)).xyz,
-                material: v.material,
             });
         }
         // frag shader for vertices
@@ -357,14 +252,7 @@ let main = async () => {
             ).normalized();
             let c = normal_camera_space.dot(light_dir);
 
-            let mat_color = f32([0, 0, 0, 0]);
-            if (f.material == WATER) {
-                mat_color = [0.1, 0.6, 0.9, 1.0];
-            } else if (f.material == JELLY) {
-                mat_color = [0.93, 0.33, 0.23, 1.0];
-            } else if (f.material == SNOW) {
-                mat_color = [1, 1, 1, 1.0];
-            }
+            let mat_color = [0.1, 0.6, 0.9, 1.0]; 
 
             let color = (c * mat_color.rgb).concat([1.0]);
             ti.outputColor(renderTarget, color);
