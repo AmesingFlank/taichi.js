@@ -329,11 +329,11 @@ class CompilingVisitor extends ASTVisitor<Value>{
         }
 
         let opAssignTokenToAtomicOp = new Map<ts.SyntaxKind, BuiltinOp>()
-        opAssignTokenToAtomicOp.set(ts.SyntaxKind.PlusEqualsToken, this.atomicOps.get("atomic_add")!);
-        opAssignTokenToAtomicOp.set(ts.SyntaxKind.MinusEqualsToken, this.atomicOps.get("atomic_sub")!);
-        opAssignTokenToAtomicOp.set(ts.SyntaxKind.AmpersandEqualsToken, this.atomicOps.get("atomic_and")!);
-        opAssignTokenToAtomicOp.set(ts.SyntaxKind.BarEqualsToken, this.atomicOps.get("atomic_or")!);
-        opAssignTokenToAtomicOp.set(ts.SyntaxKind.CaretEqualsToken, this.atomicOps.get("atomic_xor")!);
+        opAssignTokenToAtomicOp.set(ts.SyntaxKind.PlusEqualsToken, this.atomicOps.get("atomicAdd")!);
+        opAssignTokenToAtomicOp.set(ts.SyntaxKind.MinusEqualsToken, this.atomicOps.get("atomicSub")!);
+        opAssignTokenToAtomicOp.set(ts.SyntaxKind.AmpersandEqualsToken, this.atomicOps.get("atomicAnd")!);
+        opAssignTokenToAtomicOp.set(ts.SyntaxKind.BarEqualsToken, this.atomicOps.get("atomicOr")!);
+        opAssignTokenToAtomicOp.set(ts.SyntaxKind.CaretEqualsToken, this.atomicOps.get("atomicXor")!);
 
         if (opAssignTokenToAtomicOp.has(opToken.kind)) {
             let atomicOp = opAssignTokenToAtomicOp.get(opToken.kind)!
@@ -1035,7 +1035,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
                 return this.getValueFromAnyHostValue(objHostValue[propText])
             }
         }
-        console.log(objRef)
+        this.errorNode(node,`invalid property access`)
     }
 
     protected getValueFromAnyHostValue(val: any): Value {

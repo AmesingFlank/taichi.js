@@ -78,9 +78,12 @@ let main = async () => {
                         let offset = [i, j, k];
                         let dpos = (f32(offset) - fx) * dx;
                         let weight = w[[i, 0]] * w[[j, 1]] * w[[k, 2]];
-                        grid_v[base + offset] +=
-                            weight * (p_mass * v[p] + affine.matmul(dpos));
-                        grid_m[base + offset] += weight * p_mass;
+                        let cell = base + offset
+                        if (cell[0] >= 0 && cell[1] >= 0 && cell[2] >= 0 && cell[0] < n_grid && cell[1] < n_grid && cell[2] < n_grid) {
+                            grid_v[cell] +=
+                                weight * (p_mass * v[p] + affine.matmul(dpos));
+                            grid_m[cell] += weight * p_mass;
+                        }
                     }
                 }
             }
@@ -97,19 +100,19 @@ let main = async () => {
             if (i < bound && grid_v[I][0] < 0) {
                 grid_v[I][0] = 0;
             }
-            if (i > n_grid - bound && grid_v[I][0] > 0) {
+            if (i >= n_grid - bound && grid_v[I][0] > 0) {
                 grid_v[I][0] = 0;
             }
             if (j < bound && grid_v[I][1] < 0) {
                 grid_v[I][1] = 0;
             }
-            if (j > n_grid - bound && grid_v[I][1] > 0) {
+            if (j >= n_grid - bound && grid_v[I][1] > 0) {
                 grid_v[I][1] = 0;
             }
             if (k < bound && grid_v[I][2] < 0) {
                 grid_v[I][2] = 0;
             }
-            if (k > n_grid - bound && grid_v[I][2] > 0) {
+            if (k >= n_grid - bound && grid_v[I][2] > 0) {
                 grid_v[I][2] = 0;
             }
         }
@@ -150,9 +153,9 @@ let main = async () => {
     let reset_water_only = ti.kernel(() => {
         for (let i of range(n_particles)) {
             x[i] = [
-                ti.random() * 0.3 + 0.05,
-                ti.random() * 0.3 + 0.05 + 0.32,
-                ti.random() * 0.3 + 0.05,
+                ti.random() * 0.4 + 0.05,
+                ti.random() * 0.4 + 0.05,
+                ti.random() * 0.4 + 0.05,
             ];
             v[i] = [0, 0, 0];
             J[i] = 1;
@@ -187,7 +190,7 @@ let main = async () => {
             VBO[i * 4 + 1].vertex_pos = [1, -1];
             VBO[i * 4 + 2].vertex_pos = [-1, 1];
             VBO[i * 4 + 3].vertex_pos = [1, 1];
-            
+
         }
     });
 
@@ -252,7 +255,7 @@ let main = async () => {
             ).normalized();
             let c = normal_camera_space.dot(light_dir);
 
-            let mat_color = [0.1, 0.6, 0.9, 1.0]; 
+            let mat_color = [0.1, 0.6, 0.9, 1.0];
 
             let color = (c * mat_color.rgb).concat([1.0]);
             ti.outputColor(renderTarget, color);

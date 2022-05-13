@@ -92,7 +92,7 @@ let main = async () => {
                 let tile_min = [i * tile_size, j * tile_size];
                 let tile_max = [(i + 1) * tile_size, (j + 1) * tile_size];
                 if (bbox_intersect(tile_min, tile_max, tri_min, tri_max)) {
-                    let my_idx = ti.atomic_add(block_num_triangles[(i, j)], 1);
+                    let my_idx = ti.atomicAdd(block_num_triangles[(i, j)], 1);
                     block_indicies[[i, j, my_idx]] = t;
                 }
             }

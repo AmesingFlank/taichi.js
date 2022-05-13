@@ -289,7 +289,7 @@ class BuiltinAtomicOp extends BuiltinOp {
 
     override checkType(args: Value[]): TypeError {
         if (args.length !== 2) {
-            return TypeError.createError("atomic op must be of the form ti.atomic_XX(dest,val) or dest op= val")
+            return TypeError.createError("atomic op must be of the form ti.atomicXX(dest,val) or dest op= val")
         }
         let type0 = args[0].getType()
         let type1 = args[1].getType()
@@ -341,13 +341,13 @@ class BuiltinOpFactory {
     static getAtomicOps(irBuilder: NativeTaichiAny): Map<string, BuiltinAtomicOp> {
         let opsMap = new Map<string, BuiltinAtomicOp>()
         let ops: BuiltinAtomicOp[] = [
-            new BuiltinAtomicOp("atomic_add", irBuilder, (dest: NativeTaichiAny, val: NativeTaichiAny) => irBuilder.create_atomic_add(dest, val)),
-            new BuiltinAtomicOp("atomic_sub", irBuilder, (dest: NativeTaichiAny, val: NativeTaichiAny) => irBuilder.create_atomic_sub(dest, val)),
-            new BuiltinAtomicOp("atomic_max", irBuilder, (dest: NativeTaichiAny, val: NativeTaichiAny) => irBuilder.create_atomic_max(dest, val)),
-            new BuiltinAtomicOp("atomic_min", irBuilder, (dest: NativeTaichiAny, val: NativeTaichiAny) => irBuilder.create_atomic_min(dest, val)),
-            new BuiltinAtomicOp("atomic_and", irBuilder, (dest: NativeTaichiAny, val: NativeTaichiAny) => irBuilder.create_atomic_and(dest, val)),
-            new BuiltinAtomicOp("atomic_or", irBuilder, (dest: NativeTaichiAny, val: NativeTaichiAny) => irBuilder.create_atomic_or(dest, val)),
-            new BuiltinAtomicOp("atomic_xor", irBuilder, (dest: NativeTaichiAny, val: NativeTaichiAny) => irBuilder.create_atomic_xor(dest, val)),
+            new BuiltinAtomicOp("atomicAdd", irBuilder, (dest: NativeTaichiAny, val: NativeTaichiAny) => irBuilder.create_atomic_add(dest, val)),
+            new BuiltinAtomicOp("atomicSub", irBuilder, (dest: NativeTaichiAny, val: NativeTaichiAny) => irBuilder.create_atomic_sub(dest, val)),
+            new BuiltinAtomicOp("atomicMax", irBuilder, (dest: NativeTaichiAny, val: NativeTaichiAny) => irBuilder.create_atomic_max(dest, val)),
+            new BuiltinAtomicOp("atomicMin", irBuilder, (dest: NativeTaichiAny, val: NativeTaichiAny) => irBuilder.create_atomic_min(dest, val)),
+            new BuiltinAtomicOp("atomicAnd", irBuilder, (dest: NativeTaichiAny, val: NativeTaichiAny) => irBuilder.create_atomic_and(dest, val)),
+            new BuiltinAtomicOp("atomicOr", irBuilder, (dest: NativeTaichiAny, val: NativeTaichiAny) => irBuilder.create_atomic_or(dest, val)),
+            new BuiltinAtomicOp("atomicXor", irBuilder, (dest: NativeTaichiAny, val: NativeTaichiAny) => irBuilder.create_atomic_xor(dest, val)),
         ]
         for (let op of ops) {
             opsMap.set(op.name, op)
