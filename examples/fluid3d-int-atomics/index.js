@@ -24,7 +24,6 @@ let main = async () => {
 
     let cellInfo = ti.types.struct({
         v: ti.types.vector(ti.f32, 3),
-        m: ti.f32,
         numParticles: ti.i32
     })
 
@@ -66,7 +65,6 @@ let main = async () => {
     let substep = ti.kernel(() => {
         for (let I of ti.ndrange(n_grid, n_grid, n_grid)) {
             grid[I].v = [0.0, 0.0, 0.0];
-            grid[I].m = 0.0;
             grid[I].numParticles = 0
         }
         for (let p of ti.range(numParticles)) {
@@ -105,6 +103,8 @@ let main = async () => {
                 [0.0, 0.0, 1.0]
             ]
 
+            let totalWeight = 0.0
+
             for (let local_id of ti.range(numParticlesInCell)) {
                 let p = gridParticleIds[i, j, k, local_id]
                 let weight = gridParticleWeights[i, j, k, local_id]
@@ -114,16 +114,12 @@ let main = async () => {
                 let dpos = I * dx - particles[p].x
                 grid[I].v = grid[I].v +
                     weight * (particleMass * particles[p].v + affine.matmul(dpos));
-                grid[I].m = grid[I].m + weight * particleMass;
+                totalWeight = totalWeight + weight * particleMass
             }
-        }
-        for (let I of ndrange(n_grid, n_grid, n_grid)) {
+
             let bound = 2;
-            let i = I[0];
-            let j = I[1];
-            let k = I[2];
-            if (grid[I].m > 0) {
-                grid[I].v = (1 / grid[I].m) * grid[I].v;
+            if (totalWeight > 0) {
+                grid[I].v = grid[I].v / totalWeight;
             }
             grid[I].v = grid[I].v + dt * gravity[0];
             if (i < bound && grid[I].v[0] < 0) {
