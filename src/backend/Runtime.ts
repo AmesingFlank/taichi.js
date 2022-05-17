@@ -426,8 +426,7 @@ class Runtime {
                     sampleCount
                 }
             }
-            else {// if(dimensions.length === 3){
-                error("3d texture not supported yet")
+            else {// if(dimensions.length === 3){ 
                 return {
                     size: { width: dimensions[0], height: dimensions[1], depthOrArrayLayers: dimensions[2] },
                     dimension: "3d",

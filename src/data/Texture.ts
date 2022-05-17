@@ -5,6 +5,7 @@ import { assert, error } from "../utils/Logging"
 
 enum TextureDimensionality {
     Dim2d,
+    Dim3d,
     DimCube
 }
 
@@ -15,6 +16,9 @@ function toNativeImageDimensionality(dim: TextureDimensionality): NativeTaichiAn
         }
         case TextureDimensionality.DimCube: {
             return nativeTaichi.TextureDimensionality.DimCube;
+        }
+        case TextureDimensionality.Dim3d: {
+            return nativeTaichi.TextureDimensionality.Dim3d;
         }
         default: {
             error("unrecognized dimensionality")
@@ -29,6 +33,9 @@ function getTextureCoordsNumComponents(dim: TextureDimensionality): number {
             return 2;
         }
         case TextureDimensionality.DimCube: {
+            return 3;
+        }
+        case TextureDimensionality.Dim3d: {
             return 3;
         }
         default: {

@@ -2,7 +2,8 @@
 import { NativeTaichiAny } from "../native/taichi/GetTaichi";
 declare enum TextureDimensionality {
     Dim2d = 0,
-    DimCube = 1
+    Dim3d = 1,
+    DimCube = 2
 }
 declare function toNativeImageDimensionality(dim: TextureDimensionality): NativeTaichiAny;
 declare function getTextureCoordsNumComponents(dim: TextureDimensionality): number;
