@@ -19,6 +19,8 @@ let main = async () => {
     //let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/FlightHelmet/glTF/FlightHelmet.gltf")
     //let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/WaterBottle/glTF/WaterBottle.gltf")
 
+    let hdrTexture = await ti.utils.HdrLoader.loadFromURL("../resources/footprint_court.hdr") 
+
     scene.lights.push(new ti.utils.LightInfo(
         ti.utils.LightType.Point,
         [300, 300, 300],
@@ -39,7 +41,7 @@ let main = async () => {
     let sceneData = await scene.getKernelData()
     console.log(sceneData)
 
-    ti.addToKernelScope({ scene, sceneData, aspectRatio, target, depth, LightType: ti.utils.LightType })
+    ti.addToKernelScope({ scene, sceneData, hdrTexture, aspectRatio, target, depth, LightType: ti.utils.LightType })
 
     let render = ti.kernel(
         (t) => {
