@@ -21,6 +21,8 @@ let main = async () => {
 
     let ibl = await ti.utils.HdrLoader.loadFromURL("../resources/footprint_court.hdr")
     let iblLambertianFiltered = ti.texture(4, ibl.texture.dimensions)
+    let iblGGXFiltered = ti.texture(4, ibl.texture.dimensions.concat([16]))
+    let LUT = ti.texture(4, [512, 512])
 
     // scene.lights.push(new ti.utils.LightInfo(
     //     ti.utils.LightType.Point,
@@ -90,7 +92,22 @@ let main = async () => {
         return Math.max(0.0, Math.min(1.0, temp))
     }
 
-    ti.addToKernelScope({ scene, sceneData, aspectRatio, target, depth, LightType: ti.utils.LightType, skyboxVBO, skyboxIBO, dirToUV, uvToDir, tonemap, ibl, iblLambertianFiltered })
+    let ggxDistribution = (NdotH, alpha) => {
+        let numerator = alpha * alpha * characteristic(NdotH)
+        let temp = NdotH * NdotH * (alpha * alpha - 1) + 1
+        let denominator = Math.PI * temp * temp
+        return numerator / denominator
+    }
+
+    let characteristic = (x) => {
+        let result = 1
+        if (x < 0) {
+            result = 0
+        }
+        return result
+    }
+
+    ti.addToKernelScope({ scene, sceneData, aspectRatio, target, depth, LightType: ti.utils.LightType, skyboxVBO, skyboxIBO, characteristic, dirToUV, uvToDir, tonemap, ggxDistribution, ibl, iblLambertianFiltered, iblGGXFiltered, LUT })
 
     let prefilter = ti.kernel(
         () => {
@@ -133,6 +150,11 @@ let main = async () => {
 
                 return [tangent, bitangent, normal].transpose();
             }
+
+            let computeLod = (pdf) => {
+                return 0.5 * log(6.0 * ibl.texture.dimensions[0] * ibl.texture.dimensions[0] / (kSampleCount * pdf)) / log(2.0);
+            }
+
             let getLambertianImportanceSample = (normal, xi) => {
                 let cosTheta = sqrt(1.0 - xi.y);
                 let sinTheta = sqrt(xi.y); // equivalent to `sqrt(1.0 - cosTheta*cosTheta)`;
@@ -150,10 +172,6 @@ let main = async () => {
                 }
             }
 
-            let computeLod = (pdf) => {
-                return 0.5 * log(6.0 * ibl.texture.dimensions[0] * ibl.texture.dimensions[0] / (kSampleCount * pdf)) / log(2.0);
-            }
-
             let filterLambertian = (normal) => {
                 let color = [0.0, 0.0, 0.0]
                 for (let i of range(kSampleCount)) {
@@ -163,8 +181,8 @@ let main = async () => {
                     let pdf = importanceSample.pdf
                     let lod = computeLod(pdf);
                     let halfDirCoords = dirToUV(halfDir)
-                    let lambertian = ti.textureSampleLod(ibl.texture, halfDirCoords, lod)
-                    color += lambertian.rgb / kSampleCount
+                    let sampled = ti.textureSampleLod(ibl.texture, halfDirCoords, lod)
+                    color += sampled.rgb / kSampleCount
                 }
                 return color
             }
@@ -174,6 +192,99 @@ let main = async () => {
                 let dir = uvToDir(uv)
                 let filtered = filterLambertian(dir)
                 ti.textureStore(iblLambertianFiltered, I, filtered.concat([1.0]));
+            }
+
+            let saturate = (v) => {
+                return max(0.0, min(1.0, v))
+            }
+
+            let getGGXImportanceSample = (normal, roughness, xi) => {
+                let alpha = roughness * roughness;
+                let cosTheta = saturate(sqrt((1.0 - xi.y) / (1.0 + (alpha * alpha - 1.0) * xi.y)));
+                let sinTheta = sqrt(1.0 - cosTheta * cosTheta);
+                let phi = 2.0 * Math.PI * xi.x;
+
+                let pdf = ggxDistribution(cosTheta, alpha) / 4.0;
+                let localSpaceDirection = [
+                    sinTheta * cos(phi),
+                    sinTheta * sin(phi),
+                    cosTheta
+                ]
+                let TBN = generateTBN(normal);
+                let direction = TBN.matmul(localSpaceDirection);
+                return {
+                    pdf: pdf,
+                    direction: direction
+                }
+            }
+
+            let filterGGX = (normal, roughness) => {
+                let color = [0.0, 0.0, 0.0]
+                for (let i of range(kSampleCount)) {
+                    let xi = hammersley2d(i, kSampleCount)
+                    let importanceSample = getGGXImportanceSample(normal, roughness, xi)
+                    let halfDir = importanceSample.direction
+                    let pdf = importanceSample.pdf
+                    let lod = computeLod(pdf);
+                    if (roughness == 0.0) {
+                        lod = 0.0
+                    }
+                    let halfDirCoords = dirToUV(halfDir)
+                    let sampled = ti.textureSampleLod(ibl.texture, halfDirCoords, lod)
+                    color += sampled.rgb / kSampleCount
+                }
+                return color
+            }
+
+            for (let I of ti.ndrange(iblGGXFiltered.dimensions[0], iblGGXFiltered.dimensions[1])) {
+                let numLevels = iblGGXFiltered.dimensions[2]
+                for (let level of range(numLevels)) {
+                    let roughness = level / (numLevels - 1)
+                    let uv = I / (iblGGXFiltered.dimensions.slice(0, 2) - [1.0, 1.0])
+                    let dir = uvToDir(uv)
+                    let filtered = filterGGX(dir, roughness)
+                    ti.textureStore(iblGGXFiltered, I.concat([level]), filtered.concat([1.0]));
+                }
+            }
+
+            let computeLUT = (NdotV, roughness) => {
+                let V = [sqrt(1.0 - NdotV * NdotV), 0.0, NdotV];
+                let N = [0.0, 0.0, 1.0];
+
+                let A = 0.0;
+                let B = 0.0;
+                let C = 0.0;
+
+                for (let i of range(kSampleCount)) {
+                    let xi = hammersley2d(i, kSampleCount)
+                    let importanceSample = getGGXImportanceSample(N, roughness, xi)
+                    let H = importanceSample.direction;
+                    // float pdf = importanceSample.w;
+                    let L = (2.0 * H * dot(H, V) - V).normalized()
+
+                    let NdotL = saturate(L.z);
+                    let NdotH = saturate(H.z);
+                    let VdotH = saturate(dot(V, H));
+
+                    if (NdotL > 0.0) {
+                        let a2 = Math.pow(roughness, 4.0);
+                        let GGXV = NdotL * sqrt(NdotV * NdotV * (1.0 - a2) + a2);
+                        let GGXL = NdotV * sqrt(NdotL * NdotL * (1.0 - a2) + a2);
+                        let V_pdf = (0.5 / (GGXV + GGXL)) * VdotH * NdotL / NdotH;
+                        let Fc = Math.pow(1.0 - VdotH, 5.0);
+                        A += (1.0 - Fc) * V_pdf;
+                        B += Fc * V_pdf;
+                        C += 0.0;
+
+                    }
+                }
+                return [4.0 * A, 4.0 * B, 4.0 * 2.0 * Math.PI * C] / kSampleCount;
+            }
+
+            for (let I of ti.ndrange(LUT.dimensions[0], LUT.dimensions[1])) {
+                let uv = I / (LUT.dimensions - [1.0, 1.0])
+                let texel = computeLUT(uv[0], uv[1])
+                ti.textureStore(LUT, I, texel.concat([1.0]));
             }
         }
     )
@@ -202,14 +313,6 @@ let main = async () => {
                 return brightness
             }
 
-            let characteristic = (x) => {
-                let result = 1
-                if (x < 0) {
-                    result = 0
-                }
-                return result
-            }
-
             let lerp = (x, y, s) => {
                 return x * (1.0 - s) + y * s
             }
@@ -222,19 +325,12 @@ let main = async () => {
                 return Math.pow(x, 2.2)
             }
 
-            let distribution = (normal, halfDir, alpha) => {
-                let numerator = alpha * alpha * characteristic(dot(normal, halfDir))
-                let temp = dot(normal, halfDir) * dot(normal, halfDir) * (alpha * alpha - 1) + 1
-                let denominator = Math.PI * temp * temp
-                return numerator / denominator
-            }
-
             let fresnel = (F0, normal, viewDir) => {
                 return F0 + (1.0 - F0) * (1.0 - abs(dot(normal, viewDir))) ** 5
             }
 
             let evalSpecularBRDF = (alpha, Fr, normal, lightDir, viewDir, halfDir) => {
-                let D = distribution(normal, halfDir, alpha)
+                let D = ggxDistribution(dot(normal, halfDir), alpha)
                 let NdotL = abs(dot(normal, lightDir))
                 let NdotV = abs(dot(normal, viewDir))
                 let G2_Over_4_NdotL_NdotV = 0.5 / lerp(2 * NdotL * NdotV, NdotL + NdotV, alpha)
@@ -269,12 +365,21 @@ let main = async () => {
                 return material.metallic * metallicBRDF + (1.0 - material.metallic) * dielectricBRDF
             }
 
-            let evalIBL = (material, normal) => {
+            let evalIBL = (material, normal, viewDir) => {
                 let diffuseColor = (1.0 - material.metallic) * (1.0 - dielectricF0) * material.baseColor.rgb
                 let normalUV = dirToUV(normal)
                 let diffuseLight = sRGBToLinear(tonemap(ti.textureSample(iblLambertianFiltered, normalUV).rgb, ibl.exposure))
                 let diffuse = diffuseColor * diffuseLight
-                return diffuse
+
+                let specularColor = (1.0 - material.metallic) * dielectricF0 + material.metallic * material.baseColor.rgb
+                let reflection = 2.0 * normal * dot(normal, viewDir) - viewDir
+                let reflectionUV = dirToUV(reflection)
+                let specularLight = sRGBToLinear(tonemap(ti.textureSample(iblGGXFiltered, reflectionUV.concat([material.roughness])).rgb, ibl.exposure))
+                let NdotV = dot(normal, viewDir)
+                let scaleBias = ti.textureSample(LUT, [NdotV, material.roughness]).rg
+                let specular = specularLight * (specularColor * scaleBias[0] + scaleBias[1])
+
+                return diffuse + specular
             }
 
             let getNormal = (normal, normalMap, texCoords, position) => {
@@ -361,7 +466,7 @@ let main = async () => {
                         }
                     }
 
-                    color += evalIBL(material, normal)
+                    color += evalIBL(material, normal, viewDir)
 
                     color = linearTosRGB(color)
                     ti.outputColor(target, color.concat([1.0]));

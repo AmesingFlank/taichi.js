@@ -109,6 +109,8 @@ class Texture extends TextureBase {
         switch (this.dimensions.length) {
             case 2:
                 return TextureDimensionality.Dim2d
+            case 3:
+                return TextureDimensionality.Dim3d
             default:
                 error("unsupported dimensionality")
                 return TextureDimensionality.Dim2d
