@@ -223,6 +223,15 @@ function parseHdr(buffer: Uint8Array) {
     }
 }
 
+export class HdrTexture {
+    constructor(
+        public texture: Texture,
+        public exposure: number
+    ) {
+
+    }
+}
+
 export class HdrLoader {
 
     private static getImgFieldToTextureKernel(): ((...args: any[]) => void) {
@@ -244,11 +253,11 @@ export class HdrLoader {
     }
     private static imgFieldToTexture: ((...args: any[]) => void) | undefined = undefined
 
-    static async loadFromURL(url: string): Promise<Texture> {
+    static async loadFromURL(url: string): Promise<HdrTexture> {
         let hdr = await fetch(url)
         let rawBuffer: ArrayBuffer = await hdr.arrayBuffer()
         let d8: Uint8Array = new Uint8Array(rawBuffer)
-        
+
         let parseResult = parseHdr(d8)
         let width = parseResult.shape[0]
         let height = parseResult.shape[1]
@@ -259,6 +268,6 @@ export class HdrLoader {
         let imgTexture = ti.texture(4, [width, height])
         let k = this.getImgFieldToTextureKernel()
         k(imgField, imgTexture)
-        return imgTexture
+        return new HdrTexture(imgTexture, parseResult.exposure)
     }
 }

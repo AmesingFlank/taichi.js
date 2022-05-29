@@ -379,6 +379,10 @@ class BuiltinOpFactory {
 
             new BuiltinBinaryOp("/", BinaryOpDatatypeTransform.AlwaysF32, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_truediv(l, r), (l, r) => l / r),
 
+            // doesn't work
+            new BuiltinBinaryOp("<<", BinaryOpDatatypeTransform.PromoteToMatch, false, false, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_shl(l, r)),
+            new BuiltinBinaryOp(">>>", BinaryOpDatatypeTransform.PromoteToMatch, false, false, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_shr(l, r)),
+
             new BuiltinUnaryOp("sin", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_sin(stmt)),
             new BuiltinUnaryOp("cos", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_cos(stmt)),
             new BuiltinUnaryOp("asin", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_asin(stmt)),
@@ -401,8 +405,8 @@ class BuiltinOpFactory {
             new BuiltinUnaryOp("bitcast_f32", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_bit_cast(stmt, toNativePrimitiveType(PrimitiveType.f32)), (x) => x),
             new BuiltinUnaryOp("bitcast_i32", PrimitiveType.i32, (stmt: NativeTaichiAny) => irBuilder.create_bit_cast(stmt, toNativePrimitiveType(PrimitiveType.i32)), (x) => x),
 
-            new BuiltinBinaryOp("max", BinaryOpDatatypeTransform.PromoteToMatch, false, false, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_max(l, r), (l, r) => Math.max(l, r)),
-            new BuiltinBinaryOp("min", BinaryOpDatatypeTransform.PromoteToMatch, false, false, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_min(l, r), (l, r) => Math.min(l, r)),
+            new BuiltinBinaryOp("max", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_max(l, r), (l, r) => Math.max(l, r)),
+            new BuiltinBinaryOp("min", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_min(l, r), (l, r) => Math.min(l, r)),
             new BuiltinBinaryOp("pow", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_pow(l, r), (l, r) => Math.pow(l, r)),
             new BuiltinBinaryOp("atan2", BinaryOpDatatypeTransform.AlwaysF32, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_atan2(l, r), (l, r) => Math.atan2(l, r)),
 

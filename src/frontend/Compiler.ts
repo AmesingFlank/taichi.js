@@ -269,6 +269,14 @@ class CompilingVisitor extends ASTVisitor<Value>{
             return ValueUtils.makeConstantScalar(value, this.irBuilder.get_float32(value), PrimitiveType.f32)
         }
         else {
+            if(value > 2**32-1){
+                this.errorNode(node, `${node.getText()} cannot be expressed as a 32-bit integer`)
+            }
+            if(value > 2**31 - 1){
+                // this can only be expressed as u32.
+                // we compute the i32 with the identical bit pattern here
+                value = value - 2**32
+            }
             return ValueUtils.makeConstantScalar(value, this.irBuilder.get_int32(value), PrimitiveType.i32)
         }
     }
@@ -481,6 +489,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             "outputDepth",
             "discard",
             "textureSample",
+            "textureSampleLod",
             "textureLoad",
             "textureStore",
             "getVertexIndex",
@@ -636,6 +645,41 @@ class CompilingVisitor extends ASTVisitor<Value>{
             }
 
             let sampleResultStmt = this.irBuilder.create_texture_sample(texture.nativeTexture, stmtsVec)
+
+            let resultType = new VectorType(PrimitiveType.f32, 4)
+            let result = new Value(resultType)
+            for (let i = 0; i < 4; ++i) {
+                result.stmts.push(this.irBuilder.create_composite_extract(sampleResultStmt, i))
+            }
+            return result
+        }
+
+        if (funcText === "textureSampleLod") {
+            // TODO: error check this, but also handle textureSampleLod called inside functions
+            //this.assertNode(node, this.startedFragment, "textureSampleLod() can only be used inside a fragment-for") 
+
+            this.assertNode(node, node.arguments.length === 3, "textureSampleLod() must have exactly 3 arguments, one for texture, one for the coordinates, one for the explicit LOD")
+            this.assertNode(node, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && isTexture(argumentValues[0].hostSideValue), "the first argument of textureSampleLod() must be a texture object that's visible in kernel scope")
+            let texture = argumentValues[0].hostSideValue as TextureBase
+            let dim = texture.getTextureDimensionality()
+
+            let coords = argumentValues[1]
+            this.assertNode(node, coords.getType().getCategory() === TypeCategory.Vector, "coords must be a vector")
+            let vecType = coords.getType() as VectorType
+            let requiredComponentCount = getTextureCoordsNumComponents(dim)
+            this.assertNode(node, vecType.getNumRows() === requiredComponentCount, `coords component count must be ${requiredComponentCount}`)
+            this.assertNode(node, vecType.getPrimitiveType() === PrimitiveType.f32, "coords must be a f32 vector")
+
+            let lod = argumentValues[2]
+            this.assertNode(node, lod.getType().getCategory() === TypeCategory.Scalar && TypeUtils.getPrimitiveType(lod.getType()) === PrimitiveType.f32, "lod must be a scalar float")
+
+            let coordsStmtVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
+
+            for (let i = 0; i < coords.stmts.length; ++i) {
+                coordsStmtVec.push_back(coords.stmts[i])
+            } 
+
+            let sampleResultStmt = this.irBuilder.create_texture_sample_lod(texture.nativeTexture, coordsStmtVec, lod.stmts[0])
 
             let resultType = new VectorType(PrimitiveType.f32, 4)
             let result = new Value(resultType)
@@ -1035,7 +1079,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
                 return this.getValueFromAnyHostValue(objHostValue[propText])
             }
         }
-        this.errorNode(node,`invalid property access`)
+        this.errorNode(node, `invalid property access`)
     }
 
     protected getValueFromAnyHostValue(val: any): Value {

@@ -19,34 +19,171 @@ let main = async () => {
     //let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/FlightHelmet/glTF/FlightHelmet.gltf")
     //let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/WaterBottle/glTF/WaterBottle.gltf")
 
-    let hdrTexture = await ti.utils.HdrLoader.loadFromURL("../resources/footprint_court.hdr") 
+    let ibl = await ti.utils.HdrLoader.loadFromURL("../resources/footprint_court.hdr")
+    let iblLambertianFiltered = ti.texture(4, ibl.texture.dimensions)
 
-    scene.lights.push(new ti.utils.LightInfo(
-        ti.utils.LightType.Point,
-        [300, 300, 300],
-        1000000,
-        [1, 1, 1],
-        1000
-    ))
-    scene.lights.push(new ti.utils.LightInfo(
-        ti.utils.LightType.Point,
-        [-300, -300, -300],
-        1000000,
-        [1, 1, 1],
-        1000
-    ))
+    // scene.lights.push(new ti.utils.LightInfo(
+    //     ti.utils.LightType.Point,
+    //     [300, 300, 300],
+    //     1000000,
+    //     [1, 1, 1],
+    //     1000
+    // ))
+    // scene.lights.push(new ti.utils.LightInfo(
+    //     ti.utils.LightType.Point,
+    //     [-300, -300, -300],
+    //     1000000,
+    //     [1, 1, 1],
+    //     1000
+    // ))
 
     console.log(scene)
 
     let sceneData = await scene.getKernelData()
     console.log(sceneData)
 
-    ti.addToKernelScope({ scene, sceneData, hdrTexture, aspectRatio, target, depth, LightType: ti.utils.LightType })
+    let skyboxVBO = ti.field(ti.types.vector(ti.f32, 3), 8);
+    let skyboxIBO = ti.field(ti.i32, 36);
+    await skyboxVBO.fromArray([
+        [-1, -1, -1],
+        [-1, -1, 1],
+        [-1, 1, -1],
+        [-1, 1, 1],
+        [1, -1, -1],
+        [1, -1, 1],
+        [1, 1, -1],
+        [1, 1, 1],
+    ]);
+    await skyboxIBO.fromArray([
+        0, 1, 2, 1, 3, 2, 4, 5, 6, 5, 7, 6, 0, 2, 4, 2, 6, 4, 1, 3, 5, 3, 7, 5, 0,
+        1, 4, 1, 5, 4, 2, 3, 6, 3, 7, 6,
+    ]);
+
+    let dirToUV = (dir) => {
+        return [0.5 + 0.5 * Math.atan2(dir[2], dir[0]) / Math.PI, 1.0 - Math.acos(dir[1]) / Math.PI]
+    }
+
+    let uvToDir = (uv) => {
+        let y = Math.cos((1.0 - uv[1]) * Math.PI)
+        let phi = (uv[0] - 0.5) * Math.PI / 0.5
+        let absZOverX = Math.abs(Math.tan(phi))
+        let xSquared = (1.0 - y * y) / (1.0 + absZOverX * absZOverX)
+        let x = Math.sqrt(xSquared)
+        let z = x * absZOverX
+        if (abs(phi) >= Math.PI * 0.5) {
+            x = -x;
+        }
+        if (phi < 0) {
+            z = -z;
+        }
+        return [x, y, z]
+    }
+
+    let tonemap = (color, exposure) => {
+        let A = 2.51;
+        let B = 0.03;
+        let C = 2.43;
+        let D = 0.59;
+        let E = 0.14;
+        let temp = color * exposure
+        temp = (temp * (A * temp + B)) / (temp * (C * temp + D) + E)
+        return Math.max(0.0, Math.min(1.0, temp))
+    }
+
+    ti.addToKernelScope({ scene, sceneData, aspectRatio, target, depth, LightType: ti.utils.LightType, skyboxVBO, skyboxIBO, dirToUV, uvToDir, tonemap, ibl, iblLambertianFiltered })
+
+    let prefilter = ti.kernel(
+        () => {
+            let kSampleCount = 1024
+
+            let radicalInverseVdC = (bits) => {
+                bits = (bits << 16) | (bits >>> 16);
+                bits = ((bits & 0x55555555) << 1) | ((bits & 0xAAAAAAAA) >>> 1);
+                bits = ((bits & 0x33333333) << 2) | ((bits & 0xCCCCCCCC) >>> 2);
+                bits = ((bits & 0x0F0F0F0F) << 4) | ((bits & 0xF0F0F0F0) >>> 4);
+                bits = ((bits & 0x00FF00FF) << 8) | ((bits & 0xFF00FF00) >>> 8);
+                let result = f32(bits) * 2.3283064365386963e-10;
+                if (bits < 0) {
+                    result = 1.0 + f32(bits) * 2.3283064365386963e-10;
+                }
+                return result
+            }
+
+            let hammersley2d = (i, N) => {
+                return [f32(i) / N, radicalInverseVdC(i32(i))];
+            }
+
+            let generateTBN = (normal) => {
+                let bitangent = [0.0, 1.0, 0.0];
+
+                let NdotUp = dot(normal, [0.0, 1.0, 0.0]);
+                let epsilon = 0.0000001;
+                if (1.0 - abs(NdotUp) <= epsilon) {
+                    // Sampling +Y or -Y, so we need a more robust bitangent.
+                    if (NdotUp > 0.0) {
+                        bitangent = [0.0, 0.0, 1.0];
+                    }
+                    else {
+                        bitangent = [0.0, 0.0, -1.0];
+                    }
+                }
+
+                let tangent = normalized(cross(bitangent, normal));
+                bitangent = cross(normal, tangent);
+
+                return [tangent, bitangent, normal].transpose();
+            }
+            let getLambertianImportanceSample = (normal, xi) => {
+                let cosTheta = sqrt(1.0 - xi.y);
+                let sinTheta = sqrt(xi.y); // equivalent to `sqrt(1.0 - cosTheta*cosTheta)`;
+                let phi = 2.0 * Math.PI * xi.x;
+                let localSpaceDirection = [
+                    sinTheta * cos(phi),
+                    sinTheta * sin(phi),
+                    cosTheta
+                ]
+                let TBN = generateTBN(normal);
+                let direction = TBN.matmul(localSpaceDirection);
+                return {
+                    pdf: cosTheta / Math.PI,
+                    direction: direction
+                }
+            }
+
+            let computeLod = (pdf) => {
+                return 0.5 * log(6.0 * ibl.texture.dimensions[0] * ibl.texture.dimensions[0] / (kSampleCount * pdf)) / log(2.0);
+            }
+
+            let filterLambertian = (normal) => {
+                let color = [0.0, 0.0, 0.0]
+                for (let i of range(kSampleCount)) {
+                    let xi = hammersley2d(i, kSampleCount)
+                    let importanceSample = getLambertianImportanceSample(normal, xi)
+                    let halfDir = importanceSample.direction
+                    let pdf = importanceSample.pdf
+                    let lod = computeLod(pdf);
+                    let halfDirCoords = dirToUV(halfDir)
+                    let lambertian = ti.textureSampleLod(ibl.texture, halfDirCoords, lod)
+                    color += lambertian.rgb / kSampleCount
+                }
+                return color
+            }
+
+            for (let I of ti.ndrange(iblLambertianFiltered.dimensions[0], iblLambertianFiltered.dimensions[1])) {
+                let uv = I / (iblLambertianFiltered.dimensions - [1.0, 1.0])
+                let dir = uvToDir(uv)
+                let filtered = filterLambertian(dir)
+                ti.textureStore(iblLambertianFiltered, I, filtered.concat([1.0]));
+            }
+        }
+    )
+
+    await prefilter()
 
     let render = ti.kernel(
         (t) => {
             let center = [0, 0, 0];
-            let eye = [0.0, 0.0, 3.0];
+            let eye = [3.0 * Math.sin(t), 0.0, 3.0 * Math.cos(t)];
             let view = ti.lookAt(eye, center, [0.0, 1.0, 0.0]);
             let proj = ti.perspective(45.0, aspectRatio, 0.1, 1000);
             let vp = proj.matmul(view);
@@ -115,10 +252,11 @@ let main = async () => {
                 return evalSpecularBRDF(alpha, Fr, normal, lightDir, viewDir, halfDir)
             }
 
+            let dielectricF0 = [0.04, 0.04, 0.04]
+
             let evalDielectricBRDF = (alpha, baseColor, normal, lightDir, viewDir, halfDir) => {
-                let F0 = [0.04, 0.04, 0.04]
                 let microfacetNormal = halfDir
-                let Fr = fresnel(F0, microfacetNormal, viewDir)
+                let Fr = fresnel(dielectricF0, microfacetNormal, viewDir)
                 let specular = evalSpecularBRDF(alpha, Fr, normal, lightDir, viewDir, halfDir)
                 let diffuse = evalDiffuseBRDF(baseColor)
                 return diffuse * (1 - Fr) + specular
@@ -129,6 +267,14 @@ let main = async () => {
                 let metallicBRDF = evalMetalBRDF(alpha, material.baseColor.rgb, normal, lightDir, viewDir, halfDir)
                 let dielectricBRDF = evalDielectricBRDF(alpha, material.baseColor.rgb, normal, lightDir, viewDir, halfDir)
                 return material.metallic * metallicBRDF + (1.0 - material.metallic) * dielectricBRDF
+            }
+
+            let evalIBL = (material, normal) => {
+                let diffuseColor = (1.0 - material.metallic) * (1.0 - dielectricF0) * material.baseColor.rgb
+                let normalUV = dirToUV(normal)
+                let diffuseLight = sRGBToLinear(tonemap(ti.textureSample(iblLambertianFiltered, normalUV).rgb, ibl.exposure))
+                let diffuse = diffuseColor * diffuseLight
+                return diffuse
             }
 
             let getNormal = (normal, normalMap, texCoords, position) => {
@@ -184,8 +330,7 @@ let main = async () => {
                     let nodeIndex = instanceInfo.nodeIndex
                     let materialIndex = instanceInfo.materialIndex
                     let modelMatrix = sceneData.nodesBuffer[nodeIndex].globalTransform.matrix
-                    let rotation = ti.rotateAxisAngle([0.0, 1.0, 0.0], t)
-                    modelMatrix = ti.matmul(rotation, modelMatrix)
+
                     v.normal = ti.transpose(ti.inverse(modelMatrix.slice([0, 0], [3, 3]))).matmul(v.normal)
                     v.position = modelMatrix.matmul(v.position.concat([1.0])).xyz
                     let pos = vp.matmul(v.position.concat([1.0]));
@@ -200,8 +345,11 @@ let main = async () => {
                     normal = getNormal(normal, material.normalMap, f.texCoords, f.position)
                     let viewDir = (eye - f.position).normalized()
 
+                    let color = [0.0, 0.0, 0.0]
+
+                    color += material.emissive
+
                     if (ti.static(scene.lights.length > 0)) {
-                        let color = [0.0, 0.0, 0.0]
                         for (let i of range(scene.lights.length)) {
                             let light = sceneData.lightsInfoBuffer[i]
                             let fragToLight = light.position - f.position
@@ -211,13 +359,26 @@ let main = async () => {
                             let brdf = evalBRDF(material, normal, lightDir, viewDir, halfDir)
                             color = color + brightness * brdf
                         }
-                        color += material.emissive 
-                        color = linearTosRGB(color)
-                        ti.outputColor(target, color.concat([1.0]));
                     }
-                    else {
-                        ti.outputColor(target, material.baseColor.concat([1.0]));
-                    }
+
+                    color += evalIBL(material, normal)
+
+                    color = linearTosRGB(color)
+                    ti.outputColor(target, color.concat([1.0]));
+                }
+                for (let v of ti.inputVertices(skyboxVBO, skyboxIBO)) {
+                    let pos = vp.matmul((v + eye).concat([1.0]));
+                    ti.outputPosition(pos);
+                    ti.outputVertex(v);
+                }
+                for (let f of ti.inputFragments()) {
+                    let dir = f.normalized()
+                    let uv = dirToUV(dir)
+                    let color = ti.textureSample(iblLambertianFiltered, uv)
+                    color.rgb = linearTosRGB(tonemap(color.rgb, ibl.exposure))
+                    color[3] = 1.0
+                    ti.outputDepth(1 - 1e-6)
+                    ti.outputColor(target, color);
                 }
             }
         }
