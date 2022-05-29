@@ -3,13 +3,13 @@ import { Program } from "../program/Program"
 import { assert, error } from "../utils/Logging"
 
 
-enum TextureDimensionality {
+export enum TextureDimensionality {
     Dim2d,
     Dim3d,
     DimCube
 }
 
-function toNativeImageDimensionality(dim: TextureDimensionality): NativeTaichiAny {
+export function toNativeImageDimensionality(dim: TextureDimensionality): NativeTaichiAny {
     switch (dim) {
         case TextureDimensionality.Dim2d: {
             return nativeTaichi.TextureDimensionality.Dim2d;
@@ -27,7 +27,7 @@ function toNativeImageDimensionality(dim: TextureDimensionality): NativeTaichiAn
     }
 }
 
-function getTextureCoordsNumComponents(dim: TextureDimensionality): number {
+export function getTextureCoordsNumComponents(dim: TextureDimensionality): number {
     switch (dim) {
         case TextureDimensionality.Dim2d: {
             return 2;
@@ -45,7 +45,7 @@ function getTextureCoordsNumComponents(dim: TextureDimensionality): number {
     }
 }
 
-abstract class TextureBase {
+export abstract class TextureBase {
     abstract getGPUTextureFormat(): GPUTextureFormat
     abstract canUseAsRengerTarget(): boolean;
     abstract getGPUTexture(): GPUTexture;
@@ -57,11 +57,25 @@ abstract class TextureBase {
     sampleCount: number = 1
 }
 
-class Texture extends TextureBase {
+
+export enum WrapMode {
+    Repeat = "repeat",
+    ClampToEdge = "clamp-to-edge",
+    MirrorRepeat = "mirror-repeat"
+}
+
+export interface TextureSamplingOptions {
+    wrapModeU?: WrapMode,
+    wrapModeV?: WrapMode,
+    wrapModeW?: WrapMode,
+}
+
+export class Texture extends TextureBase {
     constructor(
         public numComponents: number,
         public dimensions: number[],
-        sampleCount: number
+        sampleCount: number,
+        public samplingOptions: TextureSamplingOptions
     ) {
         super()
         assert(dimensions.length <= 3 && dimensions.length >= 1, "texture dimensions must be >= 1 and <= 3")
@@ -69,7 +83,7 @@ class Texture extends TextureBase {
         this.texture = Program.getCurrentProgram().runtime!.createGPUTexture(dimensions, this.getTextureDimensionality(), this.getGPUTextureFormat(), this.canUseAsRengerTarget(), true, sampleCount)
         Program.getCurrentProgram().addTexture(this)
         this.textureView = this.texture.createView()
-        this.sampler = Program.getCurrentProgram().runtime!.createGPUSampler(false)
+        this.sampler = Program.getCurrentProgram().runtime!.createGPUSampler(false, samplingOptions)
         this.sampleCount = sampleCount
     }
 
@@ -119,7 +133,7 @@ class Texture extends TextureBase {
 
     static async createFromBitmap(bitmap: ImageBitmap) {
         let dimensions = [bitmap.width, bitmap.height]
-        let texture = new Texture(4, dimensions, 1)
+        let texture = new Texture(4, dimensions, 1, {})
         await Program.getCurrentProgram().runtime!.copyImageBitmapToTexture(bitmap, texture.getGPUTexture())
         return texture
     }
@@ -137,14 +151,14 @@ class Texture extends TextureBase {
     }
 }
 
-class CanvasTexture extends TextureBase {
+export class CanvasTexture extends TextureBase {
     constructor(public htmlCanvas: HTMLCanvasElement, sampleCount: number) {
         super()
         let contextAndFormat = Program.getCurrentProgram().runtime!.createGPUCanvasContext(htmlCanvas)
         this.context = contextAndFormat[0]
         this.format = contextAndFormat[1]
         Program.getCurrentProgram().addTexture(this)
-        this.sampler = Program.getCurrentProgram().runtime!.createGPUSampler(false)
+        this.sampler = Program.getCurrentProgram().runtime!.createGPUSampler(false, {})
         this.sampleCount = sampleCount
         if (this.sampleCount > 1) {
             this.renderTexture = Program.getCurrentProgram().runtime!.createGPUTexture([htmlCanvas.width, htmlCanvas.height], this.getTextureDimensionality(), this.getGPUTextureFormat(), this.canUseAsRengerTarget(), false, sampleCount)
@@ -180,7 +194,7 @@ class CanvasTexture extends TextureBase {
     }
 }
 
-class DepthTexture extends TextureBase {
+export class DepthTexture extends TextureBase {
     constructor(
         public dimensions: number[],
         sampleCount: number
@@ -190,7 +204,7 @@ class DepthTexture extends TextureBase {
         this.texture = Program.getCurrentProgram().runtime!.createGPUTexture(dimensions, this.getTextureDimensionality(), this.getGPUTextureFormat(), this.canUseAsRengerTarget(), false, sampleCount)
         Program.getCurrentProgram().addTexture(this)
         this.textureView = this.texture.createView()
-        this.sampler = Program.getCurrentProgram().runtime!.createGPUSampler(true)
+        this.sampler = Program.getCurrentProgram().runtime!.createGPUSampler(true, {})
         this.sampleCount = sampleCount
     }
 
@@ -229,7 +243,7 @@ export class CubeTexture extends TextureBase {
         this.texture = Program.getCurrentProgram().runtime!.createGPUTexture(dimensions, this.getTextureDimensionality(), this.getGPUTextureFormat(), this.canUseAsRengerTarget(), false, 1)
         Program.getCurrentProgram().addTexture(this)
         this.textureView = this.texture.createView({ dimension: "cube" })
-        this.sampler = Program.getCurrentProgram().runtime!.createGPUSampler(false)
+        this.sampler = Program.getCurrentProgram().runtime!.createGPUSampler(false, {})
         this.sampleCount = 1
     }
 
@@ -287,9 +301,6 @@ export class CubeTexture extends TextureBase {
 }
 
 
-function isTexture(x: any) {
+export function isTexture(x: any) {
     return x instanceof Texture || x instanceof CanvasTexture || x instanceof DepthTexture || x instanceof CubeTexture
 }
-
-
-export { TextureBase, Texture, CanvasTexture, DepthTexture, isTexture, TextureDimensionality, getTextureCoordsNumComponents, toNativeImageDimensionality }

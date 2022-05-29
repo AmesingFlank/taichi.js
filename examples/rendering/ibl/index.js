@@ -21,8 +21,8 @@ let main = async () => {
 
     let ibl = await ti.utils.HdrLoader.loadFromURL("../resources/footprint_court.hdr")
     let iblLambertianFiltered = ti.texture(4, ibl.texture.dimensions)
-    let iblGGXFiltered = ti.texture(4, ibl.texture.dimensions.concat([16]))
-    let LUT = ti.texture(4, [512, 512])
+    let iblGGXFiltered = ti.texture(4, ibl.texture.dimensions.concat([16]), 1, { wrapModeW: ti.WrapMode.ClampToEdge })
+    let LUT = ti.texture(4, [512, 512], 1, { wrapModeU: ti.WrapMode.ClampToEdge, wrapModeV: ti.WrapMode.ClampToEdge })
 
     // scene.lights.push(new ti.utils.LightInfo(
     //     ti.utils.LightType.Point,
@@ -374,12 +374,12 @@ let main = async () => {
                 let specularColor = (1.0 - material.metallic) * dielectricF0 + material.metallic * material.baseColor.rgb
                 let reflection = normalized(2.0 * normal * dot(normal, viewDir) - viewDir)
                 let reflectionUV = dirToUV(reflection)
-                let specularLight = sRGBToLinear(tonemap(ti.textureSample(iblGGXFiltered, reflectionUV.concat([0.99])).rgb, ibl.exposure))
+                let specularLight = sRGBToLinear(tonemap(ti.textureSample(iblGGXFiltered, reflectionUV.concat([material.roughness])).rgb, ibl.exposure))
                 let NdotV = dot(normal, viewDir)
                 let scaleBias = ti.textureSample(LUT, [NdotV, material.roughness]).rg
                 let specular = specularLight * (specularColor * scaleBias[0] + scaleBias[1])
 
-                return specularLight
+                return specular + diffuse
                 //return scaleBias.concat([0.0])
                 //return [1.0,1.0,1.0]*scaleBias[1]
             }
@@ -481,7 +481,7 @@ let main = async () => {
                 for (let f of ti.inputFragments()) {
                     let dir = f.normalized()
                     let uv = dirToUV(dir)
-                    let color = ti.textureSample(iblLambertianFiltered, uv)
+                    let color = ti.textureSample(iblGGXFiltered, uv.concat([0.2]))
                     color.rgb = linearTosRGB(tonemap(color.rgb, ibl.exposure))
                     color[3] = 1.0
                     ti.outputDepth(1 - 1e-6)
@@ -490,7 +490,7 @@ let main = async () => {
             }
         }
     )
-    let t = 300;
+    let t = 100;
     let canvas = new ti.Canvas(htmlCanvas);
     async function frame() {
         render(t * 0.01);

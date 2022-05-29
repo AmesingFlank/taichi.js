@@ -2,7 +2,7 @@
 import { CompiledKernel, KernelParams, ResourceBinding } from './Kernel';
 import { SNodeTree } from '../data/SNodeTree';
 import { Field } from '../data/Field';
-import { TextureBase, TextureDimensionality } from '../data/Texture';
+import { TextureBase, TextureDimensionality, TextureSamplingOptions } from '../data/Texture';
 declare class Runtime {
     adapter: GPUAdapter | null;
     device: GPUDevice | null;
@@ -26,7 +26,7 @@ declare class Runtime {
     materializeTree(tree: SNodeTree): void;
     addTexture(texture: TextureBase): void;
     createGPUTexture(dimensions: number[], dimensionality: TextureDimensionality, format: GPUTextureFormat, renderAttachment: boolean, requiresStorage: boolean, sampleCount: number): GPUTexture;
-    createGPUSampler(depth: boolean): GPUSampler;
+    createGPUSampler(depth: boolean, samplingOptions: TextureSamplingOptions): GPUSampler;
     createGPUCanvasContext(htmlCanvas: HTMLCanvasElement): [GPUCanvasContext, GPUTextureFormat];
     deviceToHost(field: Field, offsetBytes?: number, sizeBytes?: number): Promise<FieldHostSideCopy>;
     hostToDevice(field: Field, hostArray: Int32Array, offsetBytes?: number): Promise<void>;

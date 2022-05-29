@@ -4,7 +4,7 @@ import { divUp, elementToInt32Array, int32ArrayToElement } from '../utils/Utils'
 import { assert, error } from "../utils/Logging"
 import { Field } from '../data/Field'
 import { TypeCategory } from '../frontend/Type'
-import { TextureBase, TextureDimensionality } from '../data/Texture'
+import { TextureBase, TextureDimensionality, TextureSamplingOptions } from '../data/Texture'
 
 
 
@@ -438,15 +438,15 @@ class Runtime {
         return this.device!.createTexture(getDescriptor())
     }
 
-    createGPUSampler(depth: boolean): GPUSampler {
+    createGPUSampler(depth: boolean, samplingOptions: TextureSamplingOptions): GPUSampler {
         let desc: GPUSamplerDescriptor = {
-            addressModeU:"repeat",
-            addressModeV:"repeat",
-            addressModeW:"repeat",
-            minFilter:"linear",
-            magFilter:"linear",
-            mipmapFilter:"linear",
-            maxAnisotropy:16
+            addressModeU: samplingOptions.wrapModeU || "repeat",
+            addressModeV: samplingOptions.wrapModeV || "repeat",
+            addressModeW: samplingOptions.wrapModeW || "repeat",
+            minFilter: "linear",
+            magFilter: "linear",
+            mipmapFilter: "linear",
+            maxAnisotropy: 16
         }
         if (depth) {
             desc.compare = "less"

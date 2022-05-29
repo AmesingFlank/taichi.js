@@ -1,13 +1,13 @@
 /// <reference types="dist" />
 import { NativeTaichiAny } from "../native/taichi/GetTaichi";
-declare enum TextureDimensionality {
+export declare enum TextureDimensionality {
     Dim2d = 0,
     Dim3d = 1,
     DimCube = 2
 }
-declare function toNativeImageDimensionality(dim: TextureDimensionality): NativeTaichiAny;
-declare function getTextureCoordsNumComponents(dim: TextureDimensionality): number;
-declare abstract class TextureBase {
+export declare function toNativeImageDimensionality(dim: TextureDimensionality): NativeTaichiAny;
+export declare function getTextureCoordsNumComponents(dim: TextureDimensionality): number;
+export declare abstract class TextureBase {
     abstract getGPUTextureFormat(): GPUTextureFormat;
     abstract canUseAsRengerTarget(): boolean;
     abstract getGPUTexture(): GPUTexture;
@@ -18,10 +18,21 @@ declare abstract class TextureBase {
     nativeTexture: NativeTaichiAny;
     sampleCount: number;
 }
-declare class Texture extends TextureBase {
+export declare enum WrapMode {
+    Repeat = "repeat",
+    ClampToEdge = "clamp-to-edge",
+    MirrorRepeat = "mirror-repeat"
+}
+export interface TextureSamplingOptions {
+    wrapModeU?: WrapMode;
+    wrapModeV?: WrapMode;
+    wrapModeW?: WrapMode;
+}
+export declare class Texture extends TextureBase {
     numComponents: number;
     dimensions: number[];
-    constructor(numComponents: number, dimensions: number[], sampleCount: number);
+    samplingOptions: TextureSamplingOptions;
+    constructor(numComponents: number, dimensions: number[], sampleCount: number, samplingOptions: TextureSamplingOptions);
     private texture;
     private textureView;
     private sampler;
@@ -35,7 +46,7 @@ declare class Texture extends TextureBase {
     static createFromHtmlImage(image: HTMLImageElement): Promise<Texture>;
     static createFromURL(url: string): Promise<Texture>;
 }
-declare class CanvasTexture extends TextureBase {
+export declare class CanvasTexture extends TextureBase {
     htmlCanvas: HTMLCanvasElement;
     constructor(htmlCanvas: HTMLCanvasElement, sampleCount: number);
     renderTexture: GPUTexture | null;
@@ -49,7 +60,7 @@ declare class CanvasTexture extends TextureBase {
     getGPUSampler(): GPUSampler;
     getTextureDimensionality(): TextureDimensionality;
 }
-declare class DepthTexture extends TextureBase {
+export declare class DepthTexture extends TextureBase {
     dimensions: number[];
     constructor(dimensions: number[], sampleCount: number);
     private texture;
@@ -78,5 +89,4 @@ export declare class CubeTexture extends TextureBase {
     static createFromHtmlImage(images: HTMLImageElement[]): Promise<CubeTexture>;
     static createFromURL(urls: string[]): Promise<CubeTexture>;
 }
-declare function isTexture(x: any): boolean;
-export { TextureBase, Texture, CanvasTexture, DepthTexture, isTexture, TextureDimensionality, getTextureCoordsNumComponents, toNativeImageDimensionality };
+export declare function isTexture(x: any): boolean;
