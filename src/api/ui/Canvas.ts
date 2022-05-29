@@ -2,12 +2,13 @@
 import { Field } from "../../data/Field"
 import { SetImage } from "./SetImage"
 import * as ti from "../../taichi"
+import { Texture } from "../Textures"
 class Canvas {
     constructor(public htmlCanvas: HTMLCanvasElement) {
         this.setImageObj = new SetImage(htmlCanvas)
     }
     private setImageObj: SetImage
-    async setImage(image: Field) {
+    async setImage(image: Field | Texture) {
         await this.setImageObj.render(image)
     }
 }

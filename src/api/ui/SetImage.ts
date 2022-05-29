@@ -7,7 +7,8 @@ class SetImage {
     IBO: Field
     renderTarget: CanvasTexture
     stagingTexture: Texture
-    renderKernel: (...args: any[]) => any
+    renderFieldKernel: (...args: any[]) => any
+    renderTextureKernel: (...args: any[]) => any
 
     constructor(public htmlCanvas: HTMLCanvasElement) {
         this.VBO = ti.Vector.field(2, ti.f32, [4]);
@@ -21,7 +22,7 @@ class SetImage {
             [1, 1]
         ])
         this.IBO.fromArray([0, 1, 2, 1, 3, 2])
-        this.renderKernel = ti.classKernel(this,
+        this.renderFieldKernel = ti.classKernel(this,
             { image: ti.template() },
             `
             (image) => {
@@ -44,12 +45,35 @@ class SetImage {
             }
             `
         )
+        this.renderTextureKernel = ti.classKernel(this,
+            { image: ti.template() },
+            `
+            (image) => { 
+                ti.clearColor(this.renderTarget, [0.0, 0.0, 0.0, 1]);
+                for (let v of ti.inputVertices(this.VBO, this.IBO)) {
+                    ti.outputPosition([v.x, v.y, 0.0, 1.0]);
+                    ti.outputVertex(v);
+                }
+                for (let f of ti.inputFragments()) {
+                    let coord = (f + 1) / 2.0
+                    let color = ti.textureSample(image, coord)
+                    color[3] = 1.0
+                    ti.outputColor(this.renderTarget, color)
+                }
+            }
+            `
+        )
     }
 
 
 
-    render(image: Field) {
-        this.renderKernel(image);
+    async render(image: Field | Texture) {
+        if(image instanceof Field){
+            await this.renderFieldKernel(image);
+        }
+        else{
+            await this.renderTextureKernel(image);
+        }
     }
 
 

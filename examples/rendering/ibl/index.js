@@ -372,14 +372,16 @@ let main = async () => {
                 let diffuse = diffuseColor * diffuseLight
 
                 let specularColor = (1.0 - material.metallic) * dielectricF0 + material.metallic * material.baseColor.rgb
-                let reflection = 2.0 * normal * dot(normal, viewDir) - viewDir
+                let reflection = normalized(2.0 * normal * dot(normal, viewDir) - viewDir)
                 let reflectionUV = dirToUV(reflection)
-                let specularLight = sRGBToLinear(tonemap(ti.textureSample(iblGGXFiltered, reflectionUV.concat([material.roughness])).rgb, ibl.exposure))
+                let specularLight = sRGBToLinear(tonemap(ti.textureSample(iblGGXFiltered, reflectionUV.concat([0.99])).rgb, ibl.exposure))
                 let NdotV = dot(normal, viewDir)
                 let scaleBias = ti.textureSample(LUT, [NdotV, material.roughness]).rg
                 let specular = specularLight * (specularColor * scaleBias[0] + scaleBias[1])
 
-                return diffuse + specular
+                return specularLight
+                //return scaleBias.concat([0.0])
+                //return [1.0,1.0,1.0]*scaleBias[1]
             }
 
             let getNormal = (normal, normalMap, texCoords, position) => {
@@ -488,10 +490,12 @@ let main = async () => {
             }
         }
     )
-    let t = 100;
+    let t = 300;
+    let canvas = new ti.Canvas(htmlCanvas);
     async function frame() {
         render(t * 0.01);
-        t = t + 1;
+        //canvas.setImage(LUT)
+        //t = t + 1;
         requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);

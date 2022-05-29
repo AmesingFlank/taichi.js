@@ -6,8 +6,9 @@ declare class SetImage {
     IBO: Field;
     renderTarget: CanvasTexture;
     stagingTexture: Texture;
-    renderKernel: (...args: any[]) => any;
+    renderFieldKernel: (...args: any[]) => any;
+    renderTextureKernel: (...args: any[]) => any;
     constructor(htmlCanvas: HTMLCanvasElement);
-    render(image: Field): void;
+    render(image: Field | Texture): Promise<void>;
 }
 export { SetImage };
