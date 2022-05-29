@@ -380,22 +380,20 @@ let main = async () => {
                 let specular = specularLight * (specularColor * scaleBias[0] + scaleBias[1])
 
                 return specular + diffuse
-                //return scaleBias.concat([0.0])
-                //return [1.0,1.0,1.0]*scaleBias[1]
             }
 
             let getNormal = (normal, normalMap, texCoords, position) => {
-                let uvDx = ti.dpdx(texCoords)
-                let uvDy = ti.dpdy(texCoords)
+                let uvDx = ti.dpdx(texCoords.concat([0.0]))
+                let uvDy = ti.dpdy(texCoords.concat([0.0]))
                 let posDx = ti.dpdx(position)
                 let posDy = ti.dpdy(position)
                 let temp = (uvDy.y * posDx - uvDx.y * posDy) / (uvDx.x * uvDy.y - uvDy.x * uvDx.y)
-                let tangent = (temp - normal * dot(normal, temp))
-                let bitangent = cross(normal, tangent)
+                let tangent = (temp - normal * dot(normal, temp)).normalized()
+                let bitangent = cross(normal, tangent).normalized()
                 let mat = [tangent, bitangent, normal].transpose()
                 let normalMapValue = (normalMap * 2.0 - 1.0).normalized()
                 return ti.matmul(mat, normalMapValue).normalized()
-            }
+             }
 
             for (let batchID of ti.static(ti.range(sceneData.batchesDrawInfoBuffers.length))) {
                 let getMaterial = (texCoords, materialID) => {
@@ -468,7 +466,7 @@ let main = async () => {
                         }
                     }
 
-                    color += evalIBL(material, normal, viewDir)
+                    color = evalIBL(material, normal, viewDir)
 
                     color = linearTosRGB(color)
                     ti.outputColor(target, color.concat([1.0]));
@@ -490,12 +488,12 @@ let main = async () => {
             }
         }
     )
-    let t = 100;
+    let t = 150;
     let canvas = new ti.Canvas(htmlCanvas);
     async function frame() {
         render(t * 0.01);
         //canvas.setImage(LUT)
-        //t = t + 1;
+        t = t + 1;
         requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
