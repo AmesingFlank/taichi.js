@@ -466,7 +466,7 @@ let main = async () => {
                         }
                     }
 
-                    color = evalIBL(material, normal, viewDir)
+                    color += evalIBL(material, normal, viewDir)
 
                     color = linearTosRGB(color)
                     ti.outputColor(target, color.concat([1.0]));
