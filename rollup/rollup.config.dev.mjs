@@ -27,5 +27,11 @@ export default {
       delimiters: ['', '']
     }),
     typescript(),
-  ]
+  ],
+  watch: {
+    chokidar: {
+        paths: 'src/**',
+        usePolling: true
+    }
+  }
 };
