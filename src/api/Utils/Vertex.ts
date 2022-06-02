@@ -34,10 +34,10 @@ export class VertexAttribSet {
 
 export function getVertexAttribNumComponents(attrib: VertexAttrib) {
     switch (attrib) {
+        case VertexAttrib.TexCoords: return 2
         case VertexAttrib.Position: return 3
         case VertexAttrib.Normal: return 3
         case VertexAttrib.Tangent: return 4
-        case VertexAttrib.TexCoords: return 2
         case VertexAttrib.Color: return 4
         default:
             error("getVertexAttribNumComponents called on None or All ", attrib)
