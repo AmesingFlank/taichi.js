@@ -269,13 +269,13 @@ class CompilingVisitor extends ASTVisitor<Value>{
             return ValueUtils.makeConstantScalar(value, this.irBuilder.get_float32(value), PrimitiveType.f32)
         }
         else {
-            if(value > 2**32-1){
+            if (value > 2 ** 32 - 1) {
                 this.errorNode(node, `${node.getText()} cannot be expressed as a 32-bit integer`)
             }
-            if(value > 2**31 - 1){
+            if (value > 2 ** 31 - 1) {
                 // this can only be expressed as u32.
                 // we compute the i32 with the identical bit pattern here
-                value = value - 2**32
+                value = value - 2 ** 32
             }
             return ValueUtils.makeConstantScalar(value, this.irBuilder.get_int32(value), PrimitiveType.i32)
         }
@@ -479,6 +479,16 @@ class CompilingVisitor extends ASTVisitor<Value>{
         return targetLocation
     }
 
+    protected isBuiltinFunctionWithName(funcText: string, builtinName: string): boolean {
+        return funcText === builtinName || funcText === "ti." + builtinName ||
+            // typescript likes to translate "ti.ndrange" into "ndrange$1"
+            (funcText.length === builtinName.length + 2 && beginWith(funcText, builtinName) && funcText[builtinName.length] === "$")
+    }
+
+    protected isBuiltinMathFunctionWithName(funcText: string, builtinName: string): boolean {
+        return this.isBuiltinFunctionWithName(funcText, builtinName) || funcText === "Math." + builtinName
+    }
+
     protected isRenderingBuiltinFunction(funcText: string): boolean {
         let functions = [
             "outputVertex",
@@ -498,7 +508,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             "dpdy",
         ]
         for (let f of functions) {
-            if (funcText === f || funcText === "ti." + f) {
+            if (this.isBuiltinFunctionWithName(funcText, f)) {
                 return true;
             }
         }
@@ -506,7 +516,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
     }
 
     protected handleRenderingBuiltinFunction(funcText: string, argumentValues: Value[], node: ts.CallExpression): VisitorResult<Value> {
-        if (funcText === "outputVertex") {
+        if (this.isBuiltinFunctionWithName(funcText, "outputVertex")) {
             this.assertNode(node, argumentValues.length === 1, "outputVertex() must have exactly 1 argument")
             let vertexOutput = argumentValues[0]
             this.assertNode(node, this.startedVertex && !this.finishedVertex, "outputVertex() can only be used inside a vertex-for")
@@ -518,7 +528,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             }
             return
         }
-        if (funcText === "outputPosition") {
+        if (this.isBuiltinFunctionWithName(funcText, "outputPosition")) {
             this.assertNode(node, argumentValues.length === 1, "outputPosition must have exactly 1 argument")
             let posOutput = argumentValues[0]
             this.assertNode(node, this.startedVertex && !this.finishedVertex, "outputPosition() can only be used inside a vertex-for")
@@ -539,7 +549,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             return
         }
 
-        if (funcText === "clearColor") {
+        if (this.isBuiltinFunctionWithName(funcText, "clearColor")) {
             this.assertNode(node, this.isAtTopLevel(), "clearColor() can only be called at top level")
             this.ensureRenderPassParams()
 
@@ -559,7 +569,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             return
         }
 
-        if (funcText === "useDepth") {
+        if (this.isBuiltinFunctionWithName(funcText, "useDepth")) {
             this.assertNode(node, this.isAtTopLevel(), "useDepth() can only be called at top level")
             this.ensureRenderPassParams()
 
@@ -577,7 +587,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             return
         }
 
-        if (funcText === "outputColor") {
+        if (this.isBuiltinFunctionWithName(funcText, "outputColor")) {
             this.assertNode(node, this.startedFragment, "outputColor() can only be used inside a fragment-for")
             this.assertNode(node, this.currentRenderPipelineParams !== null, "[Compiler bug]")
 
@@ -602,7 +612,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             return
         }
 
-        if (funcText === "outputDepth") {
+        if (this.isBuiltinFunctionWithName(funcText, "outputDepth")) {
             this.assertNode(node, this.startedFragment, "outputDepth() can only be used inside a fragment-for")
             this.assertNode(node, this.currentRenderPipelineParams !== null, "[Compiler bug]")
 
@@ -616,13 +626,13 @@ class CompilingVisitor extends ASTVisitor<Value>{
             return
         }
 
-        if (funcText === "discard") {
+        if (this.isBuiltinFunctionWithName(funcText, "discard")) {
             this.assertNode(node, this.startedFragment, "discard() can only be used inside a fragment-for")
             this.irBuilder.create_discard()
             return
         }
 
-        if (funcText === "textureSample") {
+        if (this.isBuiltinFunctionWithName(funcText, "textureSample")) {
             // TODO: error check this, but also handle textureSample callde inside functions
             //this.assertNode(node, this.startedFragment, "textureSample() can only be used inside a fragment-for") 
 
@@ -654,7 +664,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             return result
         }
 
-        if (funcText === "textureSampleLod") {
+        if (this.isBuiltinFunctionWithName(funcText, "textureSampleLod")) {
             // TODO: error check this, but also handle textureSampleLod called inside functions
             //this.assertNode(node, this.startedFragment, "textureSampleLod() can only be used inside a fragment-for") 
 
@@ -677,7 +687,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
             for (let i = 0; i < coords.stmts.length; ++i) {
                 coordsStmtVec.push_back(coords.stmts[i])
-            } 
+            }
 
             let sampleResultStmt = this.irBuilder.create_texture_sample_lod(texture.nativeTexture, coordsStmtVec, lod.stmts[0])
 
@@ -689,7 +699,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             return result
         }
 
-        if (funcText === "textureLoad") {
+        if (this.isBuiltinFunctionWithName(funcText, "textureLoad")) {
 
             this.assertNode(node, node.arguments.length === 2, "textureLoad() must have exactly 2 arguments, one for texture, the other for the coordinates")
             this.assertNode(node, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && isTexture(argumentValues[0].hostSideValue), "the first argument of textureLoad() must be a texture object that's visible in kernel scope")
@@ -719,7 +729,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             return result
         }
 
-        if (funcText === "textureStore") {
+        if (this.isBuiltinFunctionWithName(funcText, "textureStore")) {
             this.assertNode(node, node.arguments.length === 3, "textureStore() must have exactly 3 arguments, one for texture, one for the coordinates, and one for the texel value")
             this.assertNode(node, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && isTexture(argumentValues[0].hostSideValue), "the first argument of textureStore() must be a texture object that's visible in kernel scope")
             let texture = argumentValues[0].hostSideValue as TextureBase
@@ -750,19 +760,19 @@ class CompilingVisitor extends ASTVisitor<Value>{
             this.irBuilder.create_texture_store(texture.nativeTexture, coordsStmtVec, valueStmtVec)
             return
         }
-        if (funcText === "getVertexIndex") {
+        if (this.isBuiltinFunctionWithName(funcText, "getVertexIndex")) {
             let resultType = new ScalarType(PrimitiveType.i32)
             let result = new Value(resultType)
             result.stmts.push(this.irBuilder.create_vertex_index_input())
             return result
         }
-        if (funcText === "getInstanceIndex") {
+        if (this.isBuiltinFunctionWithName(funcText, "getInstanceIndex")) {
             let resultType = new ScalarType(PrimitiveType.i32)
             let result = new Value(resultType)
             result.stmts.push(this.irBuilder.create_instance_index_input())
             return result
         }
-        if (funcText === "dpdx" || funcText === "dpdy") {
+        if (this.isBuiltinFunctionWithName(funcText, "dpdx") || this.isBuiltinFunctionWithName(funcText, "dpdy")) {
             this.assertNode(node, node.arguments.length === 1, "dpdx()/dpdy() must have exactly 1 argument")
             let val = argumentValues[0]
             let valType = val.getType()
@@ -770,7 +780,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             let result = new Value(valType)
             for (let stmt of val.stmts) {
                 let derivative: NativeTaichiAny
-                if (funcText === "dpdx") {
+                if (this.isBuiltinFunctionWithName(funcText, "dpdx")) {
                     derivative = this.irBuilder.create_dpdx(stmt)
                 }
                 else {
@@ -841,7 +851,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
         let libraryFuncs = LibraryFunc.getLibraryFuncs()
         for (let kv of libraryFuncs) {
             let func = kv[1]
-            if (funcText === func.name || funcText === "ti." + func.name) {
+            if (this.isBuiltinFunctionWithName(funcText, func.name)) {
                 let compiler = new InliningCompiler(this.irBuilder, this.builtinOps, this.atomicOps, funcText)
                 let parsedInlinedFunction = ParsedFunction.makeFromCode(func.code)
                 let result = compiler.runInlining(parsedInlinedFunction, this.kernelScope, getArgumentRefs())
@@ -856,7 +866,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
         let builtinOps = this.builtinOps
         for (let kv of builtinOps) {
             let op = kv[1]
-            if (funcText === op.name || funcText === "ti." + op.name || funcText === "Math." + op.name) {
+            if (this.isBuiltinMathFunctionWithName(funcText, op.name)) {
                 checkNumArgs(op.arity)
                 let typeError = op.checkType(getArgumentValues())
                 if (typeError.hasError) {
@@ -870,7 +880,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
         let atomicOps = this.atomicOps
         for (let kv of atomicOps) {
             let op = kv[1]
-            if (funcText === op.name || funcText === "ti." + op.name) {
+            if (this.isBuiltinFunctionWithName(funcText, op.name)) {
                 checkNumArgs(2)
                 let destPtr = getArgumentRefs()[0]
                 let val = getArgumentValues()[1]
@@ -883,9 +893,6 @@ class CompilingVisitor extends ASTVisitor<Value>{
         }
 
         if (this.isRenderingBuiltinFunction(funcText)) {
-            if (funcText.slice(0, 3) === "ti.") {
-                funcText = funcText.slice(3)
-            }
             return this.handleRenderingBuiltinFunction(funcText, getArgumentValues(), node)
         }
 
@@ -893,8 +900,8 @@ class CompilingVisitor extends ASTVisitor<Value>{
             let access = node.expression as ts.PropertyAccessExpression
             let obj = access.expression
             let prop = access.name
-            let illegal_names = ["taichi", "ti", "Math"]
-            for (let name of illegal_names) {
+            let illegalNames = ["taichi", "ti", "Math"]
+            for (let name of illegalNames) {
                 if (name === obj.getText()) {
                     this.errorNode(node, "unresolved function: " + funcText)
                 }
@@ -1201,9 +1208,9 @@ class CompilingVisitor extends ASTVisitor<Value>{
         if (!node.initializer) {
             this.errorNode(node, "variable declaration must have an identifier")
         }
-        let illegal_names = ["taichi", "ti", "Math", "null", "undefined"]
-        for (let name of illegal_names) {
-            if (name === node.name.getText()) {
+        let illegalNames = ["taichi", "ti", "Math", "null", "undefined"]
+        for (let name of illegalNames) {
+            if (name === node.name.getText() || name.indexOf("$") !== -1) {
                 this.errorNode(node, name + " cannot be used as a local variable name")
             }
         }
@@ -1227,7 +1234,15 @@ class CompilingVisitor extends ASTVisitor<Value>{
     protected override visitIfStatement(node: ts.IfStatement): VisitorResult<Value> {
         let condValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.expression)))
         this.assertNode(node, condValue.getType().getCategory() === TypeCategory.Scalar, "condition of if statement must be scalar")
-        if (beginWith(node.expression.getText(), "ti.static") || beginWith(node.expression.getText(), "static")) {
+        let isStaticIf = false
+        if (node.expression.kind === ts.SyntaxKind.CallExpression) {
+            let callExpr = node.expression as ts.CallExpression
+            let funcText = callExpr.expression.getText()
+            if (this.isBuiltinFunctionWithName(funcText, "static")) {
+                isStaticIf = true
+            }
+        }
+        if (isStaticIf) {
             this.assertNode(node, condValue.isCompileTimeConstant(), "if(ti.static(...)) requires a compile-time constant condition")
             let cond = condValue.compileTimeConstants[0]
             if (cond !== 0) {
@@ -1410,7 +1425,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
         let callExpr = forOfNode.expression as ts.CallExpression
         let calledFunctionExpr = callExpr.expression
         let calledFunctionText = calledFunctionExpr.getText()
-        return calledFunctionText === "inputFragments" || calledFunctionText === "ti.inputFragments"
+        return this.isBuiltinFunctionWithName(calledFunctionText, "inputFragments")
     }
 
     protected visitVertexFor(indexSymbols: ts.Symbol[], vertexArgs: ts.NodeArray<ts.Expression>, body: ts.Statement): VisitorResult<Value> {
@@ -1551,29 +1566,29 @@ class CompilingVisitor extends ASTVisitor<Value>{
             let callExpr = node.expression as ts.CallExpression
             let calledFunctionExpr = callExpr.expression
             let calledFunctionText = calledFunctionExpr.getText()
-            if (calledFunctionText === "range" || calledFunctionText === "ti.range") {
+            if (this.isBuiltinFunctionWithName(calledFunctionText, "range")) {
                 return this.visitRangeFor(loopIndexSymbols, callExpr.arguments, node.statement, false)
             }
-            else if (calledFunctionText === "ndrange" || calledFunctionText === "ti.ndrange") {
+            else if (this.isBuiltinFunctionWithName(calledFunctionText, "ndrange")) {
                 return this.visitNdrangeFor(loopIndexSymbols, callExpr.arguments, node.statement, false)
             }
-            else if (calledFunctionText === "inputVertices" || calledFunctionText === "ti.inputVertices") {
+            else if (this.isBuiltinFunctionWithName(calledFunctionText, "inputVertices")) {
                 return this.visitVertexFor(loopIndexSymbols, callExpr.arguments, node.statement)
             }
-            else if (calledFunctionText === "inputFragments" || calledFunctionText === "ti.inputFragments") {
+            else if (this.isBuiltinFunctionWithName(calledFunctionText, "inputFragments")) {
                 return this.visitFragmentFor(loopIndexSymbols, callExpr.arguments, node.statement)
             }
-            else if (calledFunctionText === "static" || calledFunctionText === "ti.static") {
+            else if (this.isBuiltinFunctionWithName(calledFunctionText, "static")) {
                 let errMsg = "expecting a single range(...) or ndrange(...) within static(...)"
                 this.assertNode(node, callExpr.arguments.length === 1, errMsg)
                 let innerExpr = callExpr.arguments[0]
                 this.assertNode(node, innerExpr.kind === ts.SyntaxKind.CallExpression, errMsg)
                 let innerCallExpr = innerExpr as ts.CallExpression
                 let innerCallText = innerCallExpr.expression.getText()
-                if (innerCallText === "range" || innerCallText === "ti.range") {
+                if (this.isBuiltinFunctionWithName(innerCallText, "range")) {
                     return this.visitRangeFor(loopIndexSymbols, innerCallExpr.arguments, node.statement, true)
                 }
-                else if (innerCallText === "ndrange" || innerCallText === "ti.ndrange") {
+                else if (this.isBuiltinFunctionWithName(innerCallText, "ndrange")) {
                     return this.visitNdrangeFor(loopIndexSymbols, innerCallExpr.arguments, node.statement, true)
                 }
             }

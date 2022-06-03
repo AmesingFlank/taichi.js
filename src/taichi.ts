@@ -1,52 +1,21 @@
 
-import { Canvas } from "./api/ui/Canvas"
 
-import { runAllTests } from "./tests/All"
+export { init } from './api/Init'
 
-import { init } from './api/Init'
-import { addToKernelScope, clearKernelScope, kernel, func, i32, f32, sync, template, classKernel } from './api/Kernels'
-import { field, Vector, Matrix, Struct, } from "./api/Fields"
-import { texture, canvasTexture, depthTexture, Texture, CubeTexture, TextureSamplingOptions, WrapMode } from "./api/Textures"
-import { range, ndrange } from "./api/KernelScopeBuiltin"
-import { types } from './api/Types'
-import * as utils from "./api/Utils/index"
+export { addToKernelScope, clearKernelScope, kernel, func, i32, f32, sync, template, classKernel } from './api/Kernels'
+export { field, Vector, Matrix, Struct, } from "./api/Fields"
+export { texture, canvasTexture, depthTexture, Texture, CubeTexture, TextureSamplingOptions, WrapMode } from "./api/Textures"
+export { Canvas } from "./api/ui/Canvas"
+export *  from "./api/KernelScopeBuiltin"
+export { types } from './api/Types'
+export * as utils from "./api/Utils/index"
 
-export {
+export { runAllTests } from "./tests/All"
 
-    runAllTests,
 
-    init,
-    kernel, classKernel, func, template,
-    addToKernelScope, clearKernelScope,
-    field, Vector, Matrix, Struct,
-    texture, canvasTexture, depthTexture, Texture, CubeTexture, WrapMode,
-    i32, f32,
-    range, ndrange,
-    sync,
-    types,
+import * as ti from "./taichi"
 
-    utils,
-
-    Canvas
-}
 declare module globalThis {
     let ti: any;
 }
-
-globalThis.ti = {
-    runAllTests,
-
-    init,
-    kernel, classKernel, func, template,
-    addToKernelScope, clearKernelScope,
-    field, Vector, Matrix, Struct,
-    texture, canvasTexture, depthTexture, Texture, CubeTexture, WrapMode,
-    i32, f32,
-    range, ndrange,
-    sync,
-    types,
-
-    utils,
-
-    Canvas
-}
+globalThis.ti = ti

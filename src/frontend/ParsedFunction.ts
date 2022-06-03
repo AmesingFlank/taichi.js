@@ -54,6 +54,10 @@ export class ParsedFunction {
 
     protected registerFunctionNode(node: ts.Node) {
         if (node.kind === ts.SyntaxKind.FunctionDeclaration) {
+            let funcDecl = node as ts.FunctionDeclaration
+            if(funcDecl.name && funcDecl.name.getText().indexOf("$") !== -1){
+                this.errorNode(node, "function name cannot have $ in it")
+            }
             this.functionNode = node
             this.registerArguments((node as ts.FunctionDeclaration).parameters)
         }
