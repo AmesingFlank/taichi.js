@@ -8,7 +8,7 @@ export { texture, canvasTexture, depthTexture, Texture, CubeTexture, TextureSamp
 export { Canvas } from "./api/ui/Canvas"
 export *  from "./api/KernelScopeBuiltin"
 export { types } from './api/Types'
-export * as utils from "./api/Utils/index"
+export * as engine from "./engine/index"
 
 export { runAllTests } from "./tests/All"
 

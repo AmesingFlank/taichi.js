@@ -287,7 +287,7 @@ class Renderer {
         }
 
         this.renderKernel = ti.classKernel(this,
-            { camera: ti.utils.Camera.getKernelType() },
+            { camera: ti.engine.Camera.getKernelType() },
             
             (camera) => { 
                 let view = ti.lookAt(camera.position, camera.position + camera.direction, camera.up);
@@ -509,7 +509,7 @@ class Renderer {
                     let mesh = this.scene.meshes[node.mesh]
                     for (let prim of mesh.primitives) {
                         if (prim.materialID === i) {
-                            let drawInfo = new ti.utils.DrawInfo(
+                            let drawInfo = new ti.engine.DrawInfo(
                                 prim.indexCount,
                                 1,
                                 prim.firstIndex,
@@ -517,7 +517,7 @@ class Renderer {
                                 -1 // firstInstance, we'll fill this later
                             )
                             thisMaterialDrawInfo.push(drawInfo)
-                            let instanceInfo = new ti.utils.InstanceInfo(nodeIndex, i)
+                            let instanceInfo = new ti.engine.InstanceInfo(nodeIndex, i)
                             thisMaterialInstanceInfo.push(instanceInfo)
                         }
                     }
@@ -526,7 +526,7 @@ class Renderer {
             if (material.hasTexture()) {
                 this.batchesDrawInfos.push(thisMaterialDrawInfo)
                 this.batchesDrawInstanceInfos.push(thisMaterialInstanceInfo)
-                this.batchInfos.push(new ti.utils.BatchInfo(i))
+                this.batchInfos.push(new ti.engine.BatchInfo(i))
             }
             else {
                 textureFreeBatchDrawInfo = textureFreeBatchDrawInfo.concat(thisMaterialDrawInfo)
@@ -536,7 +536,7 @@ class Renderer {
         if (textureFreeBatchDrawInfo.length > 0 && textureFreeBatchInstanceInfo.length > 0) {
             this.batchesDrawInfos.push(textureFreeBatchDrawInfo)
             this.batchesDrawInstanceInfos.push(textureFreeBatchInstanceInfo)
-            this.batchInfos.push(new ti.utils.BatchInfo(-1)) // -1 stands for "this batch contains more than one (texture-free) materials"
+            this.batchInfos.push(new ti.engine.BatchInfo(-1)) // -1 stands for "this batch contains more than one (texture-free) materials"
         }
         for (let batch of this.batchesDrawInfos) {
             for (let i = 0; i < batch.length; ++i) {
@@ -546,14 +546,14 @@ class Renderer {
 
         this.batchesDrawInfoBuffers = []
         for (let drawInfos of this.batchesDrawInfos) {
-            let buffer = ti.field(ti.utils.DrawInfo.getKernelType(), drawInfos.length)
+            let buffer = ti.field(ti.engine.DrawInfo.getKernelType(), drawInfos.length)
             await buffer.fromArray(drawInfos)
             this.batchesDrawInfoBuffers.push(buffer)
         }
 
         this.batchesDrawInstanceInfoBuffers = []
         for (let drawInstanceInfos of this.batchesDrawInstanceInfos) {
-            let buffer = ti.field(ti.utils.InstanceInfo.getKernelType(), drawInstanceInfos.length)
+            let buffer = ti.field(ti.engine.InstanceInfo.getKernelType(), drawInstanceInfos.length)
             await buffer.fromArray(drawInstanceInfos)
             this.batchesDrawInstanceInfoBuffers.push(buffer)
         }
@@ -571,18 +571,18 @@ let main = async () => {
     htmlCanvas.width = 1280;
     htmlCanvas.height = 720;
 
-    let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb")
-    scene.ibl = await ti.utils.HdrLoader.loadFromURL("../resources/footprint_court.hdr")
+    let scene = await ti.engine.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb")
+    scene.ibl = await ti.engine.HdrLoader.loadFromURL("../resources/footprint_court.hdr")
 
-    // scene.lights.push(new ti.utils.LightInfo(
-    //     ti.utils.LightType.Point,
+    // scene.lights.push(new ti.engine.LightInfo(
+    //     ti.engine.LightType.Point,
     //     [300, 300, 300],
     //     1000000,
     //     [1, 1, 1],
     //     1000
     // ))
-    // scene.lights.push(new ti.utils.LightInfo(
-    //     ti.utils.LightType.Point,
+    // scene.lights.push(new ti.engine.LightInfo(
+    //     ti.engine.LightType.Point,
     //     [-300, -300, -300],
     //     1000000,
     //     [1, 1, 1],
@@ -593,7 +593,7 @@ let main = async () => {
 
     let renderer = new Renderer(scene, htmlCanvas)
     await renderer.init()
-    let camera = new ti.utils.Camera([0.0, 0.0, 3.0], [0.0, 0.0, -1.0])
+    let camera = new ti.engine.Camera([0.0, 0.0, 3.0], [0.0, 0.0, -1.0])
 
     let t = 0
     async function frame() {

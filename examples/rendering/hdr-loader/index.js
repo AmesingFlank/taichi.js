@@ -3,7 +3,7 @@ import * as ti from "../../../dist/taichi.dev.js"
 let main = async () => {
     await ti.init();
 
-    let hdrTexture = await ti.utils.HdrLoader.loadFromURL("../resources/footprint_court.hdr") 
+    let hdrTexture = await ti.engine.HdrLoader.loadFromURL("../resources/footprint_court.hdr") 
  
     let pixels = ti.Vector.field(4, ti.f32, hdrTexture.dimensions);
  

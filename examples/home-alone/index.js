@@ -7,18 +7,18 @@ let main = async () => {
     htmlCanvas.width = 1280;
     htmlCanvas.height = 720;
 
-    let scene = await ti.utils.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb")
-    scene.ibl = await ti.utils.HdrLoader.loadFromURL("../rendering/resources/footprint_court.hdr")
+    let scene = await ti.engine.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb")
+    scene.ibl = await ti.engine.HdrLoader.loadFromURL("../rendering/resources/footprint_court.hdr")
 
-    // scene.lights.push(new ti.utils.LightInfo(
-    //     ti.utils.LightType.Point,
+    // scene.lights.push(new ti.engine.LightInfo(
+    //     ti.engine.LightType.Point,
     //     [300, 300, 300],
     //     1000000,
     //     [1, 1, 1],
     //     1000
     // ))
-    // scene.lights.push(new ti.utils.LightInfo(
-    //     ti.utils.LightType.Point,
+    // scene.lights.push(new ti.engine.LightInfo(
+    //     ti.engine.LightType.Point,
     //     [-300, -300, -300],
     //     1000000,
     //     [1, 1, 1],
@@ -27,9 +27,9 @@ let main = async () => {
 
     console.log(scene)
 
-    let renderer = new ti.utils.Renderer(scene, htmlCanvas)
+    let renderer = new ti.engine.Renderer(scene, htmlCanvas)
     await renderer.init()
-    let camera = new ti.utils.Camera([0.0, 0.0, 3.0], [0.0, 0.0, -1.0])
+    let camera = new ti.engine.Camera([0.0, 0.0, 3.0], [0.0, 0.0, -1.0])
  
     let t = 0
     async function frame() {

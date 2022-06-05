@@ -12,7 +12,7 @@ let main = async () => {
     let target = ti.canvasTexture(htmlCanvas);
     let depth = ti.depthTexture([htmlCanvas.width, htmlCanvas.height]);
 
-    let scene = await ti.utils.ObjLoader.loadFromURL("../resources/PoolTable.obj")
+    let scene = await ti.engine.ObjLoader.loadFromURL("../resources/PoolTable.obj")
     let sceneData = await scene.getKernelData()
 
     let cubemap = await ti.CubeTexture.createFromURL([
