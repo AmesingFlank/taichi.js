@@ -1,0 +1,34 @@
+import { Field } from "../../data/Field";
+import { CanvasTexture, DepthTexture, TextureBase } from "../../data/Texture";
+import { BatchInfo } from "./BatchInfo";
+import { Camera } from "./Camera";
+import { DrawInfo } from "./DrawInfo";
+import { InstanceInfo } from "./InstanceInfo";
+import { Scene, SceneData } from "./Scene";
+export declare class Renderer {
+    scene: Scene;
+    htmlCanvas: HTMLCanvasElement;
+    constructor(scene: Scene, htmlCanvas: HTMLCanvasElement);
+    renderKernel: ((...args: any[]) => any);
+    depthTexture: DepthTexture;
+    canvasTexture: CanvasTexture;
+    sceneData?: SceneData;
+    skyboxVBO?: Field;
+    skyboxIBO?: Field;
+    iblLambertianFiltered?: TextureBase;
+    iblGGXFiltered?: TextureBase;
+    LUT?: TextureBase;
+    batchInfos: BatchInfo[];
+    batchesDrawInfos: DrawInfo[][];
+    batchesDrawInstanceInfos: InstanceInfo[][];
+    batchesDrawInfoBuffers: Field[];
+    batchesDrawInstanceInfoBuffers: Field[];
+    uvToDir: (...args: any[]) => any;
+    dirToUV: (...args: any[]) => any;
+    tonemap: (...args: any[]) => any;
+    characteristic: (...args: any[]) => any;
+    ggxDistribution: (...args: any[]) => any;
+    init(): Promise<void>;
+    computeDrawBatches(): Promise<void>;
+    render(camera: Camera): Promise<void>;
+}

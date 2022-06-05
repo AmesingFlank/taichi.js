@@ -10,13 +10,15 @@ export class DrawInfo {
     ) {
 
     }
-}
 
-export const drawInfoKernelType = ti.types.struct({
-    indexCount: ti.i32,
-    instanceCount: ti.i32,
-    firstIndex: ti.i32,
-    baseVertex: ti.i32,
-    firstInstance: ti.i32
-})
+    static getKernelType() {
+        return ti.types.struct({
+            indexCount: ti.i32,
+            instanceCount: ti.i32,
+            firstIndex: ti.i32,
+            baseVertex: ti.i32,
+            firstInstance: ti.i32
+        })
+    }
+} 
  

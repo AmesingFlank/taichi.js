@@ -1,4 +1,4 @@
-import { matmul } from "../Math"
+import { matmul } from "../KernelScopeBuiltin"
 import * as ti from "../../taichi"
 export class Transform {
     constructor() {

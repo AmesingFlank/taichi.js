@@ -10,7 +10,7 @@ export class ParsedFunction {
     static makeFromCode(code: string): ParsedFunction {
         let parsedFunction = new ParsedFunction()
         let host: InMemoryHost = new InMemoryHost()
-        let tempFileName = "temp.js"
+        let tempFileName = "temp.ts"
         host.writeFile(tempFileName, code)
         let tsOptions: ts.CompilerOptions = {
             allowNonTsExtensions: true,

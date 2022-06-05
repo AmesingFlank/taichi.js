@@ -23,7 +23,7 @@ function template() {
 }
 
 
-function kernel(argTypesOrCode: any, codeOrUndefined: any): ((...args: any[]) => void) {
+function kernel(argTypesOrCode: any, codeOrUndefined: any): ((...args: any[]) => any) {
     let argsMapObj: any = {}
     let code: any
     if (typeof argTypesOrCode === "function" || typeof argTypesOrCode === "string") {
@@ -36,7 +36,7 @@ function kernel(argTypesOrCode: any, codeOrUndefined: any): ((...args: any[]) =>
     return KernelFactory.kernel(Program.getCurrentProgram().kernelScope.clone(), argsMapObj, code)
 }
 
-function classKernel(thisObj: any, argTypesOrCode: any, codeOrUndefined: any): ((...args: any[]) => void) {
+function classKernel(thisObj: any, argTypesOrCode: any, codeOrUndefined: any): ((...args: any[]) => any) {
     let argsMapObj: any = {}
     let code: any
     if (typeof argTypesOrCode === "function" || typeof argTypesOrCode === "string") {

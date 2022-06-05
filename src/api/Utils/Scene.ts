@@ -4,18 +4,16 @@ import { Material } from "./Material";
 import { getVertexAttribSetKernelType, Vertex, VertexAttrib, VertexAttribSet } from "./Vertex";
 import { SceneNode } from "./SceneNode";
 import { Mesh } from "./Mesh";
-import { DrawInfo, drawInfoKernelType } from "./DrawInfo";
+import { DrawInfo } from "./DrawInfo";
 import { Transform } from "./Transform";
 import { InstanceInfo } from "./InstanceInfo";
 import { BatchInfo } from "./BatchInfo";
 import { LightInfo } from "./LightInfo";
+import { HdrTexture } from "./HDRLoader";
 
 export interface SceneData {
     vertexBuffer: Field, // Field of Vertex
-    indexBuffer: Field,  // Field of int
-
-    batchesDrawInfoBuffers: Field[],
-    batchesDrawInstanceInfoBuffers: Field[],
+    indexBuffer: Field,  // Field of int 
 
     materialInfoBuffer: Field, // Field of MaterialInfo 
     nodesBuffer: Field,
@@ -39,9 +37,7 @@ export class Scene {
 
     lights: LightInfo[] = []
 
-    batchInfos: BatchInfo[] = []
-    batchesDrawInfos: DrawInfo[][] = []
-    batchesDrawInstanceInfos: InstanceInfo[][] = []
+    ibl: HdrTexture | undefined = undefined
 
     vertexAttribSet: VertexAttribSet = new VertexAttribSet(VertexAttrib.None)
 
@@ -56,20 +52,6 @@ export class Scene {
         let infosHost = this.materials.map(mat => mat.getInfo())
         await materialInfoBuffer.fromArray(infosHost)
 
-        let batchesDrawInfoBuffers: Field[] = []
-        for (let drawInfos of this.batchesDrawInfos) {
-            let buffer = ti.field(drawInfoKernelType, drawInfos.length)
-            await buffer.fromArray(drawInfos)
-            batchesDrawInfoBuffers.push(buffer)
-        }
-
-        let batchesDrawInstanceInfoBuffers: Field[] = []
-        for (let drawInstanceInfos of this.batchesDrawInstanceInfos) {
-            let buffer = ti.field(InstanceInfo.getKernelType(), drawInstanceInfos.length)
-            await buffer.fromArray(drawInstanceInfos)
-            batchesDrawInstanceInfoBuffers.push(buffer)
-        }
-
         let nodesBuffer: Field = ti.field(SceneNode.getKernelType(), this.nodes.length)
         await nodesBuffer.fromArray(this.nodes)
 
@@ -82,8 +64,6 @@ export class Scene {
         return {
             vertexBuffer,
             indexBuffer,
-            batchesDrawInfoBuffers,
-            batchesDrawInstanceInfoBuffers,
             materialInfoBuffer,
             nodesBuffer,
             lightsInfoBuffer
@@ -91,61 +71,7 @@ export class Scene {
     }
 
     init() {
-        this.computeDrawBatches()
         this.computeGlobalTransforms()
-    }
-
-    computeDrawBatches() {
-        this.batchesDrawInfos = []
-        this.batchesDrawInstanceInfos = []
-
-        let textureFreeBatchDrawInfo: DrawInfo[] = []
-        let textureFreeBatchInstanceInfo: InstanceInfo[] = []
-
-        for (let i = 0; i < this.materials.length; ++i) {
-            let material = this.materials[i]
-            let thisMaterialDrawInfo: DrawInfo[] = []
-            let thisMaterialInstanceInfo: InstanceInfo[] = []
-            for (let nodeIndex = 0; nodeIndex < this.nodes.length; ++nodeIndex) {
-                let node = this.nodes[nodeIndex]
-                if (node.mesh >= 0) {
-                    let mesh = this.meshes[node.mesh]
-                    for (let prim of mesh.primitives) {
-                        if (prim.materialID === i) {
-                            let drawInfo = new DrawInfo(
-                                prim.indexCount,
-                                1,
-                                prim.firstIndex,
-                                0,
-                                -1 // firstInstance, we'll fill this later
-                            )
-                            thisMaterialDrawInfo.push(drawInfo)
-                            let instanceInfo = new InstanceInfo(nodeIndex, i)
-                            thisMaterialInstanceInfo.push(instanceInfo)
-                        }
-                    }
-                }
-            }
-            if (material.hasTexture()) {
-                this.batchesDrawInfos.push(thisMaterialDrawInfo)
-                this.batchesDrawInstanceInfos.push(thisMaterialInstanceInfo)
-                this.batchInfos.push(new BatchInfo(i))
-            }
-            else {
-                textureFreeBatchDrawInfo = textureFreeBatchDrawInfo.concat(thisMaterialDrawInfo)
-                textureFreeBatchInstanceInfo = textureFreeBatchInstanceInfo.concat(thisMaterialInstanceInfo)
-            }
-        }
-        if (textureFreeBatchDrawInfo.length > 0 && textureFreeBatchInstanceInfo.length > 0) {
-            this.batchesDrawInfos.push(textureFreeBatchDrawInfo)
-            this.batchesDrawInstanceInfos.push(textureFreeBatchInstanceInfo)
-            this.batchInfos.push(new BatchInfo(-1)) // -1 stands for "this batch contains more than one (texture-free) materials"
-        }
-        for (let batch of this.batchesDrawInfos) {
-            for (let i = 0; i < batch.length; ++i) {
-                batch[i].firstInstance = i
-            }
-        }
     }
 
     computeGlobalTransforms() {

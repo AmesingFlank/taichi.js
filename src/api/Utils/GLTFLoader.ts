@@ -8,8 +8,8 @@ import { GLTFLoader, GLBLoader } from '@loaders.gl/gltf';
 import { endWith } from "../../utils/Utils";
 import { Mesh, MeshPrimitive } from "./Mesh";
 import { assert, error } from "../../utils/Logging";
-import { SceneNode } from "./SceneNode";
-import { matmul } from "../Math";
+import { SceneNode } from "./SceneNode"; 
+import { matmul } from "../KernelScopeBuiltin";
 
 
 export class GltfLoader {

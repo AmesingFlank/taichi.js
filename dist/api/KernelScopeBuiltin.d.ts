@@ -1,4 +1,13 @@
-import { TextureBase } from "../data/Texture";
 export declare function range(n: number): number[];
 export declare function ndrange(...args: number[]): number[][];
-export declare function textureStore(texture: TextureBase, coords: number[], value: number[]): void;
+export declare function neg(a: number[] | number): number[] | number;
+export declare function add(a: number[] | number, b: number[] | number): number[] | number;
+export declare function sub(a: number[] | number, b: number[] | number): number[] | number;
+export declare function mul(a: number[] | number, b: number[] | number): number[] | number;
+export declare function div(a: number[] | number, b: number[] | number): number[] | number;
+export declare function norm_sqr(v: number[]): number;
+export declare function norm(v: number[]): number;
+export declare function normalized(v: number[]): number[];
+export declare function dot(a: number[], b: number[]): number;
+export declare function cross(a: number[], b: number[]): number[];
+export declare function matmul(a: number[][], b: number[][] | number[]): number[][] | number[];

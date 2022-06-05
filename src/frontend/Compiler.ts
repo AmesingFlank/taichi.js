@@ -1086,7 +1086,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
                 return this.getValueFromAnyHostValue(objHostValue[propText])
             }
         }
-        this.errorNode(node, `invalid property access`)
+        this.errorNode(node, `invalid property access: ${node.getText()}`)
     }
 
     protected getValueFromAnyHostValue(val: any): Value {

@@ -359,8 +359,11 @@ class BuiltinOpFactory {
         let opsMap = new Map<string, BuiltinOp>()
         let ops: BuiltinOp[] = [
             new BuiltinBinaryOp("+", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_add(l, r), (l, r) => l + r),
+            new BuiltinBinaryOp("add", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_add(l, r), (l, r) => l + r),
             new BuiltinBinaryOp("-", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_sub(l, r), (l, r) => l - r),
+            new BuiltinBinaryOp("sub", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_sub(l, r), (l, r) => l - r),
             new BuiltinBinaryOp("*", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_mul(l, r), (l, r) => l - r),
+            new BuiltinBinaryOp("mul", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_sub(l, r), (l, r) => l - r),
             new BuiltinBinaryOp("**", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_pow(l, r), (l, r) => Math.pow(l, r)),
             new BuiltinBinaryOp("%", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_mod(l, r), (l, r) => l % r),
             new BuiltinBinaryOp("<", BinaryOpDatatypeTransform.AlwaysI32, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_cmp_lt(l, r), (l, r) => Number(l < r)),
@@ -378,6 +381,7 @@ class BuiltinOpFactory {
             new BuiltinBinaryOp("^", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_xor(l, r), (l, r) => l & r),
 
             new BuiltinBinaryOp("/", BinaryOpDatatypeTransform.AlwaysF32, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_truediv(l, r), (l, r) => l / r),
+            new BuiltinBinaryOp("div", BinaryOpDatatypeTransform.AlwaysF32, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_truediv(l, r), (l, r) => l / r),
 
             // doesn't work
             new BuiltinBinaryOp("<<", BinaryOpDatatypeTransform.PromoteToMatch, false, false, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_shl(l, r)),

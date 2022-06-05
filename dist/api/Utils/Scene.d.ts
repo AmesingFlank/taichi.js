@@ -3,15 +3,11 @@ import { Material } from "./Material";
 import { Vertex, VertexAttribSet } from "./Vertex";
 import { SceneNode } from "./SceneNode";
 import { Mesh } from "./Mesh";
-import { DrawInfo } from "./DrawInfo";
-import { InstanceInfo } from "./InstanceInfo";
-import { BatchInfo } from "./BatchInfo";
 import { LightInfo } from "./LightInfo";
+import { HdrTexture } from "./HDRLoader";
 export interface SceneData {
     vertexBuffer: Field;
     indexBuffer: Field;
-    batchesDrawInfoBuffers: Field[];
-    batchesDrawInstanceInfoBuffers: Field[];
     materialInfoBuffer: Field;
     nodesBuffer: Field;
     lightsInfoBuffer: Field | undefined;
@@ -25,12 +21,9 @@ export declare class Scene {
     rootNodes: number[];
     meshes: Mesh[];
     lights: LightInfo[];
-    batchInfos: BatchInfo[];
-    batchesDrawInfos: DrawInfo[][];
-    batchesDrawInstanceInfos: InstanceInfo[][];
+    ibl: HdrTexture | undefined;
     vertexAttribSet: VertexAttribSet;
     getKernelData(): Promise<SceneData>;
     init(): void;
-    computeDrawBatches(): void;
     computeGlobalTransforms(): void;
 }
