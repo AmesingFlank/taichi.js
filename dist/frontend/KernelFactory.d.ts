@@ -3,7 +3,10 @@ import { Scope } from "./Scope";
 export declare class Template {
 }
 export declare class TemplateKernel {
-    instances: [Map<string, any>, CompiledKernel][];
+    instances: [
+        Map<string, any>,
+        CompiledKernel
+    ][];
     findInstance(templateArgs: Map<string, any>): CompiledKernel | null;
 }
 export declare class KernelFactory {

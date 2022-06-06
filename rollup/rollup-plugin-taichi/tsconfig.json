@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "target": "es6",
+        "module": "esnext",
+        "declaration": true,
+        "outDir": "./lib",
+        "typeRoots": [ "./node_modules/@webgpu/types", "./node_modules/@types"],
+        "allowJs": true,
+        "esModuleInterop": true,
+        "strict": true,
+        "importHelpers": true,
+        "moduleResolution": "node"
+    },
+    "include": ["src"],
+    "exclude": ["node_modules", "**/__tests__/*"]
+}

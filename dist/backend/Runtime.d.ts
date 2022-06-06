@@ -27,7 +27,10 @@ declare class Runtime {
     addTexture(texture: TextureBase): void;
     createGPUTexture(dimensions: number[], dimensionality: TextureDimensionality, format: GPUTextureFormat, renderAttachment: boolean, requiresStorage: boolean, sampleCount: number): GPUTexture;
     createGPUSampler(depth: boolean, samplingOptions: TextureSamplingOptions): GPUSampler;
-    createGPUCanvasContext(htmlCanvas: HTMLCanvasElement): [GPUCanvasContext, GPUTextureFormat];
+    createGPUCanvasContext(htmlCanvas: HTMLCanvasElement): [
+        GPUCanvasContext,
+        GPUTextureFormat
+    ];
     deviceToHost(field: Field, offsetBytes?: number, sizeBytes?: number): Promise<FieldHostSideCopy>;
     hostToDevice(field: Field, hostArray: Int32Array, offsetBytes?: number): Promise<void>;
     getRootBuffer(treeId: number): GPUBuffer;
