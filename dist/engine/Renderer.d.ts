@@ -1,5 +1,5 @@
 import { Field } from "../data/Field";
-import { CanvasTexture, DepthTexture, TextureBase } from "../data/Texture";
+import { CanvasTexture, DepthTexture, Texture } from "../data/Texture";
 import { BatchInfo } from "./BatchInfo";
 import { Camera } from "./Camera";
 import { DrawInfo } from "./DrawInfo";
@@ -15,9 +15,9 @@ export declare class Renderer {
     sceneData?: SceneData;
     skyboxVBO?: Field;
     skyboxIBO?: Field;
-    iblLambertianFiltered?: TextureBase;
-    iblGGXFiltered?: TextureBase;
-    LUT?: TextureBase;
+    iblLambertianFiltered?: Texture;
+    iblGGXFiltered?: Texture;
+    LUT?: Texture;
     batchInfos: BatchInfo[];
     batchesDrawInfos: DrawInfo[][];
     batchesDrawInstanceInfos: InstanceInfo[][];

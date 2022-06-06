@@ -1621,6 +1621,14 @@ class CompilingVisitor extends ASTVisitor<Value>{
         return ValueUtils.makeHostObjectReference(this.kernelScope.thisObj)
     }
 
+    protected override visitNonNullExpression(node: ts.NonNullExpression): VisitorResult<Value> {
+        return this.extractVisitorResult(this.dispatchVisit(node.expression))
+    }
+
+    protected override visitAsExpression(node: ts.AsExpression): VisitorResult<Value> {
+        return this.extractVisitorResult(this.dispatchVisit(node.expression))
+    }
+
     protected override visitUnknown(node: ts.Node): VisitorResult<Value> {
         this.errorNode(node, "Unsupported JS language construct")
     }

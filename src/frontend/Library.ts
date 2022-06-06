@@ -936,14 +936,14 @@ let svd3dCode =
 
 let lookAtCode = `
 (eye, center, up) => {
-    let z = (eye - center).normalized()
-    let x = up.cross(z).normalized()
-    let y = z.cross(x).normalized()
+    let z = normalized(sub(eye, center) as number[])
+    let x = normalized(cross(up,z))
+    let y = normalized(cross(z,x))
     let result = [
-        (x, -x.dot(eye)),
-        (y, -y.dot(eye)),
-        (z, -z.dot(eye)),
-        [0,0,0,1]
+        x.concat([-dot(x,eye)]),
+        y.concat([-dot(y,eye)]),
+        z.concat([-dot(z,eye)]),
+        [0, 0, 0, 1]
     ]
     return result
 }
@@ -958,11 +958,11 @@ let perspectiveCode =
     let zero4 = [0.0, 0.0, 0.0, 0.0]
     let result = [zero4, zero4, zero4, zero4]
 
-    result[0,0] = 1.0 / (aspect * tanHalfFovy)
-    result[1,1] = 1.0 / (tanHalfFovy)
-    result[2,2] = - (zFar + zNear) / (zFar - zNear)
-    result[3,2] = - 1.0
-    result[2,3] = - (2.0 * zFar * zNear) / (zFar - zNear)
+    result[[0,0]] = 1.0 / (aspect * tanHalfFovy)
+    result[[1,1]] = 1.0 / (tanHalfFovy)
+    result[[2,2]] = - (zFar + zNear) / (zFar - zNear)
+    result[[3,2]] = - 1.0
+    result[[2,3]] = - (2.0 * zFar * zNear) / (zFar - zNear)
     return result;
 }
 `

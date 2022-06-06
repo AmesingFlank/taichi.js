@@ -2,7 +2,7 @@
 // The implementations in this file only serve as documentation of their behavior, and for generating type declarations
 // These implementations are not actually used
 
-import { TextureBase } from "../data/Texture"
+import { DepthTexture, TextureBase } from "../data/Texture"
 import { assert, error } from "../utils/Logging"
 
 export function range(n: number): number[] {
@@ -51,10 +51,10 @@ function broadCastableMathOp(a: number[] | number, b: number[] | number, op: (a:
 }
 
 export function neg(a: number[] | number): number[] | number {
-    if(typeof a === "number"){
+    if (typeof a === "number") {
         return -a
     }
-    else{
+    else {
         return a.map(x => -x)
     }
 }
@@ -140,4 +140,70 @@ export function matmul(a: number[][], b: number[][] | number[]): number[][] | nu
         }
         return result
     }
+}
+
+
+export function transpose(m: number[][]): number[][] {
+    let R = m.length
+    let C = m[0].length
+
+    let result: number[][] = []
+    for (let c = 0; c < C; ++c) {
+        let thisRow: number[] = []
+        for (let r = 0; r < R; ++r) {
+            thisRow.push(m[r][c])
+        }
+        result.push(thisRow)
+    }
+    return result
+}
+
+
+
+export function outputVertex(vertex: any) { }
+export function outputPosition(pos: number[]) { }
+export function clearColor(tex:TextureBase, col: number[]) { }
+export function useDepth(depth: DepthTexture) { }
+export function outputColor(col: number[]) { }
+export function outputDepth(depth: number) { }
+export function discard() { }
+
+export function textureSample(texture: TextureBase, coords: number[]): number[] { return [0.0, 0.0, 0.0, 0.0] }
+export function textureSampleLod(texture: TextureBase, coords: number[], lod: number) { return [0.0, 0.0, 0.0, 0.0] }
+export function textureLoad(texture: TextureBase, coords: number[]) { return [0.0, 0.0, 0.0, 0.0] }
+export function textureStore(texture: TextureBase, coords: number[], val: number[]) { }
+
+export function getVertexIndex(): number { return 0 }
+export function getInstanceIndex(): number { return 0 }
+
+export function dpdx(val: number | number[]): number | number[] { return 0 }
+export function dpdy(val: number | number[]): number | number[] { return 0 }
+
+
+export function lookAt(eye: number[], center: number[], up: number[]) {
+    let z = normalized(sub(eye, center) as number[])
+    let x = normalized(cross(up, z))
+    let y = normalized(cross(z, x))
+    let result = [
+        x.concat([-dot(x, eye)]),
+        y.concat([-dot(y, eye)]),
+        z.concat([-dot(z, eye)]),
+        [0, 0, 0, 1]
+    ]
+    return result
+}
+
+export function perspective(fovy: number, aspect: number, zNear: number, zFar: number) {
+    let rad = fovy * Math.PI / 180.0 
+    let tanHalfFovy = Math.tan(rad / 2.0)
+    
+    let zero4 = [0.0, 0.0, 0.0, 0.0]
+    let result = [zero4, zero4, zero4, zero4]
+
+    result[0][0] = 1.0 / (aspect * tanHalfFovy)
+    result[1][1] = 1.0 / (tanHalfFovy)
+    result[2][2] = - (zFar + zNear) / (zFar - zNear)
+    result[3][2] = - 1.0
+    result[2][3] = - (2.0 * zFar * zNear) / (zFar - zNear)
+    return result;
 }

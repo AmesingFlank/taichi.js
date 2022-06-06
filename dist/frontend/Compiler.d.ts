@@ -89,6 +89,8 @@ declare class CompilingVisitor extends ASTVisitor<Value> {
     protected visitFunctionDeclaration(node: ts.FunctionDeclaration): VisitorResult<Value>;
     protected visitArrowFunction(node: ts.ArrowFunction): VisitorResult<Value>;
     protected visitThisKeyword(): VisitorResult<Value>;
+    protected visitNonNullExpression(node: ts.NonNullExpression): VisitorResult<Value>;
+    protected visitAsExpression(node: ts.AsExpression): VisitorResult<Value>;
     protected visitUnknown(node: ts.Node): VisitorResult<Value>;
 }
 export declare class InliningCompiler extends CompilingVisitor {
