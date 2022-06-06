@@ -61,11 +61,6 @@ export default function taichi(options?: Options) {
             warn = (msg: string) => { this.warn(msg) }
         },
 
-        renderChunk(code: string, chunk: any) {
-            const filename: string = chunk.fileName;
-            return transformCode(code, filename, options);
-        },
-
         transform(code: string, filename: string) {
             let result = transformCode(code, filename, options);
             return result

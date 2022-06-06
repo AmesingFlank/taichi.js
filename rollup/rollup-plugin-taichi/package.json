@@ -1,6 +1,6 @@
 {
   "name": "rollup-plugin-taichi",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A rollup plugin that makes using taichi.js a bit easier",
   "homepage": "https://taichi-js.com", 
   "repository": {
