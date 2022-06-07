@@ -129,9 +129,9 @@ export class ObjLoader {
         }
 
         let rootNode = new SceneNode()
-        let rootNodeIndex = resultScene.nodes.length
-        resultScene.nodes.push(rootNode)
-
+        let rootNodeIndex = 0
+        resultScene.rootNode = rootNodeIndex
+        resultScene.nodes = [rootNode]
         for (let prim of meshPrimitivs) {
             let mesh = new Mesh([prim])
             let meshIndex = resultScene.meshes.length
@@ -143,8 +143,7 @@ export class ObjLoader {
             rootNode.children.push(nodeIndex)
             resultScene.nodes.push(node)
         }
-        resultScene.rootNodes.push(rootNodeIndex)
-        
+
         resultScene.init()
 
         return resultScene

@@ -8,7 +8,7 @@ import { GLTFLoader, GLBLoader } from '@loaders.gl/gltf';
 import { endWith } from "../utils/Utils";
 import { Mesh, MeshPrimitive } from "./Mesh";
 import { assert, error } from "../utils/Logging";
-import { SceneNode } from "./SceneNode"; 
+import { SceneNode } from "./SceneNode";
 import { matmul } from "../api/KernelScopeBuiltin";
 
 
@@ -218,9 +218,14 @@ export class GltfLoader {
             resultScene.meshes.push(resultMesh)
         }
 
+        resultScene.nodes = []
         for (let i = 0; i < gltfJson.nodes.length; ++i) {
             resultScene.nodes.push(new SceneNode)
         }
+        let rootNode = new SceneNode
+        let rootNodeIndex = gltfJson.nodes.length
+        resultScene.rootNode = rootNodeIndex
+        resultScene.nodes.push(rootNode)
         for (let i = 0; i < gltfJson.nodes.length; ++i) {
             let inputNode = gltfJson.nodes[i]
             let resultNode = resultScene.nodes[i]
@@ -264,8 +269,9 @@ export class GltfLoader {
             }
         }
         for (let i = 0; i < resultScene.nodes.length; ++i) {
-            if (resultScene.nodes[i].parent == -1) {
-                resultScene.rootNodes.push(i)
+            if (i != rootNodeIndex && resultScene.nodes[i].parent == -1) {
+                resultScene.nodes[i].parent = rootNodeIndex
+                rootNode.children.push(i)
             }
         }
 

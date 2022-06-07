@@ -26,13 +26,15 @@ export class Scene {
         this.vertexAttribSet.set(VertexAttrib.Position)
         this.vertexAttribSet.set(VertexAttrib.Normal)
         this.vertexAttribSet.set(VertexAttrib.TexCoords)
+        this.nodes = [new SceneNode]
+        this.rootNode = 0
     }
 
     vertices: Vertex[] = []
     indices: number[] = []
     materials: Material[] = []
     nodes: SceneNode[] = []
-    rootNodes: number[] = []
+    rootNode: number 
     meshes: Mesh[] = []
 
     lights: LightInfo[] = []
@@ -82,8 +84,10 @@ export class Scene {
                 visit(child, node.globalTransform)
             }
         }
-        for (let rootIndex of this.rootNodes) {
-            visit(rootIndex, new Transform)
-        }
+        visit(this.rootNode, new Transform)
+    }
+
+    merge(scene: Scene){
+
     }
 }

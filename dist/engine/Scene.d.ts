@@ -18,7 +18,7 @@ export declare class Scene {
     indices: number[];
     materials: Material[];
     nodes: SceneNode[];
-    rootNodes: number[];
+    rootNode: number;
     meshes: Mesh[];
     lights: LightInfo[];
     ibl: HdrTexture | undefined;
@@ -26,4 +26,5 @@ export declare class Scene {
     getKernelData(): Promise<SceneData>;
     init(): void;
     computeGlobalTransforms(): void;
+    merge(scene: Scene): void;
 }
