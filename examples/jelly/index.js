@@ -100,22 +100,10 @@ let main = async () => {
             if (material[p] == WATER) {
                 mu = 0.0;
             }
-            let U = [
-                [0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0],
-            ];
-            let sig = [
-                [0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0],
-            ];
-            let V = [
-                [0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0],
-                [0.0, 0.0, 0.0],
-            ];
-            ti.svd3D(F[p], U, sig, V);
+            let svd = ti.svd3D(F[p]);
+            let U = svd.U
+            let sig = svd.E
+            let V = svd.V
             let J = f32(1.0);
             for (let d of ti.static(ti.range(3))) {
                 let new_sig = sig[[d, d]];

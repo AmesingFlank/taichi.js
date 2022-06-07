@@ -7,6 +7,10 @@ import { assert, error } from "../utils/Logging"
 import * as ti from "../taichi"
 import { Field } from "../data/Field"
 
+let throwNotImplementedError = () => {
+    error("This function is only implemented in taichi kernel scope!")
+}
+
 export function range(n: number): number[] {
     let result: number[] = []
     for (let i = 0; i < n; ++i) {
@@ -31,10 +35,12 @@ export function ndrange(...args: number[]): ti.types.vector[] {
 }
 
 export function inputVertices(vertexBuffer: Field, indexBuffer?: Field, indirectBuffer?: Field, indirectCount?: number): any[] {
+    throwNotImplementedError()
     return []
 }
 
 export function inputFragments(): any[] {
+    throwNotImplementedError()
     return []
 }
 
@@ -192,26 +198,37 @@ export function inverse(m: ti.types.matrix): ti.types.matrix {
     return minv;
 }
 
+export function polarDecompose2D(A: ti.types.matrix) {
+    let x = A[0][0] + A[1][1]
+    let y = A[1][0] - A[0][1]
+    let scale = 1.0 / Math.sqrt(x * x + y * y)
+    let c = x * scale
+    let s = y * scale
+    let r = [[c, -s], [s, c]]
+    return {
+        U: r,
+        P: ti.matmul(ti.transpose(r), A)
+    }
+}
 
+export function outputVertex(vertex: any) { throwNotImplementedError() }
+export function outputPosition(pos: any) { throwNotImplementedError() }
+export function clearColor(tex: TextureBase, col: any) { throwNotImplementedError() }
+export function useDepth(depth: DepthTexture) { throwNotImplementedError() }
+export function outputColor(tex: TextureBase, col: any) { throwNotImplementedError() }
+export function outputDepth(depth: number) { throwNotImplementedError() }
+export function discard() { throwNotImplementedError() }
 
-export function outputVertex(vertex: any) { }
-export function outputPosition(pos: any) { }
-export function clearColor(tex: TextureBase, col: any) { }
-export function useDepth(depth: DepthTexture) { }
-export function outputColor(tex: TextureBase, col: any) { }
-export function outputDepth(depth: number) { }
-export function discard() { }
+export function textureSample(texture: TextureBase, coords: any): any { throwNotImplementedError(); return [0.0, 0.0, 0.0, 0.0] }
+export function textureSampleLod(texture: TextureBase, coords: any, lod: number) { throwNotImplementedError(); return [0.0, 0.0, 0.0, 0.0] }
+export function textureLoad(texture: TextureBase, coords: any) { throwNotImplementedError(); return [0.0, 0.0, 0.0, 0.0] }
+export function textureStore(texture: TextureBase, coords: any, val: any) { throwNotImplementedError(); }
 
-export function textureSample(texture: TextureBase, coords: any): any { return [0.0, 0.0, 0.0, 0.0] }
-export function textureSampleLod(texture: TextureBase, coords: any, lod: number) { return [0.0, 0.0, 0.0, 0.0] }
-export function textureLoad(texture: TextureBase, coords: any) { return [0.0, 0.0, 0.0, 0.0] }
-export function textureStore(texture: TextureBase, coords: any, val: any) { }
+export function getVertexIndex(): number { throwNotImplementedError(); return 0 }
+export function getInstanceIndex(): number { throwNotImplementedError(); return 0 }
 
-export function getVertexIndex(): number { return 0 }
-export function getInstanceIndex(): number { return 0 }
-
-export function dpdx(val: number | ti.types.vector): number | ti.types.vector { return 0 }
-export function dpdy(val: number | ti.types.vector): number | ti.types.vector { return 0 }
+export function dpdx(val: number | ti.types.vector): number | ti.types.vector { throwNotImplementedError(); return 0 }
+export function dpdy(val: number | ti.types.vector): number | ti.types.vector { throwNotImplementedError(); return 0 }
 
 
 export function lookAt(eye: ti.types.vector, center: ti.types.vector, up: ti.types.vector) {
@@ -242,6 +259,32 @@ export function perspective(fovy: number, aspect: number, zNear: number, zFar: n
     return result;
 }
 
+export function rotateAxisAngle(axis: ti.types.vector, angle: number): ti.types.matrix {
+    let a = angle
+    let c = Math.cos(a)
+    let s = Math.sin(a)
+    let temp: ti.types.vector = (1.0 - c) * axis
+
+    let m = [
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ];
+    m[0][0] = c + temp[0] * axis[0];
+    m[1][0] = temp[0] * axis[1] + s * axis[2];
+    m[2][0] = temp[0] * axis[2] - s * axis[1];
+
+    m[0][1] = temp[1] * axis[0] - s * axis[2];
+    m[1][1] = c + temp[1] * axis[1];
+    m[2][1] = temp[1] * axis[2] + s * axis[0];
+
+    m[0][2] = temp[2] * axis[0] + s * axis[1];
+    m[1][2] = temp[2] * axis[1] - s * axis[0];
+    m[2][2] = c + temp[2] * axis[2];
+    return m
+}
+
 export function mergeStructs(a: ti.types.struct, b: ti.types.struct): ti.types.struct {
     let result: ti.types.struct = {}
     for (let k in a) {
@@ -251,4 +294,24 @@ export function mergeStructs(a: ti.types.struct, b: ti.types.struct): ti.types.s
         result[k] = b[k]
     }
     return result
+}
+
+export function bitcast_i32(number: number | ti.types.vector): number | ti.types.vector {
+    throwNotImplementedError();
+    return number
+}
+
+export function bitcast_f32(number: number | ti.types.vector): number | ti.types.vector {
+    throwNotImplementedError();
+    return number
+}
+
+export function not(number: number | ti.types.vector): number | ti.types.vector {
+    throwNotImplementedError();
+    return number
+}
+
+export function rsqrt(number: number | ti.types.vector): number | ti.types.vector {
+    throwNotImplementedError();
+    return number
 }

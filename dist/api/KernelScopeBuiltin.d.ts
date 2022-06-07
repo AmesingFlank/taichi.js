@@ -18,6 +18,10 @@ export declare function cross(a: ti.types.vector, b: ti.types.vector): ti.types.
 export declare function matmul(a: ti.types.matrix | ti.types.vector, b: ti.types.vector): ti.types.matrix | ti.types.vector;
 export declare function transpose(m: ti.types.matrix): ti.types.matrix;
 export declare function inverse(m: ti.types.matrix): ti.types.matrix;
+export declare function polarDecompose2D(A: ti.types.matrix): {
+    U: number[][];
+    P: any;
+};
 export declare function outputVertex(vertex: any): void;
 export declare function outputPosition(pos: any): void;
 export declare function clearColor(tex: TextureBase, col: any): void;
@@ -35,4 +39,9 @@ export declare function dpdx(val: number | ti.types.vector): number | ti.types.v
 export declare function dpdy(val: number | ti.types.vector): number | ti.types.vector;
 export declare function lookAt(eye: ti.types.vector, center: ti.types.vector, up: ti.types.vector): any[];
 export declare function perspective(fovy: number, aspect: number, zNear: number, zFar: number): number[][];
+export declare function rotateAxisAngle(axis: ti.types.vector, angle: number): ti.types.matrix;
 export declare function mergeStructs(a: ti.types.struct, b: ti.types.struct): ti.types.struct;
+export declare function bitcast_i32(number: number | ti.types.vector): number | ti.types.vector;
+export declare function bitcast_f32(number: number | ti.types.vector): number | ti.types.vector;
+export declare function not(number: number | ti.types.vector): number | ti.types.vector;
+export declare function rsqrt(number: number | ti.types.vector): number | ti.types.vector;

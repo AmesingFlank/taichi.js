@@ -83,19 +83,10 @@ let main = async () => {
             if (material[p] == 0) {
                 mu = 0.0;
             }
-            let U = [
-                [0.0, 0.0],
-                [0.0, 0.0],
-            ];
-            let sig = [
-                [0.0, 0.0],
-                [0.0, 0.0],
-            ];
-            let V = [
-                [0.0, 0.0],
-                [0.0, 0.0],
-            ];
-            ti.svd2D(F[p], U, sig, V);
+            let svd = ti.svd2D(F[p]);
+            let U = svd.U
+            let sig = svd.E
+            let V = svd.V
             let J = 1.0;
             for (let d of ti.static(ti.range(2))) {
                 let new_sig = sig[[d, d]];

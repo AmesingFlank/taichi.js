@@ -13,30 +13,20 @@ async function testLibraryFuncs(): Promise<boolean> {
     let kernel = ti.kernel(
         () => {
             //@ts-ignore
-            let m2 = [[1.0, 2.0], [3.0, 4.0]]
-            let zero2x2 = [[0.0, 0.0], [0.0, 0.0]]
-            let u2 = zero2x2
-            let p2 = zero2x2
-            let U2 = zero2x2
-            let S2 = zero2x2
-            let V2 = zero2x2
-            ti.polarDecompose2D(m2, u2, p2)
-            ti.svd2D(m2, U2, S2, V2)
-            f2[0] = u2
-            f2[1] = p2
-            f2[2] = U2
-            f2[3] = S2
-            f2[4] = V2
+            let m2 = [[1.0, 2.0], [3.0, 4.0]] 
+            let polar2DResult = ti.polarDecompose2D(m2)
+            let svd2DResult = ti.svd2D(m2)
+            f2[0] = polar2DResult.U
+            f2[1] = polar2DResult.P
+            f2[2] = svd2DResult.U
+            f2[3] = svd2DResult.E
+            f2[4] = svd2DResult.V
 
-            let m3 = [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]
-            let zero3x3 = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
-            let U3 = zero3x3
-            let S3 = zero3x3
-            let V3 = zero3x3 
-            ti.svd3D(m3, U3, S3, V3)
-            f3[0] = U3
-            f3[1] = S3
-            f3[2] = V3
+            let m3 = [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]] 
+            let svd3DResult = ti.svd3D(m3)
+            f3[0] = svd3DResult.U
+            f3[1] = svd3DResult.E
+            f3[2] = svd3DResult.V
         }
     )
 
