@@ -1,18 +1,18 @@
 import { VectorType, MatrixType, PrimitiveType, StructType } from "../frontend/Type"
 
 
-let types = {
-    vector(primitiveType: PrimitiveType, n: number) {
-        return new VectorType(primitiveType, n)
-    },
-
-    matrix(primitiveType: PrimitiveType, n: number, m: number) {
-        return new MatrixType(primitiveType, n, m)
-    },
-
-    struct(members: any) {
-        return new StructType(members)
-    }
+export function vector(primitiveType: PrimitiveType, n: number) {
+    return new VectorType(primitiveType, n)
 }
 
-export { types }
+export function matrix(primitiveType: PrimitiveType, n: number, m: number) {
+    return new MatrixType(primitiveType, n, m)
+}
+
+export function struct(members: any) {
+    return new StructType(members)
+}
+
+export type vector = any
+export type matrix = any
+export type struct = any

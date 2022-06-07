@@ -238,15 +238,13 @@ export class HdrLoader {
         if (!this.imgFieldToTexture) {
             this.imgFieldToTexture = ti.kernel(
                 { imgField: ti.template(), imgTexture: ti.template() },
-                `
-                (imgField, imgTexture) => {
-                    for(let I of ti.ndrange(imgField.dimensions[0], imgField.dimensions[1])){
+                (imgField: any, imgTexture: any) => {
+                    for (let I of ti.ndrange(imgField.dimensions[0], imgField.dimensions[1])) {
                         let x = I.y
                         let y = imgField.dimensions[0] - I.x
-                        ti.textureStore(imgTexture, [x,y], imgField[I])
+                        ti.textureStore(imgTexture, [x, y], imgField[I])
                     }
                 }
-                `
             )
         }
         return this.imgFieldToTexture

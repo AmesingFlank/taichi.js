@@ -34,7 +34,7 @@ export class Renderer {
     batchesDrawInstanceInfoBuffers: Field[] = []
 
     uvToDir = ti.func(
-        (uv: any) => {
+        (uv: ti.types.vector): ti.types.vector => {
             let y = Math.cos((1.0 - uv[1]) * Math.PI)
             let phi = (uv[0] - 0.5) * Math.PI / 0.5
             let absZOverX = Math.abs(Math.tan(phi))
@@ -52,18 +52,19 @@ export class Renderer {
     )
 
     dirToUV = ti.func(
-        (dir: any) => {
+        (dir: ti.types.vector): ti.types.vector => {
             return [0.5 + 0.5 * Math.atan2(dir[2], dir[0]) / Math.PI, 1.0 - Math.acos(dir[1]) / Math.PI]
         }
     )
 
     tonemap = ti.func(
-        (color: any, exposure: any) => {
+        (color: ti.types.vector, exposure: number) => {
             let A = 2.51;
             let B = 0.03;
             let C = 2.43;
             let D = 0.59;
             let E = 0.14;
+            //@ts-ignore
             let temp = color * exposure
             temp = (temp * (A * temp + B)) / (temp * (C * temp + D) + E)
             return Math.max(0.0, Math.min(1.0, temp))
@@ -71,7 +72,7 @@ export class Renderer {
     )
 
     characteristic = ti.func(
-        (x: any) => {
+        (x: number) => {
             let result = 1
             if (x < 0) {
                 result = 0
@@ -81,7 +82,7 @@ export class Renderer {
     )
 
     ggxDistribution = ti.func(
-        (NdotH: any, alpha: any) => {
+        (NdotH: number, alpha: number) => {
             let numerator = alpha * alpha * this.characteristic(NdotH)
             let temp = NdotH * NdotH * (alpha * alpha - 1) + 1
             let denominator = Math.PI * temp * temp
@@ -144,7 +145,7 @@ export class Renderer {
                         return [f32(i) / N, radicalInverseVdC(i32(i))];
                     }
 
-                    let generateTBN = (normal: number[]) => {
+                    let generateTBN = (normal: ti.types.vector) => {
                         let bitangent = [0.0, 1.0, 0.0];
 
                         let NdotUp = ti.dot(normal, [0.0, 1.0, 0.0]);
@@ -169,7 +170,7 @@ export class Renderer {
                         return 0.5 * Math.log(6.0 * this.scene.ibl!.texture.dimensions[0] * this.scene.ibl!.texture.dimensions[0] / (kSampleCount * pdf)) / Math.log(2.0);
                     }
 
-                    let getLambertianImportanceSample = (normal: number[], xi: number[]) => {
+                    let getLambertianImportanceSample = (normal: ti.types.vector, xi: ti.types.vector) => {
                         let cosTheta = Math.sqrt(1.0 - xi[1]);
                         let sinTheta = Math.sqrt(xi[1]);
                         let phi = 2.0 * Math.PI * xi[0];
@@ -186,7 +187,7 @@ export class Renderer {
                         }
                     }
 
-                    let filterLambertian = (normal: number[]) => {
+                    let filterLambertian = (normal: ti.types.vector) => {
                         let color: any = [0.0, 0.0, 0.0]
                         for (let i of ti.range(kSampleCount)) {
                             let xi = hammersley2d(i, kSampleCount)
@@ -214,7 +215,7 @@ export class Renderer {
                         return Math.max(0.0, Math.min(1.0, v))
                     }
 
-                    let getGGXImportanceSample = (normal: number[], roughness: number, xi: number[]) => {
+                    let getGGXImportanceSample = (normal: ti.types.vector, roughness: number, xi: ti.types.vector) => {
                         let alpha = roughness * roughness;
                         let cosTheta = saturate(Math.sqrt((1.0 - xi[1]) / (1.0 + (alpha * alpha - 1.0) * xi[1])));
                         let sinTheta = Math.sqrt(1.0 - cosTheta * cosTheta);
@@ -234,7 +235,7 @@ export class Renderer {
                         }
                     }
 
-                    let filterGGX = (normal: number[], roughness: number) => {
+                    let filterGGX = (normal: ti.types.vector, roughness: number) => {
                         let color = [0.0, 0.0, 0.0]
                         for (let i of ti.range(kSampleCount)) {
                             let xi = hammersley2d(i, kSampleCount)
@@ -265,8 +266,8 @@ export class Renderer {
                         }
                     }
 
-                    let computeLUT = (NdotV: number, roughness: number): number[] => {
-                        let V = [Math.sqrt(1.0 - NdotV * NdotV), 0.0, NdotV];
+                    let computeLUT = (NdotV: number, roughness: number): ti.types.vector => {
+                        let V: any = [Math.sqrt(1.0 - NdotV * NdotV), 0.0, NdotV];
                         let N = [0.0, 0.0, 1.0];
 
                         let A = 0.0;
@@ -276,14 +277,13 @@ export class Renderer {
                         for (let i of ti.range(kSampleCount)) {
                             let xi = hammersley2d(i, kSampleCount)
                             let importanceSample = getGGXImportanceSample(N, roughness, xi)
-                            let H = importanceSample.direction;
+                            let H: any = importanceSample.direction;
                             // float pdf = importanceSample.w;
                             //@ts-ignore
                             let L = ti.normalized(2.0 * H * ti.dot(H, V) - V)
 
                             let NdotL = saturate(L[2]);
                             let NdotH = saturate(H[2]);
-                            //@ts-ignore
                             let VdotH = saturate(ti.dot(V, H));
 
                             if (NdotL > 0.0) {
@@ -295,7 +295,6 @@ export class Renderer {
                                 A += (1.0 - Fc) * V_pdf;
                                 B += Fc * V_pdf;
                                 C += 0.0;
-
                             }
                         }
                         //@ts-ignore
@@ -304,7 +303,7 @@ export class Renderer {
 
                     for (let I of ti.ndrange(this.LUT!.dimensions[0], this.LUT!.dimensions[1])) {
                         //@ts-ignore
-                        let uv: number[] = I / (this.LUT.dimensions - [1.0, 1.0])
+                        let uv: ti.types.vector = I / (this.LUT.dimensions - [1.0, 1.0])
                         let texel = computeLUT(uv[0], uv[1])
                         ti.textureStore(this.LUT!, I, texel.concat([1.0]));
                     }
@@ -320,60 +319,61 @@ export class Renderer {
                 let view = ti.lookAt(camera.position, camera.position + camera.direction, camera.up);
                 let aspectRatio = this.htmlCanvas.width / this.htmlCanvas.height
                 let proj = ti.perspective(camera.fov, aspectRatio, camera.near, camera.far);
-                let vp = ti.matmul(proj,view);
+                let vp = ti.matmul(proj, view);
 
                 ti.useDepth(this.depthTexture);
                 ti.clearColor(this.canvasTexture, [0.1, 0.2, 0.3, 1]);
 
-                let getLightBrightness = (light:any, fragToLight:number[]) => {
+                let getLightBrightness = (light: any, fragToLight: ti.types.vector) => {
                     let brightness = [0.0, 0.0, 0.0]
-                    if (light.type === LightType.Point) {
-                        let distance = fragToLight.norm()
-                        let attenuation = 1.0 / (ti.max(distance * distance, 0.01 * 0.01))
+                    if (light.type === 1 /** LightType.Point */) {
+                        let distance = ti.norm(fragToLight)
+                        let attenuation = 1.0 / (Math.max(distance * distance, 0.01 * 0.01))
                         let window = (1 - (distance / light.influenceRadius) ** 2) ** 4
+                        //@ts-ignore
                         brightness = light.brightness * attenuation * window
                     }
                     return brightness
                 }
 
-                let lerp = (x, y, s) => {
+                let lerp = (x: ti.types.vector | number, y: ti.types.vector | number, s: number): ti.types.vector | number => {
                     return x * (1.0 - s) + y * s
                 }
 
-                let linearTosRGB = (x) => {
+                let linearTosRGB = (x: ti.types.vector | number): ti.types.vector | number => {
                     return Math.pow(x, 1.0 / 2.2)
                 }
 
-                let sRGBToLinear = (x) => {
+                let sRGBToLinear = (x: ti.types.vector | number): ti.types.vector | number => {
                     return Math.pow(x, 2.2)
                 }
 
-                let fresnel = (F0, normal, viewDir) => {
-                    return F0 + (1.0 - F0) * (1.0 - abs(dot(normal, viewDir))) ** 5
+                let fresnel = (F0: ti.types.vector | number, normal: ti.types.vector, viewDir: ti.types.vector) => {
+                    return F0 + (1.0 - F0) * (1.0 - Math.abs(ti.dot(normal, viewDir))) ** 5
                 }
 
-                let evalSpecularBRDF = (alpha, Fr, normal, lightDir, viewDir, halfDir) => {
-                    let D = this.ggxDistribution(dot(normal, halfDir), alpha)
-                    let NdotL = abs(dot(normal, lightDir))
-                    let NdotV = abs(dot(normal, viewDir))
+                let evalSpecularBRDF = (alpha: number, Fr: ti.types.vector | number, normal: ti.types.vector, lightDir: ti.types.vector, viewDir: ti.types.vector, halfDir: ti.types.vector) => {
+                    let D = this.ggxDistribution(ti.dot(normal, halfDir), alpha)
+                    let NdotL = Math.abs(ti.dot(normal, lightDir))
+                    let NdotV = Math.abs(ti.dot(normal, viewDir))
                     let G2_Over_4_NdotL_NdotV = 0.5 / lerp(2 * NdotL * NdotV, NdotL + NdotV, alpha)
                     return G2_Over_4_NdotL_NdotV * D * Fr
                 }
 
-                let evalDiffuseBRDF = (albedo) => {
+                let evalDiffuseBRDF = (albedo: any) => {
                     return albedo * (1.0 / Math.PI)
                 }
 
-                let evalMetalBRDF = (alpha, baseColor, normal, lightDir, viewDir, halfDir) => {
+                let evalMetalBRDF = (alpha: number, baseColor: ti.types.vector, normal: ti.types.vector, lightDir: ti.types.vector, viewDir: ti.types.vector, halfDir: ti.types.vector) => {
                     let F0 = baseColor
                     let microfacetNormal = halfDir
                     let Fr = fresnel(F0, microfacetNormal, viewDir)
                     return evalSpecularBRDF(alpha, Fr, normal, lightDir, viewDir, halfDir)
                 }
 
-                let dielectricF0 = [0.04, 0.04, 0.04]
+                let dielectricF0: ti.types.vector = [0.04, 0.04, 0.04]
 
-                let evalDielectricBRDF = (alpha, baseColor, normal, lightDir, viewDir, halfDir) => {
+                let evalDielectricBRDF = (alpha: number, baseColor: ti.types.vector, normal: ti.types.vector, lightDir: ti.types.vector, viewDir: ti.types.vector, halfDir: ti.types.vector) => {
                     let microfacetNormal = halfDir
                     let Fr = fresnel(dielectricF0, microfacetNormal, viewDir)
                     let specular = evalSpecularBRDF(alpha, Fr, normal, lightDir, viewDir, halfDir)
@@ -381,27 +381,28 @@ export class Renderer {
                     return diffuse * (1 - Fr) + specular
                 }
 
-                let evalBRDF = (material, normal, lightDir, viewDir, halfDir) => {
+                let evalBRDF = (material: any, normal: ti.types.vector, lightDir: ti.types.vector, viewDir: ti.types.vector, halfDir: ti.types.vector) => {
                     let alpha = material.roughness * material.roughness
                     let metallicBRDF = evalMetalBRDF(alpha, material.baseColor.rgb, normal, lightDir, viewDir, halfDir)
                     let dielectricBRDF = evalDielectricBRDF(alpha, material.baseColor.rgb, normal, lightDir, viewDir, halfDir)
                     return material.metallic * metallicBRDF + (1.0 - material.metallic) * dielectricBRDF
                 }
 
-                let evalIBL = (material, normal, viewDir) => {
-                    let result = [0.0, 0.0, 0.0]
+                let evalIBL = (material: any, normal: ti.types.vector, viewDir: ti.types.vector) => {
+                    let result: ti.types.vector = [0.0, 0.0, 0.0]
+                    //@ts-ignore
                     if (ti.static(this.scene.ibl !== undefined)) {
                         let diffuseColor = (1.0 - material.metallic) * (1.0 - dielectricF0) * material.baseColor.rgb
                         let normalUV = this.dirToUV(normal)
-                        let diffuseLight = sRGBToLinear(this.tonemap(ti.textureSample(this.iblLambertianFiltered, normalUV).rgb, this.scene.ibl.exposure))
+                        let diffuseLight = sRGBToLinear(this.tonemap(ti.textureSample(this.iblLambertianFiltered!, normalUV).rgb, this.scene.ibl!.exposure))
                         let diffuse = diffuseColor * diffuseLight
 
                         let specularColor = (1.0 - material.metallic) * dielectricF0 + material.metallic * material.baseColor.rgb
-                        let reflection = normalized(2.0 * normal * dot(normal, viewDir) - viewDir)
+                        let reflection = ti.normalized((2.0 * normal * ti.dot(normal, viewDir) - viewDir))
                         let reflectionUV = this.dirToUV(reflection)
-                        let specularLight = sRGBToLinear(this.tonemap(ti.textureSample(this.iblGGXFiltered, reflectionUV.concat([material.roughness])).rgb, this.scene.ibl.exposure))
-                        let NdotV = dot(normal, viewDir)
-                        let scaleBias = ti.textureSample(this.LUT, [NdotV, material.roughness]).rg
+                        let specularLight = sRGBToLinear(this.tonemap(ti.textureSample(this.iblGGXFiltered!, reflectionUV.concat([material.roughness])).rgb, this.scene.ibl!.exposure))
+                        let NdotV = ti.dot(normal, viewDir)
+                        let scaleBias = ti.textureSample(this.LUT!, [NdotV, material.roughness]).rg
                         let specular = specularLight * (specularColor * scaleBias[0] + scaleBias[1])
 
                         result = specular + diffuse
@@ -409,21 +410,23 @@ export class Renderer {
                     return result
                 }
 
-                let getNormal = (normal, normalMap, texCoords, position) => {
-                    let uvDx = ti.dpdx(texCoords.concat([0.0]))
-                    let uvDy = ti.dpdy(texCoords.concat([0.0]))
-                    let posDx = ti.dpdx(position)
-                    let posDy = ti.dpdy(position)
+                let getNormal = (normal: ti.types.vector, normalMap: ti.types.vector, texCoords: ti.types.vector, position: ti.types.vector) => {
+                    let uvDx: ti.types.vector = ti.dpdx(texCoords.concat([0.0]))
+                    let uvDy: ti.types.vector = ti.dpdy(texCoords.concat([0.0]))
+                    let posDx: ti.types.vector = ti.dpdx(position)
+                    let posDy: ti.types.vector = ti.dpdy(position)
                     let temp = (uvDy[1] * posDx - uvDx[1] * posDy) / (uvDx[0] * uvDy[1] - uvDy[0] * uvDx[1])
-                    let tangent = (temp - normal * dot(normal, temp)).normalized()
-                    let bitangent = cross(normal, tangent).normalized()
-                    let mat = [tangent, bitangent, normal].transpose()
-                    let normalMapValue = (normalMap * 2.0 - 1.0).normalized()
-                    return ti.matmul(mat, normalMapValue).normalized()
+                    let tangent = ti.normalized(temp - normal * ti.dot(normal, temp))
+                    let bitangent = ti.normalized(ti.cross(normal, tangent))
+                    let mat = ti.transpose([tangent, bitangent, normal])
+                    let normalMapValue = ti.normalized(normalMap * 2.0 - 1.0)
+                    return ti.normalized(ti.matmul(mat, normalMapValue))
                 }
 
+                //@ts-ignore
                 for (let batchID of ti.static(ti.range(this.batchesDrawInfoBuffers.length))) {
-                    let getMaterial = (texCoords, materialID) => {
+                    let getMaterial = (texCoords: ti.types.vector, materialID: number) => {
+                        //@ts-ignore
                         let materialInfo = this.sceneData.materialInfoBuffer[materialID]
                         let material = {
                             baseColor: materialInfo.baseColor.value,
@@ -432,35 +435,42 @@ export class Renderer {
                             emissive: materialInfo.emissive.value,
                             normalMap: materialInfo.normalMap.value,
                         }
+                        //@ts-ignore
                         if (ti.static(this.batchInfos[batchID].materialIndex != -1)) {
                             let materialRef = this.scene.materials[this.batchInfos[batchID].materialIndex]
+                            //@ts-ignore
                             if (ti.static(materialRef.baseColor.texture !== undefined)) {
-                                let sampledBaseColor = ti.textureSample(materialRef.baseColor.texture, texCoords)
+                                let sampledBaseColor = ti.textureSample(materialRef.baseColor.texture!, texCoords)
                                 sampledBaseColor.rgb = sRGBToLinear(sampledBaseColor.rgb)
                                 material.baseColor *= sampledBaseColor
                             }
+                            //@ts-ignore
                             if (ti.static(materialRef.metallicRoughness.texture !== undefined)) {
-                                let metallicRoughness = ti.textureSample(materialRef.metallicRoughness.texture, texCoords)
+                                let metallicRoughness = ti.textureSample(materialRef.metallicRoughness.texture!, texCoords)
                                 material.metallic *= metallicRoughness.b
                                 material.roughness *= metallicRoughness.g
                             }
+                            //@ts-ignore
                             if (ti.static(materialRef.emissive.texture !== undefined)) {
-                                let sampledEmissive = ti.textureSample(materialRef.emissive.texture, texCoords).rgb
+                                let sampledEmissive = ti.textureSample(materialRef.emissive.texture!, texCoords).rgb
                                 sampledEmissive = sRGBToLinear(sampledEmissive)
                                 material.emissive *= sampledEmissive
                             }
+                            //@ts-ignore
                             if (ti.static(materialRef.normalMap.texture !== undefined)) {
-                                let sampledNormal = ti.textureSample(materialRef.normalMap.texture, texCoords).rgb
+                                let sampledNormal = ti.textureSample(materialRef.normalMap.texture!, texCoords).rgb
                                 material.normalMap = sampledNormal
                             }
                         }
                         return material
                     }
-                    for (let v of ti.inputVertices(this.sceneData.vertexBuffer, this.sceneData.indexBuffer, this.batchesDrawInfoBuffers[batchID], this.batchesDrawInfoBuffers[batchID].dimensions[0])) {
+                    for (let v of ti.inputVertices(this.sceneData!.vertexBuffer, this.sceneData!.indexBuffer, this.batchesDrawInfoBuffers[batchID], this.batchesDrawInfoBuffers[batchID].dimensions[0])) {
                         let instanceIndex = ti.getInstanceIndex()
+                        //@ts-ignore
                         let instanceInfo = this.batchesDrawInstanceInfoBuffers[batchID][instanceIndex]
                         let nodeIndex = instanceInfo.nodeIndex
                         let materialIndex = instanceInfo.materialIndex
+                        //@ts-ignore
                         let modelMatrix = this.sceneData.nodesBuffer[nodeIndex].globalTransform.matrix
 
                         v.normal = ti.transpose(ti.inverse(modelMatrix.slice([0, 0], [3, 3]))).matmul(v.normal)
@@ -475,19 +485,21 @@ export class Renderer {
                         let material = getMaterial(f.texCoords, materialID)
                         let normal = f.normal.normalized()
                         normal = getNormal(normal, material.normalMap, f.texCoords, f.position)
-                        let viewDir = (camera.position - f.position).normalized()
+                        let viewDir = ti.normalized(camera.position - f.position)
 
-                        let color = [0.0, 0.0, 0.0]
+                        let color: ti.types.vector = [0.0, 0.0, 0.0]
 
                         color += material.emissive
 
+                        //@ts-ignore
                         if (ti.static(this.scene.lights.length > 0)) {
-                            for (let i of range(this.scene.lights.length)) {
+                            for (let i of ti.range(this.scene.lights.length)) {
+                                //@ts-ignore
                                 let light = this.sceneData.lightsInfoBuffer[i]
                                 let fragToLight = light.position - f.position
-                                let brightness = getLightBrightness(light, fragToLight)
-                                let lightDir = fragToLight.normalized()
-                                let halfDir = (lightDir + viewDir).normalized()
+                                let brightness: ti.types.vector = getLightBrightness(light, fragToLight)
+                                let lightDir = ti.normalized(fragToLight)
+                                let halfDir = ti.normalized(lightDir + viewDir)
                                 let brdf = evalBRDF(material, normal, lightDir, viewDir, halfDir)
                                 color = color + brightness * brdf
                             }
@@ -499,8 +511,9 @@ export class Renderer {
                         ti.outputColor(this.canvasTexture, color.concat([1.0]));
                     }
                 }
+                //@ts-ignore
                 if (ti.static(this.scene.ibl !== undefined)) {
-                    for (let v of ti.inputVertices(this.skyboxVBO, this.skyboxIBO)) {
+                    for (let v of ti.inputVertices(this.skyboxVBO!, this.skyboxIBO!)) {
                         let pos = vp.matmul((v + camera.position).concat([1.0]));
                         ti.outputPosition(pos);
                         ti.outputVertex(v);
@@ -508,8 +521,8 @@ export class Renderer {
                     for (let f of ti.inputFragments()) {
                         let dir = f.normalized()
                         let uv = this.dirToUV(dir)
-                        let color = ti.textureSample(this.iblGGXFiltered, uv.concat([0.2]))
-                        color.rgb = linearTosRGB(this.tonemap(color.rgb, this.scene.ibl.exposure))
+                        let color = ti.textureSample(this.iblGGXFiltered!, uv.concat([0.2]))
+                        color.rgb = linearTosRGB(this.tonemap(color.rgb, this.scene.ibl!.exposure))
                         color[3] = 1.0
                         ti.outputDepth(1 - 1e-6)
                         ti.outputColor(this.canvasTexture, color);
