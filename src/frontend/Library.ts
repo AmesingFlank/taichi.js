@@ -1032,6 +1032,27 @@ let rotateAxisAngle = ti.func(
     }
 )
 
+let translate = ti.func(
+    (t: ti.types.vector) => {
+        return [
+            [1.0, 0.0, 0.0, t[0]],
+            [0.0, 1.0, 0.0, t[1]],
+            [0.0, 0.0, 1.0, t[2]],
+            [0.0, 0.0, 0.0, 1.0],
+        ];
+    }
+)
+
+let scale = ti.func(
+    (t: ti.types.vector) => {
+        return [
+            [t[0], 0.0, 0.0, 0.0],
+            [0.0, t[1], 0.0, 0.0],
+            [0.0, 0.0, t[2], 0.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ];
+    }
+)
 
 class LibraryFunc {
     constructor(public name: string, public code: string) {
@@ -1046,7 +1067,9 @@ class LibraryFunc {
             lookAt,
             perspective,
             inverse,
-            rotateAxisAngle
+            rotateAxisAngle,
+            translate,
+            scale,
         }
 
         let funcsMap = new Map<string, LibraryFunc>()

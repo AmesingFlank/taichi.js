@@ -40,6 +40,8 @@ export declare function dpdy(val: number | ti.types.vector): number | ti.types.v
 export declare function lookAt(eye: ti.types.vector, center: ti.types.vector, up: ti.types.vector): any[];
 export declare function perspective(fovy: number, aspect: number, zNear: number, zFar: number): number[][];
 export declare function rotateAxisAngle(axis: ti.types.vector, angle: number): ti.types.matrix;
+export declare function translate(t: ti.types.vector): ti.types.matrix;
+export declare function scale(t: ti.types.vector): ti.types.matrix;
 export declare function mergeStructs(a: ti.types.struct, b: ti.types.struct): ti.types.struct;
 export declare function bitcast_i32(number: number | ti.types.vector): number | ti.types.vector;
 export declare function bitcast_f32(number: number | ti.types.vector): number | ti.types.vector;

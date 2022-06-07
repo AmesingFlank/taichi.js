@@ -285,6 +285,24 @@ export function rotateAxisAngle(axis: ti.types.vector, angle: number): ti.types.
     return m
 }
 
+export function translate(t: ti.types.vector): ti.types.matrix {
+    return [
+        [1.0, 0.0, 0.0, t[0]],
+        [0.0, 1.0, 0.0, t[1]],
+        [0.0, 0.0, 1.0, t[2]],
+        [0.0, 0.0, 0.0, 1.0],
+    ];
+}
+
+export function scale(t: ti.types.vector): ti.types.matrix {
+    return [
+        [t[0], 0.0, 0.0, 0.0],
+        [0.0, t[1], 0.0, 0.0],
+        [0.0, 0.0, t[2], 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ];
+}
+
 export function mergeStructs(a: ti.types.struct, b: ti.types.struct): ti.types.struct {
     let result: ti.types.struct = {}
     for (let k in a) {

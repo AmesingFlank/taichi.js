@@ -7,7 +7,10 @@ let main = async () => {
     htmlCanvas.width = 1280;
     htmlCanvas.height = 720;
 
-    let scene = await ti.engine.GltfLoader.loadFromURL("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb")
+    let scene = new ti.engine.Scene()
+    await scene.addGLTF("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/SciFiHelmet/glTF/SciFiHelmet.gltf", new ti.engine.Transform(ti.translate([-1.0, 0.0, 0.0]))) 
+
+    await scene.addGLTF("https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb",new ti.engine.Transform(ti.translate([1.0, 0.0, 0.0])))
     scene.ibl = await ti.engine.HdrLoader.loadFromURL("../rendering/resources/footprint_court.hdr")
 
     // scene.lights.push(new ti.engine.LightInfo(

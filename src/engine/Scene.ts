@@ -10,6 +10,8 @@ import { InstanceInfo } from "./InstanceInfo";
 import { BatchInfo } from "./BatchInfo";
 import { LightInfo } from "./LightInfo";
 import { HdrTexture } from "./HDRLoader";
+import { error } from "../utils/Logging";
+import { GltfLoader } from "./GLTFLoader";
 
 export interface SceneData {
     vertexBuffer: Field, // Field of Vertex
@@ -34,7 +36,7 @@ export class Scene {
     indices: number[] = []
     materials: Material[] = []
     nodes: SceneNode[] = []
-    rootNode: number 
+    rootNode: number
     meshes: Mesh[] = []
 
     lights: LightInfo[] = []
@@ -87,7 +89,57 @@ export class Scene {
         visit(this.rootNode, new Transform)
     }
 
-    merge(scene: Scene){
+    async add(scene: Scene, transform: Transform = new Transform) {
 
+        let nodeOffset = this.nodes.length
+        this.nodes = this.nodes.concat(scene.nodes)
+
+        let vertexOffset = this.vertices.length
+        this.vertices = this.vertices.concat(scene.vertices)
+
+        let indexOffset = this.indices.length
+        for (let i = 0; i < scene.indices.length; ++i) {
+            scene.indices[i] += vertexOffset
+        }
+        this.indices = this.indices.concat(scene.indices)
+
+        let materialOffset = this.materials.length
+        this.materials = this.materials.concat(scene.materials)
+
+        let meshOffset = this.meshes.length
+        this.meshes = this.meshes.concat(scene.meshes)
+
+        scene.nodes[scene.rootNode].localTransform = transform
+        scene.nodes[scene.rootNode].parent = this.rootNode
+        let sceneRootCurrentId = scene.rootNode + nodeOffset
+        this.nodes[this.rootNode].children.push(sceneRootCurrentId)
+
+        for (let node of scene.nodes) {
+            if (node.parent !== -1) {
+                node.parent = node.parent + nodeOffset
+            }
+            node.children = node.children.map(id => id + nodeOffset)
+            if (node.mesh !== -1) {
+                node.mesh += meshOffset
+            }
+        }
+
+        for (let mat of scene.materials) {
+            mat.materialID += materialOffset
+        }
+
+        for(let mesh of scene.meshes){
+            for(let prim of mesh.primitives){
+                prim.firstIndex += indexOffset
+                prim.materialID += materialOffset
+            }
+        }
+        this.init()
+        return sceneRootCurrentId
+    }
+
+    async addGLTF(url: string, transform: Transform = new Transform) {
+        let gltf = await GltfLoader.loadFromURL(url)
+        return await this.add(gltf, transform)
     }
 }

@@ -9,3 +9,4 @@ export * from "./Camera";
 export * from "./DrawInfo";
 export * from "./BatchInfo";
 export * from "./InstanceInfo";
+export * from "./Transform";

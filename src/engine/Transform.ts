@@ -1,8 +1,11 @@
 import { matmul } from "../api/KernelScopeBuiltin"
 import * as ti from "../taichi"
 export class Transform {
-    constructor() {
+    constructor(matrix?: number[][]) {
         this.reset()
+        if (matrix) {
+            this.matrix = matrix
+        }
     }
     reset() {
         this.matrix =

@@ -3,6 +3,7 @@ import { Material } from "./Material";
 import { Vertex, VertexAttribSet } from "./Vertex";
 import { SceneNode } from "./SceneNode";
 import { Mesh } from "./Mesh";
+import { Transform } from "./Transform";
 import { LightInfo } from "./LightInfo";
 import { HdrTexture } from "./HDRLoader";
 export interface SceneData {
@@ -26,5 +27,6 @@ export declare class Scene {
     getKernelData(): Promise<SceneData>;
     init(): void;
     computeGlobalTransforms(): void;
-    merge(scene: Scene): void;
+    add(scene: Scene, transform?: Transform): Promise<number>;
+    addGLTF(url: string, transform?: Transform): Promise<number>;
 }
