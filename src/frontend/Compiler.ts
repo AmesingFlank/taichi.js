@@ -432,15 +432,29 @@ class CompilingVisitor extends ASTVisitor<Value>{
         let memberValues = new Map<string, Value>()
         let memberTypes: any = {}
         for (let prop of node.properties) {
-            if (prop.kind !== ts.SyntaxKind.PropertyAssignment) {
+            if (prop.kind === ts.SyntaxKind.PropertyAssignment || prop.kind === ts.SyntaxKind.ShorthandPropertyAssignment) {
+                let propAssign = prop as ts.PropertyAssignment | ts.ShorthandPropertyAssignment
+                let name = propAssign.name.getText()
+                keys.push(name)
+                if (prop.kind === ts.SyntaxKind.PropertyAssignment) {
+                    propAssign = propAssign as ts.PropertyAssignment
+                    let val = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(propAssign.initializer)))
+                    memberValues.set(name, val)
+                    memberTypes[name] = val.getType()
+                }
+                else {
+                    propAssign = propAssign as ts.ShorthandPropertyAssignment
+                    let valueSymbol = this.parsedFunction!.typeChecker!.getShorthandAssignmentValueSymbol(propAssign)
+                    if (valueSymbol && this.symbolTable.has(valueSymbol)) {
+                        let val = this.derefIfPointer(this.symbolTable.get(valueSymbol)!)
+                        memberValues.set(name, val)
+                        memberTypes[name] = val.getType()
+                    }
+                }
+            }
+            else {
                 this.errorNode(prop, "expecting property assignment")
             }
-            let propAssign = prop as ts.PropertyAssignment
-            let name = propAssign.name.getText()
-            keys.push(name)
-            let val = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(propAssign.initializer)))
-            memberValues.set(name, val)
-            memberTypes[name] = val.getType()
         }
         let structValue = ValueUtils.makeStruct(keys, memberValues)
         return structValue

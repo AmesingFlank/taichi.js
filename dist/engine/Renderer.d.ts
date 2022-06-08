@@ -1,5 +1,6 @@
 import { Field } from "../data/Field";
 import { CanvasTexture, DepthTexture, Texture } from "../data/Texture";
+import * as ti from "../taichi";
 import { BatchInfo } from "./BatchInfo";
 import { Camera } from "./Camera";
 import { DrawInfo } from "./DrawInfo";
@@ -23,6 +24,7 @@ export declare class Renderer {
     batchesDrawInstanceInfos: InstanceInfo[][];
     batchesDrawInfoBuffers: Field[];
     batchesDrawInstanceInfoBuffers: Field[];
+    engine: typeof ti.engine;
     uvToDir: (...args: any[]) => any;
     dirToUV: (...args: any[]) => any;
     tonemap: (...args: any[]) => any;

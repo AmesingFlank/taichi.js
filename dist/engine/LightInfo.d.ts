@@ -1,12 +1,19 @@
 export declare enum LightType {
-    Point = 1
+    Point = 1,
+    Spot = 2,
+    Directional = 3
 }
 export declare class LightInfo {
     type: LightType;
-    position: number[];
     brightness: number;
     color: number[];
     influenceRadius: number;
-    constructor(type: LightType, position: number[], brightness: number, color: number[], influenceRadius: number);
+    position: number[];
+    direction: number[];
+    innerConeAngle: number;
+    outerConeAngle: number;
+    constructor(type: LightType, brightness: number, color: number[], influenceRadius: number, position?: number[], // point and spot
+    direction?: number[], // spot and dir
+    innerConeAngle?: number, outerConeAngle?: number);
     static getKernelType(): import("../frontend/Type").StructType;
 }
