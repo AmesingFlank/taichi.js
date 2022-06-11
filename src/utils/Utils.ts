@@ -1,4 +1,4 @@
-import { MatrixType, PrimitiveType, StructType, Type, TypeCategory, TypeUtils, VectorType } from "../frontend/Type";
+import { MatrixType, PrimitiveType, StructType, Type, TypeCategory, TypeUtils, VectorType } from "../language/frontend/Type";
 import { assert, error } from "./Logging";
 import { MultiDimensionalArray } from "./MultiDimensionalArray";
 

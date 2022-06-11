@@ -1,10 +1,10 @@
-import { KernelCompiler } from '../frontend/Compiler'
+import { KernelCompiler } from '../language/frontend/Compiler'
 import { Program } from '../program/Program'
-import { PrimitiveType, ScalarType, Type } from "../frontend/Type"
+import { PrimitiveType, ScalarType, Type } from "../language/frontend/Type"
 import { assert, error } from '../utils/Logging'
-import { CompiledKernel } from '../backend/Kernel'
-import { ParsedFunction } from '../frontend/ParsedFunction'
-import { KernelFactory, Template } from '../frontend/KernelFactory'
+import { CompiledKernel } from '../runtime/Kernel'
+import { ParsedFunction } from '../language/frontend/ParsedFunction'
+import { KernelFactory, Template } from '../language/frontend/KernelFactory'
 
 function addToKernelScope(obj: any) {
     let program = Program.getCurrentProgram()

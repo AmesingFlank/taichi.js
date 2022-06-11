@@ -1,7 +1,7 @@
 import { Field } from './Field'
 import { nativeTaichi, NativeTaichiAny } from "../native/taichi/GetTaichi"
 import { nextPowerOf2 } from "../utils/Utils"
-import { toNativePrimitiveType, Type } from "../frontend/Type"
+import { toNativePrimitiveType, Type } from "../language/frontend/Type"
 
 function numElements(dimensions: number[], packed: boolean = false) {
     let result = 1

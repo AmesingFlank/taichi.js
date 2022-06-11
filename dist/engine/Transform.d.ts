@@ -4,5 +4,5 @@ export declare class Transform {
     reset(): void;
     matrix: number[][];
     mul(other: Transform): ti.engine.Transform;
-    static getKernelType(): import("../frontend/Type").StructType;
+    static getKernelType(): import("../language/frontend/Type").StructType;
 }

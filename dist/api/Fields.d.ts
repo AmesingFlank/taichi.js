@@ -1,5 +1,5 @@
 import { Field } from '../data/Field';
-import { PrimitiveType, Type } from "../frontend/Type";
+import { PrimitiveType, Type } from "../language/frontend/Type";
 declare function field(type: PrimitiveType | Type, dimensions: number[] | number): Field;
 declare let Vector: {
     field: (n: number, primitiveType: PrimitiveType, dimensions: number[] | number) => Field;

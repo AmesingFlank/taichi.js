@@ -1,4 +1,4 @@
-import { Type } from "../frontend/Type";
+import { Type } from "../language/frontend/Type";
 import { Program } from "../program/Program";
 import { product } from "../utils/Utils";
 import { Field } from "./Field";

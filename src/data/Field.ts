@@ -1,6 +1,6 @@
 import type { SNodeTree } from './SNodeTree'
 import { NativeTaichiAny } from "../native/taichi/GetTaichi"
-import { PrimitiveType, Type, TypeUtils } from "../frontend/Type"
+import { PrimitiveType, Type, TypeUtils } from "../language/frontend/Type"
 import { Program } from "../program/Program"
 import { assert, error } from '../utils/Logging'
 import { elementToInt32Array, groupElements, reshape, toElement } from '../utils/Utils'

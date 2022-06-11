@@ -1,7 +1,7 @@
 /// <reference types="dist" />
 import { Field } from './Field';
 import { NativeTaichiAny } from "../native/taichi/GetTaichi";
-import { Type } from "../frontend/Type";
+import { Type } from "../language/frontend/Type";
 declare class SNodeTree {
     treeId: number;
     fields: Field[];

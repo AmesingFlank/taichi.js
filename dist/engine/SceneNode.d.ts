@@ -6,5 +6,5 @@ export declare class SceneNode {
     localTransform: Transform;
     globalTransform: Transform;
     mesh: number;
-    static getKernelType(): import("../frontend/Type").StructType;
+    static getKernelType(): import("../language/frontend/Type").StructType;
 }

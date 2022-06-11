@@ -1,9 +1,9 @@
-import { Runtime } from "../backend/Runtime"
+import { Runtime } from "../runtime/Runtime"
 import { SNodeTree } from "../data/SNodeTree"
 import { nativeTaichi, NativeTaichiAny } from "../native/taichi/GetTaichi"
-import { Scope } from "../frontend/Scope"
+import { Scope } from "../language/frontend/Scope"
 import { DepthTexture, TextureBase, toNativeImageDimensionality } from "../data/Texture"
-import { PrimitiveType, toNativePrimitiveType } from "../frontend/Type"
+import { PrimitiveType, toNativePrimitiveType } from "../language/frontend/Type"
 
 class Program {
     runtime: Runtime | null = null

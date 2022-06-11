@@ -1,5 +1,5 @@
 import { TextureBase } from "../data/Texture";
-import { Type } from "../frontend/Type";
+import { Type } from "../language/frontend/Type";
 export declare class MaterialAttribute {
     numComponents: number;
     value: number[];

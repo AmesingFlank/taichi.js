@@ -15,5 +15,5 @@ export declare class LightInfo {
     constructor(type: LightType, brightness: number, color: number[], influenceRadius: number, position?: number[], // point and spot
     direction?: number[], // spot and dir
     innerConeAngle?: number, outerConeAngle?: number);
-    static getKernelType(): import("../frontend/Type").StructType;
+    static getKernelType(): import("../language/frontend/Type").StructType;
 }

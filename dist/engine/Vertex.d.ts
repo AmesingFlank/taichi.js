@@ -15,7 +15,7 @@ export declare class VertexAttribSet {
     foreach(f: (attrib: VertexAttrib) => any): void;
 }
 export declare function getVertexAttribNumComponents(attrib: VertexAttrib): 2 | 3 | 4 | -1;
-export declare function getVertexAttribSetKernelType(attribs: VertexAttribSet): import("../frontend/Type").StructType;
+export declare function getVertexAttribSetKernelType(attribs: VertexAttribSet): import("../language/frontend/Type").StructType;
 export declare class Vertex {
     attribs: VertexAttribSet;
     constructor(attribs: VertexAttribSet);

@@ -1,7 +1,7 @@
 import { Program } from '../program/Program'
 import { Field } from '../data/Field'
 import { CanvasTexture, CubeTexture, DepthTexture, Texture } from '../data/Texture'
-import { PrimitiveType, Type, ScalarType, VectorType, MatrixType, StructType } from "../frontend/Type"
+import { PrimitiveType, Type, ScalarType, VectorType, MatrixType, StructType } from "../language/frontend/Type"
 import { product } from '../utils/Utils'
 import { error } from '../utils/Logging'
 import { FieldFactory } from '../data/FieldFactory'

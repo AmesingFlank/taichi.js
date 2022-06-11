@@ -1,5 +1,5 @@
-import { PrimitiveType } from "../frontend/Type";
-import { Template } from '../frontend/KernelFactory';
+import { PrimitiveType } from "../language/frontend/Type";
+import { Template } from '../language/frontend/KernelFactory';
 declare function addToKernelScope(obj: any): void;
 declare function clearKernelScope(): void;
 declare function template(): Template;

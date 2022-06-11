@@ -1,6 +1,6 @@
 import type { SNodeTree } from './SNodeTree';
 import { NativeTaichiAny } from "../native/taichi/GetTaichi";
-import { Type } from "../frontend/Type";
+import { Type } from "../language/frontend/Type";
 declare class Field {
     snodeTree: SNodeTree;
     offsetBytes: number;
