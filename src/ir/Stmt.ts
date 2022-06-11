@@ -3,14 +3,20 @@ import { TextureBase } from "../data/Texture"
 import { PrimitiveType } from "../frontend/Type"
 import { assert } from "../utils/Logging"
 
+// designed to have the same API as native taichi's IR 
+// which is why there're some camel_case and camelCase mash-ups
+
+
 export enum StmtKind {
     ConstStmt,
     RangeForStmt,
     LoopIndexStmt,
     AllocaStmt,
     LocalLoadStmt,
+    LocalStoreStmt,
     GlobalPtrStmt,
     GlobalLoadStmt,
+    GlobalStoreStmt,
     BinaryOpStmt,
     UnaryOpStmt,
     WhileStmt,
@@ -120,11 +126,24 @@ export class LocalLoadStmt extends Stmt {
     }
 }
 
+export class LocalStoreStmt extends Stmt {
+    constructor(
+        public ptr: AllocaStmt,
+        public value: Stmt,
+        id: number,
+        nameHint: string = ""
+    ) {
+        super(id, undefined, nameHint)
+    }
+    override getKind(): StmtKind {
+        return StmtKind.LocalStoreStmt
+    }
+}
 
 export class GlobalPtrStmt extends Stmt {
     constructor(
         public field: Field,
-        public indices: number,
+        public indices: number[],
         public offsetInElement: number,
         id: number,
         nameHint: string = ""
@@ -148,6 +167,20 @@ export class GlobalLoadStmt extends Stmt {
     }
     override getKind(): StmtKind {
         return StmtKind.GlobalLoadStmt
+    }
+}
+
+export class GlobalStoreStmt extends Stmt {
+    constructor(
+        public ptr: GlobalPtrStmt,
+        public value: Stmt,
+        id: number,
+        nameHint: string = ""
+    ) {
+        super(id, undefined, nameHint)
+    }
+    override getKind(): StmtKind {
+        return StmtKind.GlobalStoreStmt
     }
 }
 
@@ -399,7 +432,7 @@ export enum AtomicOpType {
 
 export class AtomicOpStmt extends Stmt {
     constructor(
-        public op: AtomicOpStmt,
+        public op: AtomicOpType,
         public dest: Stmt,
         public val: Stmt,
         id: number,
@@ -480,7 +513,7 @@ export class FragmentInputStmt extends Stmt {
     }
 }
 
-export enum BuiltinOutputKind {
+export enum BuiltInOutputKind {
     Position,
     Color,
     FragDepth
@@ -489,7 +522,7 @@ export enum BuiltinOutputKind {
 export class BuiltInOutputStmt extends Stmt {
     constructor(
         public values: Stmt[],
-        public kind: BuiltinOutputKind,
+        public kind: BuiltInOutputKind,
         id: number,
         nameHint: string = ""
     ) {
@@ -602,7 +635,7 @@ export class CompositeExtractStmt extends Stmt {
 }
 
 
-class Block {
+export class Block {
     constructor(public stmts: Stmt[] = []) {
 
     }

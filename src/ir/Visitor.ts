@@ -1,4 +1,5 @@
-import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, BinaryOpStmt, BuiltInInputStmt, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, IfStmt, LocalLoadStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, StmtKind, TextureFunctionStmt, UnaryOpStmt, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
+import { error } from "../utils/Logging";
+import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, BinaryOpStmt, BuiltInInputStmt, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, IfStmt, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, StmtKind, TextureFunctionStmt, UnaryOpStmt, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
 
 
 export abstract class StmtVisitor {
@@ -19,10 +20,14 @@ export abstract class StmtVisitor {
                 this.visitAllocaStmt(stmt as AllocaStmt)
             case StmtKind.LocalLoadStmt:
                 this.visitLocalLoadStmt(stmt as LocalLoadStmt)
+            case StmtKind.LocalStoreStmt:
+                this.visitLocalStoreStmt(stmt as LocalStoreStmt)
             case StmtKind.GlobalPtrStmt:
                 this.visitGlobalPtrStmt(stmt as GlobalPtrStmt)
             case StmtKind.GlobalLoadStmt:
                 this.visitGlobalLoadStmt(stmt as GlobalLoadStmt)
+            case StmtKind.GlobalStoreStmt:
+                this.visitGlobalStoreStmt(stmt as GlobalStoreStmt)
             case StmtKind.BinaryOpStmt:
                 this.visitBinaryOpStmt(stmt as BinaryOpStmt)
             case StmtKind.UnaryOpStmt:
@@ -65,6 +70,8 @@ export abstract class StmtVisitor {
                 this.visitTextureFunctionStmt(stmt as TextureFunctionStmt)
             case StmtKind.CompositeExtractStmt:
                 this.visitCompositeExtractStmt(stmt as CompositeExtractStmt)
+            default:
+                error("unrecognized stmt: ", stmt)
         }
     }
     visitConstStmt(stmt: ConstStmt) {
@@ -78,8 +85,10 @@ export abstract class StmtVisitor {
     visitLoopIndexStmt(stmt: LoopIndexStmt) { }
     visitAllocaStmt(stmt: AllocaStmt) { }
     visitLocalLoadStmt(stmt: LocalLoadStmt) { }
+    visitLocalStoreStmt(stmt: LocalStoreStmt) { }
     visitGlobalPtrStmt(stmt: GlobalPtrStmt) { }
     visitGlobalLoadStmt(stmt: GlobalLoadStmt) { }
+    visitGlobalStoreStmt(stmt: GlobalStoreStmt) { }
     visitBinaryOpStmt(stmt: BinaryOpStmt) { }
     visitUnaryOpStmt(stmt: UnaryOpStmt) { }
     visitWhileStmt(stmt: WhileStmt) { }
