@@ -1,10 +1,13 @@
 import { error } from "../../utils/Logging";
-import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, BinaryOpStmt, BuiltInInputStmt, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, StmtKind, TextureFunctionStmt, UnaryOpStmt, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
+import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, BinaryOpStmt, Block, BuiltInInputStmt, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, IRModule, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, StmtKind, TextureFunctionStmt, UnaryOpStmt, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
 
 
-export abstract class StmtVisitor {
-    run(stmts: Stmt[]) {
-        for (let s of stmts) {
+export abstract class IRVisitor {
+    visitModule(module: IRModule) {
+        this.visitBlock(module.block)
+    }
+    visitBlock(block: Block) {
+        for (let s of block.stmts) {
             this.visit(s)
         }
     }
@@ -84,9 +87,7 @@ export abstract class StmtVisitor {
 
     }
     visitRangeForStmt(stmt: RangeForStmt) {
-        for (let s of stmt.body.stmts) {
-            this.visit(s)
-        }
+        this.visitBlock(stmt.body)
     }
     visitLoopIndexStmt(stmt: LoopIndexStmt) { }
     visitAllocaStmt(stmt: AllocaStmt) { }
@@ -100,8 +101,13 @@ export abstract class StmtVisitor {
     visitGlobalTemporaryStoreStmt(stmt: GlobalTemporaryStoreStmt) { }
     visitBinaryOpStmt(stmt: BinaryOpStmt) { }
     visitUnaryOpStmt(stmt: UnaryOpStmt) { }
-    visitWhileStmt(stmt: WhileStmt) { }
-    visitIfStmt(stmt: IfStmt) { }
+    visitWhileStmt(stmt: WhileStmt) {
+        this.visitBlock(stmt.body)
+    }
+    visitIfStmt(stmt: IfStmt) {
+        this.visitBlock(stmt.trueBranch)
+        this.visitBlock(stmt.falseBranch)
+    }
     visitWhileControlStmt(stmt: WhileControlStmt) { }
     visitContinueStmt(stmt: ContinueStmt) { }
     visitArgLoadStmt(stmt: ArgLoadStmt) { }
@@ -109,14 +115,10 @@ export abstract class StmtVisitor {
     visitReturnStmt(stmt: ReturnStmt) { }
     visitAtomicOpStmt(stmt: AtomicOpStmt) { }
     visitVertexForStmt(stmt: VertexForStmt) {
-        for (let s of stmt.body.stmts) {
-            this.visit(s)
-        }
+        this.visitBlock(stmt.body)
     }
     visitFragmentForStmt(stmt: FragmentForStmt) {
-        for (let s of stmt.body.stmts) {
-            this.visit(s)
-        }
+        this.visitBlock(stmt.body)
     }
     visitVertexInputStmt(stmt: VertexInputStmt) { }
     visitVertexOutputStmt(stmt: VertexOutputStmt) { }

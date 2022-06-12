@@ -1,7 +1,7 @@
 import { Field } from "../../data/Field";
 import { TextureBase } from "../../data/Texture";
 import { PrimitiveType } from "../frontend/Type";
-import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, AtomicOpType, BinaryOpStmt, BinaryOpType, Block, BuiltinInputKind, BuiltInInputStmt, BuiltInOutputKind, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionKind, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
+import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, AtomicOpType, BinaryOpStmt, BinaryOpType, Block, BuiltinInputKind, BuiltInInputStmt, BuiltInOutputKind, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, IRHolder, IRModule, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionKind, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
 
 // designed to have the same API as native taichi's IRBuilder
 // which is why there're some camel_case and camelCase mash-ups
@@ -11,8 +11,8 @@ export class IRBuilder {
 
     }
 
-    stmts: Stmt[] = []
-    guards: Guard[] = [new Guard(this, this.stmts)]
+    module:IRModule = new IRModule
+    guards: Guard[] = [new Guard(this, this.module.block)]
 
     get_int32(val: number) {
         return this.pushNewStmt(new ConstStmt(val, PrimitiveType.i32, this.getNewId()))
@@ -41,8 +41,8 @@ export class IRBuilder {
         return this.pushNewStmt(new GlobalStoreStmt(ptr, val, this.getNewId()))
     }
 
-    create_global_temporary(type:PrimitiveType, offset: number) {
-        return this.pushNewStmt(new GlobalTemporaryStmt(type,offset, this.getNewId()))
+    create_global_temporary(type: PrimitiveType, offset: number) {
+        return this.pushNewStmt(new GlobalTemporaryStmt(type, offset, this.getNewId()))
     }
 
     create_global_temporary_load(ptr: GlobalTemporaryStmt) {
@@ -381,52 +381,52 @@ export class IRBuilder {
         return this.pushNewStmt(new FragmentDerivativeStmt(val, this.getNewId()))
     }
 
-    get_range_loop_guard(loop:RangeForStmt){
-        return this.addGuard(loop.body.stmts)
+    get_range_loop_guard(loop: RangeForStmt) {
+        return this.addGuard(loop.body)
     }
 
-    get_while_loop_guard(loop:WhileStmt){
-        return this.addGuard(loop.body.stmts)
+    get_while_loop_guard(loop: WhileStmt) {
+        return this.addGuard(loop.body)
     }
 
-    get_vertex_loop_guard(loop:VertexForStmt){
-        return this.addGuard(loop.body.stmts)
+    get_vertex_loop_guard(loop: VertexForStmt) {
+        return this.addGuard(loop.body)
     }
 
-    get_fragment_loop_guard(loop:FragmentForStmt){
-        return this.addGuard(loop.body.stmts)
+    get_fragment_loop_guard(loop: FragmentForStmt) {
+        return this.addGuard(loop.body)
     }
 
-    get_if_guard(stmt:IfStmt, branch:boolean){
-        if(branch){
-            return this.addGuard(stmt.trueBranch.stmts)
+    get_if_guard(stmt: IfStmt, branch: boolean) {
+        if (branch) {
+            return this.addGuard(stmt.trueBranch)
         }
-        else{
-            return this.addGuard(stmt.falseBranch.stmts)
+        else {
+            return this.addGuard(stmt.falseBranch)
         }
     }
 
     getNewId() {
-        return this.stmts.length
+        return this.module.getNewId();
     }
 
     pushNewStmt(stmt: Stmt) {
-        this.guards.at(-1)!.stmts.push(stmt)
+        this.guards.at(-1)!.block.stmts.push(stmt)
         return stmt
     }
 
-    addGuard(stmts:Stmt[]){
-        let guard = new Guard(this, stmts)
+    addGuard(block:Block) {
+        let guard = new Guard(this, block)
         this.guards.push(guard)
         return guard
     }
 }
 
 export class Guard {
-    constructor(public irBuilder: IRBuilder, public stmts: Stmt[]) {
+    constructor(public parent: { guards: Guard[] }, public block:Block) {
 
     }
-    delete(){
-        this.irBuilder.guards.pop()
+    delete() {
+        this.parent.guards.pop()
     }
 }

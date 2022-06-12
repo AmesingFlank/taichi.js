@@ -57,6 +57,8 @@ export abstract class Stmt {
         return `_${this.id}_${this.nameHint}`
     }
 
+    operands: Stmt[] = []
+
     abstract getKind(): StmtKind;
 }
 
@@ -77,13 +79,18 @@ export class ConstStmt extends Stmt {
 
 export class RangeForStmt extends Stmt {
     constructor(
-        public range: Stmt,
+        range: Stmt,
         public strictlySerialize: boolean,
         public body: Block,
         id: number,
         nameHint: string = ""
     ) {
         super(id, undefined, nameHint)
+        this.operands = [range]
+    }
+    isParallelFor: boolean = false
+    getRange() {
+        return this.operands[0]
     }
     override getKind(): StmtKind {
         return StmtKind.RangeForStmt
@@ -92,11 +99,15 @@ export class RangeForStmt extends Stmt {
 
 export class LoopIndexStmt extends Stmt {
     constructor(
-        public loop: Stmt,
+        loop: Stmt,
         id: number,
         nameHint: string = ""
     ) {
         super(id, PrimitiveType.i32, nameHint)
+        this.operands = [loop]
+    }
+    getLoop() {
+        return this.operands[0]
     }
     override getKind(): StmtKind {
         return StmtKind.LoopIndexStmt
@@ -118,11 +129,15 @@ export class AllocaStmt extends Stmt {
 
 export class LocalLoadStmt extends Stmt {
     constructor(
-        public ptr: AllocaStmt,
+        ptr: AllocaStmt,
         id: number,
         nameHint: string = ""
     ) {
         super(id, ptr.allocatedType, nameHint)
+        this.operands = [ptr]
+    }
+    getPointer() {
+        return this.operands[0] as AllocaStmt
     }
     override getKind(): StmtKind {
         return StmtKind.LocalLoadStmt
@@ -131,12 +146,19 @@ export class LocalLoadStmt extends Stmt {
 
 export class LocalStoreStmt extends Stmt {
     constructor(
-        public ptr: AllocaStmt,
-        public value: Stmt,
+        ptr: AllocaStmt,
+        value: Stmt,
         id: number,
         nameHint: string = ""
     ) {
         super(id, undefined, nameHint)
+        this.operands = [ptr, value]
+    }
+    getPointer() {
+        return this.operands[0] as AllocaStmt
+    }
+    getValue() {
+        return this.operands[1]
     }
     override getKind(): StmtKind {
         return StmtKind.LocalStoreStmt
@@ -166,6 +188,10 @@ export class GlobalLoadStmt extends Stmt {
     ) {
         let returnType = ptr.field.elementType.getPrimitivesList()[ptr.offsetInElement]
         super(id, returnType, nameHint)
+        this.operands = [ptr]
+    }
+    getPointer() {
+        return this.operands[0] as GlobalPtrStmt
     }
     override getKind(): StmtKind {
         return StmtKind.GlobalLoadStmt
@@ -180,6 +206,13 @@ export class GlobalStoreStmt extends Stmt {
         nameHint: string = ""
     ) {
         super(id, undefined, nameHint)
+        this.operands = [ptr, value]
+    }
+    getPointer() {
+        return this.operands[0] as GlobalPtrStmt
+    }
+    getValue() {
+        return this.operands[1]
     }
     override getKind(): StmtKind {
         return StmtKind.GlobalStoreStmt
@@ -188,8 +221,8 @@ export class GlobalStoreStmt extends Stmt {
 
 export class GlobalTemporaryStmt extends Stmt {
     constructor(
-        public type:PrimitiveType,
-        public offset:number,
+        public type: PrimitiveType,
+        public offset: number,
         id: number,
         nameHint: string = ""
     ) {
@@ -207,6 +240,10 @@ export class GlobalTemporaryLoadStmt extends Stmt {
         nameHint: string = ""
     ) {
         super(id, ptr.type, nameHint)
+        this.operands = [ptr]
+    }
+    getPointer() {
+        return this.operands[0] as GlobalTemporaryStmt
     }
     override getKind(): StmtKind {
         return StmtKind.GlobalTemporaryLoadStmt
@@ -221,6 +258,13 @@ export class GlobalTemporaryStoreStmt extends Stmt {
         nameHint: string = ""
     ) {
         super(id, undefined, nameHint)
+        this.operands = [ptr, value]
+    }
+    getPointer() {
+        return this.operands[0] as GlobalTemporaryStmt
+    }
+    getValue() {
+        return this.operands[1]
     }
     override getKind(): StmtKind {
         return StmtKind.GlobalTemporaryStoreStmt
@@ -302,9 +346,16 @@ export class BinaryOpStmt extends Stmt {
     ) {
         let returnType = getBinaryOpReturnType(left, right, op)
         super(id, returnType, nameHint)
+        this.operands = [left, right]
     }
     override getKind(): StmtKind {
         return StmtKind.BinaryOpStmt
+    }
+    getLeft() {
+        return this.operands[0]
+    }
+    getRight() {
+        return this.operands[1]
     }
 }
 
@@ -371,9 +422,13 @@ export class UnaryOpStmt extends Stmt {
     ) {
         let returnType = getUnaryOpReturnType(operand, op)
         super(id, returnType, nameHint)
+        this.operands = [this.operand]
     }
     override getKind(): StmtKind {
         return StmtKind.UnaryOpStmt
+    }
+    getOperand() {
+        return this.operands[0]
     }
 }
 
@@ -458,14 +513,18 @@ export class RandStmt extends Stmt {
 
 export class ReturnStmt extends Stmt {
     constructor(
-        public values: Stmt[],
+        values: Stmt[],
         id: number,
         nameHint: string = ""
     ) {
         super(id, undefined, nameHint)
+        this.operands = values.slice()
     }
     override getKind(): StmtKind {
         return StmtKind.ReturnStmt
+    }
+    getValues() {
+        return this.operands.slice()
     }
 }
 
@@ -476,15 +535,22 @@ export enum AtomicOpType {
 export class AtomicOpStmt extends Stmt {
     constructor(
         public op: AtomicOpType,
-        public dest: Stmt,
-        public val: Stmt,
+        dest: Stmt,
+        operand: Stmt,
         id: number,
         nameHint: string = ""
     ) {
-        super(id, val.returnType, nameHint)
+        super(id, operand.returnType, nameHint)
+        this.operands = [dest, operand]
     }
     override getKind(): StmtKind {
         return StmtKind.AtomicOpStmt
+    }
+    getDestination() {
+        return this.operands[0]
+    }
+    getOperand() {
+        return this.operands[1]
     }
 }
 
@@ -530,15 +596,19 @@ export class VertexInputStmt extends Stmt {
 
 export class VertexOutputStmt extends Stmt {
     constructor(
-        public value: Stmt,
+        value: Stmt,
         public location: number,
         id: number,
         nameHint: string = ""
     ) {
         super(id, undefined, nameHint)
+        this.operands = [value]
     }
     override getKind(): StmtKind {
         return StmtKind.VertexOutputStmt
+    }
+    getValue() {
+        return this.operands[0]
     }
 }
 
@@ -564,15 +634,19 @@ export enum BuiltInOutputKind {
 
 export class BuiltInOutputStmt extends Stmt {
     constructor(
-        public values: Stmt[],
+        values: Stmt[],
         public kind: BuiltInOutputKind,
         id: number,
         nameHint: string = ""
     ) {
         super(id, undefined, nameHint)
+        this.operands = values.slice()
     }
     override getKind(): StmtKind {
         return StmtKind.BuiltInOutputStmt
+    }
+    getValues() {
+        return this.operands.slice()
     }
 }
 
@@ -606,14 +680,18 @@ export enum FragmentDerivativeDirection { x, y }
 
 export class FragmentDerivativeStmt extends Stmt {
     constructor(
-        public value: Stmt,
+        value: Stmt,
         id: number,
         nameHint: string = ""
     ) {
         super(id, PrimitiveType.f32, nameHint)
+        this.operands.push(value)
     }
     override getKind(): StmtKind {
         return StmtKind.FragmentDerivativeStmt
+    }
+    getValue() {
+        return this.operands[0]
     }
 }
 
@@ -651,15 +729,24 @@ export class TextureFunctionStmt extends Stmt {
     constructor(
         public texture: TextureBase,
         public func: TextureFunctionKind,
-        public coordinates: Stmt[],
-        public operands: Stmt[],
+        coordinates: Stmt[],
+        additionalOperands: Stmt[],
         id: number,
         nameHint: string = ""
     ) {
         super(id, getTextureFunctionResultType(func), nameHint)
+        this.additionalOperandsCount = additionalOperands.length
+        this.operands = coordinates.concat(additionalOperands)
     }
+    additionalOperandsCount: number = 0
     override getKind(): StmtKind {
         return StmtKind.TextureFunctionStmt
+    }
+    getCoordinates() {
+        return this.operands.slice(0, -this.additionalOperandsCount)
+    }
+    getAdditionalOperands() {
+        return this.operands.slice(-this.additionalOperandsCount)
     }
 }
 
@@ -671,9 +758,13 @@ export class CompositeExtractStmt extends Stmt {
         nameHint: string = ""
     ) {
         super(id, composite.returnType, nameHint)
+        this.operands = [composite]
     }
     override getKind(): StmtKind {
         return StmtKind.CompositeExtractStmt
+    }
+    getComposite() {
+        return this.operands[0]
     }
 }
 
@@ -681,5 +772,16 @@ export class CompositeExtractStmt extends Stmt {
 export class Block {
     constructor(public stmts: Stmt[] = []) {
 
+    }
+}
+
+export class IRModule {
+    constructor() {
+
+    }
+    block: Block = new Block
+    idBound: number = 0
+    getNewId() {
+        return this.idBound++;
     }
 }
