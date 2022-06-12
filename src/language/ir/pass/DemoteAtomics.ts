@@ -28,6 +28,10 @@ class DemoteAtomicsPass extends IRTransformer {
         this.replacer.markReplace(stmt, binaryOpStmt)
         this.pushNewStmt(new LocalStoreStmt(dest, binaryOpStmt, this.module.getNewId()))
     }
+    override transform(module: IRModule): void {
+        super.transform(module)
+        this.replacer.transform(module)
+    }
 }
 
 export function demoteAtomics(module: IRModule) {

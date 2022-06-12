@@ -92,6 +92,9 @@ export class RangeForStmt extends Stmt {
     getRange() {
         return this.operands[0]
     }
+    setRange(range: Stmt) {
+        this.operands[0] = range
+    }
     override getKind(): StmtKind {
         return StmtKind.RangeForStmt
     }
