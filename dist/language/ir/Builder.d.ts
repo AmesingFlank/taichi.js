@@ -1,10 +1,10 @@
 import { Field } from "../../data/Field";
 import { TextureBase } from "../../data/Texture";
 import { PrimitiveType } from "../frontend/Type";
-import { AllocaStmt, FragmentForStmt, GlobalPtrStmt, GlobalTemporaryStmt, IfStmt, RangeForStmt, Stmt, VertexForStmt, WhileStmt } from "./Stmt";
+import { AllocaStmt, Block, FragmentForStmt, GlobalPtrStmt, GlobalTemporaryStmt, IfStmt, IRModule, RangeForStmt, Stmt, VertexForStmt, WhileStmt } from "./Stmt";
 export declare class IRBuilder {
     constructor();
-    stmts: Stmt[];
+    module: IRModule;
     guards: Guard[];
     get_int32(val: number): Stmt;
     get_float32(val: number): Stmt;
@@ -105,11 +105,15 @@ export declare class IRBuilder {
     get_if_guard(stmt: IfStmt, branch: boolean): Guard;
     getNewId(): number;
     pushNewStmt(stmt: Stmt): Stmt;
-    addGuard(stmts: Stmt[]): Guard;
+    addGuard(block: Block): Guard;
 }
 export declare class Guard {
-    irBuilder: IRBuilder;
-    stmts: Stmt[];
-    constructor(irBuilder: IRBuilder, stmts: Stmt[]);
+    parent: {
+        guards: Guard[];
+    };
+    block: Block;
+    constructor(parent: {
+        guards: Guard[];
+    }, block: Block);
     delete(): void;
 }

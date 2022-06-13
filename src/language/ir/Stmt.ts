@@ -1,7 +1,7 @@
 import { Field } from "../../data/Field"
 import { TextureBase } from "../../data/Texture"
 import { PrimitiveType } from "../frontend/Type"
-import { assert } from "../../utils/Logging"
+import { assert, error } from "../../utils/Logging"
 
 // designed to have the same API as native taichi's IR 
 // which is why there're some camel_case and camelCase mash-ups
@@ -55,6 +55,13 @@ export abstract class Stmt {
 
     getName() {
         return `_${this.id}_${this.nameHint}`
+    }
+
+    getReturnType(){
+        if(!this.returnType){
+            error("missing return type")
+        }
+        return this.returnType!
     }
 
     operands: Stmt[] = []

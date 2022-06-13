@@ -4,18 +4,27 @@ import { Field } from "../data/Field"
 
 import { error } from "../utils/Logging"
 enum ResourceType {
-    Root, RootAtomic, GlobalTmps, Args, RandStates, Rets, Texture, Sampler
+    Root, RootAtomic, GlobalTmps, Args, RandStates, Rets, Texture, Sampler, StorageTexture
 }
 
-class ResourceBinding {
+class ResourceInfo {
     constructor(
         public resourceType: ResourceType,
-        public resourceID: number | null,
+        public resourceID?: number
+    ) { }
+
+    equals(that: ResourceInfo): boolean {
+        return this.resourceID === that.resourceID && this.resourceType === that.resourceType
+    }
+}
+class ResourceBinding {
+    constructor(
+        public info: ResourceInfo,
         public binding: number
     ) { }
 
     equals(that: ResourceBinding): boolean {
-        return this.resourceType === that.resourceType && this.resourceID === that.resourceID && this.binding === that.binding
+        return this.info.equals(that.info) && this.binding === that.binding
     }
 }
 
@@ -299,7 +308,7 @@ class CompiledRenderPassInfo {
             depthClearValue: depth.clearDepth,
             depthLoadValue: depth.clearDepth === undefined ? "load" : depth.clearDepth,
             depthLoadOp: depth.clearDepth === undefined ? "load" : "clear",
-            depthStoreOp: depth.storeDepth === true ? "store" : "discard", 
+            depthStoreOp: depth.storeDepth === true ? "store" : "discard",
         }
         return {
             colorAttachments,
@@ -319,4 +328,4 @@ class CompiledKernel {
     }
 }
 
-export { CompiledTask, CompiledKernel, TaskParams, ResourceType, ResourceBinding, KernelParams, VertexShaderParams, FragmentShaderParams, RenderPipelineParams, CompiledRenderPipeline, RenderPassParams, ColorAttachment, DepthAttachment, CompiledRenderPassInfo }
+export { CompiledTask, CompiledKernel, TaskParams, ResourceType, ResourceInfo, ResourceBinding, KernelParams, VertexShaderParams, FragmentShaderParams, RenderPipelineParams, CompiledRenderPipeline, RenderPassParams, ColorAttachment, DepthAttachment, CompiledRenderPassInfo }

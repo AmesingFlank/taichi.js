@@ -42,6 +42,8 @@ export declare abstract class Stmt {
     nameHint: string;
     constructor(id: number, returnType?: PrimitiveType | undefined, nameHint?: string);
     getName(): string;
+    getReturnType(): PrimitiveType;
+    operands: Stmt[];
     abstract getKind(): StmtKind;
 }
 export declare class ConstStmt extends Stmt {
@@ -50,15 +52,17 @@ export declare class ConstStmt extends Stmt {
     getKind(): StmtKind;
 }
 export declare class RangeForStmt extends Stmt {
-    range: Stmt;
     strictlySerialize: boolean;
     body: Block;
     constructor(range: Stmt, strictlySerialize: boolean, body: Block, id: number, nameHint?: string);
+    isParallelFor: boolean;
+    getRange(): Stmt;
+    setRange(range: Stmt): void;
     getKind(): StmtKind;
 }
 export declare class LoopIndexStmt extends Stmt {
-    loop: Stmt;
     constructor(loop: Stmt, id: number, nameHint?: string);
+    getLoop(): Stmt;
     getKind(): StmtKind;
 }
 export declare class AllocaStmt extends Stmt {
@@ -67,14 +71,14 @@ export declare class AllocaStmt extends Stmt {
     getKind(): StmtKind;
 }
 export declare class LocalLoadStmt extends Stmt {
-    ptr: AllocaStmt;
     constructor(ptr: AllocaStmt, id: number, nameHint?: string);
+    getPointer(): AllocaStmt;
     getKind(): StmtKind;
 }
 export declare class LocalStoreStmt extends Stmt {
-    ptr: AllocaStmt;
-    value: Stmt;
     constructor(ptr: AllocaStmt, value: Stmt, id: number, nameHint?: string);
+    getPointer(): AllocaStmt;
+    getValue(): Stmt;
     getKind(): StmtKind;
 }
 export declare class GlobalPtrStmt extends Stmt {
@@ -87,12 +91,15 @@ export declare class GlobalPtrStmt extends Stmt {
 export declare class GlobalLoadStmt extends Stmt {
     ptr: GlobalPtrStmt;
     constructor(ptr: GlobalPtrStmt, id: number, nameHint?: string);
+    getPointer(): GlobalPtrStmt;
     getKind(): StmtKind;
 }
 export declare class GlobalStoreStmt extends Stmt {
     ptr: GlobalPtrStmt;
     value: Stmt;
     constructor(ptr: GlobalPtrStmt, value: Stmt, id: number, nameHint?: string);
+    getPointer(): GlobalPtrStmt;
+    getValue(): Stmt;
     getKind(): StmtKind;
 }
 export declare class GlobalTemporaryStmt extends Stmt {
@@ -104,12 +111,15 @@ export declare class GlobalTemporaryStmt extends Stmt {
 export declare class GlobalTemporaryLoadStmt extends Stmt {
     ptr: GlobalTemporaryStmt;
     constructor(ptr: GlobalTemporaryStmt, id: number, nameHint?: string);
+    getPointer(): GlobalTemporaryStmt;
     getKind(): StmtKind;
 }
 export declare class GlobalTemporaryStoreStmt extends Stmt {
     ptr: GlobalTemporaryStmt;
     value: Stmt;
     constructor(ptr: GlobalTemporaryStmt, value: Stmt, id: number, nameHint?: string);
+    getPointer(): GlobalTemporaryStmt;
+    getValue(): Stmt;
     getKind(): StmtKind;
 }
 export declare enum BinaryOpType {
@@ -146,6 +156,8 @@ export declare class BinaryOpStmt extends Stmt {
     op: BinaryOpType;
     constructor(left: Stmt, right: Stmt, op: BinaryOpType, id: number, nameHint?: string);
     getKind(): StmtKind;
+    getLeft(): Stmt;
+    getRight(): Stmt;
 }
 export declare enum UnaryOpType {
     neg = 0,
@@ -179,6 +191,7 @@ export declare class UnaryOpStmt extends Stmt {
     op: UnaryOpType;
     constructor(operand: Stmt, op: UnaryOpType, id: number, nameHint?: string);
     getKind(): StmtKind;
+    getOperand(): Stmt;
 }
 export declare class WhileStmt extends Stmt {
     body: Block;
@@ -210,9 +223,9 @@ export declare class RandStmt extends Stmt {
     getKind(): StmtKind;
 }
 export declare class ReturnStmt extends Stmt {
-    values: Stmt[];
     constructor(values: Stmt[], id: number, nameHint?: string);
     getKind(): StmtKind;
+    getValues(): Stmt[];
 }
 export declare enum AtomicOpType {
     add = 0,
@@ -225,10 +238,10 @@ export declare enum AtomicOpType {
 }
 export declare class AtomicOpStmt extends Stmt {
     op: AtomicOpType;
-    dest: Stmt;
-    val: Stmt;
-    constructor(op: AtomicOpType, dest: Stmt, val: Stmt, id: number, nameHint?: string);
+    constructor(op: AtomicOpType, dest: Stmt, operand: Stmt, id: number, nameHint?: string);
     getKind(): StmtKind;
+    getDestination(): Stmt;
+    getOperand(): Stmt;
 }
 export declare class VertexForStmt extends Stmt {
     body: Block;
@@ -246,10 +259,10 @@ export declare class VertexInputStmt extends Stmt {
     getKind(): StmtKind;
 }
 export declare class VertexOutputStmt extends Stmt {
-    value: Stmt;
     location: number;
     constructor(value: Stmt, location: number, id: number, nameHint?: string);
     getKind(): StmtKind;
+    getValue(): Stmt;
 }
 export declare class FragmentInputStmt extends Stmt {
     location: number;
@@ -262,10 +275,10 @@ export declare enum BuiltInOutputKind {
     FragDepth = 2
 }
 export declare class BuiltInOutputStmt extends Stmt {
-    values: Stmt[];
     kind: BuiltInOutputKind;
     constructor(values: Stmt[], kind: BuiltInOutputKind, id: number, nameHint?: string);
     getKind(): StmtKind;
+    getValues(): Stmt[];
 }
 export declare enum BuiltinInputKind {
     VertexIndex = 0,
@@ -282,9 +295,9 @@ export declare enum FragmentDerivativeDirection {
     y = 1
 }
 export declare class FragmentDerivativeStmt extends Stmt {
-    value: Stmt;
     constructor(value: Stmt, id: number, nameHint?: string);
     getKind(): StmtKind;
+    getValue(): Stmt;
 }
 export declare class DiscardStmt extends Stmt {
     constructor(id: number, nameHint?: string);
@@ -300,18 +313,26 @@ export declare function getTextureFunctionResultType(func: TextureFunctionKind):
 export declare class TextureFunctionStmt extends Stmt {
     texture: TextureBase;
     func: TextureFunctionKind;
-    coordinates: Stmt[];
-    operands: Stmt[];
-    constructor(texture: TextureBase, func: TextureFunctionKind, coordinates: Stmt[], operands: Stmt[], id: number, nameHint?: string);
+    constructor(texture: TextureBase, func: TextureFunctionKind, coordinates: Stmt[], additionalOperands: Stmt[], id: number, nameHint?: string);
+    additionalOperandsCount: number;
     getKind(): StmtKind;
+    getCoordinates(): Stmt[];
+    getAdditionalOperands(): Stmt[];
 }
 export declare class CompositeExtractStmt extends Stmt {
     composite: Stmt;
     elementIndex: number;
     constructor(composite: Stmt, elementIndex: number, id: number, nameHint?: string);
     getKind(): StmtKind;
+    getComposite(): Stmt;
 }
 export declare class Block {
     stmts: Stmt[];
     constructor(stmts?: Stmt[]);
+}
+export declare class IRModule {
+    constructor();
+    block: Block;
+    idBound: number;
+    getNewId(): number;
 }

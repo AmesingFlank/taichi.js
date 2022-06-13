@@ -1858,17 +1858,17 @@ export class KernelCompiler extends CompilingVisitor {
 
     protected checkGraphicsShaderBindings(bindings: ResourceBinding[]) {
         for (let binding of bindings) {
-            if (binding.resourceType === ResourceType.RandStates) {
+            if (binding.info.resourceType === ResourceType.RandStates) {
                 error("vertex and fragment shaders are not allowed to use randoms")
             }
-            else if (binding.resourceType === ResourceType.Rets) {
+            else if (binding.info.resourceType === ResourceType.Rets) {
                 error("[Compiler Bug] vertex and fragment shaders are not allowed to use rets")
             }
-            else if (binding.resourceType === ResourceType.RootAtomic) {
+            else if (binding.info.resourceType === ResourceType.RootAtomic) {
                 error("vertex and fragment shaders are not allowed to use atomics")
             }
-            else if (binding.resourceType === ResourceType.Root) {
-                let id = binding.resourceID!
+            else if (binding.info.resourceType === ResourceType.Root) {
+                let id = binding.info.resourceID!
                 if (Program.getCurrentProgram().runtime!.materializedTrees[id].size > 65536) {
                     // this is because vertex shaders are not allowed to use storage buffers, and fragment shader bindings must match the vertex shaders
                     // and uniform buffers have a size limit of 64kB

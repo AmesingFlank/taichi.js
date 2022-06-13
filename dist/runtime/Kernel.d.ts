@@ -10,13 +10,19 @@ declare enum ResourceType {
     RandStates = 4,
     Rets = 5,
     Texture = 6,
-    Sampler = 7
+    Sampler = 7,
+    StorageTexture = 8
+}
+declare class ResourceInfo {
+    resourceType: ResourceType;
+    resourceID?: number | undefined;
+    constructor(resourceType: ResourceType, resourceID?: number | undefined);
+    equals(that: ResourceInfo): boolean;
 }
 declare class ResourceBinding {
-    resourceType: ResourceType;
-    resourceID: number | null;
+    info: ResourceInfo;
     binding: number;
-    constructor(resourceType: ResourceType, resourceID: number | null, binding: number);
+    constructor(info: ResourceInfo, binding: number);
     equals(that: ResourceBinding): boolean;
 }
 declare class TaskParams {
@@ -97,4 +103,4 @@ declare class CompiledKernel {
     renderPassInfo: CompiledRenderPassInfo | null;
     constructor(tasks?: (CompiledTask | CompiledRenderPipeline)[], argTypes?: Type[], returnType?: Type, renderPassInfo?: CompiledRenderPassInfo | null);
 }
-export { CompiledTask, CompiledKernel, TaskParams, ResourceType, ResourceBinding, KernelParams, VertexShaderParams, FragmentShaderParams, RenderPipelineParams, CompiledRenderPipeline, RenderPassParams, ColorAttachment, DepthAttachment, CompiledRenderPassInfo };
+export { CompiledTask, CompiledKernel, TaskParams, ResourceType, ResourceInfo, ResourceBinding, KernelParams, VertexShaderParams, FragmentShaderParams, RenderPipelineParams, CompiledRenderPipeline, RenderPassParams, ColorAttachment, DepthAttachment, CompiledRenderPassInfo };

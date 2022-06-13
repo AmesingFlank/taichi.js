@@ -94,10 +94,10 @@ class Runtime {
         let retsSize: number = 0
         for (let task of kernel.tasks) {
             for (let binding of task.params.bindings) {
-                if (binding.resourceType === ResourceType.Args) {
+                if (binding.info.resourceType === ResourceType.Args) {
                     requiresArgsBuffer = true
                 }
-                if (binding.resourceType === ResourceType.Rets) {
+                if (binding.info.resourceType === ResourceType.Rets) {
                     requiresRetsBuffer = true
                 }
             }
@@ -315,10 +315,10 @@ class Runtime {
             let buffer: GPUBuffer | null = null
             let texture: GPUTextureView | null = null
             let sampler: GPUSampler | null = null
-            switch (binding.resourceType) {
+            switch (binding.info.resourceType) {
                 case ResourceType.Root:
                 case ResourceType.RootAtomic: {
-                    buffer = this.materializedTrees[binding.resourceID!].rootBuffer!
+                    buffer = this.materializedTrees[binding.info.resourceID!].rootBuffer!
                     break;
                 }
                 case ResourceType.GlobalTmps: {
@@ -339,12 +339,13 @@ class Runtime {
                     buffer = this.randStatesBuffer!
                     break;
                 }
+                case ResourceType.StorageTexture:
                 case ResourceType.Texture: {
-                    texture = this.textures[binding.resourceID!].getGPUTextureView()
+                    texture = this.textures[binding.info.resourceID!].getGPUTextureView()
                     break;
                 }
                 case ResourceType.Sampler: {
-                    sampler = this.textures[binding.resourceID!].getGPUSampler()
+                    sampler = this.textures[binding.info.resourceID!].getGPUSampler()
                     break;
                 }
             }
