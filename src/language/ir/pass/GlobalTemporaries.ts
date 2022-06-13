@@ -31,17 +31,13 @@ export class AllocGtempsPass extends IRVisitor {
         super.visitRangeForStmt(stmt)
         this.inParallelLoop = false
     }
-    override visitVertexForStmt(stmt: RangeForStmt) {
-        if (stmt.isParallelFor) {
-            this.inParallelLoop = true
-        }
+    override visitVertexForStmt(stmt: VertexForStmt) {
+        this.inParallelLoop = true
         super.visitVertexForStmt(stmt)
         this.inParallelLoop = false
     }
-    override visitFragmentForStmt(stmt: RangeForStmt) {
-        if (stmt.isParallelFor) {
-            this.inParallelLoop = true
-        }
+    override visitFragmentForStmt(stmt: FragmentForStmt) {
+        this.inParallelLoop = true
         super.visitFragmentForStmt(stmt)
         this.inParallelLoop = false
     }
@@ -124,6 +120,25 @@ export class LoopRangeGtempPass extends IRTransformer {
         super()
     }
     override visitRangeForStmt(stmt: RangeForStmt) {
+        if (stmt.isParallelFor) {
+            let range = stmt.getRange()
+            if (range.returnType !== PrimitiveType.i32) {
+                error("Internal Error: The range of a range-for must be an i32")
+            }
+            if (range.getKind() !== StmtKind.ConstStmt && range.getKind() !== StmtKind.GlobalTemporaryLoadStmt) {
+                let slot = this.nextGtempSlot++
+                let gtemp = new GlobalTemporaryStmt(PrimitiveType.i32, slot, this.module.getNewId())
+                let gtempStore = new GlobalTemporaryStoreStmt(gtemp, range, this.module.getNewId())
+                let gtempLoad = new GlobalTemporaryLoadStmt(gtemp, this.module.getNewId())
+                this.pushNewStmt(gtemp)
+                this.pushNewStmt(gtempStore)
+                this.pushNewStmt(gtempLoad)
+                stmt.setRange(gtempLoad)
+            }
+        }
+        super.visitRangeForStmt(stmt)
+    }
+    override visitVertexForStmt(stmt: RangeForStmt) {
         if (stmt.isParallelFor) {
             let range = stmt.getRange()
             if (range.returnType !== PrimitiveType.i32) {
