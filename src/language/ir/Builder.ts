@@ -1,7 +1,7 @@
 import { Field } from "../../data/Field";
 import { TextureBase } from "../../data/Texture";
 import { PrimitiveType } from "../frontend/Type";
-import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, AtomicOpType, BinaryOpStmt, BinaryOpType, Block, BuiltinInputKind, BuiltInInputStmt, BuiltInOutputKind, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, IRHolder, IRModule, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionKind, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
+import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, AtomicOpType, BinaryOpStmt, BinaryOpType, Block, BuiltInInputKind, BuiltInInputStmt, BuiltInOutputKind, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeDirection, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, IRHolder, IRModule, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionKind, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
 
 // designed to have the same API as native taichi's IRBuilder
 // which is why there're some camel_case and camelCase mash-ups
@@ -11,7 +11,7 @@ export class IRBuilder {
 
     }
 
-    module:IRModule = new IRModule
+    module: IRModule = new IRModule
     guards: Guard[] = [new Guard(this, this.module.block)]
 
     get_int32(val: number) {
@@ -318,15 +318,15 @@ export class IRBuilder {
     }
 
     create_position_output(vals: Stmt[]) {
-        return this.pushNewStmt(new BuiltInOutputStmt(vals, BuiltInOutputKind.Position, this.getNewId()))
+        return this.pushNewStmt(new BuiltInOutputStmt(vals, BuiltInOutputKind.Position, undefined, this.getNewId()))
     }
 
     create_fragment_input(type: PrimitiveType, location: number) {
         return this.pushNewStmt(new FragmentInputStmt(type, location, this.getNewId()))
     }
 
-    create_color_output(vals: Stmt[]) {
-        return this.pushNewStmt(new BuiltInOutputStmt(vals, BuiltInOutputKind.Color, this.getNewId()))
+    create_color_output(location: number, vals: Stmt[]) {
+        return this.pushNewStmt(new BuiltInOutputStmt(vals, BuiltInOutputKind.Color, location, this.getNewId()))
     }
 
     create_vertex_for() {
@@ -342,7 +342,7 @@ export class IRBuilder {
     }
 
     create_depth_output(val: Stmt) {
-        return this.pushNewStmt(new BuiltInOutputStmt([val], BuiltInOutputKind.FragDepth, this.getNewId()))
+        return this.pushNewStmt(new BuiltInOutputStmt([val], BuiltInOutputKind.FragDepth, undefined, this.getNewId()))
     }
 
     create_texture_sample(texture: TextureBase, coords: Stmt[]) {
@@ -366,19 +366,19 @@ export class IRBuilder {
     }
 
     create_vertex_index_input() {
-        return this.pushNewStmt(new BuiltInInputStmt(BuiltinInputKind.VertexIndex, this.getNewId()))
+        return this.pushNewStmt(new BuiltInInputStmt(BuiltInInputKind.VertexIndex, this.getNewId()))
     }
 
     create_instance_index_input() {
-        return this.pushNewStmt(new BuiltInInputStmt(BuiltinInputKind.InstanceIndex, this.getNewId()))
+        return this.pushNewStmt(new BuiltInInputStmt(BuiltInInputKind.InstanceIndex, this.getNewId()))
     }
 
     create_dpdx(val: Stmt) {
-        return this.pushNewStmt(new FragmentDerivativeStmt(val, this.getNewId()))
+        return this.pushNewStmt(new FragmentDerivativeStmt(FragmentDerivativeDirection.x, val, this.getNewId()))
     }
 
     create_dpdy(val: Stmt) {
-        return this.pushNewStmt(new FragmentDerivativeStmt(val, this.getNewId()))
+        return this.pushNewStmt(new FragmentDerivativeStmt(FragmentDerivativeDirection.y, val, this.getNewId()))
     }
 
     get_range_loop_guard(loop: RangeForStmt) {
@@ -415,7 +415,7 @@ export class IRBuilder {
         return stmt
     }
 
-    addGuard(block:Block) {
+    addGuard(block: Block) {
         let guard = new Guard(this, block)
         this.guards.push(guard)
         return guard
@@ -423,7 +423,7 @@ export class IRBuilder {
 }
 
 export class Guard {
-    constructor(public parent: { guards: Guard[] }, public block:Block) {
+    constructor(public parent: { guards: Guard[] }, public block: Block) {
 
     }
     delete() {

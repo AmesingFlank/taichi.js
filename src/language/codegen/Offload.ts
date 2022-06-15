@@ -1,6 +1,6 @@
 import { assert, error } from "../../utils/Logging";
 import { Guard } from "../ir/Builder";
-import { ConstStmt, FragmentForStmt, GlobalTemporaryLoadStmt, IRModule, RangeForStmt, Stmt, StmtKind, VertexForStmt } from "../ir/Stmt";
+import { ConstStmt, ContinueStmt, FragmentForStmt, GlobalTemporaryLoadStmt, IRModule, RangeForStmt, Stmt, StmtKind, VertexForStmt } from "../ir/Stmt";
 import { IRTransformer } from "../ir/Transformer";
 import { IRVisitor } from "../ir/Visitor";
 
@@ -112,10 +112,13 @@ class OffloadingPass extends IRTransformer {
             this.visit(s)
         }
     }
-
+    override visitContinueStmt(stmt: ContinueStmt): void {
+        stmt.parentBlock = this.guards.at(-1)!.block
+        super.visitContinueStmt(stmt)
+    }
 }
 
-export function offload(module:IRModule){
+export function offload(module: IRModule) {
     let pass = new OffloadingPass
     pass.transform(module)
     return pass.offloadedModules

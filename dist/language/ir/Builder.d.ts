@@ -84,7 +84,7 @@ export declare class IRBuilder {
     create_vertex_output(val: Stmt, location: number): Stmt;
     create_position_output(vals: Stmt[]): Stmt;
     create_fragment_input(type: PrimitiveType, location: number): Stmt;
-    create_color_output(vals: Stmt[]): Stmt;
+    create_color_output(location: number, vals: Stmt[]): Stmt;
     create_vertex_for(): Stmt;
     create_fragment_for(): Stmt;
     create_discard(): Stmt;

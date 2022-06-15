@@ -57,8 +57,8 @@ export abstract class Stmt {
         return `_${this.id}_${this.nameHint}`
     }
 
-    getReturnType(){
-        if(!this.returnType){
+    getReturnType() {
+        if (!this.returnType) {
             error("missing return type")
         }
         return this.returnType!
@@ -457,16 +457,20 @@ export class WhileStmt extends Stmt {
 
 export class IfStmt extends Stmt {
     constructor(
-        public cond: Stmt,
+        cond: Stmt,
         public trueBranch: Block,
         public falseBranch: Block,
         id: number,
         nameHint: string = ""
     ) {
         super(id, undefined, nameHint)
+        this.operands = [cond]
     }
     override getKind(): StmtKind {
         return StmtKind.IfStmt
+    }
+    getCondition() {
+        return this.operands[0]
     }
 }
 
@@ -489,6 +493,7 @@ export class ContinueStmt extends Stmt {
     ) {
         super(id, undefined, nameHint)
     }
+    parentBlock?: Block
     override getKind(): StmtKind {
         return StmtKind.ContinueStmt
     }
@@ -645,7 +650,8 @@ export enum BuiltInOutputKind {
 export class BuiltInOutputStmt extends Stmt {
     constructor(
         values: Stmt[],
-        public kind: BuiltInOutputKind,
+        public builtinKind: BuiltInOutputKind,
+        public location: number | undefined,
         id: number,
         nameHint: string = ""
     ) {
@@ -660,26 +666,26 @@ export class BuiltInOutputStmt extends Stmt {
     }
 }
 
-export enum BuiltinInputKind {
+export enum BuiltInInputKind {
     VertexIndex = 0, InstanceIndex = 1,
 }
 
-export function getBuiltinInputType(kind: BuiltinInputKind) {
+export function getBuiltinInputType(kind: BuiltInInputKind) {
     switch (kind) {
-        case BuiltinInputKind.VertexIndex:
-        case BuiltinInputKind.InstanceIndex:
+        case BuiltInInputKind.VertexIndex:
+        case BuiltInInputKind.InstanceIndex:
             return PrimitiveType.i32
     }
 }
 
 export class BuiltInInputStmt extends Stmt {
     constructor(
-        public kind: BuiltinInputKind,
+        public builtinKind: BuiltInInputKind,
         id: number,
         nameHint: string = ""
     ) {
 
-        super(id, getBuiltinInputType(kind), nameHint)
+        super(id, getBuiltinInputType(builtinKind), nameHint)
     }
     override getKind(): StmtKind {
         return StmtKind.BuiltInInputStmt
@@ -690,6 +696,7 @@ export enum FragmentDerivativeDirection { x, y }
 
 export class FragmentDerivativeStmt extends Stmt {
     constructor(
+        public direction: FragmentDerivativeDirection,
         value: Stmt,
         id: number,
         nameHint: string = ""
@@ -762,7 +769,7 @@ export class TextureFunctionStmt extends Stmt {
 
 export class CompositeExtractStmt extends Stmt {
     constructor(
-        public composite: Stmt,
+        composite: Stmt,
         public elementIndex: number,
         id: number,
         nameHint: string = ""

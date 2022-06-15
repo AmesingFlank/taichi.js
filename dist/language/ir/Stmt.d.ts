@@ -199,11 +199,11 @@ export declare class WhileStmt extends Stmt {
     getKind(): StmtKind;
 }
 export declare class IfStmt extends Stmt {
-    cond: Stmt;
     trueBranch: Block;
     falseBranch: Block;
     constructor(cond: Stmt, trueBranch: Block, falseBranch: Block, id: number, nameHint?: string);
     getKind(): StmtKind;
+    getCondition(): Stmt;
 }
 export declare class WhileControlStmt extends Stmt {
     constructor(id: number, nameHint?: string);
@@ -211,6 +211,7 @@ export declare class WhileControlStmt extends Stmt {
 }
 export declare class ContinueStmt extends Stmt {
     constructor(id: number, nameHint?: string);
+    parentBlock?: Block;
     getKind(): StmtKind;
 }
 export declare class ArgLoadStmt extends Stmt {
@@ -275,19 +276,20 @@ export declare enum BuiltInOutputKind {
     FragDepth = 2
 }
 export declare class BuiltInOutputStmt extends Stmt {
-    kind: BuiltInOutputKind;
-    constructor(values: Stmt[], kind: BuiltInOutputKind, id: number, nameHint?: string);
+    builtinKind: BuiltInOutputKind;
+    location: number | undefined;
+    constructor(values: Stmt[], builtinKind: BuiltInOutputKind, location: number | undefined, id: number, nameHint?: string);
     getKind(): StmtKind;
     getValues(): Stmt[];
 }
-export declare enum BuiltinInputKind {
+export declare enum BuiltInInputKind {
     VertexIndex = 0,
     InstanceIndex = 1
 }
-export declare function getBuiltinInputType(kind: BuiltinInputKind): PrimitiveType;
+export declare function getBuiltinInputType(kind: BuiltInInputKind): PrimitiveType;
 export declare class BuiltInInputStmt extends Stmt {
-    kind: BuiltinInputKind;
-    constructor(kind: BuiltinInputKind, id: number, nameHint?: string);
+    builtinKind: BuiltInInputKind;
+    constructor(builtinKind: BuiltInInputKind, id: number, nameHint?: string);
     getKind(): StmtKind;
 }
 export declare enum FragmentDerivativeDirection {
@@ -295,7 +297,8 @@ export declare enum FragmentDerivativeDirection {
     y = 1
 }
 export declare class FragmentDerivativeStmt extends Stmt {
-    constructor(value: Stmt, id: number, nameHint?: string);
+    direction: FragmentDerivativeDirection;
+    constructor(direction: FragmentDerivativeDirection, value: Stmt, id: number, nameHint?: string);
     getKind(): StmtKind;
     getValue(): Stmt;
 }
@@ -320,7 +323,6 @@ export declare class TextureFunctionStmt extends Stmt {
     getAdditionalOperands(): Stmt[];
 }
 export declare class CompositeExtractStmt extends Stmt {
-    composite: Stmt;
     elementIndex: number;
     constructor(composite: Stmt, elementIndex: number, id: number, nameHint?: string);
     getKind(): StmtKind;
