@@ -5,15 +5,13 @@ import { Runtime } from "../../runtime/Runtime";
 import { assert, error } from "../../utils/Logging";
 import { divUp } from "../../utils/Utils";
 import { PrimitiveType } from "../frontend/Type";
-import { AllocaStmt, ArgLoadStmt, BinaryOpStmt, BinaryOpType, BuiltInInputKind, BuiltInInputStmt, BuiltInOutputKind, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, FragmentDerivativeDirection, FragmentDerivativeStmt, FragmentInputStmt, IfStmt, LocalLoadStmt, LocalStoreStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionKind, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "../ir/Stmt";
+import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, AtomicOpType, BinaryOpStmt, BinaryOpType, BuiltInInputKind, BuiltInInputStmt, BuiltInOutputKind, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeDirection, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, StmtKind, TextureFunctionKind, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "../ir/Stmt";
 import { IRVisitor } from "../ir/Visitor";
-import { OffloadedModule, OffloadType } from "./Offload";
+import { ComputeModule, OffloadedModule, OffloadType } from "./Offload";
 
 export interface CodegenResult {
     code: string
 }
-
-
 
 class ResourceBindingMap {
     bindings: ResourceBinding[] = []
@@ -55,11 +53,6 @@ class StringBuilder {
     empty() {
         return this.parts.length === 0
     }
-}
-
-class PointerInfo {
-    isRoot: boolean = false
-    rootId: number | null = null
 }
 
 export class CodegenVisitor extends IRVisitor {
@@ -367,6 +360,10 @@ export class CodegenVisitor extends IRVisitor {
         this.body.write(`(${stmt.getName()});\n`)
     }
 
+    override visitDiscardStmt(stmt: DiscardStmt): void {
+        this.body.write(this.getIndentation(), "discard;\n")
+    }
+
     override visitTextureFunctionStmt(stmt: TextureFunctionStmt): void {
         let texture = stmt.texture
         let textureResource = new ResourceInfo(ResourceType.Texture, texture.textureId)
@@ -516,12 +513,309 @@ export class CodegenVisitor extends IRVisitor {
 
     override visitLocalLoadStmt(stmt: LocalLoadStmt): void {
         let dt = stmt.getReturnType()
-        this.emitLet(stmt.getName(),dt)
+        this.emitLet(stmt.getName(), dt)
         this.body.write(stmt.getPointer().getName())
     }
 
     override visitLocalStoreStmt(stmt: LocalStoreStmt): void {
-        this.body.write(this.getIndentation(),`${stmt.getPointer().getName()} = ${stmt.getValue().getName()};\n`)
+        this.body.write(this.getIndentation(), `${stmt.getPointer().getName()} = ${stmt.getValue().getName()};\n`)
+    }
+
+    override visitGlobalPtrStmt(stmt: GlobalPtrStmt): void {
+        let field = stmt.field
+        let indices = stmt.getIndices()
+        let index = `${field.elementType.getPrimitivesList().length}`
+        for (let i of indices) {
+            index += ` * ${i.getName()}`
+        }
+        index += `${stmt.offsetInElement}`
+        this.emitLet(stmt.getName(), this.getPointerIntTypeName())
+        this.body.write(index, ";\n");
+    }
+
+    override visitGlobalTemporaryStmt(stmt: GlobalTemporaryStmt): void {
+        this.emitLet(stmt.getName(), this.getPointerIntTypeName())
+        this.body.write(stmt.offset, ";\n");
+    }
+
+    emitGlobalLoadExpr(stmt: GlobalLoadStmt | GlobalTemporaryLoadStmt) {
+        let resourceInfo: ResourceInfo
+        let ptr = stmt.getPointer()
+        if (ptr.getKind() === StmtKind.GlobalPtrStmt) {
+            ptr = ptr as GlobalPtrStmt
+            resourceInfo = new ResourceInfo(ResourceType.Root, ptr.field.snodeTree.treeId)
+        }
+        else {
+            resourceInfo = new ResourceInfo(ResourceType.GlobalTmps)
+        }
+        let bufferName = this.getBufferMemberName(resourceInfo)
+        let dt = stmt.getReturnType()
+        let dtName = this.getPrimitiveTypeName(dt)
+        if (!this.enforce16BytesAlignment) {
+            this.emitLet(stmt.getName(), dt)
+            this.body.write(`bitcast<${dtName}>(${bufferName}[${ptr.getName()}]);\n`)
+        }
+        else {
+            let temp = this.getTemp();
+            this.emitLet(temp, "i32")
+            this.body.write(`find_vec4_component(${bufferName}[${ptr.getName()}${this.getRawDataTypeIndexShift()}], ${ptr.getName()});\n`)
+            this.emitLet(stmt.getName(), dt)
+            this.body.write(`bitcast<${dtName}>(${temp});\n`)
+        }
+    }
+
+    emitGlobalStore(stmt: GlobalStoreStmt | GlobalTemporaryStoreStmt) {
+        let resourceInfo: ResourceInfo
+        let ptr = stmt.getPointer()
+        if (ptr.getKind() === StmtKind.GlobalPtrStmt) {
+            ptr = ptr as GlobalPtrStmt
+            resourceInfo = new ResourceInfo(ResourceType.Root, ptr.field.snodeTree.treeId)
+        }
+        else {
+            resourceInfo = new ResourceInfo(ResourceType.GlobalTmps)
+        }
+        let bufferName = this.getBufferMemberName(resourceInfo)
+        if (!this.enforce16BytesAlignment) {
+            this.body.write(`${bufferName}[${ptr.getName()}] = bitcast<${this.getRawDataTypeName()}>(${stmt.getValue().getName()});\n`)
+        }
+        else {
+            error("global store cannot be used when enforcing 16 byte alignment")
+        }
+    }
+
+    override visitGlobalLoadStmt(stmt: GlobalLoadStmt): void {
+        this.emitGlobalLoadExpr(stmt)
+    }
+
+    override visitGlobalStoreStmt(stmt: GlobalStoreStmt): void {
+        this.emitGlobalStore(stmt)
+    }
+
+    override visitGlobalTemporaryLoadStmt(stmt: GlobalTemporaryLoadStmt): void {
+        this.emitGlobalLoadExpr(stmt)
+    }
+
+    override visitGlobalTemporaryStoreStmt(stmt: GlobalTemporaryStoreStmt): void {
+        this.emitGlobalStore(stmt)
+    }
+
+    override visitAtomicOpStmt(stmt: AtomicOpStmt): void {
+        let dt = stmt.getOperand().getReturnType()
+        let dtName = this.getPrimitiveTypeName(dt)
+        let resourceInfo: ResourceInfo
+        let dest = stmt.getDestination()
+        assert(dest.getKind() === StmtKind.GlobalPtrStmt, "atomic can only be applied to global mem (fields)")
+        if (dest.getKind() === StmtKind.GlobalPtrStmt) {
+            dest = dest as GlobalPtrStmt
+            resourceInfo = new ResourceInfo(ResourceType.RootAtomic, (dest as GlobalPtrStmt).field.snodeTree.treeId)
+        }
+        else {
+            error("atomics on global temporary variables are not supported")
+            resourceInfo = new ResourceInfo(ResourceType.GlobalTmps)
+        }
+        let bufferName = this.getBufferMemberName(resourceInfo)
+
+
+        let result = this.getTemp("atomic_op_result");
+        this.body.write(`var ${result} : ${dtName};\n`)
+        let ptr = `&(${bufferName}[${stmt.getDestination().getName()}])`
+        switch (dt) {
+            case PrimitiveType.i32: {
+                let atomicFuncName = ""
+                switch (stmt.op) {
+                    case AtomicOpType.add: {
+                        atomicFuncName = "atomicAdd";
+                        break;
+                    }
+                    case AtomicOpType.sub: {
+                        atomicFuncName = "atomicSub";
+                        break;
+                    }
+                    case AtomicOpType.max: {
+                        atomicFuncName = "atomicMax";
+                        break;
+                    }
+                    case AtomicOpType.min: {
+                        atomicFuncName = "atomicMin";
+                        break;
+                    }
+                    case AtomicOpType.bit_and: {
+                        atomicFuncName = "atomicAnd";
+                        break;
+                    }
+                    case AtomicOpType.bit_or: {
+                        atomicFuncName = "atomicOr";
+                        break;
+                    }
+                    case AtomicOpType.bit_xor: {
+                        atomicFuncName = "atomicXor";
+                        break;
+                    }
+                    default: {
+                        error("atomic op not supported")
+                    }
+                }
+                this.body.write(`${result} = ${atomicFuncName}(${ptr}, ${stmt.getOperand().getName()});\n`)
+                break;
+            }
+            case PrimitiveType.f32: {
+                /*
+                fn atomicAddFloat(dest: ptr<storage, atomic<i32>, read_write>, v: f32) -> f32 {
+                    loop {
+                        let old_val : f32 = bitcast<f32>(atomicLoad(dest));
+                        let new_val : f32 = old_val + v;
+                        if(atomicCompareExchangeWeak(dest, bitcast<i32>(old_val),bitcast<i32>(new_val)).y != 0){ 
+                            return old_val;
+                        }
+                    }
+                }
+                */
+
+                // WGSL doesn't allow declaring a function whose argument is a pointer to
+                // SSBO... so we inline it
+
+                this.body.write(this.getIndentation(), "loop { \n");
+                this.indent()
+
+                let oldVal = this.getTemp("old_val");
+                this.emitLet(oldVal, "f32")
+                this.body.write(`bitcast<f32>(atomicLoad(${ptr}));\n`)
+
+                let newValExpr = ""
+                switch (stmt.op) {
+                    case AtomicOpType.add: {
+                        newValExpr = `${oldVal} + ${stmt.getOperand().getName()}`;
+                        break;
+                    }
+                    case AtomicOpType.sub: {
+                        newValExpr = `${oldVal} - ${stmt.getOperand().getName()}`;
+                        break;
+                    }
+                    case AtomicOpType.max: {
+                        newValExpr = `max(${oldVal}, ${stmt.getOperand().getName()})`;
+                        break;
+                    }
+                    case AtomicOpType.min: {
+                        newValExpr = `min(${oldVal}, ${stmt.getOperand().getName()})`;
+                        break;
+                    }
+                    default: {
+                        error("atomic op not supported for f32")
+                    }
+                }
+
+                let newVal = this.getTemp("new_val");
+                this.emitLet(newVal, "f32")
+                this.body.write(`${newVal};\n`)
+
+                this.body.write(this.getIndentation(), `if(atomicCompareExchangeWeak(${ptr}, bitcast<i32>(${oldVal}), bitcast<i32>(${newVal})).y!=0){\n`)
+                this.indent()
+                this.body.write(this.getIndentation(), `${result} = ${oldVal};\n`)
+                this.body.write(this.getIndentation(), `break;\n`)
+                this.dedent()
+                this.body.write(this.getIndentation(), "}\n")
+                this.dedent()
+                this.body.write(this.getIndentation(), "}\n")
+                break;
+            }
+            default: {
+                error("unrecognized prim type")
+            }
+        }
+        this.emitLet(stmt.getName(), dtName)
+        this.body.write(`${result};\n`)
+    }
+
+    override visitLoopIndexStmt(stmt: LoopIndexStmt): void {
+        let loop = stmt.getLoop() as RangeForStmt
+        if (loop.isParallelFor) {
+            this.emitLet(stmt.getName(), "i32")
+            this.body.write("ii;\n")
+        }
+        else {
+            this.emitLet(stmt.getName(), "i32")
+            this.body.write(`${stmt.getLoop().getName()};\n`)
+        }
+    }
+
+    override visitFragmentForStmt(stmt: FragmentForStmt): void {
+        error(" this should have been offloaded")
+    }
+
+    override visitVertexForStmt(stmt: VertexForStmt): void {
+        error(" this should have been offloaded")
+    }
+
+    generateSerialKernel() {
+        this.startComputeFunction(1)
+        this.visitBlock(this.offload.block)
+    }
+
+    generateRangeForKernel() {
+        let blockSize = 128
+
+        let offload = this.offload as ComputeModule
+        let endExpr = ""
+        if (offload.hasConstRange) {
+            endExpr = `${offload.rangeArg}`
+        }
+        else {
+            let resource = new ResourceInfo(ResourceType.GlobalTmps)
+            let buffer = this.getBufferMemberName(resource)
+            endExpr = `${buffer}[${offload.rangeArg}]`
+        }
+        let end = this.getTemp("end")
+        this.emitLet(end, "i32")
+        this.body.write(`${endExpr};\n`)
+
+        let totalInvocs = this.getTemp("total_invocs")
+        this.emitLet(totalInvocs, "i32");
+        this.body.write(`${blockSize} * i32(n_workgroups.x);\n`)
+
+        this.emitVar("ii", "i32")
+        this.body.write("i32(gid3.x);\n")
+
+        this.body.write(this.getIndentation(), "loop {\n")
+        this.indent()
+
+        this.body.write(this.getIndentation(), `if(ii >= ${end}) { break; }`)
+        this.visitBlock(this.offload.block)
+        this.body.write(this.getIndentation(), `ii = ii + ${totalInvocs};\n`)
+
+        this.dedent()
+        this.body.write(this.getIndentation(), "}\n")
+    }
+
+    generateVertexForKernel() {
+        this.emitGraphicsFunction()
+    }
+
+    generateFragmentForKernel() {
+        this.emitGraphicsFunction()
+    }
+
+    generate() {
+        switch (this.offload.type) {
+            case OffloadType.Serial: {
+                this.generateSerialKernel()
+                break;
+            }
+            case OffloadType.Compute: {
+                this.generateRangeForKernel()
+                break;
+            }
+            case OffloadType.Vertex: {
+                this.generateVertexForKernel()
+                break;
+            }
+            case OffloadType.Fragment: {
+                this.generateFragmentForKernel()
+                break;
+            }
+            default: {
+                error("unrecognized offload type")
+            }
+        }
     }
 
     emitLet(name: string, type: string) {
@@ -958,6 +1252,7 @@ var<${storageAndAcess}> ${name}: ${name}_type;
 @group(0) @binding(${binding})
 var ${name}: ${typeName}${templateArgs};
         `
+        this.globalDecls.write(decl)
     }
 
     getSamplerName(samplerInfo: ResourceInfo) {
@@ -984,6 +1279,7 @@ var ${name}: ${typeName}${templateArgs};
 @group(0) @binding(${binding})
 var ${name}: ${typeName};
         `
+        this.globalDecls.write(decl)
     }
 
     randInitiated = false

@@ -1,7 +1,7 @@
 import { ResourceBinding, ResourceInfo } from "../../runtime/Kernel";
 import { Runtime } from "../../runtime/Runtime";
 import { PrimitiveType } from "../frontend/Type";
-import { AllocaStmt, ArgLoadStmt, BinaryOpStmt, BuiltInInputStmt, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, FragmentDerivativeStmt, FragmentInputStmt, IfStmt, LocalLoadStmt, LocalStoreStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionStmt, UnaryOpStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "../ir/Stmt";
+import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, BinaryOpStmt, BuiltInInputStmt, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionStmt, UnaryOpStmt, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "../ir/Stmt";
 import { IRVisitor } from "../ir/Visitor";
 import { OffloadedModule } from "./Offload";
 export interface CodegenResult {
@@ -42,6 +42,7 @@ export declare class CodegenVisitor extends IRVisitor {
     visitBuiltInOutputStmt(stmt: BuiltInOutputStmt): void;
     visitBuiltInInputStmt(stmt: BuiltInInputStmt): void;
     visitFragmentDerivativeStmt(stmt: FragmentDerivativeStmt): void;
+    visitDiscardStmt(stmt: DiscardStmt): void;
     visitTextureFunctionStmt(stmt: TextureFunctionStmt): void;
     visitCompositeExtractStmt(stmt: CompositeExtractStmt): void;
     visitArgLoadStmt(stmt: ArgLoadStmt): void;
@@ -49,6 +50,23 @@ export declare class CodegenVisitor extends IRVisitor {
     visitAllocaStmt(stmt: AllocaStmt): void;
     visitLocalLoadStmt(stmt: LocalLoadStmt): void;
     visitLocalStoreStmt(stmt: LocalStoreStmt): void;
+    visitGlobalPtrStmt(stmt: GlobalPtrStmt): void;
+    visitGlobalTemporaryStmt(stmt: GlobalTemporaryStmt): void;
+    emitGlobalLoadExpr(stmt: GlobalLoadStmt | GlobalTemporaryLoadStmt): void;
+    emitGlobalStore(stmt: GlobalStoreStmt | GlobalTemporaryStoreStmt): void;
+    visitGlobalLoadStmt(stmt: GlobalLoadStmt): void;
+    visitGlobalStoreStmt(stmt: GlobalStoreStmt): void;
+    visitGlobalTemporaryLoadStmt(stmt: GlobalTemporaryLoadStmt): void;
+    visitGlobalTemporaryStoreStmt(stmt: GlobalTemporaryStoreStmt): void;
+    visitAtomicOpStmt(stmt: AtomicOpStmt): void;
+    visitLoopIndexStmt(stmt: LoopIndexStmt): void;
+    visitFragmentForStmt(stmt: FragmentForStmt): void;
+    visitVertexForStmt(stmt: VertexForStmt): void;
+    generateSerialKernel(): void;
+    generateRangeForKernel(): void;
+    generateVertexForKernel(): void;
+    generateFragmentForKernel(): void;
+    generate(): void;
     emitLet(name: string, type: string): void;
     emitVar(name: string, type: string): void;
     getPointerIntTypeName(): string;

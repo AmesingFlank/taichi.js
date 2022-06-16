@@ -10,7 +10,7 @@ export declare class IRBuilder {
     get_float32(val: number): Stmt;
     create_range_for(range: Stmt, shouldStrictlySerialize: boolean): Stmt;
     get_loop_index(loop: Stmt): Stmt;
-    create_global_ptr(field: Field, indices: number[], elementOffset: number): Stmt;
+    create_global_ptr(field: Field, indices: Stmt[], elementOffset: number): Stmt;
     create_global_load(ptr: GlobalPtrStmt): Stmt;
     create_global_store(ptr: GlobalPtrStmt, val: Stmt): Stmt;
     create_global_temporary(type: PrimitiveType, offset: number): Stmt;

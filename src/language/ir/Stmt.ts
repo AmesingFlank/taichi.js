@@ -178,15 +178,19 @@ export class LocalStoreStmt extends Stmt {
 export class GlobalPtrStmt extends Stmt {
     constructor(
         public field: Field,
-        public indices: number[],
+        indices: Stmt[],
         public offsetInElement: number,
         id: number,
         nameHint: string = ""
     ) {
         super(id, undefined, nameHint)
+        this.operands = indices.slice()
     }
     override getKind(): StmtKind {
         return StmtKind.GlobalPtrStmt
+    }
+    getIndices() {
+        return this.operands.slice()
     }
 }
 

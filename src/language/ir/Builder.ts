@@ -29,7 +29,7 @@ export class IRBuilder {
         return this.pushNewStmt(new LoopIndexStmt(loop, this.getNewId()))
     }
 
-    create_global_ptr(field: Field, indices: number[], elementOffset: number) {
+    create_global_ptr(field: Field, indices: Stmt[], elementOffset: number) {
         return this.pushNewStmt(new GlobalPtrStmt(field, indices, elementOffset, this.getNewId()))
     }
 

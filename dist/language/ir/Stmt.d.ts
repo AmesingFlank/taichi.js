@@ -83,10 +83,10 @@ export declare class LocalStoreStmt extends Stmt {
 }
 export declare class GlobalPtrStmt extends Stmt {
     field: Field;
-    indices: number[];
     offsetInElement: number;
-    constructor(field: Field, indices: number[], offsetInElement: number, id: number, nameHint?: string);
+    constructor(field: Field, indices: Stmt[], offsetInElement: number, id: number, nameHint?: string);
     getKind(): StmtKind;
+    getIndices(): Stmt[];
 }
 export declare class GlobalLoadStmt extends Stmt {
     ptr: GlobalPtrStmt;
