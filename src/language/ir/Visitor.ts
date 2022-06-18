@@ -111,6 +111,7 @@ export abstract class IRVisitor {
                 break;
             case StmtKind.CompositeExtractStmt:
                 this.visitCompositeExtractStmt(stmt as CompositeExtractStmt)
+                break;
             default:
                 error("unrecognized stmt: ", stmt)
         }

@@ -1,6 +1,6 @@
 import { assert, error } from "../../utils/Logging";
 import { Guard } from "../ir/Builder";
-import { AtomicOpStmt, ConstStmt, ContinueStmt, FragmentForStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStoreStmt, IRModule, RangeForStmt, Stmt, StmtKind, VertexForStmt } from "../ir/Stmt";
+import { AtomicOpStmt, ConstStmt, ContinueStmt, FragmentForStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStoreStmt, IRModule, RangeForStmt, ReturnStmt, Stmt, StmtKind, VertexForStmt } from "../ir/Stmt";
 import { IRTransformer } from "../ir/Transformer";
 import { IRVisitor } from "../ir/Visitor";
 
@@ -40,7 +40,7 @@ export class VertexModule extends OffloadedModule {
 
 export class FragmentModule extends OffloadedModule {
     constructor() {
-        super(OffloadType.Compute)
+        super(OffloadType.Fragment)
     }
 }
 
@@ -51,6 +51,7 @@ class OffloadingPass extends IRTransformer {
     currentOffloadType: OffloadType = OffloadType.Serial
 
     override transform(module: IRModule): void {
+        this.resetTransformerState(new SerialModule)
         for (let s of module.block.stmts) {
             this.visit(s)
         }
@@ -62,15 +63,6 @@ class OffloadingPass extends IRTransformer {
         this.addGuard(module.block)
         this.offloadedModules.push(module)
         this.currentOffloadType = module.type
-    }
-
-    override pushNewStmt(stmt: Stmt): Stmt {
-        if (this.offloadedModules.length === 0) {
-            assert(this.currentOffloadType === OffloadType.Serial, "InternalError: expecting serial state")
-            let module = new OffloadedModule(this.currentOffloadType)
-            this.resetTransformerState(module)
-        }
-        return super.pushNewStmt(stmt)
     }
 
     override visitRangeForStmt(stmt: RangeForStmt) {
@@ -94,6 +86,7 @@ class OffloadingPass extends IRTransformer {
             for (let s of stmt.body.stmts) {
                 this.visit(s)
             }
+            this.resetTransformerState(new SerialModule)
         }
         else {
             super.visitRangeForStmt(stmt)
@@ -105,6 +98,7 @@ class OffloadingPass extends IRTransformer {
         for (let s of stmt.body.stmts) {
             this.visit(s)
         }
+        this.resetTransformerState(new SerialModule)
     }
     override visitFragmentForStmt(stmt: FragmentForStmt) {
         let module = new FragmentModule
@@ -112,10 +106,7 @@ class OffloadingPass extends IRTransformer {
         for (let s of stmt.body.stmts) {
             this.visit(s)
         }
-    }
-    override visitContinueStmt(stmt: ContinueStmt): void {
-        stmt.parentBlock = this.guards.at(-1)!.block
-        super.visitContinueStmt(stmt)
+        this.resetTransformerState(new SerialModule)
     }
 }
 
@@ -134,6 +125,9 @@ class IdentifyTrivialSerialModule extends IRVisitor {
     override visitAtomicOpStmt(stmt: AtomicOpStmt): void {
         this.isTrivial = false
     }
+    override visitReturnStmt(stmt: ReturnStmt): void {
+        this.isTrivial = false
+    }
 }
 
 export function offload(module: IRModule) {
@@ -143,6 +137,10 @@ export function offload(module: IRModule) {
 
     let nonTrivialModules: OffloadedModule[] = []
     for (let m of modules) {
+        if (m.type !== OffloadType.Serial) {
+            nonTrivialModules.push(m)
+            continue
+        }
         let pass = new IdentifyTrivialSerialModule()
         pass.visitModule(m)
         if (!pass.isTrivial) {

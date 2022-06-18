@@ -4,7 +4,27 @@ import { Scope } from "../language/frontend/Scope"
 import { DepthTexture, TextureBase } from "../data/Texture"
 import { PrimitiveType } from "../language/frontend/Type"
 
+
+export interface ProgramOptions {
+    printIR: boolean
+    printWGSL: boolean
+}
+
 class Program {
+    options: ProgramOptions = {
+        printIR: false,
+        printWGSL: false
+    }
+    async init(options?: ProgramOptions) {
+        if (options && options.printIR !== undefined) {
+            this.options.printIR = options.printIR
+        }
+        if (options && options.printWGSL !== undefined) {
+            this.options.printWGSL = options.printWGSL
+        }
+        await this.materializeRuntime()
+    }
+
     runtime: Runtime | null = null
 
     partialTree: SNodeTree
@@ -24,7 +44,6 @@ class Program {
         }
         return Program.instance
     }
-
 
     async materializeRuntime() {
         if (!this.runtime) {

@@ -1,26 +1,26 @@
 import { error } from "../../../utils/Logging"
 import { PrimitiveType } from "../../frontend/Type"
-import { WhileStmt, IfStmt, VertexForStmt, FragmentForStmt, RangeForStmt, Stmt, AllocaStmt, LocalLoadStmt, LocalStoreStmt, AtomicOpStmt, StmtKind, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, IRModule, GlobalTemporaryStoreStmt } from "../Stmt"
+import { WhileStmt, IfStmt, VertexForStmt, FragmentForStmt, RangeForStmt, Stmt, AllocaStmt, LocalLoadStmt, LocalStoreStmt, AtomicOpStmt, StmtKind, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, IRModule, GlobalTemporaryStoreStmt, isPointerStmt } from "../Stmt"
 import { IRTransformer } from "../Transformer"
 import { IRVisitor } from "../Visitor"
 import { DelayedStmtReplacer } from "./Replacer"
 
 
 
-export class AllocGtempsPass extends IRVisitor {
+class IdentifyAllocasUsedInParallelForsPass extends IRVisitor {
     inParallelLoop: boolean = false
 
     serialAllocas: Set<Stmt> = new Set<Stmt>()
     maybeAllocateGtemp(alloca: AllocaStmt) {
         if (this.inParallelLoop && this.serialAllocas.has(alloca) && !this.gtempsAllocation.has(alloca)) {
-            let offset = this.gtempsAllocation.size
+            let offset = this.gtempsAllocation.size + this.nextAvailableGtemp
             this.gtempsAllocation.set(alloca, offset)
         }
     }
 
     gtempsAllocation: Map<Stmt, number> = new Map<Stmt, number>()
 
-    constructor() {
+    constructor(public nextAvailableGtemp: number) {
         super()
     }
 
@@ -29,7 +29,9 @@ export class AllocGtempsPass extends IRVisitor {
             this.inParallelLoop = true
         }
         super.visitRangeForStmt(stmt)
-        this.inParallelLoop = false
+        if (stmt.isParallelFor) {
+            this.inParallelLoop = false
+        }
     }
     override visitVertexForStmt(stmt: VertexForStmt) {
         this.inParallelLoop = true
@@ -59,7 +61,7 @@ export class AllocGtempsPass extends IRVisitor {
     }
 }
 
-export class ReplaceGtempPass extends IRTransformer {
+class ReplaceAllocasUsedInParallelForsPass extends IRTransformer {
     replacer: DelayedStmtReplacer = new DelayedStmtReplacer
     constructor(public gtempsAllocation: Map<Stmt, number>) {
         super()
@@ -100,7 +102,7 @@ export class ReplaceGtempPass extends IRTransformer {
             let alloca = stmt.getDestination() as AllocaStmt
             let gtemp = this.maybeGetReplacementGtemp(alloca)
             if (gtemp) {
-                let atomicStmt = new AtomicOpStmt(stmt.op, gtemp, stmt.getOperand(), this.module.getNewId())
+                let atomicStmt = new AtomicOpStmt(gtemp, stmt.getOperand(), stmt.op, this.module.getNewId())
                 this.pushNewStmt(gtemp)
                 this.pushNewStmt(atomicStmt)
                 this.replacer.markReplace(stmt, atomicStmt)
@@ -115,7 +117,105 @@ export class ReplaceGtempPass extends IRTransformer {
     }
 }
 
-export class LoopRangeGtempPass extends IRTransformer {
+class IdentifyValuesUsedInParallelForsPass extends IRVisitor {
+    inParallelLoop: boolean = false
+
+    serialValues: Set<Stmt> = new Set<Stmt>()
+
+    gtempsAllocation: Map<Stmt, number> = new Map<Stmt, number>()
+
+    constructor(public nextAvailableGtemp: number) {
+        super()
+    }
+
+    override visitRangeForStmt(stmt: RangeForStmt) {
+        if (stmt.isParallelFor) {
+            this.inParallelLoop = true
+        }
+        super.visitRangeForStmt(stmt)
+        if (stmt.isParallelFor) {
+            this.inParallelLoop = false
+        }
+    }
+    override visitVertexForStmt(stmt: VertexForStmt) {
+        this.inParallelLoop = true
+        super.visitVertexForStmt(stmt)
+        this.inParallelLoop = false
+    }
+    override visitFragmentForStmt(stmt: FragmentForStmt) {
+        this.inParallelLoop = true
+        super.visitFragmentForStmt(stmt)
+        this.inParallelLoop = false
+    }
+
+    override visit(stmt: Stmt): void {
+        if (!this.inParallelLoop && !isPointerStmt(stmt) && stmt.returnType !== undefined) {
+            this.serialValues.add(stmt)
+        }
+        if (this.inParallelLoop) {
+            for (let op of stmt.operands) {
+                if (this.serialValues.has(op) && !this.gtempsAllocation.has(op)) {
+                    let offset = this.gtempsAllocation.size + this.nextAvailableGtemp
+                    this.gtempsAllocation.set(op, offset)
+                }
+            }
+        }
+        super.visit(stmt)
+    }
+}
+
+class ReplaceValuesUsedInParallelForsPass extends IRTransformer {
+    inParallelLoop: boolean = false
+
+    constructor(public gtempsAllocation: Map<Stmt, number>) {
+        super()
+    }
+
+    override visitRangeForStmt(stmt: RangeForStmt) {
+        if (stmt.isParallelFor) {
+            this.inParallelLoop = true
+        }
+        super.visitRangeForStmt(stmt)
+        if (stmt.isParallelFor) {
+            this.inParallelLoop = false
+        }
+    }
+    override visitVertexForStmt(stmt: VertexForStmt) {
+        this.inParallelLoop = true
+        super.visitVertexForStmt(stmt)
+        this.inParallelLoop = false
+    }
+    override visitFragmentForStmt(stmt: FragmentForStmt) {
+        this.inParallelLoop = true
+        super.visitFragmentForStmt(stmt)
+        this.inParallelLoop = false
+    }
+
+    override visit(stmt: Stmt): void {
+        if (this.inParallelLoop) {
+            for (let i = 0; i < stmt.operands.length; ++i) {
+                if (this.gtempsAllocation.has(stmt.operands[i])) {
+                    let offset = this.gtempsAllocation.get(stmt.operands[i])!
+                    let gtemp = new GlobalTemporaryStmt(stmt.getReturnType(), offset, this.module.getNewId())
+                    this.pushNewStmt(gtemp)
+                    let gtempLoad = new GlobalTemporaryLoadStmt(gtemp, this.module.getNewId())
+                    this.pushNewStmt(gtempLoad)
+                    stmt.operands[i] = gtempLoad
+                }
+            }
+        }
+        super.visit(stmt)
+        if (!this.inParallelLoop && this.gtempsAllocation.has(stmt)) {
+            let offset = this.gtempsAllocation.get(stmt)!
+            let gtemp = new GlobalTemporaryStmt(stmt.getReturnType(), offset, this.module.getNewId())
+            this.pushNewStmt(gtemp)
+            let gtempStore = new GlobalTemporaryStoreStmt(gtemp, stmt, this.module.getNewId())
+            this.pushNewStmt(gtempStore)
+        }
+    }
+}
+
+class LoopRangeGtempPass extends IRTransformer {
     constructor(public nextGtempSlot: number) {
         super()
     }
@@ -160,19 +260,24 @@ export class LoopRangeGtempPass extends IRTransformer {
 }
 
 export function insertGlobalTemporaries(module: IRModule) {
-    let alloc = new AllocGtempsPass()
-    alloc.visitModule(module)
-    let allocations = alloc.gtempsAllocation
+    let nextAvailableGtemp = 0
 
-    //console.log("allocated gtemps")
+    let identifyAllocasUsedInParallelFors = new IdentifyAllocasUsedInParallelForsPass(nextAvailableGtemp)
+    identifyAllocasUsedInParallelFors.visitModule(module)
+    let allocations = identifyAllocasUsedInParallelFors.gtempsAllocation
 
-    let replace = new ReplaceGtempPass(allocations)
-    replace.transform(module)
+    new ReplaceAllocasUsedInParallelForsPass(allocations).transform(module)
 
-    //console.log("replaced gtemps")
+    nextAvailableGtemp += allocations.size
 
-    let loopRange = new LoopRangeGtempPass(allocations.size)
+    let identifyValuesUsedInParallelFors = new IdentifyValuesUsedInParallelForsPass(nextAvailableGtemp)
+    identifyValuesUsedInParallelFors.visitModule(module)
+    allocations = identifyValuesUsedInParallelFors.gtempsAllocation
+
+    new ReplaceValuesUsedInParallelForsPass(allocations).transform(module)
+
+    nextAvailableGtemp += allocations.size
+
+    let loopRange = new LoopRangeGtempPass(nextAvailableGtemp)
     loopRange.transform(module)
-
-    //console.log("loop range gtemp")
 }

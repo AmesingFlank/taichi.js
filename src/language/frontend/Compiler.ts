@@ -15,15 +15,14 @@ import { ParsedFunction } from "./ParsedFunction";
 import { beginWith, isHostSideVectorOrMatrix, isPlainOldData } from "../../utils/Utils";
 import { FieldFactory } from "../../data/FieldFactory";
 import { IRBuilder } from "../ir/Builder";
-import { FragmentDerivativeStmt, Stmt } from "../ir/Stmt";
+import { AllocaStmt, BinaryOpType, FragmentDerivativeStmt, Stmt, StmtKind, UnaryOpType } from "../ir/Stmt";
 import { identifyParallelLoops } from "../ir/pass/IdentifyParallelLoops";
 import { insertGlobalTemporaries } from "../ir/pass/GlobalTemporaries";
 import { demoteAtomics } from "../ir/pass/DemoteAtomics";
 import { offload, OffloadType } from "../codegen/Offload";
 import { CodegenVisitor } from "../codegen/WgslCodegen";
 import { stringifyIR } from "../ir/pass/Printer";
-
-
+import { fixOpTypes } from "../ir/pass/FixOpTypes";
 
 enum LoopKind {
     For, While, VertexFor, FragmentFor
@@ -1264,7 +1263,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
         let condValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.expression)))
         this.assertNode(node, condValue.getType().getCategory() === TypeCategory.Scalar, "condition of while statement must be scalar")
-        let breakCondition = this.irBuilder.create_logical_not(condValue.stmts[0])
+        let breakCondition = this.irBuilder.create_unary_op(condValue.stmts[0], UnaryOpType.logic_not)
         let nativeIfStmt = this.irBuilder.create_if(breakCondition)
         let trueGuard = this.irBuilder.get_if_guard(nativeIfStmt, true)
         this.irBuilder.create_break()
@@ -1352,9 +1351,9 @@ class CompilingVisitor extends ASTVisitor<Value>{
         else {
             let product = lengthValues[0].stmts[0]
             for (let i = 1; i < numDimensions; ++i) {
-                product = this.irBuilder.create_mul(product, lengthValues[i].stmts[0])
+                product = this.irBuilder.create_binary_op(product, lengthValues[i].stmts[0], BinaryOpType.mul)
             }
-            let zero = this.irBuilder.get_int32(0)
+
             let loop = this.irBuilder.create_range_for(product, this.shouldStrictlySerialize());
 
             let loopGuard = this.irBuilder.get_range_loop_guard(loop);
@@ -1365,10 +1364,10 @@ class CompilingVisitor extends ASTVisitor<Value>{
             let remainder = flatIndexStmt
 
             for (let i = numDimensions - 1; i >= 0; --i) {
-                let thisDimStmt = lengthValues[i].stmts[0]
-                let thisIndex = this.irBuilder.create_mod(remainder, thisDimStmt)
+                let thisDimStmt: Stmt = lengthValues[i].stmts[0]
+                let thisIndex = this.irBuilder.create_binary_op(remainder, thisDimStmt, BinaryOpType.mod)
                 indexValue.stmts = ([thisIndex] as Stmt[]).concat(indexValue.stmts)
-                remainder = this.irBuilder.create_floordiv(remainder, thisDimStmt)
+                remainder = this.irBuilder.create_binary_op(remainder, thisDimStmt, BinaryOpType.floordiv)
             }
             this.symbolTable.set(indexSymbols[0], indexValue)
 
@@ -1700,18 +1699,26 @@ export class KernelCompiler extends CompilingVisitor {
         }
         this.buildIR(parsedFunction, scope, templatedValuesScope)
 
+        let printIR = Program.getCurrentProgram().options.printIR
         let irModule = this.irBuilder.module
-        console.log("initial IR\n", stringifyIR(irModule))
+        if (printIR) console.log("initial IR\n", stringifyIR(irModule))
+
+        fixOpTypes(irModule)
+        if (printIR) console.log("fixed op types \n", stringifyIR(irModule))
+
         identifyParallelLoops(irModule)
-        console.log("identified parallel loops\n", stringifyIR(irModule))
+        if (printIR) console.log("identified parallel loops\n", stringifyIR(irModule))
+
         insertGlobalTemporaries(irModule)
-        console.log("global temps\n", stringifyIR(irModule))
+        if (printIR) console.log("global temps\n", stringifyIR(irModule))
+
         demoteAtomics(irModule)
-        console.log("demoted atomics\n", stringifyIR(irModule))
+        if (printIR) console.log("demoted atomics\n", stringifyIR(irModule))
+
         let offloadedModules = offload(irModule)
-        console.log("offloaded\n")
+        if (printIR) console.log("offloaded\n")
         for (let o of offloadedModules) {
-            console.log(stringifyIR(o))
+            if (printIR) console.log(stringifyIR(o))
         }
 
         let argBytes = 0
@@ -1723,20 +1730,23 @@ export class KernelCompiler extends CompilingVisitor {
         let returnType = new VoidType()
         if (this.returnValue !== null) {
             returnType = this.returnValue!.getType()
-            returnBytes = returnType.getPrimitivesList().length
+            returnBytes = returnType.getPrimitivesList().length * 4
         }
 
         let taskParams: (TaskParams | RenderPipelineParams)[] = []
         let currentRenderPipelineParamsId = 0
 
-        for (let offload of offloadedModules) {
+        for (let i = 0; i < offloadedModules.length; ++i) {
+            let offload = offloadedModules[i]
             let bindingPointBegin = 0
             if (offload.type === OffloadType.Fragment) {
                 bindingPointBegin = this.renderPipelineParams[currentRenderPipelineParamsId].vertex.bindings.length
             }
             let codegen = new CodegenVisitor(Program.getCurrentProgram().runtime!, offload, argBytes, returnBytes, bindingPointBegin)
             let params = codegen.generate()
-            console.log(params.code)
+            if (Program.getCurrentProgram().options.printWGSL) {
+                console.log(params.code)
+            }
             switch (offload.type) {
                 case OffloadType.Serial:
                 case OffloadType.Compute: {

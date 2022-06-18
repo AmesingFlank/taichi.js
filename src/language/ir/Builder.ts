@@ -1,7 +1,7 @@
 import { Field } from "../../data/Field";
 import { TextureBase } from "../../data/Texture";
 import { PrimitiveType } from "../frontend/Type";
-import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, AtomicOpType, BinaryOpStmt, BinaryOpType, Block, BuiltInInputKind, BuiltInInputStmt, BuiltInOutputKind, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeDirection, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, IRModule, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionKind, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
+import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, AtomicOpType, BinaryOpStmt, BinaryOpType, Block, BuiltInInputKind, BuiltInInputStmt, BuiltInOutputKind, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeDirection, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, IRModule, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, PointerStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionKind, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
 
 // designed to have the same API as native taichi's IRBuilder
 // which is why there're some camel_case and camelCase mash-ups
@@ -65,228 +65,16 @@ export class IRBuilder {
         return this.pushNewStmt(new LocalStoreStmt(ptr, val, this.getNewId()))
     }
 
-    create_mul(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.mul, this.getNewId()))
+    create_binary_op(lhs: Stmt, rhs: Stmt,op:BinaryOpType){
+        return this.pushNewStmt(new BinaryOpStmt(lhs,rhs,op,this.getNewId()))
     }
 
-    create_add(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.add, this.getNewId()))
+    create_unary_op(operand: Stmt,op:UnaryOpType){
+        return this.pushNewStmt(new UnaryOpStmt(operand,op,this.getNewId()))
     }
 
-    create_sub(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.sub, this.getNewId()))
-    }
-
-    create_truediv(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.truediv, this.getNewId()))
-    }
-
-    create_floordiv(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.floordiv, this.getNewId()))
-    }
-
-    create_div(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.div, this.getNewId()))
-    }
-
-    create_mod(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.mod, this.getNewId()))
-    }
-
-    create_max(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.max, this.getNewId()))
-    }
-
-    create_min(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.min, this.getNewId()))
-    }
-
-    create_and(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.bit_and, this.getNewId()))
-    }
-
-    create_or(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.bit_or, this.getNewId()))
-    }
-
-    create_xor(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.bit_xor, this.getNewId()))
-    }
-
-    create_shl(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.bit_shl, this.getNewId()))
-    }
-
-    create_shr(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.bit_shr, this.getNewId()))
-    }
-
-    create_sar(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.bit_sar, this.getNewId()))
-    }
-
-    create_cmp_lt(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.cmp_lt, this.getNewId()))
-    }
-
-    create_cmp_le(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.cmp_le, this.getNewId()))
-    }
-
-    create_cmp_gt(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.cmp_gt, this.getNewId()))
-    }
-
-    create_cmp_ge(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.cmp_ge, this.getNewId()))
-    }
-
-    create_cmp_eq(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.cmp_eq, this.getNewId()))
-    }
-
-    create_cmp_ne(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.cmp_ne, this.getNewId()))
-    }
-
-    create_atan2(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.atan2, this.getNewId()))
-    }
-
-    create_pow(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.pow, this.getNewId()))
-    }
-
-    create_logical_or(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.logical_or, this.getNewId()))
-    }
-
-    create_logical_and(lhs: Stmt, rhs: Stmt) {
-        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.logical_and, this.getNewId()))
-    }
-
-    create_neg(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.neg, this.getNewId()))
-    }
-
-    create_sqrt(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.sqrt, this.getNewId()))
-    }
-
-    create_round(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.round, this.getNewId()))
-    }
-
-    create_floor(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.floor, this.getNewId()))
-    }
-
-    create_ceil(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.ceil, this.getNewId()))
-    }
-
-    create_cast_i32_value(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.cast_i32_value, this.getNewId()))
-    }
-
-    create_cast_f32_value(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.cast_f32_value, this.getNewId()))
-    }
-
-    create_cast_i32_bits(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.cast_i32_bits, this.getNewId()))
-    }
-
-    create_cast_f32_bits(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.cast_f32_bits, this.getNewId()))
-    }
-
-    create_abs(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.abs, this.getNewId()))
-    }
-
-    create_sgn(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.sgn, this.getNewId()))
-    }
-
-    create_sin(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.sin, this.getNewId()))
-    }
-
-    create_asin(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.asin, this.getNewId()))
-    }
-
-    create_cos(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.cos, this.getNewId()))
-    }
-
-    create_acos(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.acos, this.getNewId()))
-    }
-
-    create_tan(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.tan, this.getNewId()))
-    }
-
-    create_tanh(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.tanh, this.getNewId()))
-    }
-
-    create_inv(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.inv, this.getNewId()))
-    }
-
-    create_rcp(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.rcp, this.getNewId()))
-    }
-
-    create_exp(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.exp, this.getNewId()))
-    }
-
-    create_log(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.log, this.getNewId()))
-    }
-
-    create_rsqrt(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.rsqrt, this.getNewId()))
-    }
-
-    create_not(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.bit_not, this.getNewId()))
-    }
-
-    create_logical_not(operand: Stmt) {
-        return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.logic_not, this.getNewId()))
-    }
-
-    create_atomic_add(dest: Stmt, val: Stmt) {
-        return this.pushNewStmt(new AtomicOpStmt(AtomicOpType.add, dest, val, this.getNewId()))
-    }
-
-    create_atomic_sub(dest: Stmt, val: Stmt) {
-        return this.pushNewStmt(new AtomicOpStmt(AtomicOpType.sub, dest, val, this.getNewId()))
-    }
-
-    create_atomic_max(dest: Stmt, val: Stmt) {
-        return this.pushNewStmt(new AtomicOpStmt(AtomicOpType.max, dest, val, this.getNewId()))
-    }
-
-    create_atomic_min(dest: Stmt, val: Stmt) {
-        return this.pushNewStmt(new AtomicOpStmt(AtomicOpType.min, dest, val, this.getNewId()))
-    }
-
-    create_atomic_and(dest: Stmt, val: Stmt) {
-        return this.pushNewStmt(new AtomicOpStmt(AtomicOpType.bit_and, dest, val, this.getNewId()))
-    }
-
-    create_atomic_or(dest: Stmt, val: Stmt) {
-        return this.pushNewStmt(new AtomicOpStmt(AtomicOpType.bit_or, dest, val, this.getNewId()))
-    }
-
-    create_atomic_xor(dest: Stmt, val: Stmt) {
-        return this.pushNewStmt(new AtomicOpStmt(AtomicOpType.bit_xor, dest, val, this.getNewId()))
+    create_atomic_op(dest: PointerStmt, val: Stmt, op:AtomicOpType){
+        return this.pushNewStmt(new AtomicOpStmt(dest, val, op,this.getNewId()))
     }
 
     create_while_true() {

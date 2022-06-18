@@ -6,7 +6,7 @@ import { assert, error } from "../../utils/Logging";
 import { StringBuilder } from "../../utils/StringBuilder";
 import { divUp } from "../../utils/Utils";
 import { PrimitiveType } from "../frontend/Type";
-import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, AtomicOpType, BinaryOpStmt, BinaryOpType, BuiltInInputKind, BuiltInInputStmt, BuiltInOutputKind, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeDirection, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, StmtKind, TextureFunctionKind, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "../ir/Stmt";
+import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, AtomicOpType, BinaryOpStmt, BinaryOpType, BuiltInInputKind, BuiltInInputStmt, BuiltInOutputKind, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeDirection, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, getPointedType, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, StmtKind, TextureFunctionKind, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "../ir/Stmt";
 import { IRVisitor } from "../ir/Visitor";
 import { ComputeModule, OffloadedModule, OffloadType } from "./Offload";
 
@@ -137,11 +137,11 @@ export class CodegenVisitor extends IRVisitor {
                     }
                     return `i32(${operand} == ${zero})`
                 }
-                case UnaryOpType.logic_not: {
+                case UnaryOpType.bit_not: {
                     return `(~(${operand}))`
                 }
                 default: {
-                    error("unhandled unary op")
+                    error("unhandled unary op ", op)
                     return "error"
                 }
             }
@@ -163,7 +163,6 @@ export class CodegenVisitor extends IRVisitor {
                 case BinaryOpType.sub: return `(${lhs} - ${rhs})`
                 case BinaryOpType.truediv: return `(f32(${lhs}) / f32(${rhs}))`
                 case BinaryOpType.floordiv: return `i32(${lhs} / ${rhs})`
-                case BinaryOpType.div: return `(${lhs} / ${rhs})`
                 case BinaryOpType.mod: return `(${lhs} % ${rhs})`
                 case BinaryOpType.max: return `max(${lhs}, ${rhs})`
                 case BinaryOpType.min: return `min(${lhs}, ${rhs})`
@@ -180,7 +179,7 @@ export class CodegenVisitor extends IRVisitor {
                 case BinaryOpType.cmp_eq: return `(${lhs} == ${rhs})`
                 case BinaryOpType.cmp_ne: return `(${lhs} != ${rhs})`
                 case BinaryOpType.atan2: return `atan2(f32(${lhs}), f32(${rhs}))`
-                case BinaryOpType.pow: return `pow(${lhs}, ${rhs})`
+                case BinaryOpType.pow: return `pow(f32(${lhs}), f32(${rhs}))`
                 case BinaryOpType.logical_or: return `(${lhs} | ${rhs})`
                 case BinaryOpType.logical_and: return `(${lhs} & ${rhs})`
             }
@@ -206,7 +205,7 @@ export class CodegenVisitor extends IRVisitor {
     }
 
     override visitIfStmt(stmt: IfStmt): void {
-        this.body.write(this.getIndentation(), `if (bool(${stmt.getCondition()})) {\n`)
+        this.body.write(this.getIndentation(), `if (bool(${stmt.getCondition().getName()})) {\n`)
         this.indent()
         this.visitBlock(stmt.trueBranch)
         this.dedent()
@@ -224,15 +223,8 @@ export class CodegenVisitor extends IRVisitor {
     }
 
     override visitContinueStmt(stmt: ContinueStmt): void {
-        if (stmt.parentBlock === this.offload.block) {
-            // then this parallel task is done;
-            this.body.write(this.getIndentation(), "ii = ii + total_invocs;\n");
-            // continue in grid-strided loop;
-            this.body.write(this.getIndentation(), "continue;\n");
-        }
-        else {
-            this.body.write(this.getIndentation(), "continue;\n");
-        }
+        // the `continuing` block means that this will work for both normal loops and grid-strided loops
+        this.body.write(this.getIndentation(), "continue;\n");
     }
 
     override visitWhileStmt(stmt: WhileStmt): void {
@@ -270,9 +262,9 @@ export class CodegenVisitor extends IRVisitor {
         let dtName = this.getPrimitiveTypeName(stmt.getValue().getReturnType())
         let outputName = `out_${loc}_${dtName}`
         this.ensureStageOutStruct()
-        let flat = stmt.getReturnType() == PrimitiveType.i32
+        let flat = stmt.getValue().getReturnType() == PrimitiveType.i32
         this.addStageOutMember(outputName, dtName, loc, flat)
-        this.body.write(`stage_output.${outputName} = ${stmt.getValue().getName()};\n`);
+        this.body.write(this.getIndentation(), `stage_output.${outputName} = ${stmt.getValue().getName()};\n`);
     }
 
     override visitBuiltInOutputStmt(stmt: BuiltInOutputStmt): void {
@@ -286,17 +278,17 @@ export class CodegenVisitor extends IRVisitor {
             case BuiltInOutputKind.Color: {
                 let loc = stmt.location!
                 outputName = `color_${loc}`
-                this.addStageOutMember(outputExpr, typeName, loc, false)
+                this.addStageOutMember(outputName, typeName, loc, false)
                 break;
             }
             case BuiltInOutputKind.Position: {
                 outputName = `position`
-                this.addStageOutBuiltinMember(outputExpr, typeName, "position")
+                this.addStageOutBuiltinMember(outputName, typeName, "position")
                 break;
             }
             case BuiltInOutputKind.FragDepth: {
                 outputName = `frag_depth`
-                this.addStageOutBuiltinMember(outputExpr, typeName, "frag_depth")
+                this.addStageOutBuiltinMember(outputName, typeName, "frag_depth")
                 break;
             }
             default:
@@ -381,9 +373,10 @@ export class CodegenVisitor extends IRVisitor {
             let samplerResource = new ResourceInfo(ResourceType.Sampler, texture.textureId)
             samplerName = this.getSamplerName(samplerResource)
         }
-        let coordsPrimType = stmt.getCoordinates()[0].getReturnType()
         let coordsComponentCount = getTextureCoordsNumComponents(texture.getTextureDimensionality())
-        assert(coordsComponentCount === stmt.getCoordinates().length, "component count mismatch")
+        assert(coordsComponentCount === stmt.getCoordinates().length, "component count mismatch", stmt)
+
+        let coordsPrimType = stmt.getCoordinates()[0].getReturnType()
         let coordsTypeName = this.getScalarOrVectorTypeName(coordsPrimType, coordsComponentCount)
 
         let coordsExpr = this.getScalarOrVectorExpr(stmt.getCoordinates(), coordsTypeName)
@@ -408,7 +401,7 @@ export class CodegenVisitor extends IRVisitor {
                 let valuePrimType = stmt.getAdditionalOperands()[0].getReturnType()
                 let valueTypeName = this.getScalarOrVectorTypeName(valuePrimType, stmt.getAdditionalOperands().length)
                 let valueExpr = this.getScalarOrVectorExpr(stmt.getAdditionalOperands(), valueTypeName)
-                this.body.write(this.getIndentation(), `textureStore(${textureName}, ${coordsExpr}, ${valueExpr})`)
+                this.body.write(this.getIndentation(), `textureStore(${textureName}, ${coordsExpr}, ${valueExpr});\n`)
                 break;
             }
             default: {
@@ -496,7 +489,7 @@ export class CodegenVisitor extends IRVisitor {
     override visitLocalLoadStmt(stmt: LocalLoadStmt): void {
         let dt = stmt.getReturnType()
         this.emitLet(stmt.getName(), dt)
-        this.body.write(stmt.getPointer().getName(),";\n")
+        this.body.write(stmt.getPointer().getName(), ";\n")
     }
 
     override visitLocalStoreStmt(stmt: LocalStoreStmt): void {
@@ -588,7 +581,7 @@ export class CodegenVisitor extends IRVisitor {
     }
 
     override visitAtomicOpStmt(stmt: AtomicOpStmt): void {
-        let dt = stmt.getOperand().getReturnType()
+        let dt = getPointedType(stmt.getDestination())
         let dtName = this.getPrimitiveTypeName(dt)
         let resourceInfo: ResourceInfo
         let dest = stmt.getDestination()
@@ -605,7 +598,7 @@ export class CodegenVisitor extends IRVisitor {
 
 
         let result = this.getTemp("atomic_op_result");
-        this.body.write(`var ${result} : ${dtName};\n`)
+        this.body.write(this.getIndentation(), `var ${result} : ${dtName};\n`)
         let ptr = `&(${bufferName}[${stmt.getDestination().getName()}])`
         switch (dt) {
             case PrimitiveType.i32: {
@@ -694,7 +687,7 @@ export class CodegenVisitor extends IRVisitor {
 
                 let newVal = this.getTemp("new_val");
                 this.emitLet(newVal, "f32")
-                this.body.write(`${newVal};\n`)
+                this.body.write(`${newValExpr};\n`)
 
                 this.body.write(this.getIndentation(), `if(atomicCompareExchangeWeak(${ptr}, bitcast<i32>(${oldVal}), bitcast<i32>(${newVal})).y!=0){\n`)
                 this.indent()
@@ -774,7 +767,7 @@ export class CodegenVisitor extends IRVisitor {
 
         this.body.write(this.getIndentation(), `if(ii >= ${end}) { break; }\n`)
         this.visitBlock(this.offload.block)
-        this.body.write(this.getIndentation(), `ii = ii + ${totalInvocs};\n`)
+        this.body.write(this.getIndentation(), `continuing { ii = ii + ${totalInvocs}; }\n`)
 
         this.dedent()
         this.body.write(this.getIndentation(), "}\n")
@@ -782,12 +775,14 @@ export class CodegenVisitor extends IRVisitor {
     }
 
     generateVertexForKernel() {
-        this.emitGraphicsFunction()
+        this.visitBlock(this.offload.block)
+        this.startGraphicsFunction()
         return new VertexShaderParams(this.assembleShader(), this.resourceBindings.bindings)
     }
 
     generateFragmentForKernel() {
-        this.emitGraphicsFunction()
+        this.visitBlock(this.offload.block)
+        this.startGraphicsFunction()
         return new FragmentShaderParams(this.assembleShader(), this.resourceBindings.bindings)
     }
 
@@ -903,7 +898,7 @@ fn main(
         this.functionEnd.write("}\n")
     }
 
-    emitGraphicsFunction() {
+    startGraphicsFunction() {
         assert(this.funtionSignature.empty(), "already has a signature")
         let stageName = ""
         let builtInInput = ""
@@ -933,8 +928,6 @@ fn main(
 @stage(${stageName})
 fn main(${builtInInput} ${stageInput}) ${maybeOutput}
 {
-
-)
 `
         this.funtionSignature.write(signature)
         this.functionEnd.write("\n}\n")
@@ -1289,7 +1282,7 @@ struct RandState{
         let randStatesMemberName = this.getBufferMemberName(new ResourceInfo(ResourceType.RandStates))
         let randFuncs = `
 fn rand_u32(id: u32) -> u32 {
-    var state : RandState = STATES[id];
+    var state : RandState = ${randStatesMemberName}[id];
     if(state.x == 0u && state.y == 0u && state.z == 0u && state.w == 0u){
         state.x = 123456789u * id * 1000000007u;
         state.y = 362436069u;

@@ -241,7 +241,7 @@ class Runtime {
         }
 
         if (kernel.returnType.getCategory() !== TypeCategory.Void) {
-            assert(thisRetsBuffer !== null)
+            assert(thisRetsBuffer !== null, "missing rets buffer!")
 
             let retsCopy = this.device!.createBuffer({
                 size: retsSize,

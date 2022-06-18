@@ -54,7 +54,7 @@ class IRPrinter extends IRVisitor {
         this.write(`global store ${str(stmt.getPointer())} <- ${str(stmt.getValue())}`)
     }
     override visitGlobalTemporaryStmt(stmt: GlobalTemporaryStmt) {
-        this.write(`${str(stmt)} = global temp ${stmt.offset} : ${typeName(stmt.type)}`)
+        this.write(`${str(stmt)} = gtemp ${stmt.offset} : ${typeName(stmt.type)}`)
     }
     override visitGlobalTemporaryLoadStmt(stmt: GlobalTemporaryLoadStmt) {
         this.write(`${str(stmt)} : ${typeName(stmt.getReturnType())} = gtemp load ${str(stmt.getPointer())}`)
@@ -70,7 +70,6 @@ class IRPrinter extends IRVisitor {
                 case BinaryOpType.sub: return "sub"
                 case BinaryOpType.truediv: return "truediv"
                 case BinaryOpType.floordiv: return "floordiv"
-                case BinaryOpType.div: return "div"
                 case BinaryOpType.mod: return "mod"
                 case BinaryOpType.max: return "max"
                 case BinaryOpType.min: return "min"
@@ -133,7 +132,7 @@ class IRPrinter extends IRVisitor {
         this.write("}")
     }
     override visitIfStmt(stmt: IfStmt) {
-        this.write(`${str(stmt)} = if(${stmt.getCondition()}){`)
+        this.write(`${str(stmt)} = if(${str(stmt.getCondition())}){`)
         this.indent()
         this.visitBlock(stmt.trueBranch)
         this.dedent()
