@@ -155,6 +155,7 @@ export class CodegenVisitor extends IRVisitor {
         let lhs = stmt.getLeft().getName()
         let rhs = stmt.getRight().getName()
         let op = stmt.op
+        let dt = stmt.getReturnType()
 
         let getValue = () => {
             switch (op) {
@@ -170,7 +171,7 @@ export class CodegenVisitor extends IRVisitor {
                 case BinaryOpType.bit_or: return `(${lhs} | ${rhs})`
                 case BinaryOpType.bit_xor: return `(${lhs} ^ ${rhs})`
                 case BinaryOpType.bit_shl: return `(${lhs} << u32(${rhs}))`
-                case BinaryOpType.bit_shr: return `(${lhs} >> u32(${rhs}))`
+                case BinaryOpType.bit_shr: return `(u32(${lhs}) >> u32(${rhs}))`
                 case BinaryOpType.bit_sar: return `(${lhs} >> u32(${rhs}))`
                 case BinaryOpType.cmp_lt: return `(${lhs} < ${rhs})`
                 case BinaryOpType.cmp_le: return `(${lhs} <= ${rhs})`
@@ -179,15 +180,32 @@ export class CodegenVisitor extends IRVisitor {
                 case BinaryOpType.cmp_eq: return `(${lhs} == ${rhs})`
                 case BinaryOpType.cmp_ne: return `(${lhs} != ${rhs})`
                 case BinaryOpType.atan2: return `atan2(f32(${lhs}), f32(${rhs}))`
-                case BinaryOpType.pow: return `pow(f32(${lhs}), f32(${rhs}))`
                 case BinaryOpType.logical_or: return `(${lhs} | ${rhs})`
                 case BinaryOpType.logical_and: return `(${lhs} & ${rhs})`
+                case BinaryOpType.pow: {
+                    // pow is special because
+                    // 1. for integer LHS and RHS, result is integer
+                    // 2. WGSL only has float version
+                    // so we round the result if the inputs are ints
+                    switch (dt) {
+                        case PrimitiveType.i32: {
+                            return `round(pow(f32(${lhs}), f32(${rhs})))`
+                        }
+                        case PrimitiveType.f32: {
+                            return `pow(f32(${lhs}), f32(${rhs}))`
+                        }
+                        default: {
+                            error("unrecgnized prim type")
+                            return "error"
+                        }
+                    }
+                }
             }
         }
         let value = getValue()
-        let dt = this.getPrimitiveTypeName(stmt.getReturnType())
-        this.emitLet(stmt.getName(), dt)
-        this.body.write(`${dt}(${value});\n`)
+        let dtName = this.getPrimitiveTypeName(dt)
+        this.emitLet(stmt.getName(), dtName)
+        this.body.write(`${dtName}(${value});\n`)
     }
 
     override visitRangeForStmt(stmt: RangeForStmt): void {
@@ -325,13 +343,13 @@ export class CodegenVisitor extends IRVisitor {
                 break;
             }
             case FragmentDerivativeDirection.y: {
-                this.body.write("dydxFine")
+                this.body.write("dpdyFine")
                 break;
             }
             default:
                 error("unrecognized direction")
         }
-        this.body.write(`(${stmt.getName()});\n`)
+        this.body.write(`(${stmt.getValue().getName()});\n`)
     }
 
     override visitDiscardStmt(stmt: DiscardStmt): void {
