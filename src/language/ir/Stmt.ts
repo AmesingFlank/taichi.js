@@ -59,7 +59,7 @@ export abstract class Stmt {
 
     getReturnType() {
         if (!this.returnType) {
-            error("missing return type")
+            error("missing return type ", this)
         }
         return this.returnType!
     }
@@ -189,6 +189,9 @@ export class GlobalPtrStmt extends Stmt {
     override getKind(): StmtKind {
         return StmtKind.GlobalPtrStmt
     }
+    getPointedType(): PrimitiveType {
+        return this.field.elementType.getPrimitivesList()[this.offsetInElement]
+    }
     getIndices() {
         return this.operands.slice()
     }
@@ -285,13 +288,30 @@ export class GlobalTemporaryStoreStmt extends Stmt {
     }
 }
 
+export type PointerStmt = AllocaStmt | GlobalPtrStmt | GlobalTemporaryStmt
+
+export function isPointerStmt(stmt: Stmt) {
+    return [StmtKind.AllocaStmt, StmtKind.GlobalPtrStmt, StmtKind.GlobalTemporaryStmt].includes(stmt.getKind())
+}
+
+export function getPointedType(ptr: PointerStmt) {
+    switch (ptr.getKind()) {
+        case StmtKind.AllocaStmt: return (ptr as AllocaStmt).allocatedType
+        case StmtKind.GlobalPtrStmt: return (ptr as GlobalPtrStmt).getPointedType()
+        case StmtKind.GlobalTemporaryStmt: return (ptr as GlobalTemporaryStmt).type
+        default: {
+            error("not a pointer type!")
+            return PrimitiveType.i32
+        }
+    }
+}
+
 export enum BinaryOpType {
     mul,
     add,
     sub,
     truediv,
     floordiv,
-    div,
     mod,
     max,
     min,
@@ -313,11 +333,7 @@ export enum BinaryOpType {
     logical_and,
 }
 
-export function getBinaryOpReturnType(left: Stmt, right: Stmt, op: BinaryOpType): PrimitiveType {
-    assert(left.returnType !== undefined && right.returnType !== undefined, "LHS and RHS of binary op must both have a valid return type")
-    let leftType = left.returnType!
-    let rightType = right.returnType!
-
+export function getBinaryOpReturnType(leftType: PrimitiveType, rightType: PrimitiveType, op: BinaryOpType): PrimitiveType | undefined {
     switch (op) {
         case BinaryOpType.cmp_eq:
         case BinaryOpType.cmp_ge:
@@ -334,7 +350,9 @@ export function getBinaryOpReturnType(left: Stmt, right: Stmt, op: BinaryOpType)
         case BinaryOpType.bit_shl:
         case BinaryOpType.bit_sar:
         case BinaryOpType.bit_shr: {
-            assert(leftType === PrimitiveType.i32 && rightType === PrimitiveType.i32, "bit ops can only be applied to ints")
+            if (leftType !== PrimitiveType.i32 || rightType !== PrimitiveType.i32) {
+                return undefined
+            }
             return PrimitiveType.i32
         }
         case BinaryOpType.truediv:
@@ -358,7 +376,8 @@ export class BinaryOpStmt extends Stmt {
         id: number,
         nameHint: string = ""
     ) {
-        let returnType = getBinaryOpReturnType(left, right, op)
+        assert(left.returnType !== undefined && right.returnType !== undefined, "LHS and RHS of binary op must both have a valid return type", left, right)
+        let returnType = getBinaryOpReturnType(left.getReturnType(), right.getReturnType(), op)
         super(id, returnType, nameHint)
         this.operands = [left, right]
     }
@@ -370,6 +389,12 @@ export class BinaryOpStmt extends Stmt {
     }
     getRight() {
         return this.operands[1]
+    }
+    setLeft(left: Stmt) {
+        this.operands[0] = left
+    }
+    setRight(right: Stmt) {
+        this.operands[1] = right
     }
 }
 
@@ -400,8 +425,7 @@ export enum UnaryOpType {
     logic_not,
 }
 
-export function getUnaryOpReturnType(operand: Stmt, op: UnaryOpType): PrimitiveType {
-    assert(operand.returnType !== undefined, "operand of unary op must both have a valid return type")
+export function getUnaryOpReturnType(operandType: PrimitiveType, op: UnaryOpType): PrimitiveType | undefined {
     switch (op) {
         case UnaryOpType.round:
         case UnaryOpType.floor:
@@ -412,16 +436,18 @@ export function getUnaryOpReturnType(operand: Stmt, op: UnaryOpType): PrimitiveT
             return PrimitiveType.i32
         case UnaryOpType.cast_f32_value:
         case UnaryOpType.cast_f32_bits:
-            return PrimitiveType.i32
+            return PrimitiveType.f32
         case UnaryOpType.sgn:
             return PrimitiveType.i32
         case UnaryOpType.bit_not:
         case UnaryOpType.logic_not:
-            assert(operand.returnType === PrimitiveType.i32, "bit_not can only be applied to ints")
+            if (operandType !== PrimitiveType.i32) {
+                return undefined
+            }
             return PrimitiveType.i32
         case UnaryOpType.abs:
         case UnaryOpType.neg:
-            return operand.returnType!
+            return operandType
         default:
             return PrimitiveType.f32
     }
@@ -434,7 +460,8 @@ export class UnaryOpStmt extends Stmt {
         id: number,
         nameHint: string = ""
     ) {
-        let returnType = getUnaryOpReturnType(operand, op)
+        assert(operand.returnType !== undefined, "Unary op operand must have a valid return type")
+        let returnType = getUnaryOpReturnType(operand.getReturnType(), op)
         super(id, returnType, nameHint)
         this.operands = [this.operand]
     }
@@ -497,7 +524,6 @@ export class ContinueStmt extends Stmt {
     ) {
         super(id, undefined, nameHint)
     }
-    parentBlock?: Block
     override getKind(): StmtKind {
         return StmtKind.ContinueStmt
     }
@@ -553,20 +579,20 @@ export enum AtomicOpType {
 
 export class AtomicOpStmt extends Stmt {
     constructor(
-        public op: AtomicOpType,
-        dest: Stmt,
+        dest: PointerStmt,
         operand: Stmt,
+        public op: AtomicOpType,
         id: number,
         nameHint: string = ""
     ) {
-        super(id, operand.returnType, nameHint)
+        super(id, getPointedType(dest), nameHint)
         this.operands = [dest, operand]
     }
     override getKind(): StmtKind {
         return StmtKind.AtomicOpStmt
     }
     getDestination() {
-        return this.operands[0]
+        return this.operands[0] as PointerStmt
     }
     getOperand() {
         return this.operands[1]
@@ -764,7 +790,7 @@ export class TextureFunctionStmt extends Stmt {
         return StmtKind.TextureFunctionStmt
     }
     getCoordinates() {
-        return this.operands.slice(0, -this.additionalOperandsCount)
+        return this.operands.slice(0, this.operands.length - this.additionalOperandsCount)
     }
     getAdditionalOperands() {
         return this.operands.slice(-this.additionalOperandsCount)

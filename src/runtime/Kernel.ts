@@ -32,8 +32,8 @@ class ResourceBinding {
 class TaskParams {
     constructor(
         public code: string,
-        public rangeHint: string,
         public workgroupSize: number,
+        public numWorkgroups: number,
         public bindings: ResourceBinding[] = []
     ) {
 

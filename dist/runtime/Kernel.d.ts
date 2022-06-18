@@ -27,10 +27,10 @@ declare class ResourceBinding {
 }
 declare class TaskParams {
     code: string;
-    rangeHint: string;
     workgroupSize: number;
+    numWorkgroups: number;
     bindings: ResourceBinding[];
-    constructor(code: string, rangeHint: string, workgroupSize: number, bindings?: ResourceBinding[]);
+    constructor(code: string, workgroupSize: number, numWorkgroups: number, bindings?: ResourceBinding[]);
 }
 declare class VertexShaderParams {
     code: string;

@@ -1,9 +1,7 @@
-import { NativeTaichiAny } from "../../native/taichi/GetTaichi";
 export declare enum PrimitiveType {
     i32 = "i32",
     f32 = "f32"
 }
-export declare function toNativePrimitiveType(type: PrimitiveType): NativeTaichiAny;
 export declare enum TypeCategory {
     Scalar = "Scalar",
     Vector = "Vector",

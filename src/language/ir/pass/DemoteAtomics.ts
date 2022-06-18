@@ -8,6 +8,7 @@ class DemoteAtomicsPass extends IRTransformer {
     override visitAtomicOpStmt(stmt: AtomicOpStmt) {
         if (stmt.getDestination().getKind() !== StmtKind.AllocaStmt) {
             this.pushNewStmt(stmt)
+            return;
         }
         let dest = stmt.getDestination() as AllocaStmt
         let lhs = this.pushNewStmt(new LocalLoadStmt(dest, this.module.getNewId()))

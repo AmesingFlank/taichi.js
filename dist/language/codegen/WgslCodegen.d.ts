@@ -1,24 +1,16 @@
-import { ResourceBinding, ResourceInfo } from "../../runtime/Kernel";
+import { FragmentShaderParams, ResourceBinding, ResourceInfo, TaskParams, VertexShaderParams } from "../../runtime/Kernel";
 import { Runtime } from "../../runtime/Runtime";
+import { StringBuilder } from "../../utils/StringBuilder";
 import { PrimitiveType } from "../frontend/Type";
 import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, BinaryOpStmt, BuiltInInputStmt, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionStmt, UnaryOpStmt, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "../ir/Stmt";
 import { IRVisitor } from "../ir/Visitor";
 import { OffloadedModule } from "./Offload";
-export interface CodegenResult {
-    code: string;
-}
 declare class ResourceBindingMap {
     bindings: ResourceBinding[];
     has(resource: ResourceInfo): boolean;
     add(resource: ResourceInfo, bindingPoint: number): void;
     get(resource: ResourceInfo): number | undefined;
     size(): number;
-}
-declare class StringBuilder {
-    parts: string[];
-    write(...args: (string | number)[]): void;
-    getString(): string;
-    empty(): boolean;
 }
 export declare class CodegenVisitor extends IRVisitor {
     runtime: Runtime;
@@ -62,11 +54,11 @@ export declare class CodegenVisitor extends IRVisitor {
     visitLoopIndexStmt(stmt: LoopIndexStmt): void;
     visitFragmentForStmt(stmt: FragmentForStmt): void;
     visitVertexForStmt(stmt: VertexForStmt): void;
-    generateSerialKernel(): void;
-    generateRangeForKernel(): void;
-    generateVertexForKernel(): void;
-    generateFragmentForKernel(): void;
-    generate(): void;
+    generateSerialKernel(): TaskParams;
+    generateRangeForKernel(): TaskParams;
+    generateVertexForKernel(): VertexShaderParams;
+    generateFragmentForKernel(): FragmentShaderParams;
+    generate(): TaskParams | VertexShaderParams | FragmentShaderParams;
     emitLet(name: string, type: string): void;
     emitVar(name: string, type: string): void;
     getPointerIntTypeName(): string;
@@ -87,7 +79,7 @@ export declare class CodegenVisitor extends IRVisitor {
     functionEnd: StringBuilder;
     assembleShader(): string;
     startComputeFunction(blockSizeX: number): void;
-    emitGraphicsFunction(): void;
+    startGraphicsFunction(): void;
     ensureStageInStruct(): void;
     ensureStageOutStruct(): void;
     stageInMembers: Set<string>;

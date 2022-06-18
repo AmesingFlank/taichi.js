@@ -1,11 +1,11 @@
 import { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, PrimitiveType, TypeUtils, StructType, HostObjectReferenceType } from "./Type"
-import { NativeTaichiAny } from "../../native/taichi/GetTaichi"
 import { assert } from "../../utils/Logging"
+import { Stmt } from "../ir/Stmt"
 
 export class Value {
     public constructor(
         type: Type,
-        public stmts: NativeTaichiAny[] = [], // CHI IR Stmts
+        public stmts: Stmt[] = [], // CHI IR Stmts
         public compileTimeConstants: number[] = []
     ) {
         this.type_ = type
@@ -27,11 +27,11 @@ export class Value {
 }
 
 export class ValueUtils {
-    static makeScalar(stmt: NativeTaichiAny, primitiveType: PrimitiveType): Value {
+    static makeScalar(stmt: Stmt, primitiveType: PrimitiveType): Value {
         return new Value(new ScalarType(primitiveType), [stmt], [])
     }
 
-    static makeConstantScalar(val: number, stmt: NativeTaichiAny, primitiveType: PrimitiveType): Value {
+    static makeConstantScalar(val: number, stmt: Stmt, primitiveType: PrimitiveType): Value {
         return new Value(new ScalarType(primitiveType), [stmt], [val])
     }
 

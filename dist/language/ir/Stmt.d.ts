@@ -86,6 +86,7 @@ export declare class GlobalPtrStmt extends Stmt {
     offsetInElement: number;
     constructor(field: Field, indices: Stmt[], offsetInElement: number, id: number, nameHint?: string);
     getKind(): StmtKind;
+    getPointedType(): PrimitiveType;
     getIndices(): Stmt[];
 }
 export declare class GlobalLoadStmt extends Stmt {
@@ -122,34 +123,36 @@ export declare class GlobalTemporaryStoreStmt extends Stmt {
     getValue(): Stmt;
     getKind(): StmtKind;
 }
+export declare type PointerStmt = AllocaStmt | GlobalPtrStmt | GlobalTemporaryStmt;
+export declare function isPointerStmt(stmt: Stmt): boolean;
+export declare function getPointedType(ptr: PointerStmt): PrimitiveType;
 export declare enum BinaryOpType {
     mul = 0,
     add = 1,
     sub = 2,
     truediv = 3,
     floordiv = 4,
-    div = 5,
-    mod = 6,
-    max = 7,
-    min = 8,
-    bit_and = 9,
-    bit_or = 10,
-    bit_xor = 11,
-    bit_shl = 12,
-    bit_shr = 13,
-    bit_sar = 14,
-    cmp_lt = 15,
-    cmp_le = 16,
-    cmp_gt = 17,
-    cmp_ge = 18,
-    cmp_eq = 19,
-    cmp_ne = 20,
-    atan2 = 21,
-    pow = 22,
-    logical_or = 23,
-    logical_and = 24
+    mod = 5,
+    max = 6,
+    min = 7,
+    bit_and = 8,
+    bit_or = 9,
+    bit_xor = 10,
+    bit_shl = 11,
+    bit_shr = 12,
+    bit_sar = 13,
+    cmp_lt = 14,
+    cmp_le = 15,
+    cmp_gt = 16,
+    cmp_ge = 17,
+    cmp_eq = 18,
+    cmp_ne = 19,
+    atan2 = 20,
+    pow = 21,
+    logical_or = 22,
+    logical_and = 23
 }
-export declare function getBinaryOpReturnType(left: Stmt, right: Stmt, op: BinaryOpType): PrimitiveType;
+export declare function getBinaryOpReturnType(leftType: PrimitiveType, rightType: PrimitiveType, op: BinaryOpType): PrimitiveType | undefined;
 export declare class BinaryOpStmt extends Stmt {
     left: Stmt;
     right: Stmt;
@@ -158,6 +161,8 @@ export declare class BinaryOpStmt extends Stmt {
     getKind(): StmtKind;
     getLeft(): Stmt;
     getRight(): Stmt;
+    setLeft(left: Stmt): void;
+    setRight(right: Stmt): void;
 }
 export declare enum UnaryOpType {
     neg = 0,
@@ -185,7 +190,7 @@ export declare enum UnaryOpType {
     bit_not = 22,
     logic_not = 23
 }
-export declare function getUnaryOpReturnType(operand: Stmt, op: UnaryOpType): PrimitiveType;
+export declare function getUnaryOpReturnType(operandType: PrimitiveType, op: UnaryOpType): PrimitiveType | undefined;
 export declare class UnaryOpStmt extends Stmt {
     operand: Stmt;
     op: UnaryOpType;
@@ -211,7 +216,6 @@ export declare class WhileControlStmt extends Stmt {
 }
 export declare class ContinueStmt extends Stmt {
     constructor(id: number, nameHint?: string);
-    parentBlock?: Block;
     getKind(): StmtKind;
 }
 export declare class ArgLoadStmt extends Stmt {
@@ -239,9 +243,9 @@ export declare enum AtomicOpType {
 }
 export declare class AtomicOpStmt extends Stmt {
     op: AtomicOpType;
-    constructor(op: AtomicOpType, dest: Stmt, operand: Stmt, id: number, nameHint?: string);
+    constructor(dest: PointerStmt, operand: Stmt, op: AtomicOpType, id: number, nameHint?: string);
     getKind(): StmtKind;
-    getDestination(): Stmt;
+    getDestination(): PointerStmt;
     getOperand(): Stmt;
 }
 export declare class VertexForStmt extends Stmt {

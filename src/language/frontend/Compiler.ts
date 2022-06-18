@@ -1,23 +1,28 @@
 import * as ts from "typescript";
 import { ASTVisitor, VisitorResult } from "./ast/Visiter"
 import { TaskParams, ResourceBinding, ResourceType, KernelParams, RenderPipelineParams, VertexShaderParams, FragmentShaderParams, RenderPassParams } from "../../runtime/Kernel";
-import { nativeTaichi, NativeTaichiAny } from "../../native/taichi/GetTaichi"
 import { error } from "../../utils/Logging"
 import { Scope } from "./Scope";
 import { Field } from "../../data/Field";
 import { DepthTexture, getTextureCoordsNumComponents, isTexture, TextureBase } from "../../data/Texture";
 import { Program } from "../../program/Program";
-import { getWgslShaderBindings, getWgslShaderStage, WgslShaderStage } from "./WgslReflection"
 import { LibraryFunc } from "./Library";
-import { Type, TypeCategory, ScalarType, VectorType, PointerType, VoidType, TypeUtils, PrimitiveType, toNativePrimitiveType, FunctionType } from "./Type"
+import { Type, TypeCategory, ScalarType, VectorType, PointerType, VoidType, TypeUtils, PrimitiveType, FunctionType } from "./Type"
 import { Value, ValueUtils } from "./Value"
 import { BuiltinOp, BuiltinAtomicOp, BuiltinOpFactory } from "./BuiltinOp";
 import { ResultOrError } from "./Error";
 import { ParsedFunction } from "./ParsedFunction";
 import { beginWith, isHostSideVectorOrMatrix, isPlainOldData } from "../../utils/Utils";
 import { FieldFactory } from "../../data/FieldFactory";
-
-
+import { IRBuilder } from "../ir/Builder";
+import { AllocaStmt, BinaryOpType, FragmentDerivativeStmt, Stmt, StmtKind, UnaryOpType } from "../ir/Stmt";
+import { identifyParallelLoops } from "../ir/pass/IdentifyParallelLoops";
+import { insertGlobalTemporaries } from "../ir/pass/GlobalTemporaries";
+import { demoteAtomics } from "../ir/pass/DemoteAtomics";
+import { offload, OffloadType } from "../codegen/Offload";
+import { CodegenVisitor } from "../codegen/WgslCodegen";
+import { stringifyIR } from "../ir/pass/Printer";
+import { fixOpTypes } from "../ir/pass/FixOpTypes";
 
 enum LoopKind {
     For, While, VertexFor, FragmentFor
@@ -27,7 +32,7 @@ type SymbolTable = Map<ts.Symbol, Value>
 
 class CompilingVisitor extends ASTVisitor<Value>{
     constructor(
-        protected irBuilder: NativeTaichiAny,
+        protected irBuilder: IRBuilder,
         protected builtinOps: Map<string, BuiltinOp>,
         protected atomicOps: Map<string, BuiltinAtomicOp>,
     ) {
@@ -39,8 +44,6 @@ class CompilingVisitor extends ASTVisitor<Value>{
     protected templatedValues: Scope = new Scope()
     protected symbolTable: SymbolTable = new Map<ts.Symbol, Value>()
     protected parsedFunction: ParsedFunction | null = null
-
-    public compilationResultName: string | null = null
 
     public returnValue: Value | null = null
 
@@ -66,7 +69,6 @@ class CompilingVisitor extends ASTVisitor<Value>{
         let functionNode = this.parsedFunction!.functionNode!
         if (functionNode.kind === ts.SyntaxKind.FunctionDeclaration) {
             let func = functionNode as ts.FunctionDeclaration
-            this.compilationResultName = func.name!.text
             this.registerArguments(func.parameters)
             this.visitInputFunctionBody(func.body!)
         }
@@ -232,7 +234,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
         let primitiveTypes = valueType.getPrimitivesList()
         let varValue = new Value(new PointerType(valueType, false))
         for (let i = 0; i < primitiveTypes.length; ++i) {
-            let alloca = this.irBuilder.create_local_var(toNativePrimitiveType(primitiveTypes[i]))
+            let alloca = this.irBuilder.create_local_var(primitiveTypes[i])
             varValue.stmts.push(alloca)
             this.irBuilder.create_local_store(alloca, val.stmts[i])
         }
@@ -553,13 +555,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             this.assertNode(node, outputVecType.getNumRows() === 4, "position output must be a 4D f32 vector")
             this.assertNode(node, outputVecType.getPrimitiveType() === PrimitiveType.f32, "position output must be a 4D f32 vector")
 
-            let stmtsVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
-
-            for (let i = 0; i < posOutput.stmts.length; ++i) {
-                stmtsVec.push_back(posOutput.stmts[i])
-            }
-
-            this.irBuilder.create_position_output(stmtsVec)
+            this.irBuilder.create_position_output(posOutput.stmts.slice())
             return
         }
 
@@ -616,13 +612,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             this.assertNode(node, outputVecType.getNumRows() === 1 || outputVecType.getNumRows() === 2 || outputVecType.getNumRows() === 4, "output vector component count must be 1, 2, or 4")
             this.assertNode(node, outputVecType.getPrimitiveType() === PrimitiveType.f32, "position output must be a f32 vector")
 
-            let stmtsVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
-
-            for (let i = 0; i < fragOutput.stmts.length; ++i) {
-                stmtsVec.push_back(fragOutput.stmts[i])
-            }
-
-            this.irBuilder.create_color_output(targetLocation, stmtsVec)
+            this.irBuilder.create_color_output(targetLocation, fragOutput.stmts.slice())
             return
         }
 
@@ -662,13 +652,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             this.assertNode(node, vecType.getNumRows() === requiredComponentCount, `coords component count must be ${requiredComponentCount}`)
             this.assertNode(node, vecType.getPrimitiveType() === PrimitiveType.f32, "coords must be a f32 vector")
 
-            let stmtsVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
-
-            for (let i = 0; i < coords.stmts.length; ++i) {
-                stmtsVec.push_back(coords.stmts[i])
-            }
-
-            let sampleResultStmt = this.irBuilder.create_texture_sample(texture.nativeTexture, stmtsVec)
+            let sampleResultStmt = this.irBuilder.create_texture_sample(texture, coords.stmts.slice())
 
             let resultType = new VectorType(PrimitiveType.f32, 4)
             let result = new Value(resultType)
@@ -697,13 +681,8 @@ class CompilingVisitor extends ASTVisitor<Value>{
             let lod = argumentValues[2]
             this.assertNode(node, lod.getType().getCategory() === TypeCategory.Scalar && TypeUtils.getPrimitiveType(lod.getType()) === PrimitiveType.f32, "lod must be a scalar float")
 
-            let coordsStmtVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
 
-            for (let i = 0; i < coords.stmts.length; ++i) {
-                coordsStmtVec.push_back(coords.stmts[i])
-            }
-
-            let sampleResultStmt = this.irBuilder.create_texture_sample_lod(texture.nativeTexture, coordsStmtVec, lod.stmts[0])
+            let sampleResultStmt = this.irBuilder.create_texture_sample_lod(texture, coords.stmts, lod.stmts[0])
 
             let resultType = new VectorType(PrimitiveType.f32, 4)
             let result = new Value(resultType)
@@ -727,13 +706,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             this.assertNode(node, vecType.getNumRows() === requiredComponentCount, `coords component count must be ${requiredComponentCount}`)
             this.assertNode(node, vecType.getPrimitiveType() === PrimitiveType.i32, "coords must be a i32 vector")
 
-            let stmtsVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
-
-            for (let i = 0; i < coords.stmts.length; ++i) {
-                stmtsVec.push_back(coords.stmts[i])
-            }
-
-            let sampleResultStmt = this.irBuilder.create_texture_load(texture.nativeTexture, stmtsVec)
+            let sampleResultStmt = this.irBuilder.create_texture_load(texture, coords.stmts.slice())
 
             let resultType = new VectorType(PrimitiveType.f32, 4)
             let result = new Value(resultType)
@@ -762,16 +735,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             this.assertNode(node, valueVecType.getNumRows() === 4, `value component count must be 4`)
             this.assertNode(node, valueVecType.getPrimitiveType() === PrimitiveType.f32, "value must be a f32 vector")
 
-            let coordsStmtVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
-            for (let i = 0; i < coords.stmts.length; ++i) {
-                coordsStmtVec.push_back(coords.stmts[i])
-            }
-
-            let valueStmtVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
-            for (let i = 0; i < value.stmts.length; ++i) {
-                valueStmtVec.push_back(value.stmts[i])
-            }
-            this.irBuilder.create_texture_store(texture.nativeTexture, coordsStmtVec, valueStmtVec)
+            this.irBuilder.create_texture_store(texture, coords.stmts, value.stmts)
             return
         }
         if (this.isBuiltinFunctionWithName(funcText, "getVertexIndex")) {
@@ -793,7 +757,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             this.assertNode(node, TypeUtils.isTensorType(valType) && TypeUtils.getPrimitiveType(valType) === PrimitiveType.f32, "dpdx()/dpdy() must accept a f32 scalar/vector/matrix argument")
             let result = new Value(valType)
             for (let stmt of val.stmts) {
-                let derivative: NativeTaichiAny
+                let derivative: FragmentDerivativeStmt
                 if (this.isBuiltinFunctionWithName(funcText, "dpdx")) {
                     derivative = this.irBuilder.create_dpdx(stmt)
                 }
@@ -975,13 +939,9 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
                 this.assertNode(node, argumentValue.stmts.length === field.dimensions.length,
                     `field access dimension mismatch, received ${argumentValue.stmts.length} components, but expecting ${field.dimensions.length} components`)
-                let accessVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
-                for (let stmt of argumentValue.stmts) {
-                    accessVec.push_back(stmt)
-                }
 
-                for (let place of field.placeNodes) {
-                    let ptr = this.irBuilder.create_global_ptr(place, accessVec);
+                for (let i = 0; i < field.elementType.getPrimitivesList().length; ++i) {
+                    let ptr = this.irBuilder.create_global_ptr(field, argumentValue.stmts.slice(), i);
                     result.stmts.push(ptr)
                 }
                 return result
@@ -1303,7 +1263,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
         let condValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.expression)))
         this.assertNode(node, condValue.getType().getCategory() === TypeCategory.Scalar, "condition of while statement must be scalar")
-        let breakCondition = this.irBuilder.create_logical_not(condValue.stmts[0])
+        let breakCondition = this.irBuilder.create_unary_op(condValue.stmts[0], UnaryOpType.logic_not)
         let nativeIfStmt = this.irBuilder.create_if(breakCondition)
         let trueGuard = this.irBuilder.get_if_guard(nativeIfStmt, true)
         this.irBuilder.create_break()
@@ -1338,10 +1298,10 @@ class CompilingVisitor extends ASTVisitor<Value>{
         }
         else {
             let zero = this.irBuilder.get_int32(0)
-            let loop = this.irBuilder.create_range_for(zero, rangeLengthValue.stmts[0], 0, 4, 0, this.shouldStrictlySerialize());
+            let loop = this.irBuilder.create_range_for(rangeLengthValue.stmts[0], this.shouldStrictlySerialize());
 
             let loopGuard = this.irBuilder.get_range_loop_guard(loop);
-            let indexStmt = this.irBuilder.get_loop_index(loop, 0);
+            let indexStmt = this.irBuilder.get_loop_index(loop);
             let indexValue = ValueUtils.makeScalar(indexStmt, PrimitiveType.i32)
             this.symbolTable.set(indexSymbols[0], indexValue)
 
@@ -1391,23 +1351,23 @@ class CompilingVisitor extends ASTVisitor<Value>{
         else {
             let product = lengthValues[0].stmts[0]
             for (let i = 1; i < numDimensions; ++i) {
-                product = this.irBuilder.create_mul(product, lengthValues[i].stmts[0])
+                product = this.irBuilder.create_binary_op(product, lengthValues[i].stmts[0], BinaryOpType.mul)
             }
-            let zero = this.irBuilder.get_int32(0)
-            let loop = this.irBuilder.create_range_for(zero, product, 0, 4, 0, this.shouldStrictlySerialize());
+
+            let loop = this.irBuilder.create_range_for(product, this.shouldStrictlySerialize());
 
             let loopGuard = this.irBuilder.get_range_loop_guard(loop);
-            let flatIndexStmt = this.irBuilder.get_loop_index(loop, 0);
+            let flatIndexStmt: Stmt = this.irBuilder.get_loop_index(loop);
 
             let indexType = new VectorType(PrimitiveType.i32, numDimensions)
             let indexValue = new Value(indexType, [])
             let remainder = flatIndexStmt
 
             for (let i = numDimensions - 1; i >= 0; --i) {
-                let thisDimStmt = lengthValues[i].stmts[0]
-                let thisIndex = this.irBuilder.create_mod(remainder, thisDimStmt)
-                indexValue.stmts = [thisIndex].concat(indexValue.stmts)
-                remainder = this.irBuilder.create_floordiv(remainder, thisDimStmt)
+                let thisDimStmt: Stmt = lengthValues[i].stmts[0]
+                let thisIndex = this.irBuilder.create_binary_op(remainder, thisDimStmt, BinaryOpType.mod)
+                indexValue.stmts = ([thisIndex] as Stmt[]).concat(indexValue.stmts)
+                remainder = this.irBuilder.create_binary_op(remainder, thisDimStmt, BinaryOpType.floordiv)
             }
             this.symbolTable.set(indexSymbols[0], indexValue)
 
@@ -1484,10 +1444,9 @@ class CompilingVisitor extends ASTVisitor<Value>{
             else {
                 this.currentRenderPipelineParams.indirectCount = FieldFactory.createField(new ScalarType(PrimitiveType.i32), [1])
                 Program.getCurrentProgram().materializeCurrentTree()
-                let accessVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
-                accessVec.push_back(this.irBuilder.get_int32(0))
-                let ptr = this.irBuilder.create_global_ptr(this.currentRenderPipelineParams.indirectCount.placeNodes[0], accessVec)
-                this.irBuilder.create_global_ptr_global_store(ptr, argumentValues[3].stmts[0])
+
+                let ptr = this.irBuilder.create_global_ptr(this.currentRenderPipelineParams.indirectCount, [this.irBuilder.get_int32(0)], 0)
+                this.irBuilder.create_global_store(ptr, argumentValues[3].stmts[0])
             }
         }
         if (vertexArgs.length >= 5) {
@@ -1502,7 +1461,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
         let vertexInputValue = new Value(vertexType, [])
         let prims = vertexType.getPrimitivesList()
         for (let i = 0; i < prims.length; ++i) {
-            let stmt = this.irBuilder.create_vertex_input(i, toNativePrimitiveType(prims[i]))
+            let stmt = this.irBuilder.create_vertex_input(i, prims[i])
             vertexInputValue.stmts.push(stmt)
         }
         // avoid having to throw error when assigning to vertex attribs
@@ -1544,7 +1503,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
         let fragmentInputValue = new Value(fragmentType, [])
         let prims = fragmentType.getPrimitivesList()
         for (let i = 0; i < prims.length; ++i) {
-            let stmt = this.irBuilder.create_fragment_input(i, toNativePrimitiveType(prims[i]))
+            let stmt = this.irBuilder.create_fragment_input(i, prims[i])
             fragmentInputValue.stmts.push(stmt)
         }
         // avoid having to throw error when assigning to fragment attribs
@@ -1650,7 +1609,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
 export class InliningCompiler extends CompilingVisitor {
     constructor(
-        irBuilder: NativeTaichiAny,
+        irBuilder: IRBuilder,
         builtinOps: Map<string, BuiltinOp>,
         atomicOps: Map<string, BuiltinAtomicOp>,
         public funcName: string) {
@@ -1710,7 +1669,7 @@ export class InliningCompiler extends CompilingVisitor {
 }
 export class KernelCompiler extends CompilingVisitor {
     constructor() {
-        let irBuilder = new nativeTaichi.IRBuilder()
+        let irBuilder = new IRBuilder()
         let builtinOps = BuiltinOpFactory.getBuiltinOps(irBuilder)
         let atomicOps = BuiltinOpFactory.getAtomicOps(irBuilder)
 
@@ -1721,7 +1680,6 @@ export class KernelCompiler extends CompilingVisitor {
         this.templateArgumentValues = null
     }
 
-    nativeKernel: NativeTaichiAny
     kernelArgTypes: Type[] // this is the argTypes of the resulting kernel, that is, template arguments have been removed
     argTypesMap: Map<string, Type>
     templateArgumentValues: Map<string, any> | null // JS argument values. This only used when the kernel contains template arguments
@@ -1741,65 +1699,81 @@ export class KernelCompiler extends CompilingVisitor {
         }
         this.buildIR(parsedFunction, scope, templatedValuesScope)
 
-        if (!this.compilationResultName) {
-            this.compilationResultName = Program.getCurrentProgram().getAnonymousKernelName()
+        let printIR = Program.getCurrentProgram().options.printIR
+        let irModule = this.irBuilder.module
+        if (printIR) console.log("initial IR\n", stringifyIR(irModule))
+
+        fixOpTypes(irModule)
+        if (printIR) console.log("fixed op types \n", stringifyIR(irModule))
+
+        identifyParallelLoops(irModule)
+        if (printIR) console.log("identified parallel loops\n", stringifyIR(irModule))
+
+        insertGlobalTemporaries(irModule)
+        if (printIR) console.log("global temps\n", stringifyIR(irModule))
+
+        demoteAtomics(irModule)
+        if (printIR) console.log("demoted atomics\n", stringifyIR(irModule))
+
+        let offloadedModules = offload(irModule)
+        if (printIR) console.log("offloaded\n")
+        for (let o of offloadedModules) {
+            if (printIR) console.log(stringifyIR(o))
         }
 
-        this.nativeKernel = nativeTaichi.Kernel.create_kernel(Program.getCurrentProgram().nativeProgram, this.irBuilder, this.compilationResultName, false)
-        for (let type of this.kernelArgTypes) {
-            let prims = type.getPrimitivesList()
-            for (let prim of prims) {
-                this.nativeKernel.insert_arg(toNativePrimitiveType(prim), false)
-            }
+        let argBytes = 0
+        for (let t of this.kernelArgTypes) {
+            argBytes += t.getPrimitivesList().length * 4
         }
 
-        if (this.returnValue !== null && this.returnValue.getType().getCategory() !== TypeCategory.Void) {
-            let prims = this.returnValue.getType().getPrimitivesList()
-            for (let i = 0; i < prims.length; ++i) {
-                this.nativeKernel.insert_ret(toNativePrimitiveType(prims[i]))
-            }
-        }
-
-        Program.getCurrentProgram().nativeAotBuilder.add(this.compilationResultName, this.nativeKernel);
-
-        let tasks = nativeTaichi.get_kernel_params(Program.getCurrentProgram().nativeAotBuilder, this.compilationResultName);
-        let taskParams: (TaskParams | RenderPipelineParams)[] = []
-        let numTasks = tasks.size()
-        let currentRenderPipelineParamsId = 0
-        for (let i = 0; i < numTasks; ++i) {
-            let task = tasks.get(i)
-            let wgsl: string = task.get_wgsl()
-            let stage = getWgslShaderStage(wgsl)
-            let bindings = getWgslShaderBindings(wgsl)
-            if (stage === WgslShaderStage.Compute) {
-                let rangeHint: string = task.get_range_hint()
-                let workgroupSize = task.get_gpu_block_size()
-                taskParams.push(new TaskParams(wgsl, rangeHint, workgroupSize, bindings))
-            }
-            else if (stage === WgslShaderStage.Vertex) {
-                let params = this.renderPipelineParams[currentRenderPipelineParamsId]
-                params.vertex.code = wgsl
-                params.vertex.bindings = bindings
-                this.checkGraphicsShaderBindings(bindings)
-            }
-            else if (stage === WgslShaderStage.Fragment) {
-                let params = this.renderPipelineParams[currentRenderPipelineParamsId]
-                params.fragment.code = wgsl
-                params.fragment.bindings = bindings
-                this.checkGraphicsShaderBindings(bindings)
-
-                params.bindings = params.getBindings()
-                taskParams.push(params)
-                currentRenderPipelineParamsId++;
-            }
-            // console.log(wgsl)
-        }
-        this.nativeKernel.delete()
-        this.irBuilder.delete()
+        let returnBytes = 0
         let returnType = new VoidType()
         if (this.returnValue !== null) {
             returnType = this.returnValue!.getType()
+            returnBytes = returnType.getPrimitivesList().length * 4
         }
+
+        let taskParams: (TaskParams | RenderPipelineParams)[] = []
+        let currentRenderPipelineParamsId = 0
+
+        for (let i = 0; i < offloadedModules.length; ++i) {
+            let offload = offloadedModules[i]
+            let bindingPointBegin = 0
+            if (offload.type === OffloadType.Fragment) {
+                bindingPointBegin = this.renderPipelineParams[currentRenderPipelineParamsId].vertex.bindings.length
+            }
+            let codegen = new CodegenVisitor(Program.getCurrentProgram().runtime!, offload, argBytes, returnBytes, bindingPointBegin)
+            let params = codegen.generate()
+            if (Program.getCurrentProgram().options.printWGSL) {
+                console.log(params.code)
+            }
+            switch (offload.type) {
+                case OffloadType.Serial:
+                case OffloadType.Compute: {
+                    taskParams.push(params as TaskParams)
+                    break
+                }
+                case OffloadType.Vertex: {
+                    let pipeline = this.renderPipelineParams[currentRenderPipelineParamsId]
+                    this.checkGraphicsShaderBindings(params.bindings)
+                    pipeline.vertex = params as VertexShaderParams
+                    break
+                }
+                case OffloadType.Fragment: {
+                    let pipeline = this.renderPipelineParams[currentRenderPipelineParamsId]
+                    this.checkGraphicsShaderBindings(params.bindings)
+                    pipeline.fragment = params as FragmentShaderParams
+                    pipeline.bindings = pipeline.getBindings()
+                    taskParams.push(pipeline)
+                    currentRenderPipelineParamsId++;
+                    break
+                }
+                default: {
+                    error("unrecgnized offload type")
+                }
+            }
+        }
+
         return new KernelParams(taskParams, this.kernelArgTypes, returnType, this.renderPassParams)
     }
 
@@ -1827,7 +1801,7 @@ export class KernelCompiler extends CompilingVisitor {
             let val = new Value(type, [])
             let prims = type.getPrimitivesList()
             for (let prim of prims) {
-                val.stmts.push(this.irBuilder.create_arg_load(argStmtId++, toNativePrimitiveType(prim), false))
+                val.stmts.push(this.irBuilder.create_arg_load(prim, argStmtId++))
             }
             let symbol = this.getNodeSymbol(args[i].name)
             this.symbolTable.set(symbol, val)
@@ -1843,16 +1817,11 @@ export class KernelCompiler extends CompilingVisitor {
         }
         if (node.expression) {
             this.returnValue = this.derefIfPointer(this.extractVisitorResult(this.dispatchVisit(node.expression)))
-            let returnStmtsVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
-            for (let stmt of this.returnValue.stmts) {
-                returnStmtsVec.push_back(stmt)
-            }
-            this.irBuilder.create_return_vec(returnStmtsVec)
+            this.irBuilder.create_return_vec(this.returnValue.stmts.slice())
         }
         else {
             this.returnValue = new Value(new VoidType())
-            let returnStmtsVec: NativeTaichiAny = new nativeTaichi.VectorOfStmtPtr()
-            this.irBuilder.create_return_vec(returnStmtsVec)
+            this.irBuilder.create_return_vec(this.returnValue.stmts)
         }
     }
 

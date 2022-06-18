@@ -1,7 +1,6 @@
 import * as ts from "typescript";
 import { ASTVisitor, VisitorResult } from "./ast/Visiter";
 import { ResourceBinding, KernelParams, RenderPipelineParams, RenderPassParams } from "../../runtime/Kernel";
-import { NativeTaichiAny } from "../../native/taichi/GetTaichi";
 import { Scope } from "./Scope";
 import { TextureBase } from "../../data/Texture";
 import { Type, PrimitiveType } from "./Type";
@@ -9,6 +8,7 @@ import { Value } from "./Value";
 import { BuiltinOp, BuiltinAtomicOp } from "./BuiltinOp";
 import { ResultOrError } from "./Error";
 import { ParsedFunction } from "./ParsedFunction";
+import { IRBuilder } from "../ir/Builder";
 declare enum LoopKind {
     For = 0,
     While = 1,
@@ -17,15 +17,14 @@ declare enum LoopKind {
 }
 declare type SymbolTable = Map<ts.Symbol, Value>;
 declare class CompilingVisitor extends ASTVisitor<Value> {
-    protected irBuilder: NativeTaichiAny;
+    protected irBuilder: IRBuilder;
     protected builtinOps: Map<string, BuiltinOp>;
     protected atomicOps: Map<string, BuiltinAtomicOp>;
-    constructor(irBuilder: NativeTaichiAny, builtinOps: Map<string, BuiltinOp>, atomicOps: Map<string, BuiltinAtomicOp>);
+    constructor(irBuilder: IRBuilder, builtinOps: Map<string, BuiltinOp>, atomicOps: Map<string, BuiltinAtomicOp>);
     protected kernelScope: Scope;
     protected templatedValues: Scope;
     protected symbolTable: SymbolTable;
     protected parsedFunction: ParsedFunction | null;
-    compilationResultName: string | null;
     returnValue: Value | null;
     protected loopStack: LoopKind[];
     protected branchDepth: number;
@@ -95,7 +94,7 @@ declare class CompilingVisitor extends ASTVisitor<Value> {
 }
 export declare class InliningCompiler extends CompilingVisitor {
     funcName: string;
-    constructor(irBuilder: NativeTaichiAny, builtinOps: Map<string, BuiltinOp>, atomicOps: Map<string, BuiltinAtomicOp>, funcName: string);
+    constructor(irBuilder: IRBuilder, builtinOps: Map<string, BuiltinOp>, atomicOps: Map<string, BuiltinAtomicOp>, funcName: string);
     argValues: Value[];
     runInlining(parsedFunction: ParsedFunction, kernelScope: Scope, argValues: Value[], parentFunctionSymbolTable?: SymbolTable | null): Value | null;
     protected registerArguments(args: ts.NodeArray<ts.ParameterDeclaration>): void;
@@ -106,7 +105,6 @@ export declare class InliningCompiler extends CompilingVisitor {
 }
 export declare class KernelCompiler extends CompilingVisitor {
     constructor();
-    nativeKernel: NativeTaichiAny;
     kernelArgTypes: Type[];
     argTypesMap: Map<string, Type>;
     templateArgumentValues: Map<string, any> | null;

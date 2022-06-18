@@ -1,9 +1,9 @@
 import { Type, PrimitiveType } from "./Type";
-import { NativeTaichiAny } from "../../native/taichi/GetTaichi";
+import { Stmt } from "../ir/Stmt";
 export declare class Value {
-    stmts: NativeTaichiAny[];
+    stmts: Stmt[];
     compileTimeConstants: number[];
-    constructor(type: Type, stmts?: NativeTaichiAny[], // CHI IR Stmts
+    constructor(type: Type, stmts?: Stmt[], // CHI IR Stmts
     compileTimeConstants?: number[]);
     hostSideValue: any;
     private type_;
@@ -11,8 +11,8 @@ export declare class Value {
     isCompileTimeConstant(): boolean;
 }
 export declare class ValueUtils {
-    static makeScalar(stmt: NativeTaichiAny, primitiveType: PrimitiveType): Value;
-    static makeConstantScalar(val: number, stmt: NativeTaichiAny, primitiveType: PrimitiveType): Value;
+    static makeScalar(stmt: Stmt, primitiveType: PrimitiveType): Value;
+    static makeConstantScalar(val: number, stmt: Stmt, primitiveType: PrimitiveType): Value;
     static getVectorComponents(vec: Value): Value[];
     static getMatrixComponents(mat: Value): Value[][];
     static getMatrixRowVectors(mat: Value): Value[];

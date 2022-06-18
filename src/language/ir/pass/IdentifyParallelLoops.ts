@@ -20,5 +20,4 @@ class IdentifyParallelLoopsPass extends IRVisitor {
 export function identifyParallelLoops(module: IRModule) {
     let pass = new IdentifyParallelLoopsPass()
     pass.visitModule(module)
-    return module
 }

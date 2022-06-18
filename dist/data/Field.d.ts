@@ -1,14 +1,12 @@
 import type { SNodeTree } from './SNodeTree';
-import { NativeTaichiAny } from "../native/taichi/GetTaichi";
 import { Type } from "../language/frontend/Type";
 declare class Field {
     snodeTree: SNodeTree;
     offsetBytes: number;
     sizeBytes: number;
     dimensions: number[];
-    placeNodes: NativeTaichiAny[];
     elementType: Type;
-    constructor(snodeTree: SNodeTree, offsetBytes: number, sizeBytes: number, dimensions: number[], placeNodes: NativeTaichiAny[], elementType: Type);
+    constructor(snodeTree: SNodeTree, offsetBytes: number, sizeBytes: number, dimensions: number[], elementType: Type);
     toArray1D(): Promise<number[]>;
     toInt32Array(): Promise<number[]>;
     private ensureMaterialized;

@@ -1,13 +1,16 @@
 import { Runtime } from "../runtime/Runtime";
 import { SNodeTree } from "../data/SNodeTree";
-import { NativeTaichiAny } from "../native/taichi/GetTaichi";
 import { Scope } from "../language/frontend/Scope";
 import { TextureBase } from "../data/Texture";
+export interface ProgramOptions {
+    printIR: boolean;
+    printWGSL: boolean;
+}
 declare class Program {
+    options: ProgramOptions;
+    init(options?: ProgramOptions): Promise<void>;
     runtime: Runtime | null;
     partialTree: SNodeTree;
-    nativeProgram: NativeTaichiAny;
-    nativeAotBuilder: NativeTaichiAny;
     kernelScope: Scope;
     private static instance;
     private constructor();

@@ -1,17 +1,14 @@
 import { DepthTexture, getTextureCoordsNumComponents, TextureDimensionality } from "../../data/Texture";
 import { Program } from "../../program/Program";
-import { ResourceBinding, ResourceInfo, ResourceType } from "../../runtime/Kernel";
+import { FragmentShaderParams, ResourceBinding, ResourceInfo, ResourceType, TaskParams, VertexShaderParams } from "../../runtime/Kernel";
 import { Runtime } from "../../runtime/Runtime";
 import { assert, error } from "../../utils/Logging";
+import { StringBuilder } from "../../utils/StringBuilder";
 import { divUp } from "../../utils/Utils";
 import { PrimitiveType } from "../frontend/Type";
-import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, AtomicOpType, BinaryOpStmt, BinaryOpType, BuiltInInputKind, BuiltInInputStmt, BuiltInOutputKind, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeDirection, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, StmtKind, TextureFunctionKind, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "../ir/Stmt";
+import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, AtomicOpType, BinaryOpStmt, BinaryOpType, BuiltInInputKind, BuiltInInputStmt, BuiltInOutputKind, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeDirection, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, getPointedType, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, StmtKind, TextureFunctionKind, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "../ir/Stmt";
 import { IRVisitor } from "../ir/Visitor";
 import { ComputeModule, OffloadedModule, OffloadType } from "./Offload";
-
-export interface CodegenResult {
-    code: string
-}
 
 class ResourceBindingMap {
     bindings: ResourceBinding[] = []
@@ -37,21 +34,6 @@ class ResourceBindingMap {
     }
     size() {
         return this.bindings.length
-    }
-}
-
-class StringBuilder {
-    parts: string[] = []
-    write(...args: (string | number)[]) {
-        for (let a of args) {
-            this.parts.push(a.toString())
-        }
-    }
-    getString() {
-        return this.parts.join()
-    }
-    empty() {
-        return this.parts.length === 0
     }
 }
 
@@ -155,11 +137,11 @@ export class CodegenVisitor extends IRVisitor {
                     }
                     return `i32(${operand} == ${zero})`
                 }
-                case UnaryOpType.logic_not: {
+                case UnaryOpType.bit_not: {
                     return `(~(${operand}))`
                 }
                 default: {
-                    error("unhandled unary op")
+                    error("unhandled unary op ", op)
                     return "error"
                 }
             }
@@ -173,6 +155,7 @@ export class CodegenVisitor extends IRVisitor {
         let lhs = stmt.getLeft().getName()
         let rhs = stmt.getRight().getName()
         let op = stmt.op
+        let dt = stmt.getReturnType()
 
         let getValue = () => {
             switch (op) {
@@ -181,7 +164,6 @@ export class CodegenVisitor extends IRVisitor {
                 case BinaryOpType.sub: return `(${lhs} - ${rhs})`
                 case BinaryOpType.truediv: return `(f32(${lhs}) / f32(${rhs}))`
                 case BinaryOpType.floordiv: return `i32(${lhs} / ${rhs})`
-                case BinaryOpType.div: return `(${lhs} / ${rhs})`
                 case BinaryOpType.mod: return `(${lhs} % ${rhs})`
                 case BinaryOpType.max: return `max(${lhs}, ${rhs})`
                 case BinaryOpType.min: return `min(${lhs}, ${rhs})`
@@ -189,7 +171,7 @@ export class CodegenVisitor extends IRVisitor {
                 case BinaryOpType.bit_or: return `(${lhs} | ${rhs})`
                 case BinaryOpType.bit_xor: return `(${lhs} ^ ${rhs})`
                 case BinaryOpType.bit_shl: return `(${lhs} << u32(${rhs}))`
-                case BinaryOpType.bit_shr: return `(${lhs} >> u32(${rhs}))`
+                case BinaryOpType.bit_shr: return `(u32(${lhs}) >> u32(${rhs}))`
                 case BinaryOpType.bit_sar: return `(${lhs} >> u32(${rhs}))`
                 case BinaryOpType.cmp_lt: return `(${lhs} < ${rhs})`
                 case BinaryOpType.cmp_le: return `(${lhs} <= ${rhs})`
@@ -198,15 +180,32 @@ export class CodegenVisitor extends IRVisitor {
                 case BinaryOpType.cmp_eq: return `(${lhs} == ${rhs})`
                 case BinaryOpType.cmp_ne: return `(${lhs} != ${rhs})`
                 case BinaryOpType.atan2: return `atan2(f32(${lhs}), f32(${rhs}))`
-                case BinaryOpType.pow: return `pow(${lhs}, ${rhs})`
                 case BinaryOpType.logical_or: return `(${lhs} | ${rhs})`
                 case BinaryOpType.logical_and: return `(${lhs} & ${rhs})`
+                case BinaryOpType.pow: {
+                    // pow is special because
+                    // 1. for integer LHS and RHS, result is integer
+                    // 2. WGSL only has float version
+                    // so we round the result if the inputs are ints
+                    switch (dt) {
+                        case PrimitiveType.i32: {
+                            return `round(pow(f32(${lhs}), f32(${rhs})))`
+                        }
+                        case PrimitiveType.f32: {
+                            return `pow(f32(${lhs}), f32(${rhs}))`
+                        }
+                        default: {
+                            error("unrecgnized prim type")
+                            return "error"
+                        }
+                    }
+                }
             }
         }
         let value = getValue()
-        let dt = this.getPrimitiveTypeName(stmt.getReturnType())
-        this.emitLet(stmt.getName(), dt)
-        this.body.write(`${dt}(${value});\n`)
+        let dtName = this.getPrimitiveTypeName(dt)
+        this.emitLet(stmt.getName(), dtName)
+        this.body.write(`${dtName}(${value});\n`)
     }
 
     override visitRangeForStmt(stmt: RangeForStmt): void {
@@ -214,7 +213,7 @@ export class CodegenVisitor extends IRVisitor {
         this.body.write("0;\n");
         this.body.write(this.getIndentation(), "loop {\n")
         this.indent()
-        this.body.write(this.getIndentation(), `if (${stmt.getName()} >= ${stmt.getRange().getName()}) { break; }`)
+        this.body.write(this.getIndentation(), `if (${stmt.getName()} >= ${stmt.getRange().getName()}) { break; }\n`)
 
         this.visitBlock(stmt.body)
 
@@ -224,7 +223,7 @@ export class CodegenVisitor extends IRVisitor {
     }
 
     override visitIfStmt(stmt: IfStmt): void {
-        this.body.write(this.getIndentation(), `if (bool(${stmt.getCondition()})) {\n`)
+        this.body.write(this.getIndentation(), `if (bool(${stmt.getCondition().getName()})) {\n`)
         this.indent()
         this.visitBlock(stmt.trueBranch)
         this.dedent()
@@ -242,15 +241,8 @@ export class CodegenVisitor extends IRVisitor {
     }
 
     override visitContinueStmt(stmt: ContinueStmt): void {
-        if (stmt.parentBlock === this.offload.block) {
-            // then this parallel task is done;
-            this.body.write(this.getIndentation(), "ii = ii + total_invocs;\n");
-            // continue in grid-strided loop;
-            this.body.write(this.getIndentation(), "continue;\n");
-        }
-        else {
-            this.body.write(this.getIndentation(), "continue;\n");
-        }
+        // the `continuing` block means that this will work for both normal loops and grid-strided loops
+        this.body.write(this.getIndentation(), "continue;\n");
     }
 
     override visitWhileStmt(stmt: WhileStmt): void {
@@ -288,9 +280,9 @@ export class CodegenVisitor extends IRVisitor {
         let dtName = this.getPrimitiveTypeName(stmt.getValue().getReturnType())
         let outputName = `out_${loc}_${dtName}`
         this.ensureStageOutStruct()
-        let flat = stmt.getReturnType() == PrimitiveType.i32
+        let flat = stmt.getValue().getReturnType() == PrimitiveType.i32
         this.addStageOutMember(outputName, dtName, loc, flat)
-        this.body.write(`stage_output.${outputName} = ${stmt.getValue().getName()};\n`);
+        this.body.write(this.getIndentation(), `stage_output.${outputName} = ${stmt.getValue().getName()};\n`);
     }
 
     override visitBuiltInOutputStmt(stmt: BuiltInOutputStmt): void {
@@ -304,17 +296,17 @@ export class CodegenVisitor extends IRVisitor {
             case BuiltInOutputKind.Color: {
                 let loc = stmt.location!
                 outputName = `color_${loc}`
-                this.addStageOutMember(outputExpr, typeName, loc, false)
+                this.addStageOutMember(outputName, typeName, loc, false)
                 break;
             }
             case BuiltInOutputKind.Position: {
                 outputName = `position`
-                this.addStageOutBuiltinMember(outputExpr, typeName, "position")
+                this.addStageOutBuiltinMember(outputName, typeName, "position")
                 break;
             }
             case BuiltInOutputKind.FragDepth: {
                 outputName = `frag_depth`
-                this.addStageOutBuiltinMember(outputExpr, typeName, "frag_depth")
+                this.addStageOutBuiltinMember(outputName, typeName, "frag_depth")
                 break;
             }
             default:
@@ -351,13 +343,13 @@ export class CodegenVisitor extends IRVisitor {
                 break;
             }
             case FragmentDerivativeDirection.y: {
-                this.body.write("dydxFine")
+                this.body.write("dpdyFine")
                 break;
             }
             default:
                 error("unrecognized direction")
         }
-        this.body.write(`(${stmt.getName()});\n`)
+        this.body.write(`(${stmt.getValue().getName()});\n`)
     }
 
     override visitDiscardStmt(stmt: DiscardStmt): void {
@@ -399,9 +391,10 @@ export class CodegenVisitor extends IRVisitor {
             let samplerResource = new ResourceInfo(ResourceType.Sampler, texture.textureId)
             samplerName = this.getSamplerName(samplerResource)
         }
-        let coordsPrimType = stmt.getCoordinates()[0].getReturnType()
         let coordsComponentCount = getTextureCoordsNumComponents(texture.getTextureDimensionality())
-        assert(coordsComponentCount === stmt.getCoordinates().length, "component count mismatch")
+        assert(coordsComponentCount === stmt.getCoordinates().length, "component count mismatch", stmt)
+
+        let coordsPrimType = stmt.getCoordinates()[0].getReturnType()
         let coordsTypeName = this.getScalarOrVectorTypeName(coordsPrimType, coordsComponentCount)
 
         let coordsExpr = this.getScalarOrVectorExpr(stmt.getCoordinates(), coordsTypeName)
@@ -426,7 +419,7 @@ export class CodegenVisitor extends IRVisitor {
                 let valuePrimType = stmt.getAdditionalOperands()[0].getReturnType()
                 let valueTypeName = this.getScalarOrVectorTypeName(valuePrimType, stmt.getAdditionalOperands().length)
                 let valueExpr = this.getScalarOrVectorExpr(stmt.getAdditionalOperands(), valueTypeName)
-                this.body.write(this.getIndentation(), `textureStore(${textureName}, ${coordsExpr}, ${valueExpr})`)
+                this.body.write(this.getIndentation(), `textureStore(${textureName}, ${coordsExpr}, ${valueExpr});\n`)
                 break;
             }
             default: {
@@ -468,7 +461,7 @@ export class CodegenVisitor extends IRVisitor {
         let dt = stmt.getReturnType()
         let dtName = this.getPrimitiveTypeName(dt)
         let bufferName = this.getBufferMemberName(new ResourceInfo(ResourceType.Args))
-        if (!this.enforce16BytesAlignment) {
+        if (!this.enforce16BytesAlignment()) {
             this.emitLet(stmt.getName(), dtName)
             this.body.write(`bitcast<${dtName}>(${bufferName}[${argId}]);\n`)
         }
@@ -514,7 +507,7 @@ export class CodegenVisitor extends IRVisitor {
     override visitLocalLoadStmt(stmt: LocalLoadStmt): void {
         let dt = stmt.getReturnType()
         this.emitLet(stmt.getName(), dt)
-        this.body.write(stmt.getPointer().getName())
+        this.body.write(stmt.getPointer().getName(), ";\n")
     }
 
     override visitLocalStoreStmt(stmt: LocalStoreStmt): void {
@@ -524,11 +517,17 @@ export class CodegenVisitor extends IRVisitor {
     override visitGlobalPtrStmt(stmt: GlobalPtrStmt): void {
         let field = stmt.field
         let indices = stmt.getIndices()
-        let index = `${field.elementType.getPrimitivesList().length}`
-        for (let i of indices) {
-            index += ` * ${i.getName()}`
+        assert(indices.length === field.dimensions.length, "global ptr dimension mismatch")
+        let elementIndex = ""
+        let currStride = 1
+        for (let i = field.dimensions.length - 1; i >= 0; --i) {
+            elementIndex += `${currStride} * ${indices[i].getName()}`
+            if (i > 0) {
+                elementIndex += " + "
+            }
+            currStride *= field.dimensions[i]
         }
-        index += `${stmt.offsetInElement}`
+        let index = `${field.offsetBytes / 4} + ${field.elementType.getPrimitivesList().length} * (${elementIndex}) + ${stmt.offsetInElement}`
         this.emitLet(stmt.getName(), this.getPointerIntTypeName())
         this.body.write(index, ";\n");
     }
@@ -551,7 +550,7 @@ export class CodegenVisitor extends IRVisitor {
         let bufferName = this.getBufferMemberName(resourceInfo)
         let dt = stmt.getReturnType()
         let dtName = this.getPrimitiveTypeName(dt)
-        if (!this.enforce16BytesAlignment) {
+        if (!this.enforce16BytesAlignment()) {
             this.emitLet(stmt.getName(), dt)
             this.body.write(`bitcast<${dtName}>(${bufferName}[${ptr.getName()}]);\n`)
         }
@@ -575,8 +574,8 @@ export class CodegenVisitor extends IRVisitor {
             resourceInfo = new ResourceInfo(ResourceType.GlobalTmps)
         }
         let bufferName = this.getBufferMemberName(resourceInfo)
-        if (!this.enforce16BytesAlignment) {
-            this.body.write(`${bufferName}[${ptr.getName()}] = bitcast<${this.getRawDataTypeName()}>(${stmt.getValue().getName()});\n`)
+        if (!this.enforce16BytesAlignment()) {
+            this.body.write(this.getIndentation(), `${bufferName}[${ptr.getName()}] = bitcast<${this.getRawDataTypeName()}>(${stmt.getValue().getName()});\n`)
         }
         else {
             error("global store cannot be used when enforcing 16 byte alignment")
@@ -600,7 +599,7 @@ export class CodegenVisitor extends IRVisitor {
     }
 
     override visitAtomicOpStmt(stmt: AtomicOpStmt): void {
-        let dt = stmt.getOperand().getReturnType()
+        let dt = getPointedType(stmt.getDestination())
         let dtName = this.getPrimitiveTypeName(dt)
         let resourceInfo: ResourceInfo
         let dest = stmt.getDestination()
@@ -617,7 +616,7 @@ export class CodegenVisitor extends IRVisitor {
 
 
         let result = this.getTemp("atomic_op_result");
-        this.body.write(`var ${result} : ${dtName};\n`)
+        this.body.write(this.getIndentation(), `var ${result} : ${dtName};\n`)
         let ptr = `&(${bufferName}[${stmt.getDestination().getName()}])`
         switch (dt) {
             case PrimitiveType.i32: {
@@ -706,7 +705,7 @@ export class CodegenVisitor extends IRVisitor {
 
                 let newVal = this.getTemp("new_val");
                 this.emitLet(newVal, "f32")
-                this.body.write(`${newVal};\n`)
+                this.body.write(`${newValExpr};\n`)
 
                 this.body.write(this.getIndentation(), `if(atomicCompareExchangeWeak(${ptr}, bitcast<i32>(${oldVal}), bitcast<i32>(${newVal})).y!=0){\n`)
                 this.indent()
@@ -746,24 +745,30 @@ export class CodegenVisitor extends IRVisitor {
         error(" this should have been offloaded")
     }
 
-    generateSerialKernel() {
+    generateSerialKernel(): TaskParams {
         this.startComputeFunction(1)
         this.visitBlock(this.offload.block)
+        return new TaskParams(this.assembleShader(), 1, 1, this.resourceBindings.bindings)
     }
 
     generateRangeForKernel() {
         let blockSize = 128
+        let numWorkgroups = 512
 
         let offload = this.offload as ComputeModule
         let endExpr = ""
         if (offload.hasConstRange) {
             endExpr = `${offload.rangeArg}`
+            numWorkgroups = divUp(offload.rangeArg, blockSize)
         }
         else {
             let resource = new ResourceInfo(ResourceType.GlobalTmps)
             let buffer = this.getBufferMemberName(resource)
             endExpr = `${buffer}[${offload.rangeArg}]`
         }
+
+        this.startComputeFunction(blockSize)
+
         let end = this.getTemp("end")
         this.emitLet(end, "i32")
         this.body.write(`${endExpr};\n`)
@@ -778,42 +783,40 @@ export class CodegenVisitor extends IRVisitor {
         this.body.write(this.getIndentation(), "loop {\n")
         this.indent()
 
-        this.body.write(this.getIndentation(), `if(ii >= ${end}) { break; }`)
+        this.body.write(this.getIndentation(), `if(ii >= ${end}) { break; }\n`)
         this.visitBlock(this.offload.block)
-        this.body.write(this.getIndentation(), `ii = ii + ${totalInvocs};\n`)
+        this.body.write(this.getIndentation(), `continuing { ii = ii + ${totalInvocs}; }\n`)
 
         this.dedent()
         this.body.write(this.getIndentation(), "}\n")
+        return new TaskParams(this.assembleShader(), blockSize, numWorkgroups, this.resourceBindings.bindings)
     }
 
     generateVertexForKernel() {
-        this.emitGraphicsFunction()
+        this.visitBlock(this.offload.block)
+        this.startGraphicsFunction()
+        return new VertexShaderParams(this.assembleShader(), this.resourceBindings.bindings)
     }
 
     generateFragmentForKernel() {
-        this.emitGraphicsFunction()
+        this.visitBlock(this.offload.block)
+        this.startGraphicsFunction()
+        return new FragmentShaderParams(this.assembleShader(), this.resourceBindings.bindings)
     }
 
     generate() {
         switch (this.offload.type) {
             case OffloadType.Serial: {
-                this.generateSerialKernel()
-                break;
+                return this.generateSerialKernel()
             }
             case OffloadType.Compute: {
-                this.generateRangeForKernel()
-                break;
+                return this.generateRangeForKernel()
             }
             case OffloadType.Vertex: {
-                this.generateVertexForKernel()
-                break;
+                return this.generateVertexForKernel()
             }
             case OffloadType.Fragment: {
-                this.generateFragmentForKernel()
-                break;
-            }
-            default: {
-                error("unrecognized offload type")
+                return this.generateFragmentForKernel()
             }
         }
     }
@@ -913,7 +916,7 @@ fn main(
         this.functionEnd.write("}\n")
     }
 
-    emitGraphicsFunction() {
+    startGraphicsFunction() {
         assert(this.funtionSignature.empty(), "already has a signature")
         let stageName = ""
         let builtInInput = ""
@@ -943,8 +946,6 @@ fn main(
 @stage(${stageName})
 fn main(${builtInInput} ${stageInput}) ${maybeOutput}
 {
-
-)
 `
         this.funtionSignature.write(signature)
         this.functionEnd.write("\n}\n")
@@ -1169,7 +1170,7 @@ var<${storageAndAcess}> ${name}: ${name}_type;
     }
 
     getBufferMemberName(buffer: ResourceInfo) {
-        return this.getBufferName(buffer) + ".name"
+        return this.getBufferName(buffer) + ".member"
     }
 
     getTextureName(textureInfo: ResourceInfo) {
@@ -1299,7 +1300,7 @@ struct RandState{
         let randStatesMemberName = this.getBufferMemberName(new ResourceInfo(ResourceType.RandStates))
         let randFuncs = `
 fn rand_u32(id: u32) -> u32 {
-    var state : RandState = STATES[id];
+    var state : RandState = ${randStatesMemberName}[id];
     if(state.x == 0u && state.y == 0u && state.z == 0u && state.w == 0u){
         state.x = 123456789u * id * 1000000007u;
         state.y = 362436069u;

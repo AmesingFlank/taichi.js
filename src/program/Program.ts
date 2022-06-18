@@ -1,24 +1,38 @@
 import { Runtime } from "../runtime/Runtime"
 import { SNodeTree } from "../data/SNodeTree"
-import { nativeTaichi, NativeTaichiAny } from "../native/taichi/GetTaichi"
 import { Scope } from "../language/frontend/Scope"
-import { DepthTexture, TextureBase, toNativeImageDimensionality } from "../data/Texture"
-import { PrimitiveType, toNativePrimitiveType } from "../language/frontend/Type"
+import { DepthTexture, TextureBase } from "../data/Texture"
+import { PrimitiveType } from "../language/frontend/Type"
+
+
+export interface ProgramOptions {
+    printIR: boolean
+    printWGSL: boolean
+}
 
 class Program {
+    options: ProgramOptions = {
+        printIR: false,
+        printWGSL: false
+    }
+    async init(options?: ProgramOptions) {
+        if (options && options.printIR !== undefined) {
+            this.options.printIR = options.printIR
+        }
+        if (options && options.printWGSL !== undefined) {
+            this.options.printWGSL = options.printWGSL
+        }
+        await this.materializeRuntime()
+    }
+
     runtime: Runtime | null = null
-    
+
     partialTree: SNodeTree
 
-    nativeProgram: NativeTaichiAny
-    nativeAotBuilder: NativeTaichiAny
     kernelScope: Scope
 
     private static instance: Program
     private constructor() {
-        let arch = nativeTaichi.Arch.webgpu
-        this.nativeProgram = new nativeTaichi.Program(arch)
-        this.nativeAotBuilder = this.nativeProgram.make_aot_module_builder(arch);
         this.partialTree = new SNodeTree()
         this.partialTree.treeId = 0
         this.kernelScope = new Scope()
@@ -30,7 +44,6 @@ class Program {
         }
         return Program.instance
     }
-
 
     async materializeRuntime() {
         if (!this.runtime) {
@@ -46,8 +59,7 @@ class Program {
         if (this.runtime == null) {
             this.materializeRuntime()
         }
-        this.nativeProgram.add_snode_tree(this.partialTree.nativeTreeRoot, true)
-        this.runtime!.materializeTree(this.partialTree) 
+        this.runtime!.materializeTree(this.partialTree)
         let nextId = this.partialTree.treeId + 1
         this.partialTree = new SNodeTree()
         this.partialTree.treeId = nextId
@@ -57,12 +69,6 @@ class Program {
         let id = this.runtime!.textures.length
         texture.textureId = id;
         this.runtime!.addTexture(texture)
-
-        let dim = toNativeImageDimensionality(texture.getTextureDimensionality())
-        let depth = texture instanceof DepthTexture
-        let format = texture.getGPUTextureFormat() as string
-        let params = new nativeTaichi.TextureParams(toNativePrimitiveType(PrimitiveType.f32), dim, depth, format)
-        texture.nativeTexture = this.nativeProgram.add_texture(params, true)
     }
 
     addToKernelScope(obj: any) {
@@ -71,7 +77,7 @@ class Program {
         }
     }
 
-    clearKernelScope(){
+    clearKernelScope() {
         this.kernelScope = new Scope()
     }
 

@@ -9,7 +9,7 @@ async function testRets(): Promise<boolean> {
 
     let scalar = 1
     let vector = [2, 3]
-    let matrix = [4, 5]
+    let matrix = [[4, 5]]
     let struct = {
         s: 6.6,
         v: [7.7, 8.8]

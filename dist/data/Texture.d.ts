@@ -1,11 +1,9 @@
 /// <reference types="dist" />
-import { NativeTaichiAny } from "../native/taichi/GetTaichi";
 export declare enum TextureDimensionality {
     Dim2d = 0,
     Dim3d = 1,
     DimCube = 2
 }
-export declare function toNativeImageDimensionality(dim: TextureDimensionality): NativeTaichiAny;
 export declare function getTextureCoordsNumComponents(dim: TextureDimensionality): number;
 export declare abstract class TextureBase {
     abstract getGPUTextureFormat(): GPUTextureFormat;
@@ -15,7 +13,6 @@ export declare abstract class TextureBase {
     abstract getGPUSampler(): GPUSampler;
     abstract getTextureDimensionality(): TextureDimensionality;
     textureId: number;
-    nativeTexture: NativeTaichiAny;
     sampleCount: number;
 }
 export declare enum WrapMode {

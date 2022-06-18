@@ -1,6 +1,7 @@
-import { Type, PrimitiveType, TypeError } from "./Type";
-import { NativeTaichiAny } from "../../native/taichi/GetTaichi";
+import { Type, TypeError } from "./Type";
 import { Value } from "./Value";
+import { AtomicOpType, BinaryOpType, UnaryOpType } from "../ir/Stmt";
+import { IRBuilder } from "../ir/Builder";
 declare class BuiltinOp {
     name: string;
     arity: number;
@@ -16,29 +17,21 @@ declare class BuiltinNullaryOp extends BuiltinOp {
     apply(args: Value[]): Value;
 }
 declare class BuiltinUnaryOp extends BuiltinOp {
-    forceReturnType: PrimitiveType | null;
-    f: (stmt: NativeTaichiAny) => NativeTaichiAny;
+    irBuilder: IRBuilder;
+    op: UnaryOpType;
     fConst: ((val: number) => number) | null;
-    constructor(name: string, forceReturnType: PrimitiveType | null, f: (stmt: NativeTaichiAny) => NativeTaichiAny, fConst?: ((val: number) => number) | null);
+    constructor(name: string, irBuilder: IRBuilder, op: UnaryOpType, fConst?: ((val: number) => number) | null);
     checkType(args: Value[]): TypeError;
     apply(args: Value[]): Value;
 }
-declare enum BinaryOpDatatypeTransform {
-    AlwaysF32 = 0,
-    AlwaysI32 = 1,
-    AlwaysVoid = 2,
-    PromoteToMatch = 3,
-    ForceLeft = 4
-}
 declare class BuiltinBinaryOp extends BuiltinOp {
-    dataTypeTransform: BinaryOpDatatypeTransform;
+    irBuilder: IRBuilder;
     allowBroadcastLeftToRight: boolean;
     allowBroadcastRightToLeft: boolean;
-    f: (left: NativeTaichiAny, right: NativeTaichiAny) => (NativeTaichiAny | null);
+    op: BinaryOpType;
     fConst: ((left: number, right: number) => number) | null;
-    constructor(name: string, dataTypeTransform: BinaryOpDatatypeTransform, allowBroadcastLeftToRight: boolean, allowBroadcastRightToLeft: boolean, f: (left: NativeTaichiAny, right: NativeTaichiAny) => (NativeTaichiAny | null), fConst?: ((left: number, right: number) => number) | null);
+    constructor(name: string, irBuilder: IRBuilder, allowBroadcastLeftToRight: boolean, allowBroadcastRightToLeft: boolean, op: BinaryOpType, fConst?: ((left: number, right: number) => number) | null);
     checkType(args: Value[]): TypeError;
-    private getResultPrimitiveType;
     private getResultType;
     apply(args: Value[]): Value;
 }
@@ -50,16 +43,15 @@ declare class BuiltinCustomOp extends BuiltinOp {
     apply(args: Value[]): Value;
 }
 declare class BuiltinAtomicOp extends BuiltinOp {
-    irBuilder: NativeTaichiAny;
-    irBuilderFunc: (dest: NativeTaichiAny, val: NativeTaichiAny) => NativeTaichiAny;
-    constructor(name: string, irBuilder: NativeTaichiAny, // needed for the f32 caster
-    irBuilderFunc: (dest: NativeTaichiAny, val: NativeTaichiAny) => NativeTaichiAny);
+    irBuilder: IRBuilder;
+    op: AtomicOpType;
+    constructor(name: string, irBuilder: IRBuilder, op: AtomicOpType);
     private f32Caster;
     checkType(args: Value[]): TypeError;
     apply(args: Value[]): Value;
 }
 declare class BuiltinOpFactory {
-    static getAtomicOps(irBuilder: NativeTaichiAny): Map<string, BuiltinAtomicOp>;
-    static getBuiltinOps(irBuilder: NativeTaichiAny): Map<string, BuiltinOp>;
+    static getAtomicOps(irBuilder: IRBuilder): Map<string, BuiltinAtomicOp>;
+    static getBuiltinOps(irBuilder: IRBuilder): Map<string, BuiltinOp>;
 }
 export { BuiltinOp, BuiltinNullaryOp, BuiltinBinaryOp, BuiltinUnaryOp, BuiltinAtomicOp, BuiltinCustomOp, BuiltinOpFactory };

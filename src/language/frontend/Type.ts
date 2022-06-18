@@ -1,5 +1,4 @@
 
-import { nativeTaichi, NativeTaichiAny } from "../../native/taichi/GetTaichi"
 import { assert, error } from "../../utils/Logging"
 
 export enum PrimitiveType {
@@ -7,16 +6,6 @@ export enum PrimitiveType {
     f32 = "f32"
 }
 
-export function toNativePrimitiveType(type: PrimitiveType): NativeTaichiAny {
-    switch (type) {
-        case PrimitiveType.i32: {
-            return nativeTaichi.PrimitiveType.i32
-        }
-        case PrimitiveType.f32: {
-            return nativeTaichi.PrimitiveType.f32
-        }
-    }
-}
 
 export enum TypeCategory {
     Scalar = "Scalar",

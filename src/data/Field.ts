@@ -1,5 +1,4 @@
 import type { SNodeTree } from './SNodeTree'
-import { NativeTaichiAny } from "../native/taichi/GetTaichi"
 import { PrimitiveType, Type, TypeUtils } from "../language/frontend/Type"
 import { Program } from "../program/Program"
 import { assert, error } from '../utils/Logging'
@@ -11,7 +10,6 @@ class Field {
         public offsetBytes: number,
         public sizeBytes: number,
         public dimensions: number[],
-        public placeNodes: NativeTaichiAny[],
         public elementType: Type
     ) {
 
@@ -33,7 +31,7 @@ class Field {
         }
     }
 
-    async toInt32Array(): Promise<number[]>{
+    async toInt32Array(): Promise<number[]> {
         let copy = await Program.getCurrentProgram().runtime!.deviceToHost(this);
         return copy.intArray
     }
