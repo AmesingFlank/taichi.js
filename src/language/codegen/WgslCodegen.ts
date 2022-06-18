@@ -1,17 +1,14 @@
 import { DepthTexture, getTextureCoordsNumComponents, TextureDimensionality } from "../../data/Texture";
 import { Program } from "../../program/Program";
-import { ResourceBinding, ResourceInfo, ResourceType } from "../../runtime/Kernel";
+import { FragmentShaderParams, ResourceBinding, ResourceInfo, ResourceType, TaskParams, VertexShaderParams } from "../../runtime/Kernel";
 import { Runtime } from "../../runtime/Runtime";
 import { assert, error } from "../../utils/Logging";
+import { StringBuilder } from "../../utils/StringBuilder";
 import { divUp } from "../../utils/Utils";
 import { PrimitiveType } from "../frontend/Type";
 import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, AtomicOpType, BinaryOpStmt, BinaryOpType, BuiltInInputKind, BuiltInInputStmt, BuiltInOutputKind, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeDirection, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, StmtKind, TextureFunctionKind, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "../ir/Stmt";
 import { IRVisitor } from "../ir/Visitor";
 import { ComputeModule, OffloadedModule, OffloadType } from "./Offload";
-
-export interface CodegenResult {
-    code: string
-}
 
 class ResourceBindingMap {
     bindings: ResourceBinding[] = []
@@ -37,21 +34,6 @@ class ResourceBindingMap {
     }
     size() {
         return this.bindings.length
-    }
-}
-
-class StringBuilder {
-    parts: string[] = []
-    write(...args: (string | number)[]) {
-        for (let a of args) {
-            this.parts.push(a.toString())
-        }
-    }
-    getString() {
-        return this.parts.join()
-    }
-    empty() {
-        return this.parts.length === 0
     }
 }
 
@@ -214,7 +196,7 @@ export class CodegenVisitor extends IRVisitor {
         this.body.write("0;\n");
         this.body.write(this.getIndentation(), "loop {\n")
         this.indent()
-        this.body.write(this.getIndentation(), `if (${stmt.getName()} >= ${stmt.getRange().getName()}) { break; }`)
+        this.body.write(this.getIndentation(), `if (${stmt.getName()} >= ${stmt.getRange().getName()}) { break; }\n`)
 
         this.visitBlock(stmt.body)
 
@@ -468,7 +450,7 @@ export class CodegenVisitor extends IRVisitor {
         let dt = stmt.getReturnType()
         let dtName = this.getPrimitiveTypeName(dt)
         let bufferName = this.getBufferMemberName(new ResourceInfo(ResourceType.Args))
-        if (!this.enforce16BytesAlignment) {
+        if (!this.enforce16BytesAlignment()) {
             this.emitLet(stmt.getName(), dtName)
             this.body.write(`bitcast<${dtName}>(${bufferName}[${argId}]);\n`)
         }
@@ -514,7 +496,7 @@ export class CodegenVisitor extends IRVisitor {
     override visitLocalLoadStmt(stmt: LocalLoadStmt): void {
         let dt = stmt.getReturnType()
         this.emitLet(stmt.getName(), dt)
-        this.body.write(stmt.getPointer().getName())
+        this.body.write(stmt.getPointer().getName(),";\n")
     }
 
     override visitLocalStoreStmt(stmt: LocalStoreStmt): void {
@@ -524,11 +506,17 @@ export class CodegenVisitor extends IRVisitor {
     override visitGlobalPtrStmt(stmt: GlobalPtrStmt): void {
         let field = stmt.field
         let indices = stmt.getIndices()
-        let index = `${field.elementType.getPrimitivesList().length}`
-        for (let i of indices) {
-            index += ` * ${i.getName()}`
+        assert(indices.length === field.dimensions.length, "global ptr dimension mismatch")
+        let elementIndex = ""
+        let currStride = 1
+        for (let i = field.dimensions.length - 1; i >= 0; --i) {
+            elementIndex += `${currStride} * ${indices[i].getName()}`
+            if (i > 0) {
+                elementIndex += " + "
+            }
+            currStride *= field.dimensions[i]
         }
-        index += `${stmt.offsetInElement}`
+        let index = `${field.offsetBytes / 4} + ${field.elementType.getPrimitivesList().length} * (${elementIndex}) + ${stmt.offsetInElement}`
         this.emitLet(stmt.getName(), this.getPointerIntTypeName())
         this.body.write(index, ";\n");
     }
@@ -551,7 +539,7 @@ export class CodegenVisitor extends IRVisitor {
         let bufferName = this.getBufferMemberName(resourceInfo)
         let dt = stmt.getReturnType()
         let dtName = this.getPrimitiveTypeName(dt)
-        if (!this.enforce16BytesAlignment) {
+        if (!this.enforce16BytesAlignment()) {
             this.emitLet(stmt.getName(), dt)
             this.body.write(`bitcast<${dtName}>(${bufferName}[${ptr.getName()}]);\n`)
         }
@@ -575,8 +563,8 @@ export class CodegenVisitor extends IRVisitor {
             resourceInfo = new ResourceInfo(ResourceType.GlobalTmps)
         }
         let bufferName = this.getBufferMemberName(resourceInfo)
-        if (!this.enforce16BytesAlignment) {
-            this.body.write(`${bufferName}[${ptr.getName()}] = bitcast<${this.getRawDataTypeName()}>(${stmt.getValue().getName()});\n`)
+        if (!this.enforce16BytesAlignment()) {
+            this.body.write(this.getIndentation(), `${bufferName}[${ptr.getName()}] = bitcast<${this.getRawDataTypeName()}>(${stmt.getValue().getName()});\n`)
         }
         else {
             error("global store cannot be used when enforcing 16 byte alignment")
@@ -746,24 +734,30 @@ export class CodegenVisitor extends IRVisitor {
         error(" this should have been offloaded")
     }
 
-    generateSerialKernel() {
+    generateSerialKernel(): TaskParams {
         this.startComputeFunction(1)
         this.visitBlock(this.offload.block)
+        return new TaskParams(this.assembleShader(), 1, 1, this.resourceBindings.bindings)
     }
 
     generateRangeForKernel() {
         let blockSize = 128
+        let numWorkgroups = 512
 
         let offload = this.offload as ComputeModule
         let endExpr = ""
         if (offload.hasConstRange) {
             endExpr = `${offload.rangeArg}`
+            numWorkgroups = divUp(offload.rangeArg, blockSize)
         }
         else {
             let resource = new ResourceInfo(ResourceType.GlobalTmps)
             let buffer = this.getBufferMemberName(resource)
             endExpr = `${buffer}[${offload.rangeArg}]`
         }
+
+        this.startComputeFunction(blockSize)
+
         let end = this.getTemp("end")
         this.emitLet(end, "i32")
         this.body.write(`${endExpr};\n`)
@@ -778,42 +772,38 @@ export class CodegenVisitor extends IRVisitor {
         this.body.write(this.getIndentation(), "loop {\n")
         this.indent()
 
-        this.body.write(this.getIndentation(), `if(ii >= ${end}) { break; }`)
+        this.body.write(this.getIndentation(), `if(ii >= ${end}) { break; }\n`)
         this.visitBlock(this.offload.block)
         this.body.write(this.getIndentation(), `ii = ii + ${totalInvocs};\n`)
 
         this.dedent()
         this.body.write(this.getIndentation(), "}\n")
+        return new TaskParams(this.assembleShader(), blockSize, numWorkgroups, this.resourceBindings.bindings)
     }
 
     generateVertexForKernel() {
         this.emitGraphicsFunction()
+        return new VertexShaderParams(this.assembleShader(), this.resourceBindings.bindings)
     }
 
     generateFragmentForKernel() {
         this.emitGraphicsFunction()
+        return new FragmentShaderParams(this.assembleShader(), this.resourceBindings.bindings)
     }
 
     generate() {
         switch (this.offload.type) {
             case OffloadType.Serial: {
-                this.generateSerialKernel()
-                break;
+                return this.generateSerialKernel()
             }
             case OffloadType.Compute: {
-                this.generateRangeForKernel()
-                break;
+                return this.generateRangeForKernel()
             }
             case OffloadType.Vertex: {
-                this.generateVertexForKernel()
-                break;
+                return this.generateVertexForKernel()
             }
             case OffloadType.Fragment: {
-                this.generateFragmentForKernel()
-                break;
-            }
-            default: {
-                error("unrecognized offload type")
+                return this.generateFragmentForKernel()
             }
         }
     }
@@ -1169,7 +1159,7 @@ var<${storageAndAcess}> ${name}: ${name}_type;
     }
 
     getBufferMemberName(buffer: ResourceInfo) {
-        return this.getBufferName(buffer) + ".name"
+        return this.getBufferName(buffer) + ".member"
     }
 
     getTextureName(textureInfo: ResourceInfo) {

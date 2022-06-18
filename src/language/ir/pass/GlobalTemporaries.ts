@@ -164,9 +164,15 @@ export function insertGlobalTemporaries(module: IRModule) {
     alloc.visitModule(module)
     let allocations = alloc.gtempsAllocation
 
+    //console.log("allocated gtemps")
+
     let replace = new ReplaceGtempPass(allocations)
     replace.transform(module)
 
+    //console.log("replaced gtemps")
+
     let loopRange = new LoopRangeGtempPass(allocations.size)
     loopRange.transform(module)
+
+    //console.log("loop range gtemp")
 }

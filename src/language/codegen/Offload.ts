@@ -1,6 +1,6 @@
 import { assert, error } from "../../utils/Logging";
 import { Guard } from "../ir/Builder";
-import { ConstStmt, ContinueStmt, FragmentForStmt, GlobalTemporaryLoadStmt, IRModule, RangeForStmt, Stmt, StmtKind, VertexForStmt } from "../ir/Stmt";
+import { AtomicOpStmt, ConstStmt, ContinueStmt, FragmentForStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStoreStmt, IRModule, RangeForStmt, Stmt, StmtKind, VertexForStmt } from "../ir/Stmt";
 import { IRTransformer } from "../ir/Transformer";
 import { IRVisitor } from "../ir/Visitor";
 
@@ -60,13 +60,14 @@ class OffloadingPass extends IRTransformer {
         this.guards = []
         this.module = module
         this.addGuard(module.block)
+        this.offloadedModules.push(module)
+        this.currentOffloadType = module.type
     }
 
     override pushNewStmt(stmt: Stmt): Stmt {
         if (this.offloadedModules.length === 0) {
             assert(this.currentOffloadType === OffloadType.Serial, "InternalError: expecting serial state")
             let module = new OffloadedModule(this.currentOffloadType)
-            this.offloadedModules.push(module)
             this.resetTransformerState(module)
         }
         return super.pushNewStmt(stmt)
@@ -118,8 +119,35 @@ class OffloadingPass extends IRTransformer {
     }
 }
 
+class IdentifyTrivialSerialModule extends IRVisitor {
+    constructor() {
+        super()
+    }
+    isTrivial = true
+
+    override visitGlobalTemporaryStoreStmt(stmt: GlobalTemporaryStoreStmt): void {
+        this.isTrivial = false
+    }
+    override visitGlobalStoreStmt(stmt: GlobalStoreStmt): void {
+        this.isTrivial = false
+    }
+    override visitAtomicOpStmt(stmt: AtomicOpStmt): void {
+        this.isTrivial = false
+    }
+}
+
 export function offload(module: IRModule) {
     let pass = new OffloadingPass
     pass.transform(module)
-    return pass.offloadedModules
+    let modules = pass.offloadedModules
+
+    let nonTrivialModules: OffloadedModule[] = []
+    for (let m of modules) {
+        let pass = new IdentifyTrivialSerialModule()
+        pass.visitModule(m)
+        if (!pass.isTrivial) {
+            nonTrivialModules.push(m)
+        }
+    }
+    return nonTrivialModules
 }

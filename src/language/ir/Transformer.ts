@@ -26,7 +26,7 @@ export class IRTransformer extends IRVisitor {
 
     override visitBlock(block: Block) {
         let result = new Block
-        let guard = this.addGuard(block)
+        let guard = this.addGuard(result)
         for (let s of block.stmts) {
             this.visit(s)
         }

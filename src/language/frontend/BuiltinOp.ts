@@ -1,7 +1,8 @@
-import { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, TypeUtils, PrimitiveType, toNativePrimitiveType, TypeError, StructType } from "./Type"
-import { NativeTaichiAny } from "../../native/taichi/GetTaichi"
+import { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, TypeUtils, PrimitiveType, TypeError, StructType } from "./Type"
 import { assert, error } from "../../utils/Logging"
 import { Value, ValueUtils } from "./Value"
+import { AllocaStmt, GlobalPtrStmt, GlobalTemporaryStmt, Stmt, StmtKind } from "../ir/Stmt"
+import { IRBuilder } from "../ir/Builder"
 
 class BuiltinOp {
     constructor(
@@ -44,7 +45,7 @@ class BuiltinUnaryOp extends BuiltinOp {
     constructor(
         name: string,
         public forceReturnType: PrimitiveType | null,
-        public f: (stmt: NativeTaichiAny) => NativeTaichiAny,
+        public f: (stmt: Stmt) => Stmt,
         public fConst: ((val: number) => number) | null = null
     ) {
         super(name, 1)
@@ -95,7 +96,7 @@ class BuiltinBinaryOp extends BuiltinOp {
         public dataTypeTransform: BinaryOpDatatypeTransform,
         public allowBroadcastLeftToRight: boolean,
         public allowBroadcastRightToLeft: boolean,
-        public f: (left: NativeTaichiAny, right: NativeTaichiAny) => (NativeTaichiAny | null),
+        public f: (left: Stmt, right: Stmt) => (Stmt),
         public fConst: ((left: number, right: number) => number) | null = null
     ) {
         super(name, 2)
@@ -278,11 +279,11 @@ class BuiltinCustomOp extends BuiltinOp {
 class BuiltinAtomicOp extends BuiltinOp {
     constructor(
         name: string,
-        public irBuilder: NativeTaichiAny, // needed for the f32 caster
-        public irBuilderFunc: (dest: NativeTaichiAny, val: NativeTaichiAny) => NativeTaichiAny
+        public irBuilder: IRBuilder, // needed for the f32 caster
+        public irBuilderFunc: (dest: Stmt, val: Stmt) => Stmt
     ) {
         super(name, 2)
-        this.f32Caster = new BuiltinUnaryOp("f32", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_cast(stmt, toNativePrimitiveType(PrimitiveType.f32)))
+        this.f32Caster = new BuiltinUnaryOp("f32", PrimitiveType.f32, (stmt: Stmt) => irBuilder.create_cast_f32_value(stmt))
     }
 
     private f32Caster: BuiltinUnaryOp
@@ -338,16 +339,16 @@ class BuiltinAtomicOp extends BuiltinOp {
 
 class BuiltinOpFactory {
 
-    static getAtomicOps(irBuilder: NativeTaichiAny): Map<string, BuiltinAtomicOp> {
+    static getAtomicOps(irBuilder: IRBuilder): Map<string, BuiltinAtomicOp> {
         let opsMap = new Map<string, BuiltinAtomicOp>()
         let ops: BuiltinAtomicOp[] = [
-            new BuiltinAtomicOp("atomicAdd", irBuilder, (dest: NativeTaichiAny, val: NativeTaichiAny) => irBuilder.create_atomic_add(dest, val)),
-            new BuiltinAtomicOp("atomicSub", irBuilder, (dest: NativeTaichiAny, val: NativeTaichiAny) => irBuilder.create_atomic_sub(dest, val)),
-            new BuiltinAtomicOp("atomicMax", irBuilder, (dest: NativeTaichiAny, val: NativeTaichiAny) => irBuilder.create_atomic_max(dest, val)),
-            new BuiltinAtomicOp("atomicMin", irBuilder, (dest: NativeTaichiAny, val: NativeTaichiAny) => irBuilder.create_atomic_min(dest, val)),
-            new BuiltinAtomicOp("atomicAnd", irBuilder, (dest: NativeTaichiAny, val: NativeTaichiAny) => irBuilder.create_atomic_and(dest, val)),
-            new BuiltinAtomicOp("atomicOr", irBuilder, (dest: NativeTaichiAny, val: NativeTaichiAny) => irBuilder.create_atomic_or(dest, val)),
-            new BuiltinAtomicOp("atomicXor", irBuilder, (dest: NativeTaichiAny, val: NativeTaichiAny) => irBuilder.create_atomic_xor(dest, val)),
+            new BuiltinAtomicOp("atomicAdd", irBuilder, (dest: Stmt, val: Stmt) => irBuilder.create_atomic_add(dest, val)),
+            new BuiltinAtomicOp("atomicSub", irBuilder, (dest: Stmt, val: Stmt) => irBuilder.create_atomic_sub(dest, val)),
+            new BuiltinAtomicOp("atomicMax", irBuilder, (dest: Stmt, val: Stmt) => irBuilder.create_atomic_max(dest, val)),
+            new BuiltinAtomicOp("atomicMin", irBuilder, (dest: Stmt, val: Stmt) => irBuilder.create_atomic_min(dest, val)),
+            new BuiltinAtomicOp("atomicAnd", irBuilder, (dest: Stmt, val: Stmt) => irBuilder.create_atomic_and(dest, val)),
+            new BuiltinAtomicOp("atomicOr", irBuilder, (dest: Stmt, val: Stmt) => irBuilder.create_atomic_or(dest, val)),
+            new BuiltinAtomicOp("atomicXor", irBuilder, (dest: Stmt, val: Stmt) => irBuilder.create_atomic_xor(dest, val)),
         ]
         for (let op of ops) {
             opsMap.set(op.name, op)
@@ -355,66 +356,66 @@ class BuiltinOpFactory {
         return opsMap
     }
 
-    static getBuiltinOps(irBuilder: NativeTaichiAny): Map<string, BuiltinOp> {
+    static getBuiltinOps(irBuilder: IRBuilder): Map<string, BuiltinOp> {
         let opsMap = new Map<string, BuiltinOp>()
         let ops: BuiltinOp[] = [
-            new BuiltinBinaryOp("+", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_add(l, r), (l, r) => l + r),
-            new BuiltinBinaryOp("add", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_add(l, r), (l, r) => l + r),
-            new BuiltinBinaryOp("-", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_sub(l, r), (l, r) => l - r),
-            new BuiltinBinaryOp("sub", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_sub(l, r), (l, r) => l - r),
-            new BuiltinBinaryOp("*", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_mul(l, r), (l, r) => l - r),
-            new BuiltinBinaryOp("mul", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_sub(l, r), (l, r) => l - r),
-            new BuiltinBinaryOp("**", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_pow(l, r), (l, r) => Math.pow(l, r)),
-            new BuiltinBinaryOp("%", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_mod(l, r), (l, r) => l % r),
-            new BuiltinBinaryOp("<", BinaryOpDatatypeTransform.AlwaysI32, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_cmp_lt(l, r), (l, r) => Number(l < r)),
-            new BuiltinBinaryOp("<=", BinaryOpDatatypeTransform.AlwaysI32, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_cmp_le(l, r), (l, r) => Number(l <= r)),
-            new BuiltinBinaryOp(">", BinaryOpDatatypeTransform.AlwaysI32, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_cmp_gt(l, r), (l, r) => Number(l > r)),
-            new BuiltinBinaryOp(">=", BinaryOpDatatypeTransform.AlwaysI32, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_cmp_ge(l, r), (l, r) => Number(l >= r)),
-            new BuiltinBinaryOp("==", BinaryOpDatatypeTransform.AlwaysI32, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_cmp_eq(l, r), (l, r) => Number(l === r)),
-            new BuiltinBinaryOp("!=", BinaryOpDatatypeTransform.AlwaysI32, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_cmp_ne(l, r), (l, r) => Number(l !== r)),
-            new BuiltinBinaryOp("===", BinaryOpDatatypeTransform.AlwaysI32, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_cmp_eq(l, r), (l, r) => Number(l === r)),
-            new BuiltinBinaryOp("!==", BinaryOpDatatypeTransform.AlwaysI32, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_cmp_ne(l, r), (l, r) => Number(l !== r)),
-            new BuiltinBinaryOp("&", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_and(l, r), (l, r) => l & r),
-            new BuiltinBinaryOp("&&", BinaryOpDatatypeTransform.PromoteToMatch, false, false, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_and(l, r), (l, r) => l & r),
-            new BuiltinBinaryOp("|", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_or(l, r), (l, r) => l & r),
-            new BuiltinBinaryOp("||", BinaryOpDatatypeTransform.PromoteToMatch, false, false, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_or(l, r), (l, r) => l & r),
-            new BuiltinBinaryOp("^", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_xor(l, r), (l, r) => l & r),
+            new BuiltinBinaryOp("+", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: Stmt, r: Stmt) => irBuilder.create_add(l, r), (l, r) => l + r),
+            new BuiltinBinaryOp("add", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: Stmt, r: Stmt) => irBuilder.create_add(l, r), (l, r) => l + r),
+            new BuiltinBinaryOp("-", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: Stmt, r: Stmt) => irBuilder.create_sub(l, r), (l, r) => l - r),
+            new BuiltinBinaryOp("sub", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: Stmt, r: Stmt) => irBuilder.create_sub(l, r), (l, r) => l - r),
+            new BuiltinBinaryOp("*", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: Stmt, r: Stmt) => irBuilder.create_mul(l, r), (l, r) => l - r),
+            new BuiltinBinaryOp("mul", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: Stmt, r: Stmt) => irBuilder.create_sub(l, r), (l, r) => l - r),
+            new BuiltinBinaryOp("**", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: Stmt, r: Stmt) => irBuilder.create_pow(l, r), (l, r) => Math.pow(l, r)),
+            new BuiltinBinaryOp("%", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: Stmt, r: Stmt) => irBuilder.create_mod(l, r), (l, r) => l % r),
+            new BuiltinBinaryOp("<", BinaryOpDatatypeTransform.AlwaysI32, true, true, (l: Stmt, r: Stmt) => irBuilder.create_cmp_lt(l, r), (l, r) => Number(l < r)),
+            new BuiltinBinaryOp("<=", BinaryOpDatatypeTransform.AlwaysI32, true, true, (l: Stmt, r: Stmt) => irBuilder.create_cmp_le(l, r), (l, r) => Number(l <= r)),
+            new BuiltinBinaryOp(">", BinaryOpDatatypeTransform.AlwaysI32, true, true, (l: Stmt, r: Stmt) => irBuilder.create_cmp_gt(l, r), (l, r) => Number(l > r)),
+            new BuiltinBinaryOp(">=", BinaryOpDatatypeTransform.AlwaysI32, true, true, (l: Stmt, r: Stmt) => irBuilder.create_cmp_ge(l, r), (l, r) => Number(l >= r)),
+            new BuiltinBinaryOp("==", BinaryOpDatatypeTransform.AlwaysI32, true, true, (l: Stmt, r: Stmt) => irBuilder.create_cmp_eq(l, r), (l, r) => Number(l === r)),
+            new BuiltinBinaryOp("!=", BinaryOpDatatypeTransform.AlwaysI32, true, true, (l: Stmt, r: Stmt) => irBuilder.create_cmp_ne(l, r), (l, r) => Number(l !== r)),
+            new BuiltinBinaryOp("===", BinaryOpDatatypeTransform.AlwaysI32, true, true, (l: Stmt, r: Stmt) => irBuilder.create_cmp_eq(l, r), (l, r) => Number(l === r)),
+            new BuiltinBinaryOp("!==", BinaryOpDatatypeTransform.AlwaysI32, true, true, (l: Stmt, r: Stmt) => irBuilder.create_cmp_ne(l, r), (l, r) => Number(l !== r)),
+            new BuiltinBinaryOp("&", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: Stmt, r: Stmt) => irBuilder.create_and(l, r), (l, r) => l & r),
+            new BuiltinBinaryOp("&&", BinaryOpDatatypeTransform.PromoteToMatch, false, false, (l: Stmt, r: Stmt) => irBuilder.create_and(l, r), (l, r) => l & r),
+            new BuiltinBinaryOp("|", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: Stmt, r: Stmt) => irBuilder.create_or(l, r), (l, r) => l & r),
+            new BuiltinBinaryOp("||", BinaryOpDatatypeTransform.PromoteToMatch, false, false, (l: Stmt, r: Stmt) => irBuilder.create_or(l, r), (l, r) => l & r),
+            new BuiltinBinaryOp("^", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: Stmt, r: Stmt) => irBuilder.create_xor(l, r), (l, r) => l & r),
 
-            new BuiltinBinaryOp("/", BinaryOpDatatypeTransform.AlwaysF32, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_truediv(l, r), (l, r) => l / r),
-            new BuiltinBinaryOp("div", BinaryOpDatatypeTransform.AlwaysF32, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_truediv(l, r), (l, r) => l / r),
+            new BuiltinBinaryOp("/", BinaryOpDatatypeTransform.AlwaysF32, true, true, (l: Stmt, r: Stmt) => irBuilder.create_truediv(l, r), (l, r) => l / r),
+            new BuiltinBinaryOp("div", BinaryOpDatatypeTransform.AlwaysF32, true, true, (l: Stmt, r: Stmt) => irBuilder.create_truediv(l, r), (l, r) => l / r),
 
             // doesn't work
-            new BuiltinBinaryOp("<<", BinaryOpDatatypeTransform.PromoteToMatch, false, false, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_shl(l, r)),
-            new BuiltinBinaryOp(">>>", BinaryOpDatatypeTransform.PromoteToMatch, false, false, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_shr(l, r)),
+            new BuiltinBinaryOp("<<", BinaryOpDatatypeTransform.PromoteToMatch, false, false, (l: Stmt, r: Stmt) => irBuilder.create_shl(l, r)),
+            new BuiltinBinaryOp(">>>", BinaryOpDatatypeTransform.PromoteToMatch, false, false, (l: Stmt, r: Stmt) => irBuilder.create_shr(l, r)),
 
-            new BuiltinUnaryOp("sin", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_sin(stmt)),
-            new BuiltinUnaryOp("cos", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_cos(stmt)),
-            new BuiltinUnaryOp("asin", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_asin(stmt)),
-            new BuiltinUnaryOp("acos", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_acos(stmt)),
-            new BuiltinUnaryOp("tan", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_tan(stmt)),
-            new BuiltinUnaryOp("tanh", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_tanh(stmt)),
-            new BuiltinUnaryOp("exp", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_exp(stmt)),
-            new BuiltinUnaryOp("log", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_log(stmt)),
-            new BuiltinUnaryOp("neg", null, (stmt: NativeTaichiAny) => irBuilder.create_neg(stmt), (x) => -x),
-            new BuiltinUnaryOp("not", PrimitiveType.i32, (stmt: NativeTaichiAny) => irBuilder.create_not(stmt)),
-            new BuiltinUnaryOp("logical_not", PrimitiveType.i32, (stmt: NativeTaichiAny) => irBuilder.create_logical_not(stmt)),
-            new BuiltinUnaryOp("abs", null, (stmt: NativeTaichiAny) => irBuilder.create_abs(stmt)),
-            new BuiltinUnaryOp("floor", null, (stmt: NativeTaichiAny) => irBuilder.create_floor(stmt)),
-            new BuiltinUnaryOp("sgn", PrimitiveType.i32, (stmt: NativeTaichiAny) => irBuilder.create_sgn(stmt)),
-            new BuiltinUnaryOp("sqrt", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_sqrt(stmt)),
-            new BuiltinUnaryOp("rsqrt", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_rsqrt(stmt)),
+            new BuiltinUnaryOp("sin", PrimitiveType.f32, (stmt: Stmt) => irBuilder.create_sin(stmt)),
+            new BuiltinUnaryOp("cos", PrimitiveType.f32, (stmt: Stmt) => irBuilder.create_cos(stmt)),
+            new BuiltinUnaryOp("asin", PrimitiveType.f32, (stmt: Stmt) => irBuilder.create_asin(stmt)),
+            new BuiltinUnaryOp("acos", PrimitiveType.f32, (stmt: Stmt) => irBuilder.create_acos(stmt)),
+            new BuiltinUnaryOp("tan", PrimitiveType.f32, (stmt: Stmt) => irBuilder.create_tan(stmt)),
+            new BuiltinUnaryOp("tanh", PrimitiveType.f32, (stmt: Stmt) => irBuilder.create_tanh(stmt)),
+            new BuiltinUnaryOp("exp", PrimitiveType.f32, (stmt: Stmt) => irBuilder.create_exp(stmt)),
+            new BuiltinUnaryOp("log", PrimitiveType.f32, (stmt: Stmt) => irBuilder.create_log(stmt)),
+            new BuiltinUnaryOp("neg", null, (stmt: Stmt) => irBuilder.create_neg(stmt), (x) => -x),
+            new BuiltinUnaryOp("not", PrimitiveType.i32, (stmt: Stmt) => irBuilder.create_not(stmt)),
+            new BuiltinUnaryOp("logical_not", PrimitiveType.i32, (stmt: Stmt) => irBuilder.create_logical_not(stmt)),
+            new BuiltinUnaryOp("abs", null, (stmt: Stmt) => irBuilder.create_abs(stmt)),
+            new BuiltinUnaryOp("floor", null, (stmt: Stmt) => irBuilder.create_floor(stmt)),
+            new BuiltinUnaryOp("sgn", PrimitiveType.i32, (stmt: Stmt) => irBuilder.create_sgn(stmt)),
+            new BuiltinUnaryOp("sqrt", PrimitiveType.f32, (stmt: Stmt) => irBuilder.create_sqrt(stmt)),
+            new BuiltinUnaryOp("rsqrt", PrimitiveType.f32, (stmt: Stmt) => irBuilder.create_rsqrt(stmt)),
 
-            new BuiltinUnaryOp("i32", PrimitiveType.i32, (stmt: NativeTaichiAny) => irBuilder.create_cast(stmt, toNativePrimitiveType(PrimitiveType.i32)), (x) => Math.floor(x)),
-            new BuiltinUnaryOp("f32", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_cast(stmt, toNativePrimitiveType(PrimitiveType.f32)), (x) => x),
-            new BuiltinUnaryOp("bitcast_f32", PrimitiveType.f32, (stmt: NativeTaichiAny) => irBuilder.create_bit_cast(stmt, toNativePrimitiveType(PrimitiveType.f32)), (x) => x),
-            new BuiltinUnaryOp("bitcast_i32", PrimitiveType.i32, (stmt: NativeTaichiAny) => irBuilder.create_bit_cast(stmt, toNativePrimitiveType(PrimitiveType.i32)), (x) => x),
+            new BuiltinUnaryOp("i32", PrimitiveType.i32, (stmt: Stmt) => irBuilder.create_cast_i32_value(stmt), (x) => Math.floor(x)),
+            new BuiltinUnaryOp("f32", PrimitiveType.f32, (stmt: Stmt) => irBuilder.create_cast_f32_value(stmt), (x) => x),
+            new BuiltinUnaryOp("bitcast_f32", PrimitiveType.f32, (stmt: Stmt) => irBuilder.create_cast_f32_bits(stmt), (x) => x),
+            new BuiltinUnaryOp("bitcast_i32", PrimitiveType.i32, (stmt: Stmt) => irBuilder.create_cast_i32_bits(stmt), (x) => x),
 
-            new BuiltinBinaryOp("max", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_max(l, r), (l, r) => Math.max(l, r)),
-            new BuiltinBinaryOp("min", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_min(l, r), (l, r) => Math.min(l, r)),
-            new BuiltinBinaryOp("pow", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_pow(l, r), (l, r) => Math.pow(l, r)),
-            new BuiltinBinaryOp("atan2", BinaryOpDatatypeTransform.AlwaysF32, true, true, (l: NativeTaichiAny, r: NativeTaichiAny) => irBuilder.create_atan2(l, r), (l, r) => Math.atan2(l, r)),
+            new BuiltinBinaryOp("max", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: Stmt, r: Stmt) => irBuilder.create_max(l, r), (l, r) => Math.max(l, r)),
+            new BuiltinBinaryOp("min", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: Stmt, r: Stmt) => irBuilder.create_min(l, r), (l, r) => Math.min(l, r)),
+            new BuiltinBinaryOp("pow", BinaryOpDatatypeTransform.PromoteToMatch, true, true, (l: Stmt, r: Stmt) => irBuilder.create_pow(l, r), (l, r) => Math.pow(l, r)),
+            new BuiltinBinaryOp("atan2", BinaryOpDatatypeTransform.AlwaysF32, true, true, (l: Stmt, r: Stmt) => irBuilder.create_atan2(l, r), (l, r) => Math.atan2(l, r)),
 
-            new BuiltinNullaryOp("random", new ScalarType(PrimitiveType.f32), () => new Value(new ScalarType(PrimitiveType.f32), [irBuilder.create_rand(toNativePrimitiveType(PrimitiveType.f32))], [])),
+            new BuiltinNullaryOp("random", new ScalarType(PrimitiveType.f32), () => new Value(new ScalarType(PrimitiveType.f32), [irBuilder.create_rand(PrimitiveType.f32)], [])),
 
         ]
         for (let op of ops) {
@@ -459,14 +460,23 @@ class BuiltinOpFactory {
             (args: Value[]): Value => {
                 let pointerType = args[0].getType() as PointerType
                 let type1 = args[1].getType()
-                let storeFunc = (ptr: NativeTaichiAny, value: NativeTaichiAny) => {
-                    irBuilder.create_global_ptr_global_store(ptr, value)
-                }
-                if (!pointerType.getIsGlobal()) {
-                    storeFunc = (ptr: NativeTaichiAny, value: NativeTaichiAny) => {
-                        irBuilder.create_local_store(ptr, value)
+                let storeFunc = (ptr: Stmt, value: Stmt) => {
+                    switch (ptr.getKind()) {
+                        case StmtKind.GlobalPtrStmt: {
+                            return irBuilder.create_global_store(ptr as GlobalPtrStmt, value)
+                        }
+                        case StmtKind.GlobalTemporaryStmt: {
+                            return irBuilder.create_global_temporary_store(ptr as GlobalTemporaryStmt, value)
+                        }
+                        case StmtKind.AllocaStmt: {
+                            return irBuilder.create_local_store(ptr as AllocaStmt, value)
+                        }
+                        default: {
+                            error("assignment failed: not a pointer", args)
+                        }
                     }
                 }
+
 
                 if (TypeUtils.isTensorType(pointerType.getValueType()) && TypeUtils.isTensorType(args[1].getType())) {
                     let destPrim = TypeUtils.getPrimitiveType(pointerType.getValueType())
@@ -516,11 +526,23 @@ class BuiltinOpFactory {
                 let resultType = pointerType.getValueType()
                 let result = new Value(resultType, [])
                 for (let i = 0; i < args[0].stmts.length; ++i) {
-                    if (pointerType.getIsGlobal()) {
-                        result.stmts.push(irBuilder.create_global_ptr_global_load(args[0].stmts[i]))
-                    }
-                    else {
-                        result.stmts.push(irBuilder.create_local_load(args[0].stmts[i]))
+                    let ptr = args[0].stmts[i]
+                    switch (ptr.getKind()) {
+                        case StmtKind.GlobalPtrStmt: {
+                            result.stmts.push(irBuilder.create_global_load(ptr as GlobalPtrStmt))
+                            break;
+                        }
+                        case StmtKind.GlobalTemporaryStmt: {
+                            result.stmts.push(irBuilder.create_global_temporary_load(ptr as GlobalTemporaryStmt))
+                            break;
+                        }
+                        case StmtKind.AllocaStmt: {
+                            result.stmts.push(irBuilder.create_local_load(ptr as AllocaStmt))
+                            break;
+                        }
+                        default: {
+                            error("load failed: not a pointer", args)
+                        }
                     }
                 }
                 return result

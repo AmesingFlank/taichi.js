@@ -182,24 +182,10 @@ class Runtime {
                 beginCompute()
                 computeEncoder!.setPipeline(task.pipeline!)
                 computeEncoder!.setBindGroup(0, task.bindGroup!)
-                // not sure if these are completely right hmm
                 let workgroupSize = task.params.workgroupSize
-                let numWorkGroups: number = 512
-                if (workgroupSize === 1) {
-                    numWorkGroups = 1
-                }
-                else if (task.params.rangeHint.length > 0) {
-                    let invocations = 0
-                    if (task.params.rangeHint.length > 4 && task.params.rangeHint.slice(0, 4) === "arg ") {
-                        let argIndex = Number(task.params.rangeHint.slice(4))
-                        invocations = args[argIndex]
-                    }
-                    else {
-                        invocations = Number(task.params.rangeHint)
-                    }
-                    numWorkGroups = divUp(invocations, workgroupSize)
-                }
-                computeEncoder!.dispatch(numWorkGroups);
+                let numWorkgroups = task.params.numWorkgroups
+
+                computeEncoder!.dispatch(numWorkgroups);
             }
             else if (task instanceof CompiledRenderPipeline) {
                 beginRender()

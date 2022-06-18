@@ -15,68 +15,100 @@ export abstract class IRVisitor {
         switch (stmt.getKind()) {
             case StmtKind.ConstStmt:
                 this.visitConstStmt(stmt as ConstStmt)
+                break;
             case StmtKind.RangeForStmt:
                 this.visitRangeForStmt(stmt as RangeForStmt)
+                break;
             case StmtKind.LoopIndexStmt:
                 this.visitLoopIndexStmt(stmt as LoopIndexStmt)
+                break;
             case StmtKind.AllocaStmt:
                 this.visitAllocaStmt(stmt as AllocaStmt)
+                break;
             case StmtKind.LocalLoadStmt:
                 this.visitLocalLoadStmt(stmt as LocalLoadStmt)
+                break;
             case StmtKind.LocalStoreStmt:
                 this.visitLocalStoreStmt(stmt as LocalStoreStmt)
+                break;
             case StmtKind.GlobalPtrStmt:
                 this.visitGlobalPtrStmt(stmt as GlobalPtrStmt)
+                break;
             case StmtKind.GlobalLoadStmt:
                 this.visitGlobalLoadStmt(stmt as GlobalLoadStmt)
+                break;
             case StmtKind.GlobalStoreStmt:
                 this.visitGlobalStoreStmt(stmt as GlobalStoreStmt)
+                break;
             case StmtKind.GlobalTemporaryStmt:
                 this.visitGlobalTemporaryStmt(stmt as GlobalTemporaryStmt)
+                break;
             case StmtKind.GlobalTemporaryLoadStmt:
                 this.visitGlobalTemporaryLoadStmt(stmt as GlobalTemporaryLoadStmt)
+                break;
             case StmtKind.GlobalTemporaryStoreStmt:
                 this.visitGlobalTemporaryStoreStmt(stmt as GlobalTemporaryStoreStmt)
+                break;
             case StmtKind.BinaryOpStmt:
                 this.visitBinaryOpStmt(stmt as BinaryOpStmt)
+                break;
             case StmtKind.UnaryOpStmt:
                 this.visitUnaryOpStmt(stmt as UnaryOpStmt)
+                break;
             case StmtKind.WhileStmt:
                 this.visitWhileStmt(stmt as WhileStmt)
+                break;
             case StmtKind.IfStmt:
                 this.visitIfStmt(stmt as IfStmt)
+                break;
             case StmtKind.WhileControlStmt:
                 this.visitWhileControlStmt(stmt as WhileControlStmt)
+                break;
             case StmtKind.ContinueStmt:
                 this.visitContinueStmt(stmt as ContinueStmt)
+                break;
             case StmtKind.ArgLoadStmt:
                 this.visitArgLoadStmt(stmt as ArgLoadStmt)
+                break;
             case StmtKind.RandStmt:
                 this.visitRandStmt(stmt as RandStmt)
+                break;
             case StmtKind.ReturnStmt:
                 this.visitReturnStmt(stmt as ReturnStmt)
+                break;
             case StmtKind.AtomicOpStmt:
                 this.visitAtomicOpStmt(stmt as AtomicOpStmt)
+                break;
             case StmtKind.VertexForStmt:
                 this.visitVertexForStmt(stmt as VertexForStmt)
+                break;
             case StmtKind.FragmentForStmt:
                 this.visitFragmentForStmt(stmt as FragmentForStmt)
+                break;
             case StmtKind.VertexInputStmt:
                 this.visitVertexInputStmt(stmt as VertexInputStmt)
+                break;
             case StmtKind.VertexOutputStmt:
                 this.visitVertexOutputStmt(stmt as VertexOutputStmt)
+                break;
             case StmtKind.FragmentInputStmt:
                 this.visitFragmentInputStmt(stmt as FragmentInputStmt)
+                break;
             case StmtKind.BuiltInOutputStmt:
                 this.visitBuiltInOutputStmt(stmt as BuiltInOutputStmt)
+                break;
             case StmtKind.BuiltInInputStmt:
                 this.visitBuiltInInputStmt(stmt as BuiltInInputStmt)
+                break;
             case StmtKind.FragmentDerivativeStmt:
                 this.visitFragmentDerivativeStmt(stmt as FragmentDerivativeStmt)
+                break;
             case StmtKind.DiscardStmt:
                 this.visitDiscardStmt(stmt as DiscardStmt)
+                break;
             case StmtKind.TextureFunctionStmt:
                 this.visitTextureFunctionStmt(stmt as TextureFunctionStmt)
+                break;
             case StmtKind.CompositeExtractStmt:
                 this.visitCompositeExtractStmt(stmt as CompositeExtractStmt)
             default:

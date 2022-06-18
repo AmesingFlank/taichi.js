@@ -1,4 +1,3 @@
-import { NativeTaichiAny, nativeTaichi } from "../native/taichi/GetTaichi"
 import { Program } from "../program/Program"
 import { assert, error } from "../utils/Logging"
 
@@ -7,24 +6,6 @@ export enum TextureDimensionality {
     Dim2d,
     Dim3d,
     DimCube
-}
-
-export function toNativeImageDimensionality(dim: TextureDimensionality): NativeTaichiAny {
-    switch (dim) {
-        case TextureDimensionality.Dim2d: {
-            return nativeTaichi.TextureDimensionality.Dim2d;
-        }
-        case TextureDimensionality.DimCube: {
-            return nativeTaichi.TextureDimensionality.DimCube;
-        }
-        case TextureDimensionality.Dim3d: {
-            return nativeTaichi.TextureDimensionality.Dim3d;
-        }
-        default: {
-            error("unrecognized dimensionality")
-            return TextureDimensionality.Dim2d
-        }
-    }
 }
 
 export function getTextureCoordsNumComponents(dim: TextureDimensionality): number {
@@ -53,7 +34,6 @@ export abstract class TextureBase {
     abstract getGPUSampler(): GPUSampler; // TODO rethink this... samplers and texture probably should be decoupled?
     abstract getTextureDimensionality(): TextureDimensionality
     textureId: number = -1
-    nativeTexture: NativeTaichiAny
     sampleCount: number = 1
 }
 

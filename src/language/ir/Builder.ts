@@ -1,7 +1,7 @@
 import { Field } from "../../data/Field";
 import { TextureBase } from "../../data/Texture";
 import { PrimitiveType } from "../frontend/Type";
-import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, AtomicOpType, BinaryOpStmt, BinaryOpType, Block, BuiltInInputKind, BuiltInInputStmt, BuiltInOutputKind, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeDirection, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, IRHolder, IRModule, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionKind, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
+import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, AtomicOpType, BinaryOpStmt, BinaryOpType, Block, BuiltInInputKind, BuiltInInputStmt, BuiltInOutputKind, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeDirection, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, IRModule, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionKind, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
 
 // designed to have the same API as native taichi's IRBuilder
 // which is why there're some camel_case and camelCase mash-ups
@@ -101,27 +101,27 @@ export class IRBuilder {
         return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.min, this.getNewId()))
     }
 
-    create_bit_and(lhs: Stmt, rhs: Stmt) {
+    create_and(lhs: Stmt, rhs: Stmt) {
         return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.bit_and, this.getNewId()))
     }
 
-    create_bit_or(lhs: Stmt, rhs: Stmt) {
+    create_or(lhs: Stmt, rhs: Stmt) {
         return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.bit_or, this.getNewId()))
     }
 
-    create_bit_xor(lhs: Stmt, rhs: Stmt) {
+    create_xor(lhs: Stmt, rhs: Stmt) {
         return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.bit_xor, this.getNewId()))
     }
 
-    create_bit_shl(lhs: Stmt, rhs: Stmt) {
+    create_shl(lhs: Stmt, rhs: Stmt) {
         return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.bit_shl, this.getNewId()))
     }
 
-    create_bit_shr(lhs: Stmt, rhs: Stmt) {
+    create_shr(lhs: Stmt, rhs: Stmt) {
         return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.bit_shr, this.getNewId()))
     }
 
-    create_bit_sar(lhs: Stmt, rhs: Stmt) {
+    create_sar(lhs: Stmt, rhs: Stmt) {
         return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, BinaryOpType.bit_sar, this.getNewId()))
     }
 
@@ -253,11 +253,11 @@ export class IRBuilder {
         return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.rsqrt, this.getNewId()))
     }
 
-    create_bit_not(operand: Stmt) {
+    create_not(operand: Stmt) {
         return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.bit_not, this.getNewId()))
     }
 
-    create_logic_not(operand: Stmt) {
+    create_logical_not(operand: Stmt) {
         return this.pushNewStmt(new UnaryOpStmt(operand, UnaryOpType.logic_not, this.getNewId()))
     }
 
@@ -277,6 +277,18 @@ export class IRBuilder {
         return this.pushNewStmt(new AtomicOpStmt(AtomicOpType.min, dest, val, this.getNewId()))
     }
 
+    create_atomic_and(dest: Stmt, val: Stmt) {
+        return this.pushNewStmt(new AtomicOpStmt(AtomicOpType.bit_and, dest, val, this.getNewId()))
+    }
+
+    create_atomic_or(dest: Stmt, val: Stmt) {
+        return this.pushNewStmt(new AtomicOpStmt(AtomicOpType.bit_or, dest, val, this.getNewId()))
+    }
+
+    create_atomic_xor(dest: Stmt, val: Stmt) {
+        return this.pushNewStmt(new AtomicOpStmt(AtomicOpType.bit_xor, dest, val, this.getNewId()))
+    }
+
     create_while_true() {
         return this.pushNewStmt(new WhileStmt(new Block, this.getNewId()))
     }
@@ -293,7 +305,7 @@ export class IRBuilder {
         return this.pushNewStmt(new ContinueStmt(this.getNewId()))
     }
 
-    create_argload(type: PrimitiveType, argId: number) {
+    create_arg_load(type: PrimitiveType, argId: number) {
         return this.pushNewStmt(new ArgLoadStmt(type, argId, this.getNewId()))
     }
 
@@ -309,11 +321,11 @@ export class IRBuilder {
         return this.pushNewStmt(new ReturnStmt(vals, this.getNewId()))
     }
 
-    create_vertex_input(type: PrimitiveType, location: number) {
+    create_vertex_input(location: number, type: PrimitiveType) {
         return this.pushNewStmt(new VertexInputStmt(type, location, this.getNewId()))
     }
 
-    create_vertex_output(val: Stmt, location: number) {
+    create_vertex_output(location: number, val: Stmt) {
         return this.pushNewStmt(new VertexOutputStmt(val, location, this.getNewId()))
     }
 
@@ -321,7 +333,7 @@ export class IRBuilder {
         return this.pushNewStmt(new BuiltInOutputStmt(vals, BuiltInOutputKind.Position, undefined, this.getNewId()))
     }
 
-    create_fragment_input(type: PrimitiveType, location: number) {
+    create_fragment_input(location: number, type: PrimitiveType) {
         return this.pushNewStmt(new FragmentInputStmt(type, location, this.getNewId()))
     }
 
@@ -410,7 +422,8 @@ export class IRBuilder {
         return this.module.getNewId();
     }
 
-    pushNewStmt(stmt: Stmt) {
+
+    pushNewStmt<T extends Stmt>(stmt: T) {
         this.guards.at(-1)!.block.stmts.push(stmt)
         return stmt
     }

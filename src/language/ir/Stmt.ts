@@ -59,7 +59,7 @@ export abstract class Stmt {
 
     getReturnType() {
         if (!this.returnType) {
-            error("missing return type")
+            error("missing return type ", this)
         }
         return this.returnType!
     }
