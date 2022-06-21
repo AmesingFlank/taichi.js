@@ -6,13 +6,14 @@ export { addToKernelScope, clearKernelScope, kernel, func, i32, f32, sync, templ
 export { field, Vector, Matrix, Struct, } from "./api/Fields"
 export { texture, canvasTexture, depthTexture, Texture, CubeTexture, TextureSamplingOptions, WrapMode } from "./api/Textures"
 export { Canvas } from "./api/ui/Canvas"
-export *  from "./api/KernelScopeBuiltin"
+export { Timer } from "./utils/Timer"
+export * from "./api/KernelScopeBuiltin"
 
 import * as engine from "./engine/index"
-export {engine}
+export { engine }
 
 import * as types from "./api/Types"
-export {types}
+export { types }
 
 export { runAllTests } from "./tests/All"
 
