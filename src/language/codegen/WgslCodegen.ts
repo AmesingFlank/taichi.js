@@ -1113,14 +1113,21 @@ fn find_vec4_component(v: vec4<i32>, index: i32) -> i32
 
     getBufferName(buffer: ResourceInfo) {
         let name = ""
+        let binding: number
+        if (!this.resourceBindings.has(buffer)) {
+            binding = this.bindingPointBegin + this.resourceBindings.size()
+        }
+        else {
+            binding = this.resourceBindings.get(buffer)!
+        }
         let elementType = this.getRawDataTypeName()
         switch (buffer.resourceType) {
             case ResourceType.Root: {
-                name = "root_buffer_" + buffer.resourceID!.toString() + "_";
+                name = `root_buffer_binding_${binding}`
                 break;
             }
             case ResourceType.RootAtomic: {
-                name = "root_buffer_" + buffer.resourceID!.toString() + "_atomic_";
+                name = `root_buffer_atomic_binding_${binding}`
                 elementType = "atomic<i32>";
                 break;
             }
@@ -1146,7 +1153,6 @@ fn find_vec4_component(v: vec4<i32>, index: i32) -> i32
             }
         }
         if (!this.resourceBindings.has(buffer)) {
-            let binding = this.bindingPointBegin + this.resourceBindings.size()
             this.resourceBindings.add(buffer, binding)
             let elementCount = this.getElementCount(buffer)
             this.declareNewBuffer(buffer, name, binding, elementType, elementCount)
@@ -1177,11 +1183,21 @@ var<${storageAndAcess}> ${name}: ${name}_type;
         if (textureInfo.resourceType !== ResourceType.Texture && textureInfo.resourceType !== ResourceType.StorageTexture) {
             error("not a texture")
         }
+        let binding: number
+        if (!this.resourceBindings.has(textureInfo)) {
+            binding = this.bindingPointBegin + this.resourceBindings.size()
+        }
+        else {
+            binding = this.resourceBindings.get(textureInfo)!
+        }
         let isStorageTexture = (textureInfo.resourceType === ResourceType.StorageTexture)
         let texture = this.runtime.textures[textureInfo.resourceID!]
-        let name = `texture_${textureInfo.resourceID!}_`
+        let name: string
         if (isStorageTexture) {
-            name += "storage_";
+            name = `texture_binding_${binding}`
+        }
+        else {
+            name = `storage_texture_binding_${binding}`
         }
         let elementType = this.getPrimitiveTypeName(PrimitiveType.f32)
         let typeName = ""
@@ -1234,7 +1250,6 @@ var<${storageAndAcess}> ${name}: ${name}_type;
             }
         }
         if (!this.resourceBindings.has(textureInfo)) {
-            let binding = this.bindingPointBegin + this.resourceBindings.size()
             this.resourceBindings.add(textureInfo, binding)
             let templateArgs = ""
             if (isStorageTexture) {
@@ -1260,15 +1275,21 @@ var ${name}: ${typeName}${templateArgs};
         if (samplerInfo.resourceType !== ResourceType.Sampler) {
             error("not a sampler")
         }
+        let binding: number
+        if (!this.resourceBindings.has(samplerInfo)) {
+            binding = this.bindingPointBegin + this.resourceBindings.size()
+        }
+        else {
+            binding = this.resourceBindings.get(samplerInfo)!
+        }
         let texture = this.runtime.textures[samplerInfo.resourceID!]
-        let name = `sampler_${samplerInfo.resourceID!}_`
+        let name = `sampler_binding_${binding}`
         let typeName = "sampler"
         let isDepth = texture instanceof DepthTexture
         if (isDepth) {
             error("depth texture not supported")
         }
         if (!this.resourceBindings.has(samplerInfo)) {
-            let binding = this.bindingPointBegin + this.resourceBindings.size()
             this.resourceBindings.add(samplerInfo, binding)
             this.declareNewSampler(samplerInfo, name, typeName, binding)
         }
