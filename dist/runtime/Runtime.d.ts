@@ -9,9 +9,10 @@ declare class Runtime {
     kernels: CompiledKernel[];
     materializedTrees: SNodeTree[];
     textures: TextureBase[];
-    supportsIndirectFirstInstance: boolean;
+    private supportsIndirectFirstInstance;
     private globalTmpsBuffer;
     private randStatesBuffer;
+    private pipelineCache;
     constructor();
     init(): Promise<void>;
     createDevice(): Promise<void>;
@@ -36,6 +37,9 @@ declare class Runtime {
     getRootBuffer(treeId: number): GPUBuffer;
     copyImageBitmapToTexture(bitmap: ImageBitmap, texture: GPUTexture): Promise<void>;
     copyImageBitmapsToCubeTexture(bitmaps: ImageBitmap[], texture: GPUTexture): Promise<void>;
+    getGPUShaderModule(code: string): GPUShaderModule;
+    getGPUComputePipeline(desc: GPUComputePipelineDescriptor): GPUComputePipeline;
+    getGPURenderPipeline(desc: GPURenderPipelineDescriptor): GPURenderPipeline;
 }
 declare class FieldHostSideCopy {
     intArray: number[];

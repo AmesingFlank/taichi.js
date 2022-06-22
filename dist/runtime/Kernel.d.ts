@@ -2,6 +2,7 @@
 import { Type } from "../language/frontend/Type";
 import { DepthTexture, TextureBase } from "../data/Texture";
 import { Field } from "../data/Field";
+import { Runtime } from "./Runtime";
 declare enum ResourceType {
     Root = 0,
     RootAtomic = 1,
@@ -78,18 +79,18 @@ declare class CompiledTask {
     params: TaskParams;
     pipeline: GPUComputePipeline | null;
     bindGroup: GPUBindGroup | null;
-    constructor(params: TaskParams, device: GPUDevice);
-    createPipeline(device: GPUDevice): void;
+    constructor(params: TaskParams, runtime: Runtime);
+    createPipeline(runtime: Runtime): void;
 }
 declare class CompiledRenderPipeline {
     params: RenderPipelineParams;
     pipeline: GPURenderPipeline | null;
     bindGroup: GPUBindGroup | null;
-    constructor(params: RenderPipelineParams, renderPassParams: RenderPassParams, device: GPUDevice);
+    constructor(params: RenderPipelineParams, renderPassParams: RenderPassParams, runtime: Runtime);
     private getGPUVertexBufferStates;
     private getGPUColorTargetStates;
     getVertexCount(): number;
-    createPipeline(device: GPUDevice, renderPassParams: RenderPassParams): void;
+    createPipeline(runtime: Runtime, renderPassParams: RenderPassParams): void;
 }
 declare class CompiledRenderPassInfo {
     params: RenderPassParams;

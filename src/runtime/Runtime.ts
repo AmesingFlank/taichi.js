@@ -5,6 +5,7 @@ import { assert, error } from "../utils/Logging"
 import { Field } from '../data/Field'
 import { TypeCategory } from '../language/frontend/Type'
 import { TextureBase, TextureDimensionality, TextureSamplingOptions } from '../data/Texture'
+import { PipelineCache } from './PipelineCache'
 
 
 
@@ -15,10 +16,10 @@ class Runtime {
     materializedTrees: SNodeTree[] = []
     textures: TextureBase[] = []
 
-    supportsIndirectFirstInstance: boolean = false
-
+    private supportsIndirectFirstInstance: boolean = false
     private globalTmpsBuffer: GPUBuffer | null = null
     private randStatesBuffer: GPUBuffer | null = null
+    private pipelineCache: PipelineCache | null = null
 
     constructor() { }
 
@@ -55,18 +56,19 @@ class Runtime {
         }
         this.device = device
         this.adapter = adapter
+        this.pipelineCache = new PipelineCache(device)
     }
 
     createKernel(params: KernelParams): CompiledKernel {
         let kernel = new CompiledKernel()
         for (let taskParams of params.tasksParams) {
             if (taskParams instanceof TaskParams) {
-                let task = new CompiledTask(taskParams, this.device!)
+                let task = new CompiledTask(taskParams, this)
                 kernel.tasks.push(task)
             }
             else if (taskParams instanceof RenderPipelineParams) {
                 assert(params.renderPassParams !== null)
-                let task = new CompiledRenderPipeline(taskParams, params.renderPassParams!, this.device!)
+                let task = new CompiledRenderPipeline(taskParams, params.renderPassParams!, this)
                 kernel.tasks.push(task)
             }
         }
@@ -529,6 +531,18 @@ class Runtime {
             this.device!.queue.copyExternalImageToTexture(copySource, copyDest, extent)
         }
         await this.device!.queue.onSubmittedWorkDone()
+    }
+
+    getGPUShaderModule(code: string): GPUShaderModule {
+        return this.pipelineCache!.getOrCreateShaderModule(code)
+    }
+
+    getGPUComputePipeline(desc: GPUComputePipelineDescriptor): GPUComputePipeline {
+        return this.pipelineCache!.getOrCreateComputePipeline(desc)
+    }
+
+    getGPURenderPipeline(desc: GPURenderPipelineDescriptor): GPURenderPipeline {
+        return this.pipelineCache!.getOrCreateRenderPipeline(desc)
     }
 }
 

@@ -23,6 +23,7 @@ import { offload, OffloadType } from "../codegen/Offload";
 import { CodegenVisitor } from "../codegen/WgslCodegen";
 import { stringifyIR } from "../ir/pass/Printer";
 import { fixOpTypes } from "../ir/pass/FixOpTypes";
+import { remapIds } from "../ir/pass/RemapIds";
 
 enum LoopKind {
     For, While, VertexFor, FragmentFor
@@ -1718,6 +1719,7 @@ export class KernelCompiler extends CompilingVisitor {
         let offloadedModules = offload(irModule)
         if (printIR) console.log("offloaded\n")
         for (let o of offloadedModules) {
+            remapIds(o)
             if (printIR) console.log(stringifyIR(o))
         }
 

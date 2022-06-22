@@ -3,6 +3,7 @@ import { CanvasTexture, DepthTexture, TextureBase } from "../data/Texture"
 import { Field } from "../data/Field"
 
 import { error } from "../utils/Logging"
+import { Runtime } from "./Runtime"
 enum ResourceType {
     Root, RootAtomic, GlobalTmps, Args, RandStates, Rets, Texture, Sampler, StorageTexture
 }
@@ -122,16 +123,14 @@ class KernelParams {
 class CompiledTask {
     pipeline: GPUComputePipeline | null = null
     bindGroup: GPUBindGroup | null = null
-    constructor(public params: TaskParams, device: GPUDevice) {
-        this.createPipeline(device)
+    constructor(public params: TaskParams, runtime: Runtime) {
+        this.createPipeline(runtime)
     }
-    createPipeline(device: GPUDevice) {
+    createPipeline(runtime: Runtime) {
         let code = this.params.code
-        this.pipeline = device.createComputePipeline({
+        this.pipeline = runtime.getGPUComputePipeline({
             compute: {
-                module: device.createShaderModule({
-                    code: code,
-                }),
+                module: runtime.getGPUShaderModule(code),
                 entryPoint: 'main',
             },
         })
@@ -141,8 +140,8 @@ class CompiledTask {
 class CompiledRenderPipeline {
     pipeline: GPURenderPipeline | null = null
     bindGroup: GPUBindGroup | null = null
-    constructor(public params: RenderPipelineParams, renderPassParams: RenderPassParams, device: GPUDevice) {
-        this.createPipeline(device, renderPassParams)
+    constructor(public params: RenderPipelineParams, renderPassParams: RenderPassParams, runtime: Runtime) {
+        this.createPipeline(runtime, renderPassParams)
     }
 
     private getGPUVertexBufferStates(): GPUVertexBufferLayout {
@@ -192,7 +191,7 @@ class CompiledRenderPipeline {
             return this.params.vertexBuffer!.dimensions[0]
         }
     }
-    createPipeline(device: GPUDevice, renderPassParams: RenderPassParams) {
+    createPipeline(runtime: Runtime, renderPassParams: RenderPassParams) {
         let sampleCount = 1
         if (renderPassParams.colorAttachments.length > 0) {
             sampleCount = renderPassParams.colorAttachments[0].texture.sampleCount
@@ -210,18 +209,14 @@ class CompiledRenderPipeline {
         }
         let desc: GPURenderPipelineDescriptor = {
             vertex: {
-                module: device.createShaderModule({
-                    code: this.params.vertex.code,
-                }),
+                module: runtime.getGPUShaderModule(this.params.vertex.code),
                 entryPoint: 'main',
                 buffers: [
                     this.getGPUVertexBufferStates()
                 ],
             },
             fragment: {
-                module: device.createShaderModule({
-                    code: this.params.fragment.code,
-                }),
+                module: runtime.getGPUShaderModule(this.params.fragment.code),
                 entryPoint: 'main',
                 targets: this.getGPUColorTargetStates(renderPassParams)
             },
@@ -244,7 +239,7 @@ class CompiledRenderPipeline {
                 format: renderPassParams.depthAttachment.texture.getGPUTextureFormat(),
             }
         }
-        this.pipeline = device.createRenderPipeline(desc)
+        this.pipeline = runtime.getGPURenderPipeline(desc)
     }
 }
 
