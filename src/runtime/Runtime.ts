@@ -16,7 +16,6 @@ class Runtime {
     materializedTrees: SNodeTree[] = []
     textures: TextureBase[] = []
 
-    private supportsIndirectFirstInstance: boolean = false
     private globalTmpsBuffer: GPUBuffer | null = null
     private randStatesBuffer: GPUBuffer | null = null
     private pipelineCache: PipelineCache | null = null
@@ -44,7 +43,6 @@ class Runtime {
         }
         const requiredFeatures: GPUFeatureName[] = [];
         if (adapter!.features.has('indirect-first-instance')) {
-            this.supportsIndirectFirstInstance = true
             requiredFeatures.push('indirect-first-instance')
         }
 
@@ -133,22 +131,28 @@ class Runtime {
         let computeEncoder: GPUComputePassEncoder | null = null
         let renderEncoder: GPURenderPassEncoder | null = null
 
+        let computeState: EncoderState = new EncoderState
+        let renderState: EncoderState = new EncoderState
+
         let endCompute = () => {
             if (computeEncoder) {
                 computeEncoder.end()
             }
             computeEncoder = null
+            computeState = new EncoderState
         }
         let endRender = () => {
             if (renderEncoder) {
                 renderEncoder.end()
             }
             renderEncoder = null
+            renderState = new EncoderState
         }
         let beginCompute = () => {
             endRender()
             if (!computeEncoder) {
                 computeEncoder = commandEncoder.beginComputePass();
+                computeState = new EncoderState
             }
         }
         let beginRender = () => {
@@ -156,16 +160,16 @@ class Runtime {
             if (!renderEncoder) {
                 assert(kernel.renderPassInfo !== null, "render pass info is null")
                 renderEncoder = commandEncoder.beginRenderPass(kernel.renderPassInfo!.getGPURenderPassDescriptor())
+                renderState = new EncoderState
             }
         }
-
 
 
         let indirectPolyfills = new Map<CompiledRenderPipeline, IndirectPolyfillInfo>()
         for (let task of kernel.tasks) {
             if (task instanceof CompiledRenderPipeline) {
                 if (task.params.indirectBuffer) {
-                    if (task.params.indirectCount !== 1 || !this.supportsIndirectFirstInstance) {
+                    if (task.params.indirectCount !== 1 || !this.supportsIndirectFirstInstance()) {
                         let polyfill = new IndirectPolyfillInfo(task.params.indirectBuffer, task.params.indirectCount)
                         await polyfill.fillInfo()
                         indirectPolyfills.set(task, polyfill)
@@ -182,7 +186,10 @@ class Runtime {
 
             if (task instanceof CompiledTask) {
                 beginCompute()
-                computeEncoder!.setPipeline(task.pipeline!)
+                if (computeState.computePipeline !== task.pipeline!) {
+                    computeEncoder!.setPipeline(task.pipeline!)
+                    computeState.computePipeline = task.pipeline!
+                }
                 computeEncoder!.setBindGroup(0, task.bindGroup!)
                 let workgroupSize = task.params.workgroupSize
                 let numWorkgroups = task.params.numWorkgroups
@@ -191,7 +198,10 @@ class Runtime {
             }
             else if (task instanceof CompiledRenderPipeline) {
                 beginRender()
-                renderEncoder!.setPipeline(task.pipeline!)
+                if (renderState.renderPipeline !== task.pipeline!) {
+                    renderEncoder!.setPipeline(task.pipeline!)
+                    renderState.renderPipeline = task.pipeline!
+                }
                 renderEncoder!.setBindGroup(0, task.bindGroup!)
 
                 if (task.params.vertexBuffer) {
@@ -212,7 +222,7 @@ class Runtime {
                     }
                 }
                 else {
-                    if (task.params.indirectCount === 1 && this.supportsIndirectFirstInstance) {
+                    if (task.params.indirectCount === 1 && this.supportsIndirectFirstInstance()) {
                         let indirectBufferTree = this.materializedTrees[task.params.indirectBuffer.snodeTree.treeId]
                         renderEncoder!.drawIndexedIndirect(indirectBufferTree.rootBuffer!, task.params.indirectBuffer.offsetBytes)
                     }
@@ -544,6 +554,10 @@ class Runtime {
     getGPURenderPipeline(desc: GPURenderPipelineDescriptor): GPURenderPipeline {
         return this.pipelineCache!.getOrCreateRenderPipeline(desc)
     }
+
+    private supportsIndirectFirstInstance() {
+        return this.adapter!.features.has('indirect-first-instance')
+    }
 }
 
 class FieldHostSideCopy {
@@ -585,4 +599,12 @@ class IndirectPolyfillInfo {
         }
     }
 }
+
+
+class EncoderState {
+    computePipeline?: GPUComputePipeline
+    renderPipeline?: GPURenderPipeline
+}
+
+
 export { Runtime }

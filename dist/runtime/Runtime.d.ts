@@ -9,7 +9,6 @@ declare class Runtime {
     kernels: CompiledKernel[];
     materializedTrees: SNodeTree[];
     textures: TextureBase[];
-    private supportsIndirectFirstInstance;
     private globalTmpsBuffer;
     private randStatesBuffer;
     private pipelineCache;
@@ -40,6 +39,7 @@ declare class Runtime {
     getGPUShaderModule(code: string): GPUShaderModule;
     getGPUComputePipeline(desc: GPUComputePipelineDescriptor): GPUComputePipeline;
     getGPURenderPipeline(desc: GPURenderPipelineDescriptor): GPURenderPipeline;
+    private supportsIndirectFirstInstance;
 }
 declare class FieldHostSideCopy {
     intArray: number[];
