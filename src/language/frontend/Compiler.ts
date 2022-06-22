@@ -24,6 +24,7 @@ import { CodegenVisitor } from "../codegen/WgslCodegen";
 import { stringifyIR } from "../ir/pass/Printer";
 import { fixOpTypes } from "../ir/pass/FixOpTypes";
 import { remapIds } from "../ir/pass/RemapIds";
+import { deadInstructionElimination } from "../ir/pass/DIE";
 
 enum LoopKind {
     For, While, VertexFor, FragmentFor
@@ -1709,6 +1710,9 @@ export class KernelCompiler extends CompilingVisitor {
 
         identifyParallelLoops(irModule)
         if (printIR) console.log("identified parallel loops\n", stringifyIR(irModule))
+
+        deadInstructionElimination(irModule)
+        if (printIR) console.log("DIEed\n", stringifyIR(irModule))
 
         insertGlobalTemporaries(irModule)
         if (printIR) console.log("global temps\n", stringifyIR(irModule))
