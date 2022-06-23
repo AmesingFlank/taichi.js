@@ -18,8 +18,12 @@ declare class Runtime {
     createKernel(params: KernelParams): CompiledKernel;
     sync(): Promise<void>;
     launchKernel(kernel: CompiledKernel, ...args: any[]): Promise<any>;
-    addArgsBuffer(size: number): GPUBuffer;
-    addRetsBuffer(size: number): GPUBuffer;
+    private addArgsBuffer;
+    private recycleArgsBuffer;
+    private addRetsBufferGPU;
+    private recycleRetsBufferGPU;
+    private addRetsBufferCPU;
+    private recycleRetsBufferCPU;
     private createGlobalTmpsBuffer;
     private createRandStatesBuffer;
     getGPUBindGroupEntries(bindings: ResourceBinding[], argsBuffer: GPUBuffer | null, retsBuffer: GPUBuffer | null): GPUBindGroupEntry[];

@@ -326,24 +326,24 @@ export class Renderer {
                 ti.useDepth(this.depthTexture);
                 ti.clearColor(this.canvasTexture, [0.1, 0.2, 0.3, 1]);
 
-                let getLightBrightnessAndDir = (light: any, fragPos:ti.types.vector) => {
-                    let brightness:ti.types.vector = [0.0, 0.0, 0.0]
-                    let lightDir:ti.types.vector = [0.0, 0.0, 0.0]
-                    if (light.type === this.engine.LightType.Point || light.type === this.engine.LightType.Spot ) {
+                let getLightBrightnessAndDir = (light: any, fragPos: ti.types.vector) => {
+                    let brightness: ti.types.vector = [0.0, 0.0, 0.0]
+                    let lightDir: ti.types.vector = [0.0, 0.0, 0.0]
+                    if (light.type === this.engine.LightType.Point || light.type === this.engine.LightType.Spot) {
                         let fragToLight = light.position - fragPos
                         let distance = ti.norm(fragToLight)
                         let attenuation = 1.0 / (Math.max(distance * distance, 0.01 * 0.01))
                         let window = (1 - (distance / light.influenceRadius) ** 2) ** 4
                         //@ts-ignore
                         brightness = light.brightness * attenuation * window
-                        if(light.type === this.engine.LightType.Spot){
+                        if (light.type === this.engine.LightType.Spot) {
                             let cosAngle = ti.dot(-ti.normalized(fragToLight), light.direction)
                             let spotScale = 1.0 / Math.max(Math.cos(light.innerConeAngle) - Math.cos(light.outerConeAngle), 1e-4)
                             let spotOffset = -Math.cos(light.outerConeAngle) * spotScale
                             let t = cosAngle * spotScale + spotOffset
                             t = Math.max(0.0, Math.min(1.0, t))
                             //@ts-ignore
-                            brightness =  brightness * t * t
+                            brightness = brightness * t * t
                         }
                         lightDir = ti.normalized(fragToLight)
                     }
@@ -446,12 +446,19 @@ export class Renderer {
                     let uvDy: ti.types.vector = ti.dpdy(texCoords.concat([0.0]))
                     let posDx: ti.types.vector = ti.dpdx(position)
                     let posDy: ti.types.vector = ti.dpdy(position)
-                    let temp = (uvDy[1] * posDx - uvDx[1] * posDy) / (uvDx[0] * uvDy[1] - uvDy[0] * uvDx[1])
-                    let tangent = ti.normalized(temp - normal * ti.dot(normal, temp))
-                    let bitangent = ti.normalized(ti.cross(normal, tangent))
-                    let mat = ti.transpose([tangent, bitangent, normal])
+                    let denom = (uvDx[0] * uvDy[1] - uvDy[0] * uvDx[1])
+                    let temp = (uvDy[1] * posDx - uvDx[1] * posDy) / denom
+                    let tangent = temp - normal * ti.dot(normal, temp)
+                    let tangentNorm = ti.norm(tangent)
+                    let bitangent = ti.cross(normal, tangent)
+                    let bitangentNorm = ti.norm(bitangent)
+                    let mat = ti.transpose([tangent / tangentNorm, bitangent / bitangentNorm, normal])
                     let normalMapValue = ti.normalized(normalMap * 2.0 - 1.0)
-                    return ti.normalized(ti.matmul(mat, normalMapValue))
+                    let result = ti.normalized(ti.matmul(mat, normalMapValue))
+                    if (denom === 0.0 || tangentNorm === 0.0 || bitangentNorm === 0.0) {
+                        result = normal
+                    }
+                    return result
                 }
 
                 //@ts-ignore
