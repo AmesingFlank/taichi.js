@@ -6,6 +6,7 @@ import { Field } from '../data/Field'
 import { TypeCategory } from '../language/frontend/Type'
 import { TextureBase, TextureDimensionality, TextureSamplingOptions } from '../data/Texture'
 import { PipelineCache } from './PipelineCache'
+import { BufferPool } from './BufferPool'
 
 
 
@@ -89,7 +90,8 @@ class Runtime {
         let requiresArgsBuffer = false
         let requiresRetsBuffer = false
         let thisArgsBuffer: GPUBuffer | null = null
-        let thisRetsBuffer: GPUBuffer | null = null
+        let thisRetsBufferGPU: GPUBuffer | null = null
+        let thisRetsBufferCPU: GPUBuffer | null = null
         let argsSize: number = 0
         let retsSize: number = 0
         for (let task of kernel.tasks) {
@@ -124,7 +126,8 @@ class Runtime {
 
         if (requiresRetsBuffer) {
             retsSize = kernel.returnType.getPrimitivesList().length * 4
-            thisRetsBuffer = this.addRetsBuffer(retsSize)
+            thisRetsBufferGPU = this.addRetsBufferGPU(retsSize)
+            thisRetsBufferCPU = this.addRetsBufferCPU(retsSize)
         }
 
         let commandEncoder = this.device!.createCommandEncoder();
@@ -181,7 +184,7 @@ class Runtime {
         for (let task of kernel.tasks) {
             task.bindGroup = this.device!.createBindGroup({
                 layout: task.pipeline!.getBindGroupLayout(0),
-                entries: this.getGPUBindGroupEntries(task.params.bindings, thisArgsBuffer, thisRetsBuffer)
+                entries: this.getGPUBindGroupEntries(task.params.bindings, thisArgsBuffer, thisRetsBufferGPU)
             })
 
             if (task instanceof CompiledTask) {
@@ -249,33 +252,33 @@ class Runtime {
         await this.sync()
 
         if (thisArgsBuffer) {
-            thisArgsBuffer!.destroy()
+            this.recycleArgsBuffer(thisArgsBuffer, argsSize)
         }
 
         if (kernel.returnType.getCategory() !== TypeCategory.Void) {
-            assert(thisRetsBuffer !== null, "missing rets buffer!")
+            assert(thisRetsBufferGPU !== null && thisRetsBufferCPU !== null, "missing rets buffer!")
 
-            let retsCopy = this.device!.createBuffer({
-                size: retsSize,
-                usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
-            })
             let commandEncoder = this.device!.createCommandEncoder();
-            commandEncoder.copyBufferToBuffer(thisRetsBuffer!, 0, retsCopy, 0, retsSize)
+            commandEncoder.copyBufferToBuffer(thisRetsBufferGPU!, 0, thisRetsBufferCPU!, 0, retsSize)
             this.device!.queue.submit([commandEncoder.finish()]);
             await this.device!.queue.onSubmittedWorkDone()
 
-            await retsCopy!.mapAsync(GPUMapMode.READ)
-            let intArray = new Int32Array(retsCopy!.getMappedRange())
+            await thisRetsBufferCPU!.mapAsync(GPUMapMode.READ)
+            let intArray = new Int32Array(thisRetsBufferCPU!.getMappedRange())
             let returnVal = int32ArrayToElement(intArray, kernel.returnType)
 
-            thisRetsBuffer!.destroy()
-            retsCopy.destroy()
+            thisRetsBufferCPU!.unmap()
+            this.recycleRetsBufferCPU(thisRetsBufferCPU!, retsSize)
+            this.recycleRetsBufferGPU(thisRetsBufferGPU!, retsSize)
 
             return returnVal
         }
     }
 
-    addArgsBuffer(size: number): GPUBuffer {
+    private addArgsBuffer(size: number): GPUBuffer {
+        // can't use a buffer pool, because we need the mappedAtCreation feature.
+        // or we could use two buffers, one for MAP_WRITE and COPY_SRC, the other for STORAGE and UNIFORM
+        // but that's probably not worth it.
         let buffer = this.device!.createBuffer({
             size: size,
             usage: GPUBufferUsage.STORAGE | GPUBufferUsage.UNIFORM,
@@ -284,12 +287,24 @@ class Runtime {
         return buffer
     }
 
-    addRetsBuffer(size: number): GPUBuffer {
-        let buf = this.device!.createBuffer({
-            size: size,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
-        })
-        return buf
+    private recycleArgsBuffer(buffer: GPUBuffer, size: number) {
+        buffer.destroy()
+    }
+
+    private addRetsBufferGPU(size: number): GPUBuffer {
+        return BufferPool.getPool(this.device!, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC).getBuffer(size)
+    }
+
+    private recycleRetsBufferGPU(buffer: GPUBuffer, size: number) {
+        BufferPool.getPool(this.device!, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC).returnBuffer(buffer, size)
+    }
+
+    private addRetsBufferCPU(size: number): GPUBuffer {
+        return BufferPool.getPool(this.device!, GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST).getBuffer(size)
+    }
+
+    private recycleRetsBufferCPU(buffer: GPUBuffer, size: number) {
+        BufferPool.getPool(this.device!, GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST).returnBuffer(buffer, size)
     }
 
     private createGlobalTmpsBuffer() {
@@ -471,10 +486,8 @@ class Runtime {
         if (sizeBytes === 0) {
             sizeBytes = field.sizeBytes
         }
-        const rootBufferCopy = this.device!.createBuffer({
-            size: sizeBytes,
-            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-        });
+
+        const rootBufferCopy = BufferPool.getPool(this.device!, GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ).getBuffer(sizeBytes)
         let commandEncoder = this.device!.createCommandEncoder();
         commandEncoder.copyBufferToBuffer(this.materializedTrees[field.snodeTree.treeId].rootBuffer!, field.offsetBytes + offsetBytes, rootBufferCopy, 0, sizeBytes)
         this.device!.queue.submit([commandEncoder.finish()]);
@@ -485,7 +498,7 @@ class Runtime {
         let resultInt = Array.from(new Int32Array(mappedRange))
         let resultFloat = Array.from(new Float32Array(mappedRange))
         rootBufferCopy.unmap()
-        rootBufferCopy.destroy()
+        BufferPool.getPool(this.device!, GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ).returnBuffer(rootBufferCopy, sizeBytes)
         return new FieldHostSideCopy(resultInt, resultFloat)
     }
 
