@@ -7,7 +7,7 @@ import { Field } from "../../data/Field";
 import { DepthTexture, getTextureCoordsNumComponents, isTexture, TextureBase } from "../../data/Texture";
 import { Program } from "../../program/Program";
 import { LibraryFunc } from "./Library";
-import { Type, TypeCategory, ScalarType, VectorType, PointerType, VoidType, TypeUtils, PrimitiveType, FunctionType } from "./Type"
+import { Type, TypeCategory, ScalarType, VectorType, PointerType, VoidType, TypeUtils, PrimitiveType, FunctionType, HostObjectReferenceType } from "./Type"
 import { Value, ValueUtils } from "./Value"
 import { BuiltinOp, BuiltinAtomicOp, BuiltinOpFactory } from "./BuiltinOp";
 import { ResultOrError } from "./Error";
@@ -1434,9 +1434,15 @@ class CompilingVisitor extends ASTVisitor<Value>{
         }
         if (vertexArgs.length >= 3) {
             this.assertNode(null, argumentValues[2].getType().getCategory() === TypeCategory.HostObjectReference && argumentValues[2].hostSideValue instanceof Field, `the indirect buffer ${vertexArgs[0].getText()} must be an instance of taichi field that's visible in kernel scope`)
+            let refType = argumentValues[2].getType() as HostObjectReferenceType
             let indirectBuffer = argumentValues[2].hostSideValue as Field
             this.assertNode(null, indirectBuffer.dimensions.length === 1, "the indirect buffer must be a 1D field ")
-            this.currentRenderPipelineParams.indirectBuffer = indirectBuffer
+            if (refType.markedAsStatic) {
+                this.currentRenderPipelineParams.indirectBuffer = indirectBuffer.toInt32Array()
+            }
+            else {
+                this.currentRenderPipelineParams.indirectBuffer = indirectBuffer
+            }
         }
         if (vertexArgs.length >= 4) {
             this.assertNode(null, argumentValues[3].getType().getCategory() === TypeCategory.Scalar && TypeUtils.getPrimitiveType(argumentValues[3].getType()) == PrimitiveType.i32, `the indirect count must be a i32 scalar`)

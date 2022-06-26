@@ -225,7 +225,7 @@ class Runtime {
                     }
                 }
                 else {
-                    if (task.params.indirectCount === 1 && this.supportsIndirectFirstInstance()) {
+                    if (task.params.indirectCount === 1 && this.supportsIndirectFirstInstance() && task.params.indirectBuffer instanceof Field) {
                         let indirectBufferTree = this.materializedTrees[task.params.indirectBuffer.snodeTree.treeId]
                         renderEncoder!.drawIndexedIndirect(indirectBufferTree.rootBuffer!, task.params.indirectBuffer.offsetBytes)
                     }
@@ -595,7 +595,7 @@ class IndirectDrawCommand {
 }
 
 class IndirectPolyfillInfo {
-    constructor(public indirectBuffer: Field, public indirectCount: number | Field) {
+    constructor(public indirectBuffer: Promise<number[]> | Field, public indirectCount: number | Field) {
 
     }
     commands: IndirectDrawCommand[] = []
@@ -603,7 +603,13 @@ class IndirectPolyfillInfo {
         if (this.indirectCount instanceof Field) {
             this.indirectCount = (await this.indirectCount.toInt32Array())[0]
         }
-        let indirectBufferHost = await this.indirectBuffer.toInt32Array()
+        let indirectBufferHost: number[] = []
+        if (this.indirectBuffer instanceof Field) {
+            indirectBufferHost = await this.indirectBuffer.toInt32Array()
+        }
+        else {
+            indirectBufferHost = await this.indirectBuffer
+        }
         this.commands = []
         for (let i = 0; i < this.indirectCount; ++i) {
             let values = indirectBufferHost.slice(i * 5, i * 5 + 5)

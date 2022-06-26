@@ -502,7 +502,8 @@ export class Renderer {
                         }
                         return material
                     }
-                    for (let v of ti.inputVertices(this.sceneData!.vertexBuffer, this.sceneData!.indexBuffer, this.batchesDrawInfoBuffers[batchID], this.batchesDrawInfoBuffers[batchID].dimensions[0])) {
+                    //@ts-ignore
+                    for (let v of ti.inputVertices(this.sceneData!.vertexBuffer, this.sceneData!.indexBuffer, ti.static(this.batchesDrawInfoBuffers[batchID]), ti.static(this.batchesDrawInfoBuffers[batchID].dimensions[0]))) {
                         let instanceIndex = ti.getInstanceIndex()
                         //@ts-ignore
                         let instanceInfo = this.batchesDrawInstanceInfoBuffers[batchID][instanceIndex]

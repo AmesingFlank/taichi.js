@@ -915,6 +915,9 @@ class BuiltinOpFactory {
                 return TypeError.createNoError()
             },
             (args: Value[]) => {
+                if(args[0].getType().getCategory()===TypeCategory.HostObjectReference){
+                    return ValueUtils.makeHostObjectReference(args[0].hostSideValue,/*markedAsConstant = */true)
+                }
                 return args[0]
             }
         )

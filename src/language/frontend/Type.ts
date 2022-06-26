@@ -307,7 +307,7 @@ export class FunctionType extends Type {
 }
 
 export class HostObjectReferenceType extends Type {
-    constructor() {
+    constructor(public markedAsStatic:boolean) {
         super()
     }
     override getCategory(): TypeCategory {

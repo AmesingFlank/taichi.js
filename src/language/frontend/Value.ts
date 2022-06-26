@@ -326,8 +326,8 @@ export class ValueUtils {
         return result
     }
 
-    static makeHostObjectReference(val: any) {
-        let result = new Value(new HostObjectReferenceType())
+    static makeHostObjectReference(val: any, markedAsStatic: boolean = false) {
+        let result = new Value(new HostObjectReferenceType(markedAsStatic))
         result.hostSideValue = val
         return result
     }

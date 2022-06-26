@@ -66,7 +66,7 @@ class RenderPipelineParams {
         public interpolatedType: Type = new StructType({}),
         public vertexBuffer: Field | null = null,
         public indexBuffer: Field | null = null,
-        public indirectBuffer: Field | null = null
+        public indirectBuffer: Field | Promise<number[]> | null = null
     ) {
         this.bindings = this.getBindings()
     }
