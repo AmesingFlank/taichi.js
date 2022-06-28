@@ -468,7 +468,7 @@ export class CodegenVisitor extends IRVisitor {
         else {
             let temp = this.getTemp()
             this.emitLet(temp, "i32")
-            this.body.write(`find_vec4_component(${bufferName}[${argId}${this.getRawDataTypeIndexShift()}], ${argId});\n`)
+            this.body.write(`${bufferName}[${argId}${this.getRawDataTypeIndexShift()}][${argId} & 3];\n`)
             this.emitLet(stmt.getName(), dtName)
             this.body.write(`bitcast<${dtName}>(${temp});\n`)
         }
@@ -557,7 +557,7 @@ export class CodegenVisitor extends IRVisitor {
         else {
             let temp = this.getTemp();
             this.emitLet(temp, "i32")
-            this.body.write(`find_vec4_component(${bufferName}[${ptr.getName()}${this.getRawDataTypeIndexShift()}], ${ptr.getName()});\n`)
+            this.body.write(`${bufferName}[${ptr.getName()}${this.getRawDataTypeIndexShift()}][${ptr.getName()} & 3];\n`)
             this.emitLet(stmt.getName(), dt)
             this.body.write(`bitcast<${dtName}>(${temp});\n`)
         }
@@ -949,25 +949,6 @@ fn main(${builtInInput} ${stageInput}) ${maybeOutput}
 `
         this.funtionSignature.write(signature)
         this.functionEnd.write("\n}\n")
-
-        if (this.enforce16BytesAlignment()) {
-            let helper = `
-fn find_vec4_component(v: vec4<i32>, index: i32) -> i32 
-{
-    if((index & 3) == 0){
-        return v.x;
-    }
-    if((index & 3) == 1){
-        return v.y;
-    }
-    if((index & 3) == 2){
-        return v.z;
-    }
-    return v.w;
-}            
-`
-            this.globalDecls.write(helper)
-        }
     }
 
 

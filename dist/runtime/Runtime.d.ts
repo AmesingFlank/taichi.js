@@ -20,13 +20,9 @@ declare class Runtime {
     launchKernel(kernel: CompiledKernel, ...args: any[]): Promise<any>;
     private addArgsBuffer;
     private recycleArgsBuffer;
-    private addRetsBufferGPU;
-    private recycleRetsBufferGPU;
-    private addRetsBufferCPU;
-    private recycleRetsBufferCPU;
     private createGlobalTmpsBuffer;
     private createRandStatesBuffer;
-    getGPUBindGroupEntries(bindings: ResourceBinding[], argsBuffer: GPUBuffer | null, retsBuffer: GPUBuffer | null): GPUBindGroupEntry[];
+    getGPUBindGroupEntries(bindings: ResourceBinding[], argsBuffer: GPUBuffer | undefined, retsBuffer: GPUBuffer | undefined): GPUBindGroupEntry[];
     materializeTree(tree: SNodeTree): void;
     addTexture(texture: TextureBase): void;
     createGPUTexture(dimensions: number[], dimensionality: TextureDimensionality, format: GPUTextureFormat, renderAttachment: boolean, requiresStorage: boolean, sampleCount: number): GPUTexture;

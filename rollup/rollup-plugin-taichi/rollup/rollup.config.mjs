@@ -1,7 +1,8 @@
 // rollup.config.js
 import typescript from 'rollup-plugin-typescript2';
 import resolve from '@rollup/plugin-node-resolve';
-import commonjs from '@rollup/plugin-commonjs'; 
+import commonjs from '@rollup/plugin-commonjs';
+import { terser } from 'rollup-plugin-terser';
 export default {
   input: 'src/index.ts',
   output: [
@@ -17,13 +18,14 @@ export default {
   ],
   plugins: [
     commonjs(),
-    resolve(), 
+    resolve(),
     typescript(),
+    terser(),
   ],
   watch: {
     chokidar: {
-        paths: 'src/**',
-        usePolling: true
+      paths: 'src/**',
+      usePolling: true
     }
   }
 };

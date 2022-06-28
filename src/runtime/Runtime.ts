@@ -6,7 +6,7 @@ import { Field } from '../data/Field'
 import { TypeCategory } from '../language/frontend/Type'
 import { TextureBase, TextureDimensionality, TextureSamplingOptions } from '../data/Texture'
 import { PipelineCache } from './PipelineCache'
-import { BufferPool } from './BufferPool'
+import { BufferPool, PooledBuffer } from './BufferPool'
 
 
 
@@ -31,7 +31,7 @@ class Runtime {
 
     async createDevice() {
         let alertWebGPUError = () => {
-            alert(`Webgpu not supported. Please ensure that you have Chrome 100w+ with WebGPU Origin Trial Tokens, Chrome Canary, Firefox Nightly, or Safary Tech Preview`)
+            alert(`Webgpu not supported. Please ensure that you have Chrome v103+ with WebGPU Origin Trial Tokens, Chrome Canary, Firefox Nightly, or Safary Tech Preview`)
         }
         if (!navigator.gpu) {
             alertWebGPUError()
@@ -89,9 +89,9 @@ class Runtime {
 
         let requiresArgsBuffer = false
         let requiresRetsBuffer = false
-        let thisArgsBuffer: GPUBuffer | null = null
-        let thisRetsBufferGPU: GPUBuffer | null = null
-        let thisRetsBufferCPU: GPUBuffer | null = null
+        let thisArgsBuffer: GPUBuffer | undefined = undefined
+        let thisRetsBufferGPU: PooledBuffer | undefined = undefined
+        let thisRetsBufferCPU: PooledBuffer | undefined = undefined
         let argsSize: number = 0
         let retsSize: number = 0
         for (let task of kernel.tasks) {
@@ -124,10 +124,13 @@ class Runtime {
             thisArgsBuffer.unmap()
         }
 
+        let retsBufferPoolGPU = BufferPool.getPool(this.device!, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC)
+        let retsBufferPoolCPU = BufferPool.getPool(this.device!, GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST)
+
         if (requiresRetsBuffer) {
             retsSize = kernel.returnType.getPrimitivesList().length * 4
-            thisRetsBufferGPU = this.addRetsBufferGPU(retsSize)
-            thisRetsBufferCPU = this.addRetsBufferCPU(retsSize)
+            thisRetsBufferGPU = retsBufferPoolGPU.getBuffer(retsSize)
+            thisRetsBufferCPU = retsBufferPoolCPU.getBuffer(retsSize)
         }
 
         let commandEncoder = this.device!.createCommandEncoder();
@@ -184,7 +187,7 @@ class Runtime {
         for (let task of kernel.tasks) {
             task.bindGroup = this.device!.createBindGroup({
                 layout: task.pipeline!.getBindGroupLayout(0),
-                entries: this.getGPUBindGroupEntries(task.params.bindings, thisArgsBuffer, thisRetsBufferGPU)
+                entries: this.getGPUBindGroupEntries(task.params.bindings, thisArgsBuffer, thisRetsBufferGPU?.buffer)
             })
 
             if (task instanceof CompiledTask) {
@@ -197,7 +200,7 @@ class Runtime {
                 let workgroupSize = task.params.workgroupSize
                 let numWorkgroups = task.params.numWorkgroups
 
-                computeEncoder!.dispatch(numWorkgroups);
+                computeEncoder!.dispatchWorkgroups(numWorkgroups);
             }
             else if (task instanceof CompiledRenderPipeline) {
                 beginRender()
@@ -259,17 +262,17 @@ class Runtime {
             assert(thisRetsBufferGPU !== null && thisRetsBufferCPU !== null, "missing rets buffer!")
 
             let commandEncoder = this.device!.createCommandEncoder();
-            commandEncoder.copyBufferToBuffer(thisRetsBufferGPU!, 0, thisRetsBufferCPU!, 0, retsSize)
+            commandEncoder.copyBufferToBuffer(thisRetsBufferGPU!.buffer, 0, thisRetsBufferCPU!.buffer, 0, retsSize)
             this.device!.queue.submit([commandEncoder.finish()]);
             await this.device!.queue.onSubmittedWorkDone()
 
-            await thisRetsBufferCPU!.mapAsync(GPUMapMode.READ)
-            let intArray = new Int32Array(thisRetsBufferCPU!.getMappedRange())
+            await thisRetsBufferCPU!.buffer.mapAsync(GPUMapMode.READ, 0, retsSize)
+            let intArray = new Int32Array(thisRetsBufferCPU!.buffer.getMappedRange(0, retsSize))
             let returnVal = int32ArrayToElement(intArray, kernel.returnType)
 
-            thisRetsBufferCPU!.unmap()
-            this.recycleRetsBufferCPU(thisRetsBufferCPU!, retsSize)
-            this.recycleRetsBufferGPU(thisRetsBufferGPU!, retsSize)
+            thisRetsBufferCPU!.buffer.unmap()
+            retsBufferPoolGPU.returnBuffer(thisRetsBufferGPU!)
+            retsBufferPoolCPU.returnBuffer(thisRetsBufferCPU!)
 
             return returnVal
         }
@@ -291,22 +294,6 @@ class Runtime {
         buffer.destroy()
     }
 
-    private addRetsBufferGPU(size: number): GPUBuffer {
-        return BufferPool.getPool(this.device!, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC).getBuffer(size)
-    }
-
-    private recycleRetsBufferGPU(buffer: GPUBuffer, size: number) {
-        BufferPool.getPool(this.device!, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC).returnBuffer(buffer, size)
-    }
-
-    private addRetsBufferCPU(size: number): GPUBuffer {
-        return BufferPool.getPool(this.device!, GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST).getBuffer(size)
-    }
-
-    private recycleRetsBufferCPU(buffer: GPUBuffer, size: number) {
-        BufferPool.getPool(this.device!, GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST).returnBuffer(buffer, size)
-    }
-
     private createGlobalTmpsBuffer() {
         let size = 65536 // this buffer may be used as UBO by vertex shader. 65535 is the maximum size allowed by Chrome's WebGPU DX backend
         this.globalTmpsBuffer = this.device!.createBuffer({
@@ -322,12 +309,12 @@ class Runtime {
         })
     }
 
-    getGPUBindGroupEntries(bindings: ResourceBinding[], argsBuffer: GPUBuffer | null, retsBuffer: GPUBuffer | null): GPUBindGroupEntry[] {
+    getGPUBindGroupEntries(bindings: ResourceBinding[], argsBuffer: GPUBuffer | undefined, retsBuffer: GPUBuffer | undefined): GPUBindGroupEntry[] {
         let entries: GPUBindGroupEntry[] = []
         for (let binding of bindings) {
-            let buffer: GPUBuffer | null = null
-            let texture: GPUTextureView | null = null
-            let sampler: GPUSampler | null = null
+            let buffer: GPUBuffer | undefined = undefined
+            let texture: GPUTextureView | undefined = undefined
+            let sampler: GPUSampler | undefined = undefined
             switch (binding.info.resourceType) {
                 case ResourceType.Root:
                 case ResourceType.RootAtomic: {
@@ -362,7 +349,7 @@ class Runtime {
                     break;
                 }
             }
-            if (buffer !== null) {
+            if (buffer) {
                 entries.push({
                     binding: binding.binding,
                     resource: {
@@ -370,13 +357,13 @@ class Runtime {
                     }
                 })
             }
-            else if (texture !== null) {
+            else if (texture) {
                 entries.push({
                     binding: binding.binding,
                     resource: texture
                 })
             }
-            else if (sampler !== null) {
+            else if (sampler) {
                 entries.push({
                     binding: binding.binding,
                     resource: sampler
@@ -486,19 +473,19 @@ class Runtime {
         if (sizeBytes === 0) {
             sizeBytes = field.sizeBytes
         }
-
-        const rootBufferCopy = BufferPool.getPool(this.device!, GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ).getBuffer(sizeBytes)
+        let pool = BufferPool.getPool(this.device!, GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ)
+        const rootBufferCopy = pool.getBuffer(sizeBytes)
         let commandEncoder = this.device!.createCommandEncoder();
-        commandEncoder.copyBufferToBuffer(this.materializedTrees[field.snodeTree.treeId].rootBuffer!, field.offsetBytes + offsetBytes, rootBufferCopy, 0, sizeBytes)
+        commandEncoder.copyBufferToBuffer(this.materializedTrees[field.snodeTree.treeId].rootBuffer!, field.offsetBytes + offsetBytes, rootBufferCopy.buffer, 0, sizeBytes)
         this.device!.queue.submit([commandEncoder.finish()]);
         await this.sync()
 
-        await rootBufferCopy.mapAsync(GPUMapMode.READ)
-        let mappedRange = rootBufferCopy.getMappedRange()
+        await rootBufferCopy.buffer.mapAsync(GPUMapMode.READ, 0, sizeBytes)
+        let mappedRange = rootBufferCopy.buffer.getMappedRange(0, sizeBytes)
         let resultInt = Array.from(new Int32Array(mappedRange))
         let resultFloat = Array.from(new Float32Array(mappedRange))
-        rootBufferCopy.unmap()
-        BufferPool.getPool(this.device!, GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ).returnBuffer(rootBufferCopy, sizeBytes)
+        rootBufferCopy.buffer.unmap()
+        pool.returnBuffer(rootBufferCopy)
         return new FieldHostSideCopy(resultInt, resultFloat)
     }
 

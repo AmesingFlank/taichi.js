@@ -49,8 +49,8 @@ declare class RenderPipelineParams {
     interpolatedType: Type;
     vertexBuffer: Field | null;
     indexBuffer: Field | null;
-    indirectBuffer: Field | null;
-    constructor(vertex: VertexShaderParams, fragment: FragmentShaderParams, interpolatedType?: Type, vertexBuffer?: Field | null, indexBuffer?: Field | null, indirectBuffer?: Field | null);
+    indirectBuffer: Field | Promise<number[]> | null;
+    constructor(vertex: VertexShaderParams, fragment: FragmentShaderParams, interpolatedType?: Type, vertexBuffer?: Field | null, indexBuffer?: Field | null, indirectBuffer?: Field | Promise<number[]> | null);
     bindings: ResourceBinding[];
     indirectCount: number | Field;
     getBindings(): ResourceBinding[];

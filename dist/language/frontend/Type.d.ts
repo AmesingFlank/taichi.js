@@ -82,7 +82,8 @@ export declare class FunctionType extends Type {
     getPrimitivesList(): PrimitiveType[];
 }
 export declare class HostObjectReferenceType extends Type {
-    constructor();
+    markedAsStatic: boolean;
+    constructor(markedAsStatic: boolean);
     getCategory(): TypeCategory;
     equals(that: Type): boolean;
     getPrimitivesList(): PrimitiveType[];

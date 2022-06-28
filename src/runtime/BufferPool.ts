@@ -1,4 +1,7 @@
-
+export interface PooledBuffer {
+    buffer: GPUBuffer,
+    size: number
+}
 
 export class BufferPool {
     private constructor(private device: GPUDevice, public usage: GPUBufferUsageFlags) {
@@ -15,28 +18,31 @@ export class BufferPool {
         return this.pools.get(usage)!
     }
 
-    private buffers: Set<[GPUBuffer, number]> = new Set<[GPUBuffer, number]>()
+    private buffers: Set<PooledBuffer> = new Set<PooledBuffer>()
 
-    public getBuffer(size: number): GPUBuffer {
-        let selectedPair: [GPUBuffer, number] | undefined = undefined
+    public getBuffer(size: number): PooledBuffer {
+        let selectedPair: PooledBuffer | undefined = undefined
         for (let pair of this.buffers.keys()) {
-            if (pair[1] >= size) {
+            if (pair.size >= size) {
                 selectedPair = pair
                 break;
             }
         }
         if (selectedPair) {
             this.buffers.delete(selectedPair)
-            return selectedPair[0]
+            return selectedPair
         }
         let buffer = this.device.createBuffer({
             size: size,
             usage: this.usage
         })
-        return buffer
+        return {
+            buffer: buffer,
+            size: size
+        }
     }
 
-    public returnBuffer(buffer: GPUBuffer, size: number) {
-        this.buffers.add([buffer, size])
+    public returnBuffer(buffer: PooledBuffer) {
+        this.buffers.add(buffer)
     }
 }

@@ -1,0 +1,11 @@
+Model Information:
+* title:	Bedroom
+* source:	https://sketchfab.com/3d-models/bedroom-7b85b6628fa04281b796e9c0de34794b
+* author:	Baha Sukkar (https://sketchfab.com/bahasukkar)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Bedroom" (https://sketchfab.com/3d-models/bedroom-7b85b6628fa04281b796e9c0de34794b) by Baha Sukkar (https://sketchfab.com/bahasukkar) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

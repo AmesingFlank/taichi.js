@@ -133,6 +133,7 @@ class CompiledTask {
                 module: runtime.getGPUShaderModule(code),
                 entryPoint: 'main',
             },
+            layout: "auto"
         })
     }
 }
@@ -226,7 +227,8 @@ class CompiledRenderPipeline {
             },
             multisample: {
                 count: sampleCount
-            }
+            },
+            layout: "auto"
         }
         if (renderPassParams.depthAttachment !== null) {
             let depthWrite = true
@@ -266,7 +268,6 @@ class CompiledRenderPassInfo {
                         view,
                         resolveTarget,
                         clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
-                        loadValue: "load",
                         loadOp: "load",
                         storeOp: 'store',
                     }
@@ -284,7 +285,6 @@ class CompiledRenderPassInfo {
                         view,
                         resolveTarget,
                         clearValue: clearValue,
-                        loadValue: clearValue,
                         loadOp: "clear",
                         storeOp: 'store',
                     }
@@ -301,7 +301,6 @@ class CompiledRenderPassInfo {
         let depthStencilAttachment: GPURenderPassDepthStencilAttachment = {
             view: depth.texture.getGPUTextureView(),
             depthClearValue: depth.clearDepth,
-            depthLoadValue: depth.clearDepth === undefined ? "load" : depth.clearDepth,
             depthLoadOp: depth.clearDepth === undefined ? "load" : "clear",
             depthStoreOp: depth.storeDepth === true ? "store" : "discard",
         }
