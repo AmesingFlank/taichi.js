@@ -39,6 +39,7 @@ export declare function dpdx(val: number | ti.types.vector): number | ti.types.v
 export declare function dpdy(val: number | ti.types.vector): number | ti.types.vector;
 export declare function lookAt(eye: ti.types.vector, center: ti.types.vector, up: ti.types.vector): any[];
 export declare function perspective(fovy: number, aspect: number, zNear: number, zFar: number): number[][];
+export declare function ortho(left: number, right: number, bottom: number, top: number, zNear: number, zFar: number): number[][];
 export declare function rotateAxisAngle(axis: ti.types.vector, angle: number): ti.types.matrix;
 export declare function translate(t: ti.types.vector): ti.types.matrix;
 export declare function scale(t: ti.types.vector): ti.types.matrix;

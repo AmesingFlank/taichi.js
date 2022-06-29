@@ -10,9 +10,9 @@ import { DelayedStmtReplacer } from "./Replacer"
 class IdentifyAllocasUsedInParallelForsPass extends IRVisitor {
     inParallelLoop: boolean = false
 
-    serialAllocas: Set<Stmt> = new Set<Stmt>()
+    thisOffloadSerialAllocas: Set<Stmt> = new Set<Stmt>()
     maybeAllocateGtemp(alloca: AllocaStmt) {
-        if (this.inParallelLoop && this.serialAllocas.has(alloca) && !this.gtempsAllocation.has(alloca)) {
+        if (!this.thisOffloadSerialAllocas.has(alloca) && !this.gtempsAllocation.has(alloca)) {
             let offset = this.gtempsAllocation.size + this.nextAvailableGtemp
             this.gtempsAllocation.set(alloca, offset)
         }
@@ -27,26 +27,30 @@ class IdentifyAllocasUsedInParallelForsPass extends IRVisitor {
     override visitRangeForStmt(stmt: RangeForStmt) {
         if (stmt.isParallelFor) {
             this.inParallelLoop = true
+            this.thisOffloadSerialAllocas.clear()
         }
         super.visitRangeForStmt(stmt)
         if (stmt.isParallelFor) {
             this.inParallelLoop = false
+            this.thisOffloadSerialAllocas.clear()
         }
     }
     override visitVertexForStmt(stmt: VertexForStmt) {
         this.inParallelLoop = true
+        this.thisOffloadSerialAllocas.clear()
         super.visitVertexForStmt(stmt)
         this.inParallelLoop = false
+        this.thisOffloadSerialAllocas.clear()
     }
     override visitFragmentForStmt(stmt: FragmentForStmt) {
         this.inParallelLoop = true
+        this.thisOffloadSerialAllocas.clear()
         super.visitFragmentForStmt(stmt)
         this.inParallelLoop = false
+        this.thisOffloadSerialAllocas.clear()
     }
     override visitAllocaStmt(stmt: AllocaStmt): void {
-        if (!this.inParallelLoop) {
-            this.serialAllocas.add(stmt)
-        }
+        this.thisOffloadSerialAllocas.add(stmt)
     }
     override visitLocalLoadStmt(stmt: LocalLoadStmt): void {
         this.maybeAllocateGtemp(stmt.getPointer())

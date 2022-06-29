@@ -253,10 +253,23 @@ export function perspective(fovy: number, aspect: number, zNear: number, zFar: n
 
     result[0][0] = 1.0 / (aspect * tanHalfFovy)
     result[1][1] = 1.0 / (tanHalfFovy)
-    result[2][2] = - (zFar + zNear) / (zFar - zNear)
+    result[2][2] = (zFar) / (zNear - zFar)
     result[3][2] = - 1.0
-    result[2][3] = - (2.0 * zFar * zNear) / (zFar - zNear)
+    result[2][3] = (zFar * zNear) / (zNear - zFar)
     return result;
+}
+
+export function ortho(left: number, right: number, bottom: number, top: number, zNear: number, zFar: number) {
+    let zero4 = [0.0, 0.0, 0.0, 0.0]
+    let result = [zero4, zero4, zero4, zero4]
+    result[0][0] = 2.0 / (right - left);
+    result[1][1] = 2.0 / (top - bottom);
+    result[2][2] = - 1.0 / (zFar - zNear);
+    result[0][3] = - (right + left) / (right - left);
+    result[1][3] = - (top + bottom) / (top - bottom);
+    result[2][3] = - (zNear) * 2.0 / (zFar - zNear);
+    result[3][3] = 1.0
+    return result
 }
 
 export function rotateAxisAngle(axis: ti.types.vector, angle: number): ti.types.matrix {
