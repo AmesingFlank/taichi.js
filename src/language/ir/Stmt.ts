@@ -757,6 +757,7 @@ export class DiscardStmt extends Stmt {
 export enum TextureFunctionKind {
     Sample,
     SampleLod,
+    SampleCompare,
     Load,
     Store
 }
@@ -766,6 +767,7 @@ export function getTextureFunctionResultType(func: TextureFunctionKind) {
         case TextureFunctionKind.Load:
         case TextureFunctionKind.SampleLod:
         case TextureFunctionKind.Sample:
+        case TextureFunctionKind.SampleCompare:
             return PrimitiveType.f32
         case TextureFunctionKind.Store:
             return undefined

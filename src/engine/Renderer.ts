@@ -112,6 +112,10 @@ export class Renderer {
                 assert(light.type === LightType.Directional, "only directional lights can be shadow casters")
                 assert(light.shadow !== undefined, "expexcting shadow info")
                 this.shadowMaps.push(ti.depthTexture(light.shadow!.shadowMapResolution, 1))
+                light.shadow!.view = ti.lookAt(light.position, ti.add(light.position, light.direction), [0.0, 1.0, 0.0]);
+                let size = light.shadow!.physicalSize
+                light.shadow!.projection = ti.ortho(-0.5 * size[0], 0.5 * size[0], -0.5 * size[1], 0.5 * size[0], 0.0, light.shadow!.maxDistance)
+                light.shadow!.viewProjection = ti.matmul(light.shadow!.projection, light.shadow!.view)
             }
         }
 
@@ -550,14 +554,39 @@ export class Renderer {
 
                         color += material.emissive
 
+                        let evalLight = (light: any) => {
+                            let brightnessAndDir = getLightBrightnessAndDir(light, f.position)
+                            let brdf = evalBRDF(material, normal, brightnessAndDir.lightDir, viewDir)
+                            return brightnessAndDir.brightness * brdf
+                        }
+
                         //@ts-ignore
                         if (ti.static(this.scene.lights.length > 0)) {
                             for (let i of ti.range(this.scene.lights.length)) {
                                 //@ts-ignore
                                 let light = this.sceneData.lightsInfoBuffer[i]
-                                let brightnessAndDir = getLightBrightnessAndDir(light, f.position)
-                                let brdf = evalBRDF(material, normal, brightnessAndDir.lightDir, viewDir)
-                                color = color + brightnessAndDir.brightness * brdf
+                                if (!light.castsShadow) {
+                                    color += evalLight(light)
+                                }
+                            }
+                        }
+
+                        //@ts-ignore
+                        for (let i of ti.static(ti.range(this.scene.lights.length))) {
+                            //@ts-ignore
+                            if (ti.static(this.scene.lights[i].castsShadow)) {
+                                let contribution = evalLight(this.scene.lights[i])
+                                let vp = this.scene.lights[i].shadow!.viewProjection
+                                let clipSpacePos = ti.matmul(vp, f.position.concat([1.0]))
+                                let depth = clipSpacePos.z / clipSpacePos.w
+                                let coords: ti.types.vector = (clipSpacePos.xy / clipSpacePos.w) * 0.5 + 0.5
+                                coords.y = 1.0 - coords.y
+                                let shadow = ti.textureSampleCompare(this.shadowMaps[i]!, coords, depth - 0.01)
+                                contribution *= shadow
+                                color += contribution
+                                //color = [depth, depth, depth]
+                                //color = coords.concat([0.0])
+                                //color = shadow
                             }
                         }
 
@@ -583,18 +612,12 @@ export class Renderer {
                         ti.outputDepth(1 - 1e-6)
                         ti.outputColor(this.canvasTexture, color);
                     }
-                }
+                } 
             }
         )
         this.shadowKernel = ti.classKernel(this,
             { lightIndex: ti.template() },
             (lightIndex: number) => {
-                let light: any = this.scene.lights[lightIndex]
-                let shadow = light.shadow
-                let view = ti.lookAt(light.position, light.position + light.direction, [0.0, 1.0, 0.0]);
-                let size = shadow.physicalSize
-                let proj = ti.ortho(-0.5 * size[0], 0.5 * size[0], -0.5 * size[1], 0.5 * size[0], 0.0, shadow.maxDistance)
-                let vp = ti.matmul(proj, view);
                 ti.useDepth(this.shadowMaps[lightIndex]!);
                 //@ts-ignore
                 for (let v of ti.inputVertices(this.sceneData!.vertexBuffer, this.sceneData!.indexBuffer, ti.static(this.shadowDrawInfoBuffer), ti.static(this.shadowDrawInfoBuffer.dimensions[0]))) {
@@ -607,7 +630,7 @@ export class Renderer {
 
                     v.normal = ti.transpose(ti.inverse(modelMatrix.slice([0, 0], [3, 3]))).matmul(v.normal)
                     v.position = modelMatrix.matmul(v.position.concat([1.0])).xyz
-                    let pos = vp.matmul(v.position.concat([1.0]));
+                    let pos = ti.matmul(this.scene.lights[lightIndex].shadow!.viewProjection, v.position.concat([1.0]));
                     ti.outputPosition(pos);
                     ti.outputVertex(v);
                 }

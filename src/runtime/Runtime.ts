@@ -465,6 +465,7 @@ class Runtime {
         context!.configure({
             device: this.device!,
             format: presentationFormat,
+            alphaMode: 'opaque'
         })
         return [context!, presentationFormat]
     }

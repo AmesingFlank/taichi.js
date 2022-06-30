@@ -221,6 +221,7 @@ export function discard() { throwNotImplementedError() }
 
 export function textureSample(texture: TextureBase, coords: any): any { throwNotImplementedError(); return [0.0, 0.0, 0.0, 0.0] }
 export function textureSampleLod(texture: TextureBase, coords: any, lod: number) { throwNotImplementedError(); return [0.0, 0.0, 0.0, 0.0] }
+export function textureSampleCompare(texture: DepthTexture, coords: any, depthReference: number) { throwNotImplementedError(); return 0.0 }
 export function textureLoad(texture: TextureBase, coords: any) { throwNotImplementedError(); return [0.0, 0.0, 0.0, 0.0] }
 export function textureStore(texture: TextureBase, coords: any, val: any) { throwNotImplementedError(); }
 
@@ -249,7 +250,7 @@ export function perspective(fovy: number, aspect: number, zNear: number, zFar: n
     let tanHalfFovy = Math.tan(rad / 2.0)
 
     let zero4 = [0.0, 0.0, 0.0, 0.0]
-    let result = [zero4, zero4, zero4, zero4]
+    let result = [zero4.slice(), zero4.slice(), zero4.slice(), zero4.slice()]
 
     result[0][0] = 1.0 / (aspect * tanHalfFovy)
     result[1][1] = 1.0 / (tanHalfFovy)
@@ -261,7 +262,7 @@ export function perspective(fovy: number, aspect: number, zNear: number, zFar: n
 
 export function ortho(left: number, right: number, bottom: number, top: number, zNear: number, zFar: number) {
     let zero4 = [0.0, 0.0, 0.0, 0.0]
-    let result = [zero4, zero4, zero4, zero4]
+    let result = [zero4.slice(), zero4.slice(), zero4.slice(), zero4.slice()]
     result[0][0] = 2.0 / (right - left);
     result[1][1] = 2.0 / (top - bottom);
     result[2][2] = - 1.0 / (zFar - zNear);

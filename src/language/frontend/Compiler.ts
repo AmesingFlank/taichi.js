@@ -517,6 +517,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             "outputDepth",
             "discard",
             "textureSample",
+            "textureSampleCompare",
             "textureSampleLod",
             "textureLoad",
             "textureStore",
@@ -645,6 +646,8 @@ class CompilingVisitor extends ASTVisitor<Value>{
             this.assertNode(node, node.arguments.length === 2, "textureSample() must have exactly 2 arguments, one for texture, the other for the coordinates")
             this.assertNode(node, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && isTexture(argumentValues[0].hostSideValue), "the first argument of textureSample() must be a texture object that's visible in kernel scope")
             let texture = argumentValues[0].hostSideValue as TextureBase
+
+            this.assertNode(node, !(texture instanceof DepthTexture), "textureSample() cannot be called on a depth texture")
             let dim = texture.getTextureDimensionality()
 
             let coords = argumentValues[1]
@@ -671,6 +674,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             this.assertNode(node, node.arguments.length === 3, "textureSampleLod() must have exactly 3 arguments, one for texture, one for the coordinates, one for the explicit LOD")
             this.assertNode(node, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && isTexture(argumentValues[0].hostSideValue), "the first argument of textureSampleLod() must be a texture object that's visible in kernel scope")
             let texture = argumentValues[0].hostSideValue as TextureBase
+            this.assertNode(node, !(texture instanceof DepthTexture), "textureSampleLod() cannot be called on a depth texture")
             let dim = texture.getTextureDimensionality()
 
             let coords = argumentValues[1]
@@ -694,11 +698,39 @@ class CompilingVisitor extends ASTVisitor<Value>{
             return result
         }
 
+        if (this.isBuiltinFunctionWithName(funcText, "textureSampleCompare")) {
+            // TODO: error check this, but also handle textureSampleComapre called inside functions
+            //this.assertNode(node, this.startedFragment, "textureSampleComapre() can only be used inside a fragment-for") 
+
+            this.assertNode(node, node.arguments.length === 3, "textureSampleComapre() must have exactly 3 arguments, one for texture, one for the coordinates, one for the depth reference")
+            this.assertNode(node, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && (argumentValues[0].hostSideValue instanceof DepthTexture), "the first argument of textureSampleComapre() must be a depth texture object that's visible in kernel scope")
+            let texture = argumentValues[0].hostSideValue as DepthTexture
+            let dim = texture.getTextureDimensionality()
+
+            let coords = argumentValues[1]
+            this.assertNode(node, coords.getType().getCategory() === TypeCategory.Vector, "coords must be a vector")
+            let vecType = coords.getType() as VectorType
+            let requiredComponentCount = getTextureCoordsNumComponents(dim)
+            this.assertNode(node, vecType.getNumRows() === requiredComponentCount, `coords component count must be ${requiredComponentCount}`)
+            this.assertNode(node, vecType.getPrimitiveType() === PrimitiveType.f32, "coords must be a f32 vector")
+
+            let depthRef = argumentValues[2]
+            this.assertNode(node, depthRef.getType().getCategory() === TypeCategory.Scalar && TypeUtils.getPrimitiveType(depthRef.getType()) === PrimitiveType.f32, "depth ref must be a scalar float")
+
+
+            let sampleResultStmt = this.irBuilder.create_texture_sample_compare(texture, coords.stmts, depthRef.stmts[0])
+
+            let resultType = new ScalarType(PrimitiveType.f32)
+            let result = new Value(resultType, [sampleResultStmt])
+            return result
+        }
+
         if (this.isBuiltinFunctionWithName(funcText, "textureLoad")) {
 
             this.assertNode(node, node.arguments.length === 2, "textureLoad() must have exactly 2 arguments, one for texture, the other for the coordinates")
             this.assertNode(node, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && isTexture(argumentValues[0].hostSideValue), "the first argument of textureLoad() must be a texture object that's visible in kernel scope")
             let texture = argumentValues[0].hostSideValue as TextureBase
+            this.assertNode(node, !(texture instanceof DepthTexture), "textureLoad() cannot be called on a depth texture")
             let dim = texture.getTextureDimensionality()
 
             let coords = argumentValues[1]
@@ -722,6 +754,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             this.assertNode(node, node.arguments.length === 3, "textureStore() must have exactly 3 arguments, one for texture, one for the coordinates, and one for the texel value")
             this.assertNode(node, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && isTexture(argumentValues[0].hostSideValue), "the first argument of textureStore() must be a texture object that's visible in kernel scope")
             let texture = argumentValues[0].hostSideValue as TextureBase
+            this.assertNode(node, !(texture instanceof DepthTexture), "textureStore() cannot be called on a depth texture")
             let dim = texture.getTextureDimensionality()
 
             let coords = argumentValues[1]

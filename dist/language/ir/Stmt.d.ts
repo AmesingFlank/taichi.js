@@ -313,8 +313,9 @@ export declare class DiscardStmt extends Stmt {
 export declare enum TextureFunctionKind {
     Sample = 0,
     SampleLod = 1,
-    Load = 2,
-    Store = 3
+    SampleCompare = 2,
+    Load = 3,
+    Store = 4
 }
 export declare function getTextureFunctionResultType(func: TextureFunctionKind): PrimitiveType.f32 | undefined;
 export declare class TextureFunctionStmt extends Stmt {

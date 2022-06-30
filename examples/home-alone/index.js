@@ -19,7 +19,7 @@ let main = async () => {
         ti.normalized([-1, -1, -1]),
         true,
         [30, 30, 30],
-        new ti.engine.ShadowInfo([50, 50], 60)
+        new ti.engine.ShadowInfo([50, 50], 70)
     ))
 
     let renderer = new ti.engine.Renderer(scene, htmlCanvas)

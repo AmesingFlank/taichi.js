@@ -65,16 +65,16 @@ export class IRBuilder {
         return this.pushNewStmt(new LocalStoreStmt(ptr, val, this.getNewId()))
     }
 
-    create_binary_op(lhs: Stmt, rhs: Stmt,op:BinaryOpType){
-        return this.pushNewStmt(new BinaryOpStmt(lhs,rhs,op,this.getNewId()))
+    create_binary_op(lhs: Stmt, rhs: Stmt, op: BinaryOpType) {
+        return this.pushNewStmt(new BinaryOpStmt(lhs, rhs, op, this.getNewId()))
     }
 
-    create_unary_op(operand: Stmt,op:UnaryOpType){
-        return this.pushNewStmt(new UnaryOpStmt(operand,op,this.getNewId()))
+    create_unary_op(operand: Stmt, op: UnaryOpType) {
+        return this.pushNewStmt(new UnaryOpStmt(operand, op, this.getNewId()))
     }
 
-    create_atomic_op(dest: PointerStmt, val: Stmt, op:AtomicOpType){
-        return this.pushNewStmt(new AtomicOpStmt(dest, val, op,this.getNewId()))
+    create_atomic_op(dest: PointerStmt, val: Stmt, op: AtomicOpType) {
+        return this.pushNewStmt(new AtomicOpStmt(dest, val, op, this.getNewId()))
     }
 
     create_while_true() {
@@ -151,6 +151,10 @@ export class IRBuilder {
 
     create_texture_sample_lod(texture: TextureBase, coords: Stmt[], lod: Stmt) {
         return this.pushNewStmt(new TextureFunctionStmt(texture, TextureFunctionKind.SampleLod, coords, [lod], this.getNewId()))
+    }
+
+    create_texture_sample_compare(texture: TextureBase, coords: Stmt[], depthRef: Stmt) {
+        return this.pushNewStmt(new TextureFunctionStmt(texture, TextureFunctionKind.SampleCompare, coords, [depthRef], this.getNewId()))
     }
 
     create_texture_load(texture: TextureBase, coords: Stmt[]) {

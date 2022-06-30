@@ -360,6 +360,7 @@ export class CodegenVisitor extends IRVisitor {
         let texture = stmt.texture
         let textureResource = new ResourceInfo(ResourceType.Texture, texture.textureId)
         let requiresSampler = false
+        let resultNumComponents = 4
 
         switch (stmt.func) {
             case TextureFunctionKind.Sample: {
@@ -368,6 +369,11 @@ export class CodegenVisitor extends IRVisitor {
             }
             case TextureFunctionKind.SampleLod: {
                 requiresSampler = true
+                break;
+            }
+            case TextureFunctionKind.SampleCompare: {
+                requiresSampler = true
+                resultNumComponents = 1
                 break;
             }
             case TextureFunctionKind.Load: {
@@ -384,7 +390,8 @@ export class CodegenVisitor extends IRVisitor {
             }
         }
         let textureName = this.getTextureName(textureResource)
-        let texelTypeName = this.getScalarOrVectorTypeName(PrimitiveType.f32, 4)
+
+        let texelTypeName = this.getScalarOrVectorTypeName(PrimitiveType.f32, resultNumComponents)
 
         let samplerName = ""
         if (requiresSampler) {
@@ -408,6 +415,12 @@ export class CodegenVisitor extends IRVisitor {
                 assert(stmt.getAdditionalOperands().length === 1, "expecting 1 lod value")
                 this.emitLet(stmt.getName(), texelTypeName)
                 this.body.write(`textureSampleLevel(${textureName}, ${samplerName}, ${coordsExpr}, ${stmt.getAdditionalOperands()[0].getName()});\n`)
+                break;
+            }
+            case TextureFunctionKind.SampleCompare: {
+                assert(stmt.getAdditionalOperands().length === 1, "expecting 1 depth ref value")
+                this.emitLet(stmt.getName(), texelTypeName)
+                this.body.write(`textureSampleCompare(${textureName}, ${samplerName}, ${coordsExpr}, ${stmt.getAdditionalOperands()[0].getName()});\n`)
                 break;
             }
             case TextureFunctionKind.Load: {
@@ -1183,6 +1196,7 @@ var<${storageAndAcess}> ${name}: ${name}_type;
         let elementType = this.getPrimitiveTypeName(PrimitiveType.f32)
         let typeName = ""
         let isDepth = texture instanceof DepthTexture
+        assert(!(isDepth && isStorageTexture), "cannot have depth storeage texture")
         switch (texture.getTextureDimensionality()) {
             case TextureDimensionality.Dim2d: {
                 if (!isDepth) {
@@ -1194,7 +1208,7 @@ var<${storageAndAcess}> ${name}: ${name}_type;
                     }
                 }
                 else {
-                    error("depth 2d texture not supported")
+                    typeName = "texture_depth_2d"
                 }
                 break;
             }
@@ -1236,6 +1250,9 @@ var<${storageAndAcess}> ${name}: ${name}_type;
             if (isStorageTexture) {
                 templateArgs = `<${texture.getGPUTextureFormat() as string}, write>`
             }
+            else if (isDepth) {
+                templateArgs = ``
+            }
             else {
                 templateArgs = `<${elementType}>`
             }
@@ -1268,7 +1285,7 @@ var ${name}: ${typeName}${templateArgs};
         let typeName = "sampler"
         let isDepth = texture instanceof DepthTexture
         if (isDepth) {
-            error("depth texture not supported")
+            typeName = "sampler_comparison"
         }
         if (!this.resourceBindings.has(samplerInfo)) {
             this.resourceBindings.add(samplerInfo, binding)

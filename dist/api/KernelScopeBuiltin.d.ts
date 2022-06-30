@@ -31,6 +31,7 @@ export declare function outputDepth(depth: number): void;
 export declare function discard(): void;
 export declare function textureSample(texture: TextureBase, coords: any): any;
 export declare function textureSampleLod(texture: TextureBase, coords: any, lod: number): number[];
+export declare function textureSampleCompare(texture: DepthTexture, coords: any, depthReference: number): number;
 export declare function textureLoad(texture: TextureBase, coords: any): number[];
 export declare function textureStore(texture: TextureBase, coords: any, val: any): void;
 export declare function getVertexIndex(): number;

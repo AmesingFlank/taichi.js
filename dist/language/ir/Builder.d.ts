@@ -41,6 +41,7 @@ export declare class IRBuilder {
     create_depth_output(val: Stmt): BuiltInOutputStmt;
     create_texture_sample(texture: TextureBase, coords: Stmt[]): TextureFunctionStmt;
     create_texture_sample_lod(texture: TextureBase, coords: Stmt[], lod: Stmt): TextureFunctionStmt;
+    create_texture_sample_compare(texture: TextureBase, coords: Stmt[], depthRef: Stmt): TextureFunctionStmt;
     create_texture_load(texture: TextureBase, coords: Stmt[]): TextureFunctionStmt;
     create_texture_store(texture: TextureBase, coords: Stmt[], vals: Stmt[]): TextureFunctionStmt;
     create_composite_extract(composite: Stmt, index: number): CompositeExtractStmt;
