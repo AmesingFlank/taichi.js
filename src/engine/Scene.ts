@@ -1,14 +1,14 @@
 import * as ti from "../taichi"
 import { Field } from "../data/Field";
 import { Material } from "./Material";
-import { getVertexAttribSetKernelType, Vertex, VertexAttrib, VertexAttribSet } from "./Vertex";
+import { getVertexAttribSetKernelType, Vertex, VertexAttrib, VertexAttribSet } from "./common/Vertex";
 import { SceneNode } from "./SceneNode";
 import { Mesh } from "./Mesh";
-import { DrawInfo } from "./DrawInfo";
-import { Transform } from "./Transform";
-import { InstanceInfo } from "./InstanceInfo";
-import { BatchInfo } from "./BatchInfo";
-import { LightInfo } from "./LightInfo";
+import { DrawInfo } from "./common/DrawInfo";
+import { Transform } from "./common/Transform";
+import { InstanceInfo } from "./common/InstanceInfo";
+import { BatchInfo } from "./common/BatchInfo";
+import { LightInfo } from "./common/LightInfo";
 import { HdrTexture } from "./HDRLoader";
 import { error } from "../utils/Logging";
 import { GltfLoader } from "./GLTFLoader";
@@ -128,8 +128,8 @@ export class Scene {
             mat.materialID += materialOffset
         }
 
-        for(let mesh of scene.meshes){
-            for(let prim of mesh.primitives){
+        for (let mesh of scene.meshes) {
+            for (let prim of mesh.primitives) {
                 prim.firstIndex += indexOffset
                 prim.materialID += materialOffset
             }

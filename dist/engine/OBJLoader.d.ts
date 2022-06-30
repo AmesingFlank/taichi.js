@@ -1,4 +1,4 @@
-import { Vertex, VertexAttribSet } from "./Vertex";
+import { Vertex, VertexAttribSet } from "./common/Vertex";
 import { Scene } from "./Scene";
 import { Material } from "./Material";
 export declare class ObjLoader {

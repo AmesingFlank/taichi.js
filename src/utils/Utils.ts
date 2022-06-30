@@ -117,11 +117,22 @@ export function reshape<T>(elements: T[], dimensions: number[]): MultiDimensiona
 
 export function tensorToNumberArray(tensorValue: number | number[] | number[][], tensorType: Type): number[] {
     if (tensorType.getCategory() === TypeCategory.Scalar) {
-        assert(typeof tensorValue === "number", "expecting number")
-        return [tensorValue as number]
+        if (typeof tensorValue === "number") {
+            return [tensorValue as number]
+        }
+        else if (typeof tensorValue === "boolean") {
+            if (tensorValue) {
+                return [1]
+            }
+            else {
+                return [0]
+            }
+        }
+        error("expecting number or boolean")
+        return [0]
     }
     else if (tensorType.getCategory() === TypeCategory.Vector) {
-        assert(Array.isArray(tensorValue), "expecting array")
+        assert(Array.isArray(tensorValue), "expecting array, got", tensorValue)
         let vec = tensorValue as number[]
         assert(typeof vec[0] === "number", "expecting 1d number array")
         assert(vec.length === (tensorType as VectorType).getNumRows(), "num rows mismatch")

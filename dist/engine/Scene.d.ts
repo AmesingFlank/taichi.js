@@ -1,10 +1,10 @@
 import { Field } from "../data/Field";
 import { Material } from "./Material";
-import { Vertex, VertexAttribSet } from "./Vertex";
+import { Vertex, VertexAttribSet } from "./common/Vertex";
 import { SceneNode } from "./SceneNode";
 import { Mesh } from "./Mesh";
-import { Transform } from "./Transform";
-import { LightInfo } from "./LightInfo";
+import { Transform } from "./common/Transform";
+import { LightInfo } from "./common/LightInfo";
 import { HdrTexture } from "./HDRLoader";
 export interface SceneData {
     vertexBuffer: Field;

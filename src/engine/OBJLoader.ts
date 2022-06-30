@@ -1,4 +1,4 @@
-import { Vertex, VertexAttrib, VertexAttribSet } from "./Vertex";
+import { Vertex, VertexAttrib, VertexAttribSet } from "./common/Vertex";
 import { Scene } from "./Scene"
 import { Material } from "./Material";
 import { Texture } from "../data/Texture";

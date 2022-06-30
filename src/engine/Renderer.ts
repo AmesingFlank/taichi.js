@@ -1,10 +1,12 @@
 import { Field } from "../data/Field";
 import { CanvasTexture, DepthTexture, Texture, TextureBase } from "../data/Texture";
 import * as ti from "../taichi"
-import { BatchInfo } from "./BatchInfo";
+import { assert } from "../utils/Logging";
+import { BatchInfo } from "./common/BatchInfo";
 import { Camera } from "./Camera";
-import { DrawInfo } from "./DrawInfo";
-import { InstanceInfo } from "./InstanceInfo";
+import { DrawInfo } from "./common/DrawInfo";
+import { InstanceInfo } from "./common/InstanceInfo";
+import { LightType } from "./common/LightInfo";
 import { Scene, SceneData } from "./Scene";
 
 export class Renderer {
@@ -13,25 +15,35 @@ export class Renderer {
         this.canvasTexture = ti.canvasTexture(htmlCanvas, 4)
     }
 
-    renderKernel: ((...args: any[]) => any) = () => { }
-    depthTexture: DepthTexture
-    canvasTexture: CanvasTexture
+    private renderKernel: ((...args: any[]) => any) = () => { }
+    private shadowKernel: ((...args: any[]) => any) = () => { }
 
-    sceneData?: SceneData
+    private depthTexture: DepthTexture
+    private canvasTexture: CanvasTexture
 
-    skyboxVBO?: Field
-    skyboxIBO?: Field
+    private sceneData?: SceneData
 
-    iblLambertianFiltered?: Texture
-    iblGGXFiltered?: Texture
-    LUT?: Texture
+    private skyboxVBO?: Field
+    private skyboxIBO?: Field
 
-    batchInfos: BatchInfo[] = []
-    batchesDrawInfos: DrawInfo[][] = []
-    batchesDrawInstanceInfos: InstanceInfo[][] = []
+    private iblLambertianFiltered?: Texture
+    private iblGGXFiltered?: Texture
+    private LUT?: Texture
 
-    batchesDrawInfoBuffers: Field[] = []
-    batchesDrawInstanceInfoBuffers: Field[] = []
+    private batchInfos: BatchInfo[] = []
+    private batchesDrawInfos: DrawInfo[][] = []
+    private batchesDrawInstanceInfos: InstanceInfo[][] = []
+
+    private batchesDrawInfoBuffers: Field[] = []
+    private batchesDrawInstanceInfoBuffers: Field[] = []
+
+    // shadow stuff
+    private shadowMaps: (DepthTexture | undefined)[] = []
+    private shadowDrawInfos: DrawInfo[] = []
+    private shadowDrawInstanceInfos: InstanceInfo[] = []
+
+    private shadowDrawInfoBuffer?: Field
+    private shadowDrawInstanceInfoBuffer?: Field
 
     engine = ti.engine
 
@@ -95,6 +107,14 @@ export class Renderer {
 
     async init() {
         this.sceneData = await this.scene.getKernelData()
+        for (let light of this.scene.lights) {
+            if (light.castsShadow) {
+                assert(light.type === LightType.Directional, "only directional lights can be shadow casters")
+                assert(light.shadow !== undefined, "expexcting shadow info")
+                this.shadowMaps.push(ti.depthTexture(light.shadow!.shadowMapResolution, 1))
+            }
+        }
+
         await this.computeDrawBatches()
 
         console.log(this)
@@ -564,7 +584,38 @@ export class Renderer {
                         ti.outputColor(this.canvasTexture, color);
                     }
                 }
-            })
+            }
+        )
+        this.shadowKernel = ti.classKernel(this,
+            { lightIndex: ti.template() },
+            (lightIndex: number) => {
+                let light: any = this.scene.lights[lightIndex]
+                let shadow = light.shadow
+                let view = ti.lookAt(light.position, light.position + light.direction, [0.0, 1.0, 0.0]);
+                let size = shadow.physicalSize
+                let proj = ti.ortho(-0.5 * size[0], 0.5 * size[0], -0.5 * size[1], 0.5 * size[0], 0.0, shadow.maxDistance)
+                let vp = ti.matmul(proj, view);
+                ti.useDepth(this.shadowMaps[lightIndex]!);
+                //@ts-ignore
+                for (let v of ti.inputVertices(this.sceneData!.vertexBuffer, this.sceneData!.indexBuffer, ti.static(this.shadowDrawInfoBuffer), ti.static(this.shadowDrawInfoBuffer.dimensions[0]))) {
+                    let instanceIndex = ti.getInstanceIndex()
+                    //@ts-ignore
+                    let instanceInfo = this.shadowDrawInstanceInfoBuffer[instanceIndex]
+                    let nodeIndex = instanceInfo.nodeIndex
+                    //@ts-ignore
+                    let modelMatrix = this.sceneData.nodesBuffer[nodeIndex].globalTransform.matrix
+
+                    v.normal = ti.transpose(ti.inverse(modelMatrix.slice([0, 0], [3, 3]))).matmul(v.normal)
+                    v.position = modelMatrix.matmul(v.position.concat([1.0])).xyz
+                    let pos = vp.matmul(v.position.concat([1.0]));
+                    ti.outputPosition(pos);
+                    ti.outputVertex(v);
+                }
+                for (let f of ti.inputFragments()) {
+
+                }
+            }
+        )
     }
 
     async computeDrawBatches() {
@@ -632,9 +683,43 @@ export class Renderer {
             await buffer.fromArray(drawInstanceInfos)
             this.batchesDrawInstanceInfoBuffers.push(buffer)
         }
+
+        // shadow pass instance infos
+        this.shadowDrawInfos = []
+        this.shadowDrawInstanceInfos = []
+
+        for (let nodeIndex = 0; nodeIndex < this.scene.nodes.length; ++nodeIndex) {
+            let node = this.scene.nodes[nodeIndex]
+            if (node.mesh >= 0) {
+                let mesh = this.scene.meshes[node.mesh]
+                for (let prim of mesh.primitives) {
+                    let firstInstance = this.shadowDrawInstanceInfos.length
+                    let drawInfo = new DrawInfo(
+                        prim.indexCount,
+                        1,
+                        prim.firstIndex,
+                        0,
+                        firstInstance
+                    )
+                    this.shadowDrawInfos.push(drawInfo)
+                    let instanceInfo = new InstanceInfo(nodeIndex, prim.materialID)
+                    this.shadowDrawInstanceInfos.push(instanceInfo)
+                }
+            }
+        }
+        this.shadowDrawInfoBuffer = ti.field(DrawInfo.getKernelType(), this.shadowDrawInfos.length)
+        await this.shadowDrawInfoBuffer.fromArray(this.shadowDrawInfos)
+        this.shadowDrawInstanceInfoBuffer = ti.field(InstanceInfo.getKernelType(), this.shadowDrawInstanceInfos.length)
+        await this.shadowDrawInstanceInfoBuffer.fromArray(this.shadowDrawInstanceInfos)
     }
 
     async render(camera: Camera) {
+        for (let i = 0; i < this.scene.lights.length; ++i) {
+            let light = this.scene.lights[i]
+            if (light.castsShadow) {
+                await this.shadowKernel(i)
+            }
+        }
         await this.renderKernel(camera)
     }
 }
