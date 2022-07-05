@@ -1,9 +1,9 @@
-import { Vertex, VertexAttrib, VertexAttribSet } from "./common/Vertex";
-import { Scene } from "./Scene"
-import { Material } from "./Material";
-import { Texture } from "../data/Texture";
-import { Mesh, MeshPrimitive } from "./Mesh";
-import { SceneNode } from "./SceneNode";
+import { Vertex, VertexAttrib, VertexAttribSet } from "../Vertex";
+import { Scene } from "./../Scene"
+import { Material } from "./../Material";
+import { Texture } from "../../data/Texture";
+import { Mesh, MeshPrimitive } from "../Mesh";
+import { SceneNode } from "../SceneNode";
 class Parser {
     static beginsWith(line: string, firstWord: string) {
         let words = line.trim().split(" ").filter(x => x.length !== 0);

@@ -5,7 +5,10 @@ export declare enum VertexAttrib {
     Tangent = 4,
     TexCoords = 8,
     Color = 16,
-    All = 31
+    Joints = 32,
+    Weights = 64,
+    Max = 65,
+    All = 63
 }
 export declare class VertexAttribSet {
     val: number;
@@ -15,7 +18,7 @@ export declare class VertexAttribSet {
     foreach(f: (attrib: VertexAttrib) => any): void;
 }
 export declare function getVertexAttribNumComponents(attrib: VertexAttrib): 2 | 3 | 4 | -1;
-export declare function getVertexAttribSetKernelType(attribs: VertexAttribSet): import("../../language/frontend/Type").StructType;
+export declare function getVertexAttribSetKernelType(attribs: VertexAttribSet): import("../language/frontend/Type").StructType;
 export declare class Vertex {
     attribs: VertexAttribSet;
     constructor(attribs: VertexAttribSet);
@@ -27,4 +30,6 @@ export declare class Vertex {
     tangent: number[] | null;
     texCoords: number[] | null;
     color: number[] | null;
+    joints: number[] | null;
+    weights: number[] | null;
 }

@@ -1,15 +1,15 @@
-import { Vertex, VertexAttrib } from "./common/Vertex";
-import { Scene } from "./Scene"
-import { Material } from "./Material";
-import { Texture } from "../data/Texture";
+import { Vertex, VertexAttrib } from "../Vertex";
+import { Scene } from "../Scene"
+import { Material } from "../Material";
+import { Texture } from "../../data/Texture";
 
 import { parse, load } from '@loaders.gl/core';
 import { GLTFLoader, GLBLoader } from '@loaders.gl/gltf';
-import { endWith } from "../utils/Utils";
-import { Mesh, MeshPrimitive } from "./Mesh";
-import { assert, error } from "../utils/Logging";
-import { SceneNode } from "./SceneNode";
-import { matmul } from "../api/KernelScopeBuiltin";
+import { endWith } from "../../utils/Utils";
+import { Mesh, MeshPrimitive } from "../Mesh";
+import { assert, error } from "../../utils/Logging";
+import { SceneNode } from "../SceneNode";
+import { matmul } from "../../api/KernelScopeBuiltin";
 
 
 export class GltfLoader {
@@ -346,6 +346,7 @@ function getTypeNumComponents(type: string): number {
         case "VEC2": return 2
         case "VEC3": return 3
         case "VEC4": return 4
+        case "MAT4": return 16
         default:
             error(`unreognized type: ${type}`)
             return -1
@@ -401,6 +402,8 @@ function getVeritexAttribFromGltfName(name: string): VertexAttrib {
         case "TEXCOORD_0": return VertexAttrib.TexCoords
         case "COLOR_0": return VertexAttrib.Color
         case "TANGENT": return VertexAttrib.Tangent
+        case "JOINTS_0": return VertexAttrib.Joints
+        case "WEIGHTS_0": return VertexAttrib.Weights
         default:
             error(`unsupported vertex attr name: ${name}`)
             return VertexAttrib.None

@@ -1,4 +1,4 @@
-import { Transform } from "./common/Transform"
+import { Transform } from "./Transform"
 import * as ti from "../taichi"
 export class SceneNode {
     constructor(){

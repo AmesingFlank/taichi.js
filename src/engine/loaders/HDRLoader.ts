@@ -1,6 +1,6 @@
-import * as ti from "../taichi"
-import { error } from "../utils/Logging";
-import { Texture } from "../api/Textures";
+import * as ti from "../../taichi"
+import { error } from "../../utils/Logging";
+import { Texture } from "../../api/Textures";
 
 
 function rgbeToFloat(buffer: Uint8Array): Float32Array {

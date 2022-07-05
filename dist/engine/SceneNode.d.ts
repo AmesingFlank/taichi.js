@@ -1,4 +1,4 @@
-import { Transform } from "./common/Transform";
+import { Transform } from "./Transform";
 export declare class SceneNode {
     constructor();
     parent: number;

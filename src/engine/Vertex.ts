@@ -1,5 +1,5 @@
-import * as ti from "../../taichi"
-import { error } from "../../utils/Logging"
+import * as ti from "../taichi"
+import { error } from "../utils/Logging"
 
 export enum VertexAttrib {
     None = 0,
@@ -8,7 +8,11 @@ export enum VertexAttrib {
     Tangent = 1 << 2,
     TexCoords = 1 << 3,
     Color = 1 << 4,
-    All = ~(~0 << 5)
+    Joints = 1 << 5,
+    Weights = 1 << 6,
+
+    Max = 1 + (1 << 6),
+    All = ~(~0 << 6)
 };
 
 export class VertexAttribSet {
@@ -23,7 +27,7 @@ export class VertexAttribSet {
     }
     foreach(f: (attrib: VertexAttrib) => any) {
         let curr = 1
-        while (curr <= VertexAttrib.Color) {
+        while (curr < VertexAttrib.Max) {
             if (this.test(curr)) {
                 f(curr)
             }
@@ -39,6 +43,8 @@ export function getVertexAttribNumComponents(attrib: VertexAttrib) {
         case VertexAttrib.Normal: return 3
         case VertexAttrib.Tangent: return 4
         case VertexAttrib.Color: return 4
+        case VertexAttrib.Joints: return 4
+        case VertexAttrib.Weights: return 4
         default:
             error("getVertexAttribNumComponents called on None or All ", attrib)
             return -1
@@ -55,6 +61,8 @@ export function getVertexAttribSetKernelType(attribs: VertexAttribSet) {
             case VertexAttrib.Normal: typeObj["normal"] = vecType; break
             case VertexAttrib.Tangent: typeObj["tangent"] = vecType; break
             case VertexAttrib.TexCoords: typeObj["texCoords"] = vecType; break
+            case VertexAttrib.Color: typeObj["color"] = vecType; break
+            case VertexAttrib.Joints: typeObj["texCoords"] = ti.types.vector(ti.i32, numComponents); break
             case VertexAttrib.Color: typeObj["color"] = vecType; break
             default:
                 error("vert attr is None or All")
@@ -91,6 +99,14 @@ export class Vertex {
                 this.color = value
                 break;
             }
+            case VertexAttrib.Joints: {
+                this.joints = value
+                break;
+            }
+            case VertexAttrib.Weights: {
+                this.weights = value
+                break;
+            }
             default:
                 error("setAttribValue called on None or All")
         }
@@ -108,4 +124,6 @@ export class Vertex {
     tangent: number[] | null = null
     texCoords: number[] | null = null
     color: number[] | null = null
+    joints: number[] | null = null
+    weights: number[] | null = null
 }

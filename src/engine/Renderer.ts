@@ -583,13 +583,9 @@ export class Renderer {
                                 coords.y = 1.0 - coords.y
                                 let shadow = ti.textureSampleCompare(this.shadowMaps[i]!, coords, depth - 0.01)
                                 contribution *= shadow
-                                color += contribution
-                                //color = [depth, depth, depth]
-                                //color = coords.concat([0.0])
-                                //color = shadow
+                                color += contribution 
                             }
-                        }
-
+                        } 
                         color += evalIBL(material, normal, viewDir)
 
                         color = linearTosRGB(color)

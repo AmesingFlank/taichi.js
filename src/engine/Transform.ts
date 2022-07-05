@@ -1,5 +1,5 @@
-import { matmul } from "../../api/KernelScopeBuiltin"
-import * as ti from "../../taichi"
+import { matmul } from "../api/KernelScopeBuiltin"
+import * as ti from "../taichi"
 export class Transform {
     constructor(matrix?: number[][]) {
         this.reset()

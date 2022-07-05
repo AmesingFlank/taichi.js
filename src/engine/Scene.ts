@@ -1,17 +1,17 @@
 import * as ti from "../taichi"
 import { Field } from "../data/Field";
 import { Material } from "./Material";
-import { getVertexAttribSetKernelType, Vertex, VertexAttrib, VertexAttribSet } from "./common/Vertex";
+import { getVertexAttribSetKernelType, Vertex, VertexAttrib, VertexAttribSet } from "./Vertex";
 import { SceneNode } from "./SceneNode";
 import { Mesh } from "./Mesh";
 import { DrawInfo } from "./common/DrawInfo";
-import { Transform } from "./common/Transform";
+import { Transform } from "./Transform";
 import { InstanceInfo } from "./common/InstanceInfo";
 import { BatchInfo } from "./common/BatchInfo";
 import { LightInfo } from "./common/LightInfo";
-import { HdrTexture } from "./HDRLoader";
+import { HdrTexture } from "./loaders/HDRLoader";
 import { error } from "../utils/Logging";
-import { GltfLoader } from "./GLTFLoader";
+import { GltfLoader } from "./loaders/GLTFLoader";
 
 export interface SceneData {
     vertexBuffer: Field, // Field of Vertex
