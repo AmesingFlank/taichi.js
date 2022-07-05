@@ -1876,19 +1876,10 @@ export class KernelCompiler extends CompilingVisitor {
                 error("vertex and fragment shaders are not allowed to use randoms")
             }
             else if (binding.info.resourceType === ResourceType.Rets) {
-                error("[Compiler Bug] vertex and fragment shaders are not allowed to use rets")
+                error("[Compiler Bug] vertex and fragment shaders are not allowed to have return values")
             }
             else if (binding.info.resourceType === ResourceType.RootAtomic) {
                 error("vertex and fragment shaders are not allowed to use atomics")
-            }
-            else if (binding.info.resourceType === ResourceType.Root) {
-                let id = binding.info.resourceID!
-                if (Program.getCurrentProgram().runtime!.materializedTrees[id].size > 65536) {
-                    // this is because vertex shaders are not allowed to use storage buffers, and fragment shader bindings must match the vertex shaders
-                    // and uniform buffers have a size limit of 64kB
-                    // not that in order for this error message to make sense, we must have one-to-one correspondence between fields and snode trees
-                    error("vertex and fragment shaders are not allowed to use fields of size greater than 64kB")
-                }
             }
         }
     }

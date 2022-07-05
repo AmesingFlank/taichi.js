@@ -474,22 +474,13 @@ export class CodegenVisitor extends IRVisitor {
         let dt = stmt.getReturnType()
         let dtName = this.getPrimitiveTypeName(dt)
         let bufferName = this.getBufferMemberName(new ResourceInfo(ResourceType.Args))
-        if (!this.enforce16BytesAlignment()) {
-            this.emitLet(stmt.getName(), dtName)
-            this.body.write(`bitcast<${dtName}>(${bufferName}[${argId}]);\n`)
-        }
-        else {
-            let temp = this.getTemp()
-            this.emitLet(temp, "i32")
-            this.body.write(`${bufferName}[${argId}${this.getRawDataTypeIndexShift()}][${argId} & 3];\n`)
-            this.emitLet(stmt.getName(), dtName)
-            this.body.write(`bitcast<${dtName}>(${temp});\n`)
-        }
+        this.emitLet(stmt.getName(), dtName)
+        this.body.write(`bitcast<${dtName}>(${bufferName}[${argId}]);\n`)
     }
 
     override visitReturnStmt(stmt: ReturnStmt): void {
-        if (this.enforce16BytesAlignment()) {
-            error("Ret cannot be used while enforcing 16 bytes alignment")
+        if (this.isVertexFor() || this.isFragmentFor()) {
+            error("Return cannot be used in a vertex-for or a fragment-for")
         }
         let values = stmt.getValues()
         for (let i = 0; i < values.length; ++i) {
@@ -563,17 +554,8 @@ export class CodegenVisitor extends IRVisitor {
         let bufferName = this.getBufferMemberName(resourceInfo)
         let dt = stmt.getReturnType()
         let dtName = this.getPrimitiveTypeName(dt)
-        if (!this.enforce16BytesAlignment()) {
-            this.emitLet(stmt.getName(), dt)
-            this.body.write(`bitcast<${dtName}>(${bufferName}[${ptr.getName()}]);\n`)
-        }
-        else {
-            let temp = this.getTemp();
-            this.emitLet(temp, "i32")
-            this.body.write(`${bufferName}[${ptr.getName()}${this.getRawDataTypeIndexShift()}][${ptr.getName()} & 3];\n`)
-            this.emitLet(stmt.getName(), dt)
-            this.body.write(`bitcast<${dtName}>(${temp});\n`)
-        }
+        this.emitLet(stmt.getName(), dt)
+        this.body.write(`bitcast<${dtName}>(${bufferName}[${ptr.getName()}]);\n`)
     }
 
     emitGlobalStore(stmt: GlobalStoreStmt | GlobalTemporaryStoreStmt) {
@@ -587,12 +569,10 @@ export class CodegenVisitor extends IRVisitor {
             resourceInfo = new ResourceInfo(ResourceType.GlobalTmps)
         }
         let bufferName = this.getBufferMemberName(resourceInfo)
-        if (!this.enforce16BytesAlignment()) {
-            this.body.write(this.getIndentation(), `${bufferName}[${ptr.getName()}] = bitcast<${this.getRawDataTypeName()}>(${stmt.getValue().getName()});\n`)
+        if (this.isVertexFor() || this.isFragmentFor()) {
+            error("global memory write cannot be used in vertex-for or fragment-for")
         }
-        else {
-            error("global store cannot be used when enforcing 16 byte alignment")
-        }
+        this.body.write(this.getIndentation(), `${bufferName}[${ptr.getName()}] = bitcast<${this.getRawDataTypeName()}>(${stmt.getValue().getName()});\n`)
     }
 
     override visitGlobalLoadStmt(stmt: GlobalLoadStmt): void {
@@ -1040,35 +1020,12 @@ fn main(${builtInInput} ${stageInput}) ${maybeOutput}
         return this.offload.type === OffloadType.Fragment
     }
 
-    enforce16BytesAlignment() {
-        return this.isVertexFor() || this.isFragmentFor()
-    }
-
     getRawDataTypeName() {
-        if (!this.enforce16BytesAlignment()) {
-            return "i32"
-        }
-        else {
-            return "vec4<i32>"
-        }
+        return "i32"
     }
 
     getRawDataTypeSize() {
-        if (!this.enforce16BytesAlignment()) {
-            return 4
-        }
-        else {
-            return 16
-        }
-    }
-
-    getRawDataTypeIndexShift() {
-        if (!this.enforce16BytesAlignment()) {
-            return ""
-        }
-        else {
-            return " >> 2u";
-        }
+        return 4
     }
 
     getElementCount(buffer: ResourceInfo) {
@@ -1156,8 +1113,8 @@ fn main(${builtInInput} ${stageInput}) ${maybeOutput}
 
     declareNewBuffer(buffer: ResourceInfo, name: string, binding: number, elementType: string, elementCount: number) {
         let storageAndAcess = "storage, read_write"
-        if (this.enforce16BytesAlignment()) {
-            storageAndAcess = "uniform";
+        if (this.isVertexFor() || this.isFragmentFor()) {
+            storageAndAcess = "storage, read";
         }
         let code = `
 struct ${name}_type {

@@ -284,7 +284,7 @@ class Runtime {
         // but that's probably not worth it.
         let buffer = this.device!.createBuffer({
             size: size,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.UNIFORM,
+            usage: GPUBufferUsage.STORAGE,
             mappedAtCreation: true
         })
         return buffer
@@ -295,10 +295,10 @@ class Runtime {
     }
 
     private createGlobalTmpsBuffer() {
-        let size = 65536 // this buffer may be used as UBO by vertex shader. 65535 is the maximum size allowed by Chrome's WebGPU DX backend
+        let size = 65536
         this.globalTmpsBuffer = this.device!.createBuffer({
             size: size,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.UNIFORM,
+            usage: GPUBufferUsage.STORAGE,
         })
     }
 
@@ -378,14 +378,9 @@ class Runtime {
 
     materializeTree(tree: SNodeTree) {
         let size = tree.size
-        // when a root buffer is used in vertex/fragment shader, we bind it as a uniform buffer, which requries the data to be 16-byte aligned
-        // the element is vec4<i32>, so we need to ensure that the buffer size is a multiple of 16
-        if (size % 16 !== 0) {
-            size += 16 - (size % 16)
-        }
         let rootBuffer = this.device!.createBuffer({
             size: size,
-            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC | GPUBufferUsage.INDIRECT,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC | GPUBufferUsage.INDIRECT,
         })
         tree.rootBuffer = rootBuffer
         this.materializedTrees.push(tree)

@@ -96,10 +96,8 @@ export declare class CodegenVisitor extends IRVisitor {
     getTemp(hint?: string): string;
     isVertexFor(): boolean;
     isFragmentFor(): boolean;
-    enforce16BytesAlignment(): boolean;
-    getRawDataTypeName(): "i32" | "vec4<i32>";
-    getRawDataTypeSize(): 4 | 16;
-    getRawDataTypeIndexShift(): "" | " >> 2u";
+    getRawDataTypeName(): string;
+    getRawDataTypeSize(): number;
     getElementCount(buffer: ResourceInfo): number;
     resourceBindings: ResourceBindingMap;
     getBufferName(buffer: ResourceInfo): string;
