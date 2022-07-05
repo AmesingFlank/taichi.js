@@ -3,12 +3,13 @@ export declare enum VertexAttrib {
     Position = 1,
     Normal = 2,
     Tangent = 4,
-    TexCoords = 8,
-    Color = 16,
-    Joints = 32,
-    Weights = 64,
-    Max = 65,
-    All = 63
+    TexCoords0 = 8,
+    TexCoords1 = 16,
+    Color = 32,
+    Joints = 64,
+    Weights = 128,
+    Max = 129,
+    All = 127
 }
 export declare class VertexAttribSet {
     val: number;
@@ -28,7 +29,8 @@ export declare class Vertex {
     position: number[] | null;
     normal: number[] | null;
     tangent: number[] | null;
-    texCoords: number[] | null;
+    texCoords0: number[] | null;
+    texCoords1: number[] | null;
     color: number[] | null;
     joints: number[] | null;
     weights: number[] | null;

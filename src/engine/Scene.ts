@@ -27,7 +27,7 @@ export class Scene {
     constructor() {
         this.vertexAttribSet.set(VertexAttrib.Position)
         this.vertexAttribSet.set(VertexAttrib.Normal)
-        this.vertexAttribSet.set(VertexAttrib.TexCoords)
+        this.vertexAttribSet.set(VertexAttrib.TexCoords0)
         this.nodes = [new SceneNode]
         this.rootNode = 0
     }

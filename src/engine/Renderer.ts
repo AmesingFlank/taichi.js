@@ -487,7 +487,7 @@ export class Renderer {
 
                 //@ts-ignore
                 for (let batchID of ti.static(ti.range(this.batchesDrawInfoBuffers.length))) {
-                    let getMaterial = (texCoords: ti.types.vector, materialID: number) => {
+                    let getMaterial = (fragment: any, materialID: number) => {
                         //@ts-ignore
                         let materialInfo = this.sceneData.materialInfoBuffer[materialID]
                         let material = {
@@ -499,27 +499,44 @@ export class Renderer {
                         }
                         //@ts-ignore
                         if (ti.static(this.batchInfos[batchID].materialIndex != -1)) {
+                            let texCoords = fragment.texCoords0
                             let materialRef = this.scene.materials[this.batchInfos[batchID].materialIndex]
                             //@ts-ignore
                             if (ti.static(materialRef.baseColor.texture !== undefined)) {
+                                //@ts-ignore
+                                if (ti.static(materialRef.baseColor.texcoordsSet === 1)) {
+                                    texCoords = fragment.texCoords1
+                                }
                                 let sampledBaseColor = ti.textureSample(materialRef.baseColor.texture!, texCoords)
                                 sampledBaseColor.rgb = sRGBToLinear(sampledBaseColor.rgb)
                                 material.baseColor *= sampledBaseColor
                             }
                             //@ts-ignore
                             if (ti.static(materialRef.metallicRoughness.texture !== undefined)) {
+                                //@ts-ignore
+                                if (ti.static(materialRef.metallicRoughness.texcoordsSet === 1)) {
+                                    texCoords = fragment.texCoords1
+                                }
                                 let metallicRoughness = ti.textureSample(materialRef.metallicRoughness.texture!, texCoords)
                                 material.metallic *= metallicRoughness.b
                                 material.roughness *= metallicRoughness.g
                             }
                             //@ts-ignore
                             if (ti.static(materialRef.emissive.texture !== undefined)) {
+                                //@ts-ignore
+                                if (ti.static(materialRef.emissive.texcoordsSet === 1)) {
+                                    texCoords = fragment.texCoords1
+                                }
                                 let sampledEmissive = ti.textureSample(materialRef.emissive.texture!, texCoords).rgb
                                 sampledEmissive = sRGBToLinear(sampledEmissive)
                                 material.emissive *= sampledEmissive
                             }
                             //@ts-ignore
                             if (ti.static(materialRef.normalMap.texture !== undefined)) {
+                                //@ts-ignore
+                                if (ti.static(materialRef.normalMap.texcoordsSet === 1)) {
+                                    texCoords = fragment.texCoords1
+                                }
                                 let sampledNormal = ti.textureSample(materialRef.normalMap.texture!, texCoords).rgb
                                 material.normalMap = sampledNormal
                             }
@@ -545,9 +562,9 @@ export class Renderer {
                     }
                     for (let f of ti.inputFragments()) {
                         let materialID = f.materialIndex
-                        let material = getMaterial(f.texCoords, materialID)
+                        let material = getMaterial(f, materialID)
                         let normal = f.normal.normalized()
-                        normal = getNormal(normal, material.normalMap, f.texCoords, f.position)
+                        normal = getNormal(normal, material.normalMap, f.texCoords0, f.position)
                         let viewDir = ti.normalized(camera.position - f.position)
 
                         let color: ti.types.vector = [0.0, 0.0, 0.0]
@@ -583,9 +600,9 @@ export class Renderer {
                                 coords.y = 1.0 - coords.y
                                 let shadow = ti.textureSampleCompare(this.shadowMaps[i]!, coords, depth - 0.01)
                                 contribution *= shadow
-                                color += contribution 
+                                color += contribution
                             }
-                        } 
+                        }
                         color += evalIBL(material, normal, viewDir)
 
                         color = linearTosRGB(color)
@@ -608,7 +625,7 @@ export class Renderer {
                         ti.outputDepth(1 - 1e-6)
                         ti.outputColor(this.canvasTexture, color);
                     }
-                } 
+                }
             }
         )
         this.shadowKernel = ti.classKernel(this,

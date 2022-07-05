@@ -6,7 +6,8 @@ export class MaterialAttribute {
     constructor(
         public numComponents: number,
         public value: number[],
-        public texture: TextureBase | undefined = undefined
+        public texture: TextureBase | undefined = undefined,
+        public texcoordsSet: number = 0
     ) {
 
     }

@@ -4,7 +4,8 @@ export declare class MaterialAttribute {
     numComponents: number;
     value: number[];
     texture: TextureBase | undefined;
-    constructor(numComponents: number, value: number[], texture?: TextureBase | undefined);
+    texcoordsSet: number;
+    constructor(numComponents: number, value: number[], texture?: TextureBase | undefined, texcoordsSet?: number);
     getInfo(): MaterialAttributeInfo;
     getInfoKernelType(): Type;
 }

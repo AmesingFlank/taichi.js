@@ -6,13 +6,14 @@ export enum VertexAttrib {
     Position = 1 << 0,
     Normal = 1 << 1,
     Tangent = 1 << 2,
-    TexCoords = 1 << 3,
-    Color = 1 << 4,
-    Joints = 1 << 5,
-    Weights = 1 << 6,
+    TexCoords0 = 1 << 3,
+    TexCoords1 = 1 << 4,
+    Color = 1 << 5,
+    Joints = 1 << 6,
+    Weights = 1 << 7,
 
-    Max = 1 + (1 << 6),
-    All = ~(~0 << 6)
+    Max = 1 + (1 << 7),
+    All = ~(~0 << 7)
 };
 
 export class VertexAttribSet {
@@ -38,7 +39,8 @@ export class VertexAttribSet {
 
 export function getVertexAttribNumComponents(attrib: VertexAttrib) {
     switch (attrib) {
-        case VertexAttrib.TexCoords: return 2
+        case VertexAttrib.TexCoords0: return 2
+        case VertexAttrib.TexCoords1: return 2
         case VertexAttrib.Position: return 3
         case VertexAttrib.Normal: return 3
         case VertexAttrib.Tangent: return 4
@@ -60,10 +62,11 @@ export function getVertexAttribSetKernelType(attribs: VertexAttribSet) {
             case VertexAttrib.Position: typeObj["position"] = vecType; break
             case VertexAttrib.Normal: typeObj["normal"] = vecType; break
             case VertexAttrib.Tangent: typeObj["tangent"] = vecType; break
-            case VertexAttrib.TexCoords: typeObj["texCoords"] = vecType; break
+            case VertexAttrib.TexCoords0: typeObj["texCoords0"] = vecType; break
+            case VertexAttrib.TexCoords1: typeObj["texCoords1"] = vecType; break
             case VertexAttrib.Color: typeObj["color"] = vecType; break
-            case VertexAttrib.Joints: typeObj["texCoords"] = ti.types.vector(ti.i32, numComponents); break
-            case VertexAttrib.Color: typeObj["color"] = vecType; break
+            case VertexAttrib.Joints: typeObj["joints"] = ti.types.vector(ti.i32, numComponents); break
+            case VertexAttrib.Weights: typeObj["weights"] = vecType; break
             default:
                 error("vert attr is None or All")
         }
@@ -91,8 +94,12 @@ export class Vertex {
                 this.tangent = value
                 break;
             }
-            case VertexAttrib.TexCoords: {
-                this.texCoords = value
+            case VertexAttrib.TexCoords0: {
+                this.texCoords0 = value
+                break;
+            }
+            case VertexAttrib.TexCoords1: {
+                this.texCoords1 = value
                 break;
             }
             case VertexAttrib.Color: {
@@ -122,7 +129,8 @@ export class Vertex {
     position: number[] | null = null
     normal: number[] | null = null
     tangent: number[] | null = null
-    texCoords: number[] | null = null
+    texCoords0: number[] | null = null
+    texCoords1: number[] | null = null
     color: number[] | null = null
     joints: number[] | null = null
     weights: number[] | null = null

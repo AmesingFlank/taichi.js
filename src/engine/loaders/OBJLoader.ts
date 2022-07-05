@@ -39,7 +39,7 @@ export class ObjLoader {
         let objString: string = await response.text()
         let resultScene = new Scene()
         resultScene.vertexAttribSet.set(VertexAttrib.Position)
-        resultScene.vertexAttribSet.set(VertexAttrib.TexCoords)
+        resultScene.vertexAttribSet.set(VertexAttrib.TexCoords0)
         resultScene.vertexAttribSet.set(VertexAttrib.Normal)
 
         let urlParts = url.split("/")
@@ -105,7 +105,7 @@ export class ObjLoader {
                     let vertexID = properties[0];
                     newIndices[v] = vertexID;
                     if (properties.length >= 2 && propertiesStr[1].length !== 0) {
-                        resultScene.vertices[vertexID].texCoords = texCoords[properties[1]];
+                        resultScene.vertices[vertexID].texCoords0 = texCoords[properties[1]];
                     }
                     if (properties.length === 3) {
                         resultScene.vertices[vertexID].normal = normals[properties[2]];

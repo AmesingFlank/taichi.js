@@ -112,6 +112,7 @@ export class GltfLoader {
                 let index = getIndex(pbr.baseColorTexture.index)
                 let bitmapIndex = textures[index].imageIndex
                 resultMaterial.baseColor.texture = await Texture.createFromBitmap(images[bitmapIndex])
+                resultMaterial.baseColor.texcoordsSet = getTexCoordsSet(pbr.baseColorTexture.texCoord)
             }
             if (pbr.metallicFactor !== undefined) {
                 resultMaterial.metallicRoughness.value[0] = pbr.metallicFactor
@@ -129,6 +130,7 @@ export class GltfLoader {
                 let index = getIndex(pbr.metallicRoughnessTexture.index)
                 let bitmapIndex = textures[index].imageIndex
                 resultMaterial.metallicRoughness.texture = await Texture.createFromBitmap(images[bitmapIndex])
+                resultMaterial.metallicRoughness.texcoordsSet = getTexCoordsSet(pbr.metallicRoughnessTexture.texCoord)
             }
             if (inputMaterial.emissiveFactor !== undefined) {
                 resultMaterial.emissive.value = inputMaterial.emissiveFactor
@@ -140,11 +142,13 @@ export class GltfLoader {
                 let index = getIndex(inputMaterial.emissiveTexture.index)
                 let bitmapIndex = textures[index].imageIndex
                 resultMaterial.emissive.texture = await Texture.createFromBitmap(images[bitmapIndex])
+                resultMaterial.emissive.texcoordsSet = getTexCoordsSet(pbr.emissiveTexture.texCoord)
             }
             if (inputMaterial.normalTexture !== undefined) {
                 let index = getIndex(inputMaterial.normalTexture.index)
                 let bitmapIndex = textures[index].imageIndex
                 resultMaterial.normalMap.texture = await Texture.createFromBitmap(images[bitmapIndex])
+                resultMaterial.normalMap.texcoordsSet = getTexCoordsSet(pbr.normalTexture.texCoord)
             }
             resultScene.materials.push(resultMaterial)
         }
@@ -399,7 +403,8 @@ function getVeritexAttribFromGltfName(name: string): VertexAttrib {
     switch (name) {
         case "POSITION": return VertexAttrib.Position
         case "NORMAL": return VertexAttrib.Normal
-        case "TEXCOORD_0": return VertexAttrib.TexCoords
+        case "TEXCOORD_0": return VertexAttrib.TexCoords0
+        case "TEXCOORD_1": return VertexAttrib.TexCoords1
         case "COLOR_0": return VertexAttrib.Color
         case "TANGENT": return VertexAttrib.Tangent
         case "JOINTS_0": return VertexAttrib.Joints
@@ -458,6 +463,13 @@ function getIndex(x: any) {
         return x
     }
     return getIndexFromIDString(x.id)
+}
+
+function getTexCoordsSet(texCoordsSet: number | undefined) {
+    if (texCoordsSet === undefined) {
+        return 0
+    }
+    return texCoordsSet
 }
 
 class GltfTexture {
