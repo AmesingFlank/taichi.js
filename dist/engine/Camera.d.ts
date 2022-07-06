@@ -7,4 +7,5 @@ export declare class Camera {
     far: number;
     constructor(position: number[], direction: number[], up?: number[], fov?: number, near?: number, far?: number);
     static getKernelType(): any;
+    track(canvas: HTMLCanvasElement, yawSpeed?: number, pitchSpeed?: number, movementSpeed?: number): void;
 }
