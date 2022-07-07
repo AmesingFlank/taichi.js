@@ -803,13 +803,14 @@ export class Renderer {
         for (let i = 0; i < this.scene.lights.length; ++i) {
             let light = this.scene.lights[i]
             if (light.castsShadow) {
-                await this.shadowKernel(this.lightShadowMaps[i], light.shadow!)
+                this.shadowKernel(this.lightShadowMaps[i], light.shadow!)
             }
         }
         for (let i = 0; i < this.scene.iblShadows.length; ++i) {
-            await this.shadowKernel(this.iblShadowMaps[i], this.scene.iblShadows[i])
+            this.shadowKernel(this.iblShadowMaps[i], this.scene.iblShadows[i])
         }
-        await this.renderKernel(camera)
-        await this.presentKernel(this.renderTexture)
+        this.renderKernel(camera)
+        this.presentKernel(this.renderTexture)
+        await ti.sync()
     }
 }
