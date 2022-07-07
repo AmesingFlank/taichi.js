@@ -14,6 +14,9 @@ export class Renderer {
     public constructor(public scene: Scene, public htmlCanvas: HTMLCanvasElement) {
         this.depthTexture = ti.depthTexture([htmlCanvas.width, htmlCanvas.height], 4);
         this.canvasTexture = ti.canvasTexture(htmlCanvas, 4)
+
+        this.quadVBO = ti.field(ti.types.vector(ti.f32, 2), 4);
+        this.quadIBO = ti.field(ti.i32, 6);
     }
 
     private renderKernel: ((...args: any[]) => any) = () => { }
@@ -26,6 +29,9 @@ export class Renderer {
 
     private skyboxVBO?: Field
     private skyboxIBO?: Field
+
+    private quadVBO: Field
+    private quadIBO: Field
 
     private iblLambertianFiltered?: Texture
     private iblGGXFiltered?: Texture
@@ -126,9 +132,11 @@ export class Renderer {
             this.iblShadowMaps.push(ti.depthTexture(iblShadow.shadowMapResolution, 1))
         }
 
-        await this.computeDrawBatches()
 
-        console.log(this)
+        await this.quadVBO.fromArray([[-1, -1], [1, -1], [-1, 1], [1, 1]])
+        await this.quadIBO.fromArray([0, 1, 2, 1, 3, 2])
+
+        await this.computeDrawBatches()
 
         if (this.scene.ibl) {
 

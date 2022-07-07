@@ -12,6 +12,8 @@ export declare class Renderer {
     private sceneData?;
     private skyboxVBO?;
     private skyboxIBO?;
+    private quadVBO;
+    private quadIBO;
     private iblLambertianFiltered?;
     private iblGGXFiltered?;
     private LUT?;
