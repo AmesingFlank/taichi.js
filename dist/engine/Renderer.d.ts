@@ -7,7 +7,9 @@ export declare class Renderer {
     constructor(scene: Scene, htmlCanvas: HTMLCanvasElement);
     private renderKernel;
     private shadowKernel;
+    private presentKernel;
     private depthTexture;
+    private renderTexture;
     private canvasTexture;
     private sceneData?;
     private skyboxVBO?;
@@ -35,6 +37,8 @@ export declare class Renderer {
     characteristic: (...args: any[]) => any;
     ggxDistribution: (...args: any[]) => any;
     init(): Promise<void>;
+    initKernels(): Promise<void>;
+    initIBL(): Promise<void>;
     computeDrawBatches(): Promise<void>;
     render(camera: Camera): Promise<void>;
 }

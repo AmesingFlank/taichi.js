@@ -56,10 +56,7 @@ class SetImage {
                 }
                 for (let f of ti.inputFragments()) {
                     let coord = (f + 1) / 2.0
-                    //@ts-ignore
-                    let texelCoord = ti.i32(coord * (image.dimensions - 1))
-                    //use textureLoad instead of textureSample, so that multi-sampled texture can also be used here (WebGPU doesn't support textureSample on multi-sampled texture)
-                    let color = ti.textureLoad(image, texelCoord)
+                    let color = ti.textureSample(image, coord)
                     color[3] = 1.0
                     ti.outputColor(this.renderTarget, color)
                 }

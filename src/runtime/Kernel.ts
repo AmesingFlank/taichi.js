@@ -1,5 +1,5 @@
 import { PrimitiveType, StructType, Type, VoidType } from "../language/frontend/Type"
-import { CanvasTexture, DepthTexture, TextureBase } from "../data/Texture"
+import { CanvasTexture, DepthTexture, Texture, TextureBase } from "../data/Texture"
 import { Field } from "../data/Field"
 
 import { error } from "../utils/Logging"
@@ -257,8 +257,8 @@ class CompiledRenderPassInfo {
             let view: GPUTextureView = attach.texture.getGPUTextureView()
             let resolveTarget: GPUTextureView | undefined = undefined
             if (attach.texture.sampleCount > 1) {
-                if (attach.texture instanceof CanvasTexture) {
-                    view = attach.texture.renderTexture!.createView()
+                if (attach.texture instanceof CanvasTexture || attach.texture instanceof Texture) {
+                    view = attach.texture.multiSampledRenderTexture!.createView()
                     resolveTarget = attach.texture.getGPUTextureView()
                 }
             }

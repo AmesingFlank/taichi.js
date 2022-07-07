@@ -648,8 +648,8 @@ class CompilingVisitor extends ASTVisitor<Value>{
             this.assertNode(node, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && isTexture(argumentValues[0].hostSideValue), "the first argument of textureSample() must be a texture object that's visible in kernel scope")
             let texture = argumentValues[0].hostSideValue as TextureBase
 
-            if (texture instanceof CanvasTexture || texture instanceof DepthTexture || (texture instanceof Texture && texture.sampleCount > 1)) {
-                this.errorNode(node, "textureSample() cannot be called on depth textures, canvas textures, or multi-sampeld textures")
+            if (texture instanceof CanvasTexture || texture instanceof DepthTexture) {
+                this.errorNode(node, "textureSample() cannot be called on depth textures, canvas textures ")
             }
             let dim = texture.getTextureDimensionality()
 
@@ -677,8 +677,8 @@ class CompilingVisitor extends ASTVisitor<Value>{
             this.assertNode(node, node.arguments.length === 3, "textureSampleLod() must have exactly 3 arguments, one for texture, one for the coordinates, one for the explicit LOD")
             this.assertNode(node, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && isTexture(argumentValues[0].hostSideValue), "the first argument of textureSampleLod() must be a texture object that's visible in kernel scope")
             let texture = argumentValues[0].hostSideValue as TextureBase
-            if (texture instanceof CanvasTexture || texture instanceof DepthTexture || (texture instanceof Texture && texture.sampleCount > 1)) {
-                this.errorNode(node, "textureSampleLod() cannot be called on depth textures, canvas textures, or multi-sampeld textures")
+            if (texture instanceof CanvasTexture || texture instanceof DepthTexture) {
+                this.errorNode(node, "textureSampleLod() cannot be called on depth textures, canvas textures ")
             }
 
             let dim = texture.getTextureDimensionality()

@@ -538,6 +538,12 @@ class Runtime {
         }
         await this.device!.queue.onSubmittedWorkDone()
     }
+    async copyTextureToTexture(src: GPUTexture, dest: GPUTexture, dimensions: number[]) {
+        let commandEncoder = this.device!.createCommandEncoder();
+        commandEncoder.copyTextureToTexture({ texture: src }, { texture: dest }, dimensions)
+        this.device!.queue.submit([commandEncoder.finish()]);
+        await this.device!.queue.onSubmittedWorkDone()
+    }
 
     getGPUShaderModule(code: string): GPUShaderModule {
         return this.pipelineCache!.getOrCreateShaderModule(code)

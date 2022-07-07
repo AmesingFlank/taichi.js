@@ -13,6 +13,7 @@ import { ShadowInfo } from "./common/ShadowInfo";
 export class Renderer {
     public constructor(public scene: Scene, public htmlCanvas: HTMLCanvasElement) {
         this.depthTexture = ti.depthTexture([htmlCanvas.width, htmlCanvas.height], 4);
+        this.renderTexture = ti.texture(4, [htmlCanvas.width, htmlCanvas.height], 4);
         this.canvasTexture = ti.canvasTexture(htmlCanvas, 4)
 
         this.quadVBO = ti.field(ti.types.vector(ti.f32, 2), 4);
@@ -21,8 +22,10 @@ export class Renderer {
 
     private renderKernel: ((...args: any[]) => any) = () => { }
     private shadowKernel: ((...args: any[]) => any) = () => { }
+    private presentKernel: ((...args: any[]) => any) = () => { }
 
     private depthTexture: DepthTexture
+    private renderTexture: Texture
     private canvasTexture: CanvasTexture
 
     private sceneData?: SceneData
@@ -151,7 +154,7 @@ export class Renderer {
                 let vp = ti.matmul(proj, view);
 
                 ti.useDepth(this.depthTexture);
-                ti.clearColor(this.canvasTexture, [0.1, 0.2, 0.3, 1]);
+                ti.clearColor(this.renderTexture, [0.1, 0.2, 0.3, 1]);
 
                 let getLightBrightnessAndDir = (light: any, fragPos: ti.types.vector) => {
                     let brightness: ti.types.vector = [0.0, 0.0, 0.0]
@@ -417,7 +420,7 @@ export class Renderer {
                         color += evalIBL(material, normal, viewDir, f.position)
 
                         color = linearTosRGB(color)
-                        ti.outputColor(this.canvasTexture, color.concat([1.0]));
+                        ti.outputColor(this.renderTexture, color.concat([1.0]));
                     }
                 }
                 //@ts-ignore
@@ -434,7 +437,7 @@ export class Renderer {
                         color.rgb = linearTosRGB(this.tonemap(color.rgb, this.scene.ibl!.exposure))
                         color[3] = 1.0
                         ti.outputDepth(1 - 1e-6)
-                        ti.outputColor(this.canvasTexture, color);
+                        ti.outputColor(this.renderTexture, color);
                     }
                 }
             }
@@ -459,7 +462,25 @@ export class Renderer {
                     ti.outputVertex(v);
                 }
                 for (let f of ti.inputFragments()) {
+                    //no-op
+                }
+            }
+        )
+        this.presentKernel = ti.classKernel(this,
+            { presentedTexture: ti.template() },
+            (presentedTexture: Texture) => {
+                ti.clearColor(this.canvasTexture, [0.0, 0.0, 0.0, 1]);
+                for (let v of ti.inputVertices(this.quadVBO, this.quadIBO)) {
+                    ti.outputPosition([v.x, v.y, 0.0, 1.0]);
+                    ti.outputVertex(v);
+                }
+                for (let f of ti.inputFragments()) {
+                    let coord: ti.types.vector = (f + 1) / 2.0
+                    coord[1] = 1 - coord[1]
 
+                    let color = ti.textureSample(presentedTexture, coord)
+                    color[3] = 1.0
+                    ti.outputColor(this.canvasTexture, color)
                 }
             }
         )
@@ -789,5 +810,6 @@ export class Renderer {
             await this.shadowKernel(this.iblShadowMaps[i], this.scene.iblShadows[i])
         }
         await this.renderKernel(camera)
+        await this.presentKernel(this.renderTexture)
     }
 }

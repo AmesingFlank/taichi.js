@@ -58,18 +58,22 @@ export class Texture extends TextureBase {
         public samplingOptions: TextureSamplingOptions
     ) {
         super()
+        this.sampleCount = sampleCount
         assert(dimensions.length <= 3 && dimensions.length >= 1, "texture dimensions must be >= 1 and <= 3")
         assert(numComponents === 1 || numComponents === 2 || numComponents === 4, "texture dimensions must be 1, 2, or 4")
-        this.texture = Program.getCurrentProgram().runtime!.createGPUTexture(dimensions, this.getTextureDimensionality(), this.getGPUTextureFormat(), this.canUseAsRengerTarget(), true, sampleCount)
+        this.texture = Program.getCurrentProgram().runtime!.createGPUTexture(dimensions, this.getTextureDimensionality(), this.getGPUTextureFormat(), this.canUseAsRengerTarget(), true, 1)
+        if (this.sampleCount > 1) {
+            this.multiSampledRenderTexture = Program.getCurrentProgram().runtime!.createGPUTexture(dimensions, this.getTextureDimensionality(), this.getGPUTextureFormat(), this.canUseAsRengerTarget(), false, sampleCount)
+        }
         Program.getCurrentProgram().addTexture(this)
         this.textureView = this.texture.createView()
         this.sampler = Program.getCurrentProgram().runtime!.createGPUSampler(false, samplingOptions)
-        this.sampleCount = sampleCount
     }
 
     private texture: GPUTexture
     private textureView: GPUTextureView
     private sampler: GPUSampler
+    multiSampledRenderTexture: GPUTexture | null = null
 
     getGPUTextureFormat(): GPUTextureFormat {
         switch (this.numComponents) {
@@ -111,6 +115,14 @@ export class Texture extends TextureBase {
         }
     }
 
+    async copyFrom(src: Texture) {
+        assert(this.getTextureDimensionality() === src.getTextureDimensionality(), "texture dimensionality mismatch")
+        for (let i = 0; i < this.dimensions.length; ++i) {
+            assert(this.dimensions[i] === src.dimensions[i], "texture shape mismatch")
+        }
+        await Program.getCurrentProgram().runtime!.copyTextureToTexture(src.getGPUTexture(), this.getGPUTexture(), this.dimensions)
+    }
+
     static async createFromBitmap(bitmap: ImageBitmap) {
         let dimensions = [bitmap.width, bitmap.height]
         let texture = new Texture(4, dimensions, 1, {})
@@ -141,10 +153,10 @@ export class CanvasTexture extends TextureBase {
         this.sampler = Program.getCurrentProgram().runtime!.createGPUSampler(false, {})
         this.sampleCount = sampleCount
         if (this.sampleCount > 1) {
-            this.renderTexture = Program.getCurrentProgram().runtime!.createGPUTexture([htmlCanvas.width, htmlCanvas.height], this.getTextureDimensionality(), this.getGPUTextureFormat(), this.canUseAsRengerTarget(), false, sampleCount)
+            this.multiSampledRenderTexture = Program.getCurrentProgram().runtime!.createGPUTexture([htmlCanvas.width, htmlCanvas.height], this.getTextureDimensionality(), this.getGPUTextureFormat(), this.canUseAsRengerTarget(), false, sampleCount)
         }
     }
-    renderTexture: GPUTexture | null = null
+    multiSampledRenderTexture: GPUTexture | null = null
     context: GPUCanvasContext
     format: GPUTextureFormat
     private sampler: GPUSampler
@@ -283,4 +295,4 @@ export class CubeTexture extends TextureBase {
 
 export function isTexture(x: any) {
     return x instanceof Texture || x instanceof CanvasTexture || x instanceof DepthTexture || x instanceof CubeTexture
-}
+} 

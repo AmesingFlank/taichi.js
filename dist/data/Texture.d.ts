@@ -33,12 +33,14 @@ export declare class Texture extends TextureBase {
     private texture;
     private textureView;
     private sampler;
+    multiSampledRenderTexture: GPUTexture | null;
     getGPUTextureFormat(): GPUTextureFormat;
     canUseAsRengerTarget(): boolean;
     getGPUTexture(): GPUTexture;
     getGPUTextureView(): GPUTextureView;
     getGPUSampler(): GPUSampler;
     getTextureDimensionality(): TextureDimensionality;
+    copyFrom(src: Texture): Promise<void>;
     static createFromBitmap(bitmap: ImageBitmap): Promise<Texture>;
     static createFromHtmlImage(image: HTMLImageElement): Promise<Texture>;
     static createFromURL(url: string): Promise<Texture>;
@@ -46,7 +48,7 @@ export declare class Texture extends TextureBase {
 export declare class CanvasTexture extends TextureBase {
     htmlCanvas: HTMLCanvasElement;
     constructor(htmlCanvas: HTMLCanvasElement, sampleCount: number);
-    renderTexture: GPUTexture | null;
+    multiSampledRenderTexture: GPUTexture | null;
     context: GPUCanvasContext;
     format: GPUTextureFormat;
     private sampler;
