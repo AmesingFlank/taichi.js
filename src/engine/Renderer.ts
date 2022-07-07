@@ -132,228 +132,16 @@ export class Renderer {
             this.iblShadowMaps.push(ti.depthTexture(iblShadow.shadowMapResolution, 1))
         }
 
-
         await this.quadVBO.fromArray([[-1, -1], [1, -1], [-1, 1], [1, 1]])
         await this.quadIBO.fromArray([0, 1, 2, 1, 3, 2])
 
         await this.computeDrawBatches()
 
-        if (this.scene.ibl) {
+        await this.initIBL()
+        await this.initKernels()
+    }
 
-            this.iblLambertianFiltered = ti.texture(4, this.scene.ibl.texture.dimensions)
-            this.iblGGXFiltered = ti.texture(4, this.scene.ibl.texture.dimensions.concat([16]), 1, { wrapModeW: ti.WrapMode.ClampToEdge })
-            this.LUT = ti.texture(4, [512, 512], 1, { wrapModeU: ti.WrapMode.ClampToEdge, wrapModeV: ti.WrapMode.ClampToEdge })
-            this.skyboxVBO = ti.field(ti.types.vector(ti.f32, 3), 8);
-            this.skyboxIBO = ti.field(ti.i32, 36);
-
-            await this.skyboxVBO.fromArray([
-                [-1, -1, -1],
-                [-1, -1, 1],
-                [-1, 1, -1],
-                [-1, 1, 1],
-                [1, -1, -1],
-                [1, -1, 1],
-                [1, 1, -1],
-                [1, 1, 1],
-            ]);
-            await this.skyboxIBO.fromArray([
-                0, 1, 2, 1, 3, 2, 4, 5, 6, 5, 7, 6, 0, 2, 4, 2, 6, 4, 1, 3, 5, 3, 7, 5, 0,
-                1, 4, 1, 5, 4, 2, 3, 6, 3, 7, 6,
-            ]);
-
-            let prefilterKernel = ti.classKernel(
-                this,
-                () => {
-                    let kSampleCount = 1024
-
-                    let radicalInverseVdC = (bits: number) => {
-                        bits = (bits << 16) | (bits >>> 16);
-                        bits = ((bits & 0x55555555) << 1) | ((bits & 0xAAAAAAAA) >>> 1);
-                        bits = ((bits & 0x33333333) << 2) | ((bits & 0xCCCCCCCC) >>> 2);
-                        bits = ((bits & 0x0F0F0F0F) << 4) | ((bits & 0xF0F0F0F0) >>> 4);
-                        bits = ((bits & 0x00FF00FF) << 8) | ((bits & 0xFF00FF00) >>> 8);
-                        //@ts-ignore
-                        let result = f32(bits) * 2.3283064365386963e-10;
-                        if (bits < 0) {
-                            //@ts-ignore
-                            result = 1.0 + f32(bits) * 2.3283064365386963e-10;
-                        }
-                        return result
-                    }
-
-                    let hammersley2d = (i: number, N: number) => {
-                        //@ts-ignore
-                        return [f32(i) / N, radicalInverseVdC(i32(i))];
-                    }
-
-                    let generateTBN = (normal: ti.types.vector) => {
-                        let bitangent = [0.0, 1.0, 0.0];
-
-                        let NdotUp = ti.dot(normal, [0.0, 1.0, 0.0]);
-                        let epsilon = 0.0000001;
-                        if (1.0 - Math.abs(NdotUp) <= epsilon) {
-                            // Sampling +Y or -Y, so we need a more robust bitangent.
-                            if (NdotUp > 0.0) {
-                                bitangent = [0.0, 0.0, 1.0];
-                            }
-                            else {
-                                bitangent = [0.0, 0.0, -1.0];
-                            }
-                        }
-
-                        let tangent = ti.normalized(ti.cross(bitangent, normal));
-                        bitangent = ti.cross(normal, tangent);
-
-                        return ti.transpose([tangent, bitangent, normal]);
-                    }
-
-                    let computeLod = (pdf: number) => {
-                        return 0.5 * Math.log(6.0 * this.scene.ibl!.texture.dimensions[0] * this.scene.ibl!.texture.dimensions[0] / (kSampleCount * pdf)) / Math.log(2.0);
-                    }
-
-                    let getLambertianImportanceSample = (normal: ti.types.vector, xi: ti.types.vector) => {
-                        let cosTheta = Math.sqrt(1.0 - xi[1]);
-                        let sinTheta = Math.sqrt(xi[1]);
-                        let phi = 2.0 * Math.PI * xi[0];
-                        let localSpaceDirection = [
-                            sinTheta * Math.cos(phi),
-                            sinTheta * Math.sin(phi),
-                            cosTheta
-                        ]
-                        let TBN = generateTBN(normal);
-                        let direction = ti.matmul(TBN, localSpaceDirection);
-                        return {
-                            pdf: cosTheta / Math.PI,
-                            direction: direction
-                        }
-                    }
-
-                    let filterLambertian = (normal: ti.types.vector) => {
-                        let color: any = [0.0, 0.0, 0.0]
-                        for (let i of ti.range(kSampleCount)) {
-                            let xi = hammersley2d(i, kSampleCount)
-                            let importanceSample = getLambertianImportanceSample(normal, xi)
-                            let halfDir = importanceSample.direction
-                            let pdf = importanceSample.pdf
-                            let lod = computeLod(pdf);
-                            let halfDirCoords = this.dirToUV(halfDir)
-                            let sampled = ti.textureSampleLod(this.scene.ibl!.texture, halfDirCoords, lod)
-                            //@ts-ignore
-                            color += sampled.rgb / kSampleCount
-                        }
-                        return color
-                    }
-
-                    for (let I of ti.ndrange(this.iblLambertianFiltered!.dimensions[0], this.iblLambertianFiltered!.dimensions[1])) {
-                        //@ts-ignore
-                        let uv = I / (this.iblLambertianFiltered.dimensions - [1.0, 1.0])
-                        let dir = this.uvToDir(uv)
-                        let filtered = filterLambertian(dir)
-                        ti.textureStore(this.iblLambertianFiltered!, I, filtered.concat([1.0]));
-                    }
-
-                    let saturate = (v: any) => {
-                        return Math.max(0.0, Math.min(1.0, v))
-                    }
-
-                    let getGGXImportanceSample = (normal: ti.types.vector, roughness: number, xi: ti.types.vector) => {
-                        let alpha = roughness * roughness;
-                        let cosTheta = saturate(Math.sqrt((1.0 - xi[1]) / (1.0 + (alpha * alpha - 1.0) * xi[1])));
-                        let sinTheta = Math.sqrt(1.0 - cosTheta * cosTheta);
-                        let phi = 2.0 * Math.PI * xi[0];
-
-                        let pdf = this.ggxDistribution(cosTheta, alpha) / 4.0;
-                        let localSpaceDirection = [
-                            sinTheta * Math.cos(phi),
-                            sinTheta * Math.sin(phi),
-                            cosTheta
-                        ]
-                        let TBN = generateTBN(normal);
-                        let direction = ti.matmul(TBN, localSpaceDirection);
-                        return {
-                            pdf: pdf,
-                            direction: direction
-                        }
-                    }
-
-                    let filterGGX = (normal: ti.types.vector, roughness: number) => {
-                        let color = [0.0, 0.0, 0.0]
-                        for (let i of ti.range(kSampleCount)) {
-                            let xi = hammersley2d(i, kSampleCount)
-                            let importanceSample = getGGXImportanceSample(normal, roughness, xi)
-                            let halfDir = importanceSample.direction
-                            let pdf = importanceSample.pdf
-                            let lod = computeLod(pdf);
-                            if (roughness == 0.0) {
-                                lod = 0.0
-                            }
-                            let halfDirCoords = this.dirToUV(halfDir)
-                            let sampled = ti.textureSampleLod(this.scene.ibl!.texture, halfDirCoords, lod)
-                            //@ts-ignore
-                            color += sampled.rgb / kSampleCount
-                        }
-                        return color
-                    }
-
-                    for (let I of ti.ndrange(this.iblGGXFiltered!.dimensions[0], this.iblGGXFiltered!.dimensions[1])) {
-                        let numLevels = this.iblGGXFiltered!.dimensions[2]
-                        for (let level of ti.range(numLevels)) {
-                            let roughness = level / (numLevels - 1)
-                            //@ts-ignore
-                            let uv = I / (this.iblGGXFiltered.dimensions.slice(0, 2) - [1.0, 1.0])
-                            let dir = this.uvToDir(uv)
-                            let filtered = filterGGX(dir, roughness)
-                            ti.textureStore(this.iblGGXFiltered!, I.concat([level]), filtered.concat([1.0]));
-                        }
-                    }
-
-                    let computeLUT = (NdotV: number, roughness: number): ti.types.vector => {
-                        let V: any = [Math.sqrt(1.0 - NdotV * NdotV), 0.0, NdotV];
-                        let N = [0.0, 0.0, 1.0];
-
-                        let A = 0.0;
-                        let B = 0.0;
-                        let C = 0.0;
-
-                        for (let i of ti.range(kSampleCount)) {
-                            let xi = hammersley2d(i, kSampleCount)
-                            let importanceSample = getGGXImportanceSample(N, roughness, xi)
-                            let H: any = importanceSample.direction;
-                            // float pdf = importanceSample.w;
-                            //@ts-ignore
-                            let L = ti.normalized(2.0 * H * ti.dot(H, V) - V)
-
-                            let NdotL = saturate(L[2]);
-                            let NdotH = saturate(H[2]);
-                            let VdotH = saturate(ti.dot(V, H));
-
-                            if (NdotL > 0.0) {
-                                let a2 = Math.pow(roughness, 4.0);
-                                let GGXV = NdotL * Math.sqrt(NdotV * NdotV * (1.0 - a2) + a2);
-                                let GGXL = NdotV * Math.sqrt(NdotL * NdotL * (1.0 - a2) + a2);
-                                let V_pdf = (0.5 / (GGXV + GGXL)) * VdotH * NdotL / NdotH;
-                                let Fc = Math.pow(1.0 - VdotH, 5.0);
-                                A += (1.0 - Fc) * V_pdf;
-                                B += Fc * V_pdf;
-                                C += 0.0;
-                            }
-                        }
-                        //@ts-ignore
-                        return [4.0 * A, 4.0 * B, 4.0 * 2.0 * Math.PI * C] / kSampleCount;
-                    }
-
-                    for (let I of ti.ndrange(this.LUT!.dimensions[0], this.LUT!.dimensions[1])) {
-                        //@ts-ignore
-                        let uv: ti.types.vector = I / (this.LUT.dimensions - [1.0, 1.0])
-                        let texel = computeLUT(uv[0], uv[1])
-                        ti.textureStore(this.LUT!, I, texel.concat([1.0]));
-                    }
-                },
-                undefined
-            )
-            await prefilterKernel()
-        }
-
+    async initKernels() {
         this.renderKernel = ti.classKernel(this,
             { camera: Camera.getKernelType() },
             (camera: any) => {
@@ -675,6 +463,224 @@ export class Renderer {
                 }
             }
         )
+    }
+
+    async initIBL() {
+        if (this.scene.ibl) {
+
+            this.iblLambertianFiltered = ti.texture(4, this.scene.ibl.texture.dimensions)
+            this.iblGGXFiltered = ti.texture(4, this.scene.ibl.texture.dimensions.concat([16]), 1, { wrapModeW: ti.WrapMode.ClampToEdge })
+            this.LUT = ti.texture(4, [512, 512], 1, { wrapModeU: ti.WrapMode.ClampToEdge, wrapModeV: ti.WrapMode.ClampToEdge })
+            this.skyboxVBO = ti.field(ti.types.vector(ti.f32, 3), 8);
+            this.skyboxIBO = ti.field(ti.i32, 36);
+
+            await this.skyboxVBO.fromArray([
+                [-1, -1, -1],
+                [-1, -1, 1],
+                [-1, 1, -1],
+                [-1, 1, 1],
+                [1, -1, -1],
+                [1, -1, 1],
+                [1, 1, -1],
+                [1, 1, 1],
+            ]);
+            await this.skyboxIBO.fromArray([
+                0, 1, 2, 1, 3, 2, 4, 5, 6, 5, 7, 6, 0, 2, 4, 2, 6, 4, 1, 3, 5, 3, 7, 5, 0,
+                1, 4, 1, 5, 4, 2, 3, 6, 3, 7, 6,
+            ]);
+
+            let prefilterKernel = ti.classKernel(
+                this,
+                () => {
+                    let kSampleCount = 1024
+
+                    let radicalInverseVdC = (bits: number) => {
+                        bits = (bits << 16) | (bits >>> 16);
+                        bits = ((bits & 0x55555555) << 1) | ((bits & 0xAAAAAAAA) >>> 1);
+                        bits = ((bits & 0x33333333) << 2) | ((bits & 0xCCCCCCCC) >>> 2);
+                        bits = ((bits & 0x0F0F0F0F) << 4) | ((bits & 0xF0F0F0F0) >>> 4);
+                        bits = ((bits & 0x00FF00FF) << 8) | ((bits & 0xFF00FF00) >>> 8);
+                        //@ts-ignore
+                        let result = f32(bits) * 2.3283064365386963e-10;
+                        if (bits < 0) {
+                            //@ts-ignore
+                            result = 1.0 + f32(bits) * 2.3283064365386963e-10;
+                        }
+                        return result
+                    }
+
+                    let hammersley2d = (i: number, N: number) => {
+                        //@ts-ignore
+                        return [f32(i) / N, radicalInverseVdC(i32(i))];
+                    }
+
+                    let generateTBN = (normal: ti.types.vector) => {
+                        let bitangent = [0.0, 1.0, 0.0];
+
+                        let NdotUp = ti.dot(normal, [0.0, 1.0, 0.0]);
+                        let epsilon = 0.0000001;
+                        if (1.0 - Math.abs(NdotUp) <= epsilon) {
+                            // Sampling +Y or -Y, so we need a more robust bitangent.
+                            if (NdotUp > 0.0) {
+                                bitangent = [0.0, 0.0, 1.0];
+                            }
+                            else {
+                                bitangent = [0.0, 0.0, -1.0];
+                            }
+                        }
+
+                        let tangent = ti.normalized(ti.cross(bitangent, normal));
+                        bitangent = ti.cross(normal, tangent);
+
+                        return ti.transpose([tangent, bitangent, normal]);
+                    }
+
+                    let computeLod = (pdf: number) => {
+                        return 0.5 * Math.log(6.0 * this.scene.ibl!.texture.dimensions[0] * this.scene.ibl!.texture.dimensions[0] / (kSampleCount * pdf)) / Math.log(2.0);
+                    }
+
+                    let getLambertianImportanceSample = (normal: ti.types.vector, xi: ti.types.vector) => {
+                        let cosTheta = Math.sqrt(1.0 - xi[1]);
+                        let sinTheta = Math.sqrt(xi[1]);
+                        let phi = 2.0 * Math.PI * xi[0];
+                        let localSpaceDirection = [
+                            sinTheta * Math.cos(phi),
+                            sinTheta * Math.sin(phi),
+                            cosTheta
+                        ]
+                        let TBN = generateTBN(normal);
+                        let direction = ti.matmul(TBN, localSpaceDirection);
+                        return {
+                            pdf: cosTheta / Math.PI,
+                            direction: direction
+                        }
+                    }
+
+                    let filterLambertian = (normal: ti.types.vector) => {
+                        let color: any = [0.0, 0.0, 0.0]
+                        for (let i of ti.range(kSampleCount)) {
+                            let xi = hammersley2d(i, kSampleCount)
+                            let importanceSample = getLambertianImportanceSample(normal, xi)
+                            let halfDir = importanceSample.direction
+                            let pdf = importanceSample.pdf
+                            let lod = computeLod(pdf);
+                            let halfDirCoords = this.dirToUV(halfDir)
+                            let sampled = ti.textureSampleLod(this.scene.ibl!.texture, halfDirCoords, lod)
+                            //@ts-ignore
+                            color += sampled.rgb / kSampleCount
+                        }
+                        return color
+                    }
+
+                    for (let I of ti.ndrange(this.iblLambertianFiltered!.dimensions[0], this.iblLambertianFiltered!.dimensions[1])) {
+                        //@ts-ignore
+                        let uv = I / (this.iblLambertianFiltered.dimensions - [1.0, 1.0])
+                        let dir = this.uvToDir(uv)
+                        let filtered = filterLambertian(dir)
+                        ti.textureStore(this.iblLambertianFiltered!, I, filtered.concat([1.0]));
+                    }
+
+                    let saturate = (v: any) => {
+                        return Math.max(0.0, Math.min(1.0, v))
+                    }
+
+                    let getGGXImportanceSample = (normal: ti.types.vector, roughness: number, xi: ti.types.vector) => {
+                        let alpha = roughness * roughness;
+                        let cosTheta = saturate(Math.sqrt((1.0 - xi[1]) / (1.0 + (alpha * alpha - 1.0) * xi[1])));
+                        let sinTheta = Math.sqrt(1.0 - cosTheta * cosTheta);
+                        let phi = 2.0 * Math.PI * xi[0];
+
+                        let pdf = this.ggxDistribution(cosTheta, alpha) / 4.0;
+                        let localSpaceDirection = [
+                            sinTheta * Math.cos(phi),
+                            sinTheta * Math.sin(phi),
+                            cosTheta
+                        ]
+                        let TBN = generateTBN(normal);
+                        let direction = ti.matmul(TBN, localSpaceDirection);
+                        return {
+                            pdf: pdf,
+                            direction: direction
+                        }
+                    }
+
+                    let filterGGX = (normal: ti.types.vector, roughness: number) => {
+                        let color = [0.0, 0.0, 0.0]
+                        for (let i of ti.range(kSampleCount)) {
+                            let xi = hammersley2d(i, kSampleCount)
+                            let importanceSample = getGGXImportanceSample(normal, roughness, xi)
+                            let halfDir = importanceSample.direction
+                            let pdf = importanceSample.pdf
+                            let lod = computeLod(pdf);
+                            if (roughness == 0.0) {
+                                lod = 0.0
+                            }
+                            let halfDirCoords = this.dirToUV(halfDir)
+                            let sampled = ti.textureSampleLod(this.scene.ibl!.texture, halfDirCoords, lod)
+                            //@ts-ignore
+                            color += sampled.rgb / kSampleCount
+                        }
+                        return color
+                    }
+
+                    for (let I of ti.ndrange(this.iblGGXFiltered!.dimensions[0], this.iblGGXFiltered!.dimensions[1])) {
+                        let numLevels = this.iblGGXFiltered!.dimensions[2]
+                        for (let level of ti.range(numLevels)) {
+                            let roughness = level / (numLevels - 1)
+                            //@ts-ignore
+                            let uv = I / (this.iblGGXFiltered.dimensions.slice(0, 2) - [1.0, 1.0])
+                            let dir = this.uvToDir(uv)
+                            let filtered = filterGGX(dir, roughness)
+                            ti.textureStore(this.iblGGXFiltered!, I.concat([level]), filtered.concat([1.0]));
+                        }
+                    }
+
+                    let computeLUT = (NdotV: number, roughness: number): ti.types.vector => {
+                        let V: any = [Math.sqrt(1.0 - NdotV * NdotV), 0.0, NdotV];
+                        let N = [0.0, 0.0, 1.0];
+
+                        let A = 0.0;
+                        let B = 0.0;
+                        let C = 0.0;
+
+                        for (let i of ti.range(kSampleCount)) {
+                            let xi = hammersley2d(i, kSampleCount)
+                            let importanceSample = getGGXImportanceSample(N, roughness, xi)
+                            let H: any = importanceSample.direction;
+                            // float pdf = importanceSample.w;
+                            //@ts-ignore
+                            let L = ti.normalized(2.0 * H * ti.dot(H, V) - V)
+
+                            let NdotL = saturate(L[2]);
+                            let NdotH = saturate(H[2]);
+                            let VdotH = saturate(ti.dot(V, H));
+
+                            if (NdotL > 0.0) {
+                                let a2 = Math.pow(roughness, 4.0);
+                                let GGXV = NdotL * Math.sqrt(NdotV * NdotV * (1.0 - a2) + a2);
+                                let GGXL = NdotV * Math.sqrt(NdotL * NdotL * (1.0 - a2) + a2);
+                                let V_pdf = (0.5 / (GGXV + GGXL)) * VdotH * NdotL / NdotH;
+                                let Fc = Math.pow(1.0 - VdotH, 5.0);
+                                A += (1.0 - Fc) * V_pdf;
+                                B += Fc * V_pdf;
+                                C += 0.0;
+                            }
+                        }
+                        //@ts-ignore
+                        return [4.0 * A, 4.0 * B, 4.0 * 2.0 * Math.PI * C] / kSampleCount;
+                    }
+
+                    for (let I of ti.ndrange(this.LUT!.dimensions[0], this.LUT!.dimensions[1])) {
+                        //@ts-ignore
+                        let uv: ti.types.vector = I / (this.LUT.dimensions - [1.0, 1.0])
+                        let texel = computeLUT(uv[0], uv[1])
+                        ti.textureStore(this.LUT!, I, texel.concat([1.0]));
+                    }
+                },
+                undefined
+            )
+            await prefilterKernel()
+        }
     }
 
     async computeDrawBatches() {
