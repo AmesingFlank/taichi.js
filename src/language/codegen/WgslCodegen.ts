@@ -1164,7 +1164,12 @@ var<${storageAndAcess}> ${name}: ${name}_type;
                         typeName = "texture_storage_2d"
                     }
                     else {
-                        typeName = "texture_2d"
+                        if (texture.sampleCount > 1) {
+                            typeName = "texture_multisampled_2d"
+                        }
+                        else {
+                            typeName = "texture_2d"
+                        }
                     }
                 }
                 else {
