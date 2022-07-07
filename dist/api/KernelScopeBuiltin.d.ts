@@ -36,6 +36,7 @@ export declare function textureLoad(texture: TextureBase, coords: any): number[]
 export declare function textureStore(texture: TextureBase, coords: any, val: any): void;
 export declare function getVertexIndex(): number;
 export declare function getInstanceIndex(): number;
+export declare function getFragCoord(): number[];
 export declare function dpdx(val: number | ti.types.vector): number | ti.types.vector;
 export declare function dpdy(val: number | ti.types.vector): number | ti.types.vector;
 export declare function lookAt(eye: ti.types.vector, center: ti.types.vector, up: ti.types.vector): any[];

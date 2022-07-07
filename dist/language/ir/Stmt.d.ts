@@ -288,9 +288,11 @@ export declare class BuiltInOutputStmt extends Stmt {
 }
 export declare enum BuiltInInputKind {
     VertexIndex = 0,
-    InstanceIndex = 1
+    InstanceIndex = 1,
+    FragCoord = 2
 }
-export declare function getBuiltinInputType(kind: BuiltInInputKind): PrimitiveType;
+export declare function getBuiltinInputPrimitiveType(kind: BuiltInInputKind): PrimitiveType;
+export declare function getBuiltinInputComponentCount(kind: BuiltInInputKind): 1 | 4;
 export declare class BuiltInInputStmt extends Stmt {
     builtinKind: BuiltInInputKind;
     constructor(builtinKind: BuiltInInputKind, id: number, nameHint?: string);

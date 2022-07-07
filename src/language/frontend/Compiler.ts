@@ -523,6 +523,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             "textureStore",
             "getVertexIndex",
             "getInstanceIndex",
+            "getFragCoord",
             "dpdx",
             "dpdy",
         ]
@@ -783,6 +784,15 @@ class CompilingVisitor extends ASTVisitor<Value>{
             let resultType = new ScalarType(PrimitiveType.i32)
             let result = new Value(resultType)
             result.stmts.push(this.irBuilder.create_instance_index_input())
+            return result
+        }
+        if (this.isBuiltinFunctionWithName(funcText, "getFragCoord")) {
+            let fragCoordStmt = this.irBuilder.create_frag_coord_input()
+            let resultType = new VectorType(PrimitiveType.f32, 4)
+            let result = new Value(resultType)
+            for (let i = 0; i < 4; ++i) {
+                result.stmts.push(this.irBuilder.create_composite_extract(fragCoordStmt, i))
+            }
             return result
         }
         if (this.isBuiltinFunctionWithName(funcText, "dpdx") || this.isBuiltinFunctionWithName(funcText, "dpdy")) {

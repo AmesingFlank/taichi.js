@@ -12,6 +12,7 @@ import { LightInfo } from "./common/LightInfo";
 import { HdrTexture } from "./loaders/HDRLoader";
 import { error } from "../utils/Logging";
 import { GltfLoader } from "./loaders/GLTFLoader";
+import { ShadowInfo } from "./common/ShadowInfo";
 
 export interface SceneData {
     vertexBuffer: Field, // Field of Vertex
@@ -42,6 +43,7 @@ export class Scene {
     lights: LightInfo[] = []
 
     ibl: HdrTexture | undefined = undefined
+    iblShadows: ShadowInfo[] = []
 
     vertexAttribSet: VertexAttribSet = new VertexAttribSet(VertexAttrib.None)
 

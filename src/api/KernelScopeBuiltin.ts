@@ -227,6 +227,7 @@ export function textureStore(texture: TextureBase, coords: any, val: any) { thro
 
 export function getVertexIndex(): number { throwNotImplementedError(); return 0 }
 export function getInstanceIndex(): number { throwNotImplementedError(); return 0 }
+export function getFragCoord(): number[] { throwNotImplementedError(); return [0.0, 0.0, 0.0, 0.0] }
 
 export function dpdx(val: number | ti.types.vector): number | ti.types.vector { throwNotImplementedError(); return 0 }
 export function dpdy(val: number | ti.types.vector): number | ti.types.vector { throwNotImplementedError(); return 0 }

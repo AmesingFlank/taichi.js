@@ -20,11 +20,12 @@ export declare class Renderer {
     private batchesDrawInstanceInfos;
     private batchesDrawInfoBuffers;
     private batchesDrawInstanceInfoBuffers;
-    private shadowMaps;
-    private shadowDrawInfos;
-    private shadowDrawInstanceInfos;
-    private shadowDrawInfoBuffer?;
-    private shadowDrawInstanceInfoBuffer?;
+    private lightShadowMaps;
+    private iblShadowMaps;
+    private geometryOnlyDrawInfos;
+    private geometryOnlyDrawInstanceInfos;
+    private geometryOnlyDrawInfoBuffer?;
+    private geometryOnlyDrawInstanceInfoBuffer?;
     engine: typeof ti.engine;
     uvToDir: (...args: any[]) => any;
     dirToUV: (...args: any[]) => any;

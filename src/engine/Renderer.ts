@@ -8,6 +8,7 @@ import { DrawInfo } from "./common/DrawInfo";
 import { InstanceInfo } from "./common/InstanceInfo";
 import { LightType } from "./common/LightInfo";
 import { Scene, SceneData } from "./Scene";
+import { ShadowInfo } from "./common/ShadowInfo";
 
 export class Renderer {
     public constructor(public scene: Scene, public htmlCanvas: HTMLCanvasElement) {
@@ -30,6 +31,7 @@ export class Renderer {
     private iblGGXFiltered?: Texture
     private LUT?: Texture
 
+    // batches based on materials
     private batchInfos: BatchInfo[] = []
     private batchesDrawInfos: DrawInfo[][] = []
     private batchesDrawInstanceInfos: InstanceInfo[][] = []
@@ -38,12 +40,14 @@ export class Renderer {
     private batchesDrawInstanceInfoBuffers: Field[] = []
 
     // shadow stuff
-    private shadowMaps: (DepthTexture | undefined)[] = []
-    private shadowDrawInfos: DrawInfo[] = []
-    private shadowDrawInstanceInfos: InstanceInfo[] = []
+    private lightShadowMaps: (DepthTexture | undefined)[] = []
+    private iblShadowMaps: DepthTexture[] = []
 
-    private shadowDrawInfoBuffer?: Field
-    private shadowDrawInstanceInfoBuffer?: Field
+    private geometryOnlyDrawInfos: DrawInfo[] = []
+    private geometryOnlyDrawInstanceInfos: InstanceInfo[] = []
+
+    private geometryOnlyDrawInfoBuffer?: Field
+    private geometryOnlyDrawInstanceInfoBuffer?: Field
 
     engine = ti.engine
 
@@ -111,12 +115,15 @@ export class Renderer {
             if (light.castsShadow) {
                 assert(light.type === LightType.Directional, "only directional lights can be shadow casters")
                 assert(light.shadow !== undefined, "expexcting shadow info")
-                this.shadowMaps.push(ti.depthTexture(light.shadow!.shadowMapResolution, 1))
+                this.lightShadowMaps.push(ti.depthTexture(light.shadow!.shadowMapResolution, 1))
                 light.shadow!.view = ti.lookAt(light.position, ti.add(light.position, light.direction), [0.0, 1.0, 0.0]);
                 let size = light.shadow!.physicalSize
                 light.shadow!.projection = ti.ortho(-0.5 * size[0], 0.5 * size[0], -0.5 * size[1], 0.5 * size[0], 0.0, light.shadow!.maxDistance)
                 light.shadow!.viewProjection = ti.matmul(light.shadow!.projection, light.shadow!.view)
             }
+        }
+        for (let iblShadow of this.scene.iblShadows) {
+            this.iblShadowMaps.push(ti.depthTexture(iblShadow.shadowMapResolution, 1))
         }
 
         await this.computeDrawBatches()
@@ -443,7 +450,18 @@ export class Renderer {
                     return material.metallic * metallicBRDF + (1.0 - material.metallic) * dielectricBRDF
                 }
 
-                let evalIBL = (material: any, normal: ti.types.vector, viewDir: ti.types.vector) => {
+                let evalShadow = (pos: ti.types.vector, shadowMap: DepthTexture, shadowInfo: ShadowInfo) => {
+                    let vp = shadowInfo.viewProjection
+                    let clipSpacePos = ti.matmul(vp, pos.concat([1.0]))
+                    let depth = clipSpacePos.z / clipSpacePos.w
+                    let coords: ti.types.vector = (clipSpacePos.xy / clipSpacePos.w) * 0.5 + 0.5
+                    coords.y = 1.0 - coords.y
+                    let visibility = ti.textureSampleCompare(shadowMap, coords, depth - 0.01)
+                    let contribution = (1.0 - (1.0 - visibility) * shadowInfo.strength)
+                    return contribution
+                }
+
+                let evalIBL = (material: any, normal: ti.types.vector, viewDir: ti.types.vector, pos: ti.types.vector) => {
                     let result: ti.types.vector = [0.0, 0.0, 0.0]
                     //@ts-ignore
                     if (ti.static(this.scene.ibl !== undefined)) {
@@ -461,6 +479,11 @@ export class Renderer {
                         let specular = specularLight * (specularColor * scaleBias[0] + scaleBias[1])
 
                         result = specular + diffuse
+                        //@ts-ignore
+                        for (let i of ti.static(ti.range(this.scene.iblShadows.length))) {
+                            let contribution = evalShadow(pos, this.iblShadowMaps[i], this.scene.iblShadows[i])
+                            result *= contribution
+                        }
                     }
                     return result
                 }
@@ -586,24 +609,16 @@ export class Renderer {
                                     color += evalLight(light)
                                 }
                             }
-                        }
-
-                        //@ts-ignore
-                        for (let i of ti.static(ti.range(this.scene.lights.length))) {
                             //@ts-ignore
-                            if (ti.static(this.scene.lights[i].castsShadow)) {
-                                let contribution = evalLight(this.scene.lights[i])
-                                let vp = this.scene.lights[i].shadow!.viewProjection
-                                let clipSpacePos = ti.matmul(vp, f.position.concat([1.0]))
-                                let depth = clipSpacePos.z / clipSpacePos.w
-                                let coords: ti.types.vector = (clipSpacePos.xy / clipSpacePos.w) * 0.5 + 0.5
-                                coords.y = 1.0 - coords.y
-                                let shadow = ti.textureSampleCompare(this.shadowMaps[i]!, coords, depth - 0.01)
-                                contribution *= shadow
-                                color += contribution
+                            for (let i of ti.static(ti.range(this.scene.lights.length))) {
+                                //@ts-ignore
+                                if (ti.static(this.scene.lights[i].castsShadow)) {
+                                    color += evalLight(this.scene.lights[i]) * evalShadow(f.position, this.lightShadowMaps[i]!, this.scene.lights[i].shadow!)
+                                }
                             }
                         }
-                        color += evalIBL(material, normal, viewDir)
+
+                        color += evalIBL(material, normal, viewDir, f.position)
 
                         color = linearTosRGB(color)
                         ti.outputColor(this.canvasTexture, color.concat([1.0]));
@@ -629,21 +644,21 @@ export class Renderer {
             }
         )
         this.shadowKernel = ti.classKernel(this,
-            { lightIndex: ti.template() },
-            (lightIndex: number) => {
-                ti.useDepth(this.shadowMaps[lightIndex]!);
+            { shadowMap: ti.template(), shadowInfo: ti.template() },
+            (shadowMap: DepthTexture, shadowInfo: ShadowInfo) => {
+                ti.useDepth(shadowMap);
                 //@ts-ignore
-                for (let v of ti.inputVertices(this.sceneData!.vertexBuffer, this.sceneData!.indexBuffer, ti.static(this.shadowDrawInfoBuffer), ti.static(this.shadowDrawInfoBuffer.dimensions[0]))) {
+                for (let v of ti.inputVertices(this.sceneData!.vertexBuffer, this.sceneData!.indexBuffer, ti.static(this.geometryOnlyDrawInfoBuffer), ti.static(this.geometryOnlyDrawInfoBuffer.dimensions[0]))) {
                     let instanceIndex = ti.getInstanceIndex()
                     //@ts-ignore
-                    let instanceInfo = this.shadowDrawInstanceInfoBuffer[instanceIndex]
+                    let instanceInfo = this.geometryOnlyDrawInstanceInfoBuffer[instanceIndex]
                     let nodeIndex = instanceInfo.nodeIndex
                     //@ts-ignore
                     let modelMatrix = this.sceneData.nodesBuffer[nodeIndex].globalTransform.matrix
 
                     v.normal = ti.transpose(ti.inverse(modelMatrix.slice([0, 0], [3, 3]))).matmul(v.normal)
                     v.position = modelMatrix.matmul(v.position.concat([1.0])).xyz
-                    let pos = ti.matmul(this.scene.lights[lightIndex].shadow!.viewProjection, v.position.concat([1.0]));
+                    let pos = ti.matmul(shadowInfo.viewProjection, v.position.concat([1.0]));
                     ti.outputPosition(pos);
                     ti.outputVertex(v);
                 }
@@ -721,15 +736,15 @@ export class Renderer {
         }
 
         // shadow pass instance infos
-        this.shadowDrawInfos = []
-        this.shadowDrawInstanceInfos = []
+        this.geometryOnlyDrawInfos = []
+        this.geometryOnlyDrawInstanceInfos = []
 
         for (let nodeIndex = 0; nodeIndex < this.scene.nodes.length; ++nodeIndex) {
             let node = this.scene.nodes[nodeIndex]
             if (node.mesh >= 0) {
                 let mesh = this.scene.meshes[node.mesh]
                 for (let prim of mesh.primitives) {
-                    let firstInstance = this.shadowDrawInstanceInfos.length
+                    let firstInstance = this.geometryOnlyDrawInstanceInfos.length
                     let drawInfo = new DrawInfo(
                         prim.indexCount,
                         1,
@@ -737,24 +752,27 @@ export class Renderer {
                         0,
                         firstInstance
                     )
-                    this.shadowDrawInfos.push(drawInfo)
+                    this.geometryOnlyDrawInfos.push(drawInfo)
                     let instanceInfo = new InstanceInfo(nodeIndex, prim.materialID)
-                    this.shadowDrawInstanceInfos.push(instanceInfo)
+                    this.geometryOnlyDrawInstanceInfos.push(instanceInfo)
                 }
             }
         }
-        this.shadowDrawInfoBuffer = ti.field(DrawInfo.getKernelType(), this.shadowDrawInfos.length)
-        await this.shadowDrawInfoBuffer.fromArray(this.shadowDrawInfos)
-        this.shadowDrawInstanceInfoBuffer = ti.field(InstanceInfo.getKernelType(), this.shadowDrawInstanceInfos.length)
-        await this.shadowDrawInstanceInfoBuffer.fromArray(this.shadowDrawInstanceInfos)
+        this.geometryOnlyDrawInfoBuffer = ti.field(DrawInfo.getKernelType(), this.geometryOnlyDrawInfos.length)
+        await this.geometryOnlyDrawInfoBuffer.fromArray(this.geometryOnlyDrawInfos)
+        this.geometryOnlyDrawInstanceInfoBuffer = ti.field(InstanceInfo.getKernelType(), this.geometryOnlyDrawInstanceInfos.length)
+        await this.geometryOnlyDrawInstanceInfoBuffer.fromArray(this.geometryOnlyDrawInstanceInfos)
     }
 
     async render(camera: Camera) {
         for (let i = 0; i < this.scene.lights.length; ++i) {
             let light = this.scene.lights[i]
             if (light.castsShadow) {
-                await this.shadowKernel(i)
+                await this.shadowKernel(this.lightShadowMaps[i], light.shadow!)
             }
+        }
+        for (let i = 0; i < this.scene.iblShadows.length; ++i) {
+            await this.shadowKernel(this.iblShadowMaps[i], this.scene.iblShadows[i])
         }
         await this.renderKernel(camera)
     }

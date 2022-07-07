@@ -47,6 +47,7 @@ export declare class IRBuilder {
     create_composite_extract(composite: Stmt, index: number): CompositeExtractStmt;
     create_vertex_index_input(): BuiltInInputStmt;
     create_instance_index_input(): BuiltInInputStmt;
+    create_frag_coord_input(): BuiltInInputStmt;
     create_dpdx(val: Stmt): FragmentDerivativeStmt;
     create_dpdy(val: Stmt): FragmentDerivativeStmt;
     get_range_loop_guard(loop: RangeForStmt): Guard;

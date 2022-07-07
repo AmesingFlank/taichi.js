@@ -6,6 +6,7 @@ import { Mesh } from "./Mesh";
 import { Transform } from "./Transform";
 import { LightInfo } from "./common/LightInfo";
 import { HdrTexture } from "./loaders/HDRLoader";
+import { ShadowInfo } from "./common/ShadowInfo";
 export interface SceneData {
     vertexBuffer: Field;
     indexBuffer: Field;
@@ -23,6 +24,7 @@ export declare class Scene {
     meshes: Mesh[];
     lights: LightInfo[];
     ibl: HdrTexture | undefined;
+    iblShadows: ShadowInfo[];
     vertexAttribSet: VertexAttribSet;
     getKernelData(): Promise<SceneData>;
     init(): void;

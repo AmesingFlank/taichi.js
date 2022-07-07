@@ -177,6 +177,10 @@ export class IRBuilder {
         return this.pushNewStmt(new BuiltInInputStmt(BuiltInInputKind.InstanceIndex, this.getNewId()))
     }
 
+    create_frag_coord_input() {
+        return this.pushNewStmt(new BuiltInInputStmt(BuiltInInputKind.FragCoord, this.getNewId()))
+    }
+
     create_dpdx(val: Stmt) {
         return this.pushNewStmt(new FragmentDerivativeStmt(FragmentDerivativeDirection.x, val, this.getNewId()))
     }

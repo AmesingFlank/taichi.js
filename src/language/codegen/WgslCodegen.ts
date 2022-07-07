@@ -6,7 +6,7 @@ import { assert, error } from "../../utils/Logging";
 import { StringBuilder } from "../../utils/StringBuilder";
 import { divUp } from "../../utils/Utils";
 import { PrimitiveType } from "../frontend/Type";
-import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, AtomicOpType, BinaryOpStmt, BinaryOpType, BuiltInInputKind, BuiltInInputStmt, BuiltInOutputKind, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeDirection, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, getPointedType, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, StmtKind, TextureFunctionKind, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "../ir/Stmt";
+import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, AtomicOpType, BinaryOpStmt, BinaryOpType, BuiltInInputKind, BuiltInInputStmt, BuiltInOutputKind, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeDirection, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, getBuiltinInputComponentCount, getBuiltinInputPrimitiveType, getPointedType, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, StmtKind, TextureFunctionKind, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "../ir/Stmt";
 import { IRVisitor } from "../ir/Visitor";
 import { ComputeModule, OffloadedModule, OffloadType } from "./Offload";
 
@@ -316,7 +316,9 @@ export class CodegenVisitor extends IRVisitor {
     }
 
     override visitBuiltInInputStmt(stmt: BuiltInInputStmt): void {
-        let dtName = this.getPrimitiveTypeName(stmt.getReturnType())
+        let primType = getBuiltinInputPrimitiveType(stmt.builtinKind)
+        let componentCount = getBuiltinInputComponentCount(stmt.builtinKind)
+        let dtName = this.getScalarOrVectorTypeName(primType, componentCount)
         this.emitLet(stmt.getName(), dtName)
         this.body.write(`${dtName}(`)
         switch (stmt.builtinKind) {
@@ -326,6 +328,10 @@ export class CodegenVisitor extends IRVisitor {
             }
             case BuiltInInputKind.InstanceIndex: {
                 this.body.write("instance_index");
+                break;
+            }
+            case BuiltInInputKind.FragCoord: {
+                this.body.write("frag_coord");
                 break;
             }
             default:
@@ -918,19 +924,16 @@ fn main(
         if (this.isVertexFor()) {
             stageName = "vertex"
             builtInInput = `@builtin(vertex_index) vertex_index : u32,  @builtin(instance_index) instance_index : u32`
-            if (!this.stageInStructBegin.empty()) {
-                builtInInput += ", "
-            }
         }
         else if (this.isFragmentFor()) {
             stageName = "fragment"
-            builtInInput = ""
+            builtInInput = "@builtin(position) frag_coord : vec4<f32>"
         }
         else {
             error("emit_graphics_function called, but we're not in vert/frag for")
         }
         if (!this.stageInStructBegin.empty()) {
-            stageInput = "stage_input: StageInput"
+            stageInput = ", stage_input: StageInput"
         }
         if (!this.stageOutStructBegin.empty()) {
             maybeOutput = "-> StageOutput"

@@ -697,14 +697,26 @@ export class BuiltInOutputStmt extends Stmt {
 }
 
 export enum BuiltInInputKind {
-    VertexIndex = 0, InstanceIndex = 1,
+    VertexIndex = 0, InstanceIndex = 1, FragCoord = 2
 }
 
-export function getBuiltinInputType(kind: BuiltInInputKind) {
+export function getBuiltinInputPrimitiveType(kind: BuiltInInputKind) {
     switch (kind) {
         case BuiltInInputKind.VertexIndex:
         case BuiltInInputKind.InstanceIndex:
             return PrimitiveType.i32
+        case BuiltInInputKind.FragCoord:
+            return PrimitiveType.f32
+    }
+}
+
+export function getBuiltinInputComponentCount(kind: BuiltInInputKind) {
+    switch (kind) {
+        case BuiltInInputKind.VertexIndex:
+        case BuiltInInputKind.InstanceIndex:
+            return 1
+        case BuiltInInputKind.FragCoord:
+            return 4
     }
 }
 
@@ -714,8 +726,7 @@ export class BuiltInInputStmt extends Stmt {
         id: number,
         nameHint: string = ""
     ) {
-
-        super(id, getBuiltinInputType(builtinKind), nameHint)
+        super(id, getBuiltinInputPrimitiveType(builtinKind), nameHint)
     }
     override getKind(): StmtKind {
         return StmtKind.BuiltInInputStmt
