@@ -7,7 +7,7 @@ import { Field } from "../../data/Field";
 import { CanvasTexture, DepthTexture, getTextureCoordsNumComponents, isTexture, Texture, TextureBase } from "../../data/Texture";
 import { Program } from "../../program/Program";
 import { LibraryFunc } from "./Library";
-import { Type, TypeCategory, ScalarType, VectorType, PointerType, VoidType, TypeUtils, PrimitiveType, FunctionType, HostObjectReferenceType } from "./Type"
+import { Type, TypeCategory, ScalarType, VectorType, PointerType, VoidType, TypeUtils, PrimitiveType, FunctionType, HostObjectReferenceType, StructType } from "./Type"
 import { Value, ValueUtils } from "./Value"
 import { BuiltinOp, BuiltinAtomicOp, BuiltinOpFactory } from "./BuiltinOp";
 import { ResultOrError } from "./Error";
@@ -587,7 +587,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             this.assertNode(node, this.isAtTopLevel(), "useDepth() can only be called at top level")
             this.ensureRenderPassParams()
 
-            this.assertNode(node, node.arguments.length === 1, "useDepth() must have exactly 1 argument, i.e. the depth texture")
+            this.assertNode(node, node.arguments.length === 1 || node.arguments.length === 2, "useDepth() must have 1 or 2 arguments. The 1st argument should be the depth texture, the 2nd optional arguments contain depth write and clear options")
 
             this.assertNode(node, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && argumentValues[0].hostSideValue instanceof DepthTexture, "the first argument of useDepth() must be a depth texture object that's visible in kernel scope")
             let depthTexture = argumentValues[0].hostSideValue as DepthTexture
@@ -597,6 +597,29 @@ class CompilingVisitor extends ASTVisitor<Value>{
                 texture: depthTexture,
                 clearDepth: 1.0,
                 storeDepth: true
+            }
+            if (node.arguments.length === 2) {
+                let depthOptionsValue = argumentValues[1]
+                this.assertNode(node, depthOptionsValue.isCompileTimeConstant(), "depth options needs to be a compile time constant")
+                let depthOptionsType = depthOptionsValue.getType()
+                this.assertNode(node, depthOptionsType.getCategory() === TypeCategory.Struct, "depth options needs to be a struct: {storeDepth: bool, clearDepth: bool}")
+                let structType = depthOptionsType as StructType
+                if (structType.hasProperty("storeDepth")) {
+                    let storeDepthType = structType.getPropertyType("storeDepth")
+                    this.assertNode(node, storeDepthType.getCategory() === TypeCategory.Scalar && TypeUtils.getPrimitiveType(storeDepthType) === PrimitiveType.i32, "storeDepth needs to be a boolean or integer (0 or 1)")
+                    let offset = structType.getPropertyPrimitiveOffset("storeDepth")
+                    let value = depthOptionsValue.compileTimeConstants[offset]
+                    this.assertNode(node, value === 0 || value === 1, "storeDepth needs to be a boolean or integer (0 or 1)")
+                    this.renderPassParams!.depthAttachment.storeDepth = value === 1 ? true : false
+                }
+                if (structType.hasProperty("clearDepth")) {
+                    let storeDepthType = structType.getPropertyType("clearDepth")
+                    this.assertNode(node, storeDepthType.getCategory() === TypeCategory.Scalar && TypeUtils.getPrimitiveType(storeDepthType) === PrimitiveType.i32, "clearDepth needs to be a boolean or integer (0 or 1)")
+                    let offset = structType.getPropertyPrimitiveOffset("clearDepth")
+                    let value = depthOptionsValue.compileTimeConstants[offset]
+                    this.assertNode(node, value === 0 || value === 1, "clearDepth needs to be a boolean or integer (0 or 1)")
+                    this.renderPassParams!.depthAttachment.clearDepth = value === 1 ? 1.0 : undefined
+                }
             }
             return
         }
@@ -1648,6 +1671,14 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
     protected override visitThisKeyword(): VisitorResult<Value> {
         return ValueUtils.makeHostObjectReference(this.kernelScope.thisObj)
+    }
+
+    protected override visitTrueKeyword(): VisitorResult<Value> {
+        return ValueUtils.makeConstantScalar(1, this.irBuilder.get_int32(1), PrimitiveType.i32)
+    }
+
+    protected override visitFalseKeyword(): VisitorResult<Value> {
+        return ValueUtils.makeConstantScalar(0, this.irBuilder.get_int32(0), PrimitiveType.i32)
     }
 
     protected override visitNonNullExpression(node: ts.NonNullExpression): VisitorResult<Value> {

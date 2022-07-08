@@ -8,6 +8,7 @@ export declare class Renderer {
     private renderKernel;
     private shadowKernel;
     private presentKernel;
+    private zPrePassKernel;
     private depthTexture;
     private renderTexture;
     private canvasTexture;
@@ -31,11 +32,11 @@ export declare class Renderer {
     private geometryOnlyDrawInfoBuffer?;
     private geometryOnlyDrawInstanceInfoBuffer?;
     engine: typeof ti.engine;
-    uvToDir: (...args: any[]) => any;
-    dirToUV: (...args: any[]) => any;
-    tonemap: (...args: any[]) => any;
-    characteristic: (...args: any[]) => any;
-    ggxDistribution: (...args: any[]) => any;
+    uvToDir: ti.FuncType;
+    dirToUV: ti.FuncType;
+    tonemap: ti.FuncType;
+    characteristic: ti.FuncType;
+    ggxDistribution: ti.FuncType;
     init(): Promise<void>;
     initKernels(): Promise<void>;
     initIBL(): Promise<void>;

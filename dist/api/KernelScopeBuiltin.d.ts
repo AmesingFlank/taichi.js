@@ -25,7 +25,10 @@ export declare function polarDecompose2D(A: ti.types.matrix): {
 export declare function outputVertex(vertex: any): void;
 export declare function outputPosition(pos: any): void;
 export declare function clearColor(tex: TextureBase, col: any): void;
-export declare function useDepth(depth: DepthTexture): void;
+export declare function useDepth(depth: DepthTexture, depthOptions?: {
+    storeDepth?: boolean;
+    clearDepth?: boolean;
+}): void;
 export declare function outputColor(tex: TextureBase, col: any): void;
 export declare function outputDepth(depth: number): void;
 export declare function discard(): void;

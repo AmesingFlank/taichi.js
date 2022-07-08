@@ -212,6 +212,10 @@ export class StructType extends Type {
         return this.keys_;
     }
 
+    hasProperty(name: string) {
+        return this.memberTypes_.has(name)
+    }
+
     getPropertyType(name: string): Type {
         if (!this.memberTypes_.has(name)) {
             error(`property ${name} does not exist on this struct`)
@@ -307,7 +311,7 @@ export class FunctionType extends Type {
 }
 
 export class HostObjectReferenceType extends Type {
-    constructor(public markedAsStatic:boolean) {
+    constructor(public markedAsStatic: boolean) {
         super()
     }
     override getCategory(): TypeCategory {

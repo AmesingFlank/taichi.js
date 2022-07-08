@@ -20,9 +20,10 @@ export class Renderer {
         this.quadIBO = ti.field(ti.i32, 6);
     }
 
-    private renderKernel: ((...args: any[]) => any) = () => { }
-    private shadowKernel: ((...args: any[]) => any) = () => { }
-    private presentKernel: ((...args: any[]) => any) = () => { }
+    private renderKernel: ti.KernelType = () => { }
+    private shadowKernel: ti.KernelType = () => { }
+    private presentKernel: ti.KernelType = () => { }
+    private zPrePassKernel: ti.KernelType = () => { }
 
     private depthTexture: DepthTexture
     private renderTexture: Texture
@@ -145,15 +146,34 @@ export class Renderer {
     }
 
     async initKernels() {
+        this.zPrePassKernel = ti.classKernel(this,
+            { camera: Camera.getKernelType() },
+            (camera: any) => {
+                ti.useDepth(this.depthTexture);
+                //@ts-ignore
+                for (let v of ti.inputVertices(this.sceneData!.vertexBuffer, this.sceneData!.indexBuffer, ti.static(this.geometryOnlyDrawInfoBuffer), ti.static(this.geometryOnlyDrawInfoBuffer.dimensions[0]))) {
+                    let instanceIndex = ti.getInstanceIndex()
+                    //@ts-ignore
+                    let instanceInfo = this.geometryOnlyDrawInstanceInfoBuffer[instanceIndex]
+                    let nodeIndex = instanceInfo.nodeIndex
+                    //@ts-ignore
+                    let modelMatrix = this.sceneData.nodesBuffer[nodeIndex].globalTransform.matrix
+
+                    v.position = modelMatrix.matmul(v.position.concat([1.0])).xyz
+                    let pos = ti.matmul(camera.viewProjection, v.position.concat([1.0]));
+                    ti.outputPosition(pos);
+                    ti.outputVertex(v);
+                }
+                for (let f of ti.inputFragments()) {
+                    //no-op
+                }
+            }
+        )
         this.renderKernel = ti.classKernel(this,
             { camera: Camera.getKernelType() },
             (camera: any) => {
-                let view = ti.lookAt(camera.position, camera.position + camera.direction, camera.up);
-                let aspectRatio = this.htmlCanvas.width / this.htmlCanvas.height
-                let proj = ti.perspective(camera.fov, aspectRatio, camera.near, camera.far);
-                let vp = ti.matmul(proj, view);
 
-                ti.useDepth(this.depthTexture);
+                ti.useDepth(this.depthTexture, { storeDepth: false, clearDepth: false });
                 ti.clearColor(this.renderTexture, [0.1, 0.2, 0.3, 1]);
 
                 let getLightBrightnessAndDir = (light: any, fragPos: ti.types.vector) => {
@@ -377,7 +397,7 @@ export class Renderer {
 
                         v.normal = ti.transpose(ti.inverse(modelMatrix.slice([0, 0], [3, 3]))).matmul(v.normal)
                         v.position = modelMatrix.matmul(v.position.concat([1.0])).xyz
-                        let pos = vp.matmul(v.position.concat([1.0]));
+                        let pos = camera.viewProjection.matmul(v.position.concat([1.0]));
                         ti.outputPosition(pos);
                         let vertexOutput = ti.mergeStructs(v, { materialIndex: materialIndex })
                         ti.outputVertex(vertexOutput);
@@ -426,7 +446,7 @@ export class Renderer {
                 //@ts-ignore
                 if (ti.static(this.scene.ibl !== undefined)) {
                     for (let v of ti.inputVertices(this.skyboxVBO!, this.skyboxIBO!)) {
-                        let pos = vp.matmul((v + camera.position).concat([1.0]));
+                        let pos = camera.viewProjection.matmul((v + camera.position).concat([1.0]));
                         ti.outputPosition(pos);
                         ti.outputVertex(v);
                     }
@@ -455,7 +475,6 @@ export class Renderer {
                     //@ts-ignore
                     let modelMatrix = this.sceneData.nodesBuffer[nodeIndex].globalTransform.matrix
 
-                    v.normal = ti.transpose(ti.inverse(modelMatrix.slice([0, 0], [3, 3]))).matmul(v.normal)
                     v.position = modelMatrix.matmul(v.position.concat([1.0])).xyz
                     let pos = ti.matmul(shadowInfo.viewProjection, v.position.concat([1.0]));
                     ti.outputPosition(pos);
@@ -800,6 +819,8 @@ export class Renderer {
     }
 
     async render(camera: Camera) {
+        let aspectRatio = this.htmlCanvas.width / this.htmlCanvas.height
+        camera.computeMatrices(aspectRatio)
         for (let i = 0; i < this.scene.lights.length; ++i) {
             let light = this.scene.lights[i]
             if (light.castsShadow) {
@@ -809,6 +830,7 @@ export class Renderer {
         for (let i = 0; i < this.scene.iblShadows.length; ++i) {
             this.shadowKernel(this.iblShadowMaps[i], this.scene.iblShadows[i])
         }
+        this.zPrePassKernel(camera)
         this.renderKernel(camera)
         this.presentKernel(this.renderTexture)
         await ti.sync()

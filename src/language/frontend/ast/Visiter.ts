@@ -66,6 +66,10 @@ class ASTVisitor<T> {
                 return this.visitAsExpression(node as ts.AsExpression)
             case ts.SyntaxKind.ThisKeyword:
                 return this.visitThisKeyword()
+            case ts.SyntaxKind.TrueKeyword:
+                return this.visitTrueKeyword()
+            case ts.SyntaxKind.FalseKeyword:
+                return this.visitFalseKeyword()
             default:
                 return this.visitUnknown(node)
         }
@@ -195,6 +199,14 @@ class ASTVisitor<T> {
     }
 
     protected visitThisKeyword(): VisitorResult<T> {
+
+    }
+
+    protected visitTrueKeyword(): VisitorResult<T> {
+
+    }
+
+    protected visitFalseKeyword(): VisitorResult<T> {
 
     }
 }

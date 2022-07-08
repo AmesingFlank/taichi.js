@@ -11,6 +11,16 @@ export class Camera {
     ) {
 
     }
+    public view: number[][] = []
+    public projection: number[][] = []
+    public viewProjection: number[][] = []
+
+    computeMatrices(aspectRatio: number) {
+        this.view = ti.lookAt(this.position, ti.add(this.position, this.direction), this.up);
+        this.projection = ti.perspective(this.fov, aspectRatio, this.near, this.far);
+        this.viewProjection = ti.matmul(this.projection, this.view);
+    }
+
     static getKernelType(): any {
         return ti.types.struct({
             position: ti.types.vector(ti.f32, 3),
@@ -18,7 +28,10 @@ export class Camera {
             up: ti.types.vector(ti.f32, 3),
             fov: ti.f32,
             near: ti.f32,
-            far: ti.f32
+            far: ti.f32,
+            view: ti.types.matrix(ti.f32, 4, 4),
+            projection: ti.types.matrix(ti.f32, 4, 4),
+            viewProjection: ti.types.matrix(ti.f32, 4, 4)
         })
     }
     track(canvas: HTMLCanvasElement, yawSpeed: number = 2, pitchSpeed: number = 2, movementSpeed: number = 0.01) {
@@ -64,7 +77,7 @@ export class Camera {
                 let currY = ev.offsetY / canvas.height
 
                 let dx = currX - lastX
-                let dy = currY - lastY 
+                let dy = currY - lastY
 
                 let [yaw, pitch] = vecToEuler(ti.normalized(this.direction))
                 yaw += dx * yawSpeed

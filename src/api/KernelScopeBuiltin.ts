@@ -214,7 +214,7 @@ export function polarDecompose2D(A: ti.types.matrix) {
 export function outputVertex(vertex: any) { throwNotImplementedError() }
 export function outputPosition(pos: any) { throwNotImplementedError() }
 export function clearColor(tex: TextureBase, col: any) { throwNotImplementedError() }
-export function useDepth(depth: DepthTexture) { throwNotImplementedError() }
+export function useDepth(depth: DepthTexture, depthOptions?: { storeDepth?: boolean, clearDepth?: boolean }) { throwNotImplementedError() }
 export function outputColor(tex: TextureBase, col: any) { throwNotImplementedError() }
 export function outputDepth(depth: number) { throwNotImplementedError() }
 export function discard() { throwNotImplementedError() }

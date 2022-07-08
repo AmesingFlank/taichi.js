@@ -237,7 +237,7 @@ class CompiledRenderPipeline {
             }
             desc.depthStencil = {
                 depthWriteEnabled: depthWrite,
-                depthCompare: 'less',
+                depthCompare: 'less-equal',
                 format: renderPassParams.depthAttachment.texture.getGPUTextureFormat(),
             }
         }

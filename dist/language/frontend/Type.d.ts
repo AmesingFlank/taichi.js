@@ -63,6 +63,7 @@ export declare class StructType extends Type {
     private keys_;
     private memberTypes_;
     getPropertyNames(): string[];
+    hasProperty(name: string): boolean;
     getPropertyType(name: string): Type;
     getPropertyPrimitiveOffset(name: string): number;
     getCategory(): TypeCategory;

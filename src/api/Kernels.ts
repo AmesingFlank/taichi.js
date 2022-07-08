@@ -6,24 +6,25 @@ import { CompiledKernel } from '../runtime/Kernel'
 import { ParsedFunction } from '../language/frontend/ParsedFunction'
 import { KernelFactory, Template } from '../language/frontend/KernelFactory'
 
-function addToKernelScope(obj: any) {
+export function addToKernelScope(obj: any) {
     let program = Program.getCurrentProgram()
     program.addToKernelScope(obj)
 }
 
-function clearKernelScope() {
+export function clearKernelScope() {
     let program = Program.getCurrentProgram()
     program.clearKernelScope()
 }
 
 
-
-function template() {
+export function template() {
     return new Template()
 }
 
+export type KernelType = ((...args: any[]) => any)
+export type FuncType = ((...args: any[]) => any)
 
-function kernel(argTypesOrCode: any, codeOrUndefined?: any): ((...args: any[]) => any) {
+export function kernel(argTypesOrCode: any, codeOrUndefined?: any): KernelType {
     let argsMapObj: any = {}
     let code: any
     if (typeof argTypesOrCode === "function" || typeof argTypesOrCode === "string") {
@@ -36,7 +37,7 @@ function kernel(argTypesOrCode: any, codeOrUndefined?: any): ((...args: any[]) =
     return KernelFactory.kernel(Program.getCurrentProgram().kernelScope.clone(), argsMapObj, code)
 }
 
-function classKernel(thisObj: any, argTypesOrCode: any, codeOrUndefined?: any): ((...args: any[]) => any) {
+export function classKernel(thisObj: any, argTypesOrCode: any, codeOrUndefined?: any): KernelType {
     let argsMapObj: any = {}
     let code: any
     if (typeof argTypesOrCode === "function" || typeof argTypesOrCode === "string") {
@@ -51,15 +52,13 @@ function classKernel(thisObj: any, argTypesOrCode: any, codeOrUndefined?: any): 
     return KernelFactory.kernel(scope, argsMapObj, code)
 }
 
-function func(f: any): ((...args: any[]) => any) {
+export function func(f: any): FuncType {
     return f
 }
 
-async function sync() {
+export async function sync() {
     await Program.getCurrentProgram().runtime!.sync()
 }
 
-const i32 = PrimitiveType.i32
-const f32 = PrimitiveType.f32
-
-export { addToKernelScope, clearKernelScope, kernel, classKernel, func, i32, f32, sync, template }
+export const i32 = PrimitiveType.i32
+export const f32 = PrimitiveType.f32

@@ -33,5 +33,7 @@ declare class ASTVisitor<T> {
     protected visitNonNullExpression(node: ts.NonNullExpression): VisitorResult<T>;
     protected visitAsExpression(node: ts.AsExpression): VisitorResult<T>;
     protected visitThisKeyword(): VisitorResult<T>;
+    protected visitTrueKeyword(): VisitorResult<T>;
+    protected visitFalseKeyword(): VisitorResult<T>;
 }
 export { ASTVisitor, VisitorResult };
