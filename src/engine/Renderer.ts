@@ -289,8 +289,7 @@ export class Renderer {
         this.evalIBL = ti.func((material: any, normal: ti.types.vector, viewDir: ti.types.vector, pos: ti.types.vector) => {
             let dielectricF0: ti.types.vector = [0.04, 0.04, 0.04]
             let result: ti.types.vector = [0.0, 0.0, 0.0]
-            //@ts-ignore
-            if (ti.static(this.scene.ibl !== undefined)) {
+            if (ti.Static(this.scene.ibl !== undefined)) {
                 let diffuseColor = (1.0 - material.metallic) * (1.0 - dielectricF0) * material.baseColor.rgb
                 let normalUV = this.dirToUV(normal)
                 let diffuseLight = this.sRGBToLinear(this.tonemap(ti.textureSample(this.iblLambertianFiltered!, normalUV).rgb, this.scene.ibl!.exposure))
@@ -305,8 +304,7 @@ export class Renderer {
                 let specular = specularLight * (specularColor * scaleBias[0] + scaleBias[1])
 
                 result = specular + diffuse
-                //@ts-ignore
-                for (let i of ti.static(ti.range(this.scene.iblShadows.length))) {
+                for (let i of ti.Static(ti.range(this.scene.iblShadows.length))) {
                     let contribution = this.evalShadow(pos, this.iblShadowMaps[i], this.scene.iblShadows[i])
                     result *= contribution
                 }
@@ -342,8 +340,7 @@ export class Renderer {
             { camera: Camera.getKernelType() },
             (camera: any) => {
                 ti.useDepth(this.depthTexture);
-                //@ts-ignore
-                for (let v of ti.inputVertices(this.sceneData!.vertexBuffer, this.sceneData!.indexBuffer, ti.static(this.geometryOnlyDrawInfoBuffer), ti.static(this.geometryOnlyDrawInfoBuffer.dimensions[0]))) {
+                for (let v of ti.inputVertices(this.sceneData!.vertexBuffer, this.sceneData!.indexBuffer, ti.Static(this.geometryOnlyDrawInfoBuffer), ti.Static(this.geometryOnlyDrawInfoBuffer!.dimensions[0]))) {
                     let instanceIndex = ti.getInstanceIndex()
                     //@ts-ignore
                     let instanceInfo = this.geometryOnlyDrawInstanceInfoBuffer[instanceIndex]
@@ -366,8 +363,7 @@ export class Renderer {
             (camera: any) => {
                 ti.useDepth(this.depthTexture);
                 ti.clearColor(this.gNormalTexture, [0.0, 0.0, 0.0, 0.0])
-                //@ts-ignore
-                for (let v of ti.inputVertices(this.sceneData!.vertexBuffer, this.sceneData!.indexBuffer, ti.static(this.geometryOnlyDrawInfoBuffer), ti.static(this.geometryOnlyDrawInfoBuffer.dimensions[0]))) {
+                for (let v of ti.inputVertices(this.sceneData!.vertexBuffer, this.sceneData!.indexBuffer, ti.Static(this.geometryOnlyDrawInfoBuffer), ti.Static(this.geometryOnlyDrawInfoBuffer!.dimensions[0]))) {
                     let instanceIndex = ti.getInstanceIndex()
                     //@ts-ignore
                     let instanceInfo = this.geometryOnlyDrawInstanceInfoBuffer[instanceIndex]
@@ -392,10 +388,9 @@ export class Renderer {
             (camera: any) => {
                 ti.useDepth(this.depthTexture, { storeDepth: false, clearDepth: false });
                 ti.clearColor(this.directLightingTexture, [0, 0, 0, 1]);
-                ti.clearColor(this.environmentLightingTexture, [0, 0, 0, 1]);  
+                ti.clearColor(this.environmentLightingTexture, [0, 0, 0, 1]);
 
-                //@ts-ignore
-                for (let batchID of ti.static(ti.range(this.batchesDrawInfoBuffers.length))) {
+                for (let batchID of ti.Static(ti.range(this.batchesDrawInfoBuffers.length))) {
                     let getMaterial = (fragment: any, materialID: number) => {
                         //@ts-ignore
                         let materialInfo = this.sceneData.materialInfoBuffer[materialID]
@@ -406,44 +401,35 @@ export class Renderer {
                             emissive: materialInfo.emissive.value,
                             normalMap: materialInfo.normalMap.value,
                         }
-                        //@ts-ignore
-                        if (ti.static(this.batchInfos[batchID].materialIndex != -1)) {
+                        if (ti.Static(this.batchInfos[batchID].materialIndex != -1)) {
                             let texCoords = fragment.texCoords0
                             let materialRef = this.scene.materials[this.batchInfos[batchID].materialIndex]
-                            //@ts-ignore
-                            if (ti.static(materialRef.baseColor.texture !== undefined)) {
-                                //@ts-ignore
-                                if (ti.static(materialRef.baseColor.texcoordsSet === 1)) {
+                            if (ti.Static(materialRef.baseColor.texture !== undefined)) {
+                                if (ti.Static(materialRef.baseColor.texcoordsSet === 1)) {
                                     texCoords = fragment.texCoords1
                                 }
                                 let sampledBaseColor = ti.textureSample(materialRef.baseColor.texture!, texCoords)
                                 sampledBaseColor.rgb = this.sRGBToLinear(sampledBaseColor.rgb)
                                 material.baseColor *= sampledBaseColor
                             }
-                            //@ts-ignore
-                            if (ti.static(materialRef.metallicRoughness.texture !== undefined)) {
-                                //@ts-ignore
-                                if (ti.static(materialRef.metallicRoughness.texcoordsSet === 1)) {
+                            if (ti.Static(materialRef.metallicRoughness.texture !== undefined)) {
+                                if (ti.Static(materialRef.metallicRoughness.texcoordsSet === 1)) {
                                     texCoords = fragment.texCoords1
                                 }
                                 let metallicRoughness = ti.textureSample(materialRef.metallicRoughness.texture!, texCoords)
                                 material.metallic *= metallicRoughness.b
                                 material.roughness *= metallicRoughness.g
                             }
-                            //@ts-ignore
-                            if (ti.static(materialRef.emissive.texture !== undefined)) {
-                                //@ts-ignore
-                                if (ti.static(materialRef.emissive.texcoordsSet === 1)) {
+                            if (ti.Static(materialRef.emissive.texture !== undefined)) {
+                                if (ti.Static(materialRef.emissive.texcoordsSet === 1)) {
                                     texCoords = fragment.texCoords1
                                 }
                                 let sampledEmissive = ti.textureSample(materialRef.emissive.texture!, texCoords).rgb
                                 sampledEmissive = this.sRGBToLinear(sampledEmissive)
                                 material.emissive *= sampledEmissive
                             }
-                            //@ts-ignore
-                            if (ti.static(materialRef.normalMap.texture !== undefined)) {
-                                //@ts-ignore
-                                if (ti.static(materialRef.normalMap.texcoordsSet === 1)) {
+                            if (ti.Static(materialRef.normalMap.texture !== undefined)) {
+                                if (ti.Static(materialRef.normalMap.texcoordsSet === 1)) {
                                     texCoords = fragment.texCoords1
                                 }
                                 let sampledNormal = ti.textureSample(materialRef.normalMap.texture!, texCoords).rgb
@@ -452,8 +438,8 @@ export class Renderer {
                         }
                         return material
                     }
-                    //@ts-ignore
-                    for (let v of ti.inputVertices(this.sceneData!.vertexBuffer, this.sceneData!.indexBuffer, ti.static(this.batchesDrawInfoBuffers[batchID]), ti.static(this.batchesDrawInfoBuffers[batchID].dimensions[0]))) {
+
+                    for (let v of ti.inputVertices(this.sceneData!.vertexBuffer, this.sceneData!.indexBuffer, ti.Static(this.batchesDrawInfoBuffers[batchID]), ti.Static(this.batchesDrawInfoBuffers[batchID].dimensions[0]))) {
                         let instanceIndex = ti.getInstanceIndex()
                         //@ts-ignore
                         let instanceInfo = this.batchesDrawInstanceInfoBuffers[batchID][instanceIndex]
@@ -485,8 +471,7 @@ export class Renderer {
                             return brightnessAndDir.brightness * brdf
                         }
 
-                        //@ts-ignore
-                        if (ti.static(this.scene.lights.length > 0)) {
+                        if (ti.Static(this.scene.lights.length > 0)) {
                             for (let i of ti.range(this.scene.lights.length)) {
                                 //@ts-ignore
                                 let light = this.sceneData.lightsInfoBuffer[i]
@@ -494,10 +479,8 @@ export class Renderer {
                                     directLighting += evalLight(light)
                                 }
                             }
-                            //@ts-ignore
-                            for (let i of ti.static(ti.range(this.scene.lights.length))) {
-                                //@ts-ignore
-                                if (ti.static(this.scene.lights[i].castsShadow)) {
+                            for (let i of ti.Static(ti.range(this.scene.lights.length))) {
+                                if (ti.Static(this.scene.lights[i].castsShadow)) {
                                     directLighting += evalLight(this.scene.lights[i]) * this.evalShadow(f.position, this.lightShadowMaps[i]!, this.scene.lights[i].shadow!)
                                 }
                             }
@@ -511,8 +494,7 @@ export class Renderer {
                         ti.outputColor(this.environmentLightingTexture, environmentLighting.concat([1.0]));
                     }
                 }
-                //@ts-ignore
-                if (ti.static(this.scene.ibl !== undefined)) {
+                if (ti.Static(this.scene.ibl !== undefined)) {
                     for (let v of ti.inputVertices(this.skyboxVBO!, this.skyboxIBO!)) {
                         let pos = camera.viewProjection.matmul((v + camera.position).concat([1.0]));
                         ti.outputPosition(pos);
@@ -535,8 +517,7 @@ export class Renderer {
             { shadowMap: ti.template(), shadowInfo: ti.template() },
             (shadowMap: DepthTexture, shadowInfo: ShadowInfo) => {
                 ti.useDepth(shadowMap);
-                //@ts-ignore
-                for (let v of ti.inputVertices(this.sceneData!.vertexBuffer, this.sceneData!.indexBuffer, ti.static(this.geometryOnlyDrawInfoBuffer), ti.static(this.geometryOnlyDrawInfoBuffer.dimensions[0]))) {
+                for (let v of ti.inputVertices(this.sceneData!.vertexBuffer, this.sceneData!.indexBuffer, ti.Static(this.geometryOnlyDrawInfoBuffer), ti.Static(this.geometryOnlyDrawInfoBuffer!.dimensions[0]))) {
                     let instanceIndex = ti.getInstanceIndex()
                     //@ts-ignore
                     let instanceInfo = this.geometryOnlyDrawInstanceInfoBuffer[instanceIndex]

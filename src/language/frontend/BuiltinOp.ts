@@ -251,8 +251,8 @@ class BuiltinCustomOp extends BuiltinOp {
         this.checkType_ = checkType
     }
 
-    apply_: (args: Value[]) => Value
-    checkType_: (args: Value[]) => TypeError
+    private apply_: (args: Value[]) => Value
+    private checkType_: (args: Value[]) => TypeError
 
     override checkType(args: Value[]): TypeError {
         return this.checkType_(args)
@@ -915,12 +915,14 @@ class BuiltinOpFactory {
                 return TypeError.createNoError()
             },
             (args: Value[]) => {
-                if(args[0].getType().getCategory()===TypeCategory.HostObjectReference){
+                if (args[0].getType().getCategory() === TypeCategory.HostObjectReference) {
                     return ValueUtils.makeHostObjectReference(args[0].hostSideValue,/*markedAsConstant = */true)
                 }
                 return args[0]
             }
         )
+
+        let Static = new BuiltinCustomOp("Static", 1, (args: Value[]) => { return static_.checkType(args) }, (args: Value[]) => { return static_.apply(args) })
 
         let mergeStructs = new BuiltinCustomOp("mergeStructs", 2,
             (args: Value[]) => {
@@ -1036,7 +1038,7 @@ class BuiltinOpFactory {
             }
         )
 
-        let ops2 = [store, load, comma, concat, len, length, sum, norm_sqr, norm, normalized, dot, cross, matmul, transpose, outer_product, static_, mergeStructs, slice]
+        let ops2 = [store, load, comma, concat, len, length, sum, norm_sqr, norm, normalized, dot, cross, matmul, transpose, outer_product, static_, Static, mergeStructs, slice]
         for (let op of ops2) {
             opsMap.set(op.name, op)
         }

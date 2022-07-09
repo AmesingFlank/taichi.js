@@ -1285,7 +1285,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
         if (node.expression.kind === ts.SyntaxKind.CallExpression) {
             let callExpr = node.expression as ts.CallExpression
             let funcText = callExpr.expression.getText()
-            if (this.isBuiltinFunctionWithName(funcText, "static")) {
+            if (this.isBuiltinFunctionWithName(funcText, "static") || this.isBuiltinFunctionWithName(funcText, "Static")) {
                 isStaticIf = true
             }
         }
@@ -1630,7 +1630,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             else if (this.isBuiltinFunctionWithName(calledFunctionText, "inputFragments")) {
                 return this.visitFragmentFor(loopIndexSymbols, callExpr.arguments, node.statement)
             }
-            else if (this.isBuiltinFunctionWithName(calledFunctionText, "static")) {
+            else if (this.isBuiltinFunctionWithName(calledFunctionText, "static") || this.isBuiltinFunctionWithName(calledFunctionText, "Static")) {
                 let errMsg = "expecting a single range(...) or ndrange(...) within static(...)"
                 this.assertNode(node, callExpr.arguments.length === 1, errMsg)
                 let innerExpr = callExpr.arguments[0]

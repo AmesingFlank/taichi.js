@@ -348,3 +348,5 @@ export function rsqrt(number: number | ti.types.vector): number | ti.types.vecto
     throwNotImplementedError();
     return number
 }
+
+export function Static(x: any) { return x }
