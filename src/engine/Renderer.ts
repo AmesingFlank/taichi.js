@@ -72,6 +72,18 @@ export class Renderer {
     private characteristic: ti.FuncType = () => { }
     private ggxDistribution: ti.FuncType = () => { }
     private getNormal: ti.FuncType = () => { }
+    private getLightBrightnessAndDir: ti.FuncType = () => { }
+    private lerp: ti.FuncType = () => { }
+    private linearTosRGB: ti.FuncType = () => { }
+    private sRGBToLinear: ti.FuncType = () => { }
+    private fresnel: ti.FuncType = () => { }
+    private evalSpecularBRDF: ti.FuncType = () => { }
+    private evalDiffuseBRDF: ti.FuncType = () => { }
+    private evalMetalBRDF: ti.FuncType = () => { }
+    private evalDielectricBRDF: ti.FuncType = () => { }
+    private evalBRDF: ti.FuncType = () => { }
+    private evalShadow: ti.FuncType = () => { }
+    private evalIBL: ti.FuncType = () => { }
 
 
     // ti.classKernels
@@ -109,6 +121,8 @@ export class Renderer {
         await this.initIBL()
         await this.initKernels()
     }
+
+
 
     async initHelperFuncs() {
         this.uvToDir = ti.func(
@@ -167,6 +181,138 @@ export class Renderer {
                 return numerator / denominator
             }
         )
+
+        this.getLightBrightnessAndDir = ti.func((light: any, fragPos: ti.types.vector) => {
+            let brightness: ti.types.vector = [0.0, 0.0, 0.0]
+            let lightDir: ti.types.vector = [0.0, 0.0, 0.0]
+            if (light.type === this.engine.LightType.Point || light.type === this.engine.LightType.Spot) {
+                let fragToLight = light.position - fragPos
+                let distance = ti.norm(fragToLight)
+                let attenuation = 1.0 / (Math.max(distance * distance, 0.01 * 0.01))
+                let window = (1 - (distance / light.influenceRadius) ** 2) ** 4
+                //@ts-ignore
+                brightness = light.brightness * attenuation * window
+                if (light.type === this.engine.LightType.Spot) {
+                    let cosAngle = ti.dot(-ti.normalized(fragToLight), light.direction)
+                    let spotScale = 1.0 / Math.max(Math.cos(light.innerConeAngle) - Math.cos(light.outerConeAngle), 1e-4)
+                    let spotOffset = -Math.cos(light.outerConeAngle) * spotScale
+                    let t = cosAngle * spotScale + spotOffset
+                    t = Math.max(0.0, Math.min(1.0, t))
+                    //@ts-ignore
+                    brightness = brightness * t * t
+                }
+                lightDir = ti.normalized(fragToLight)
+            }
+            else if (light.type === this.engine.LightType.Directional) {
+                brightness = light.brightness
+                lightDir = -light.direction
+            }
+            return {
+                brightness,
+                lightDir
+            }
+        })
+
+        this.lerp = ti.func((x: ti.types.vector | number, y: ti.types.vector | number, s: number): ti.types.vector | number => {
+            return x * (1.0 - s) + y * s
+        })
+
+        this.linearTosRGB = ti.func((x: ti.types.vector | number): ti.types.vector | number => {
+            return Math.pow(x, 1.0 / 2.2)
+        })
+
+        this.sRGBToLinear = ti.func((x: ti.types.vector | number): ti.types.vector | number => {
+            return Math.pow(x, 2.2)
+        })
+
+        this.fresnel = ti.func((F0: ti.types.vector | number, directions: any) => {
+            return F0 + (1.0 - F0) * (1.0 - Math.abs(directions.HdotV)) ** 5
+        })
+
+        this.evalSpecularBRDF = ti.func((alpha: number, Fr: ti.types.vector | number, directions: any) => {
+            let D = this.ggxDistribution(directions.NdotH, alpha)
+            let NdotL = Math.abs(directions.NdotL)
+            let NdotV = Math.abs(directions.NdotV)
+            let G2_Over_4_NdotL_NdotV = 0.5 / this.lerp(2 * NdotL * NdotV, NdotL + NdotV, alpha)
+            return G2_Over_4_NdotL_NdotV * D * Fr * this.characteristic(directions.HdotL) * this.characteristic(directions.HdotV)
+        })
+
+        this.evalDiffuseBRDF = ti.func((albedo: any, directions: any) => {
+            return albedo * (1.0 / Math.PI) * this.characteristic(directions.NdotL) * this.characteristic(directions.NdotV)
+        })
+
+        this.evalMetalBRDF = ti.func((alpha: number, baseColor: ti.types.vector, directions: any) => {
+            let F0 = baseColor
+            let Fr = this.fresnel(F0, directions)
+            return this.evalSpecularBRDF(alpha, Fr, directions)
+        })
+
+
+        this.evalDielectricBRDF = ti.func((alpha: number, baseColor: ti.types.vector, directions: any) => {
+            let dielectricF0: ti.types.vector = [0.04, 0.04, 0.04]
+            let Fr = this.fresnel(dielectricF0, directions)
+            let specular = this.evalSpecularBRDF(alpha, Fr, directions)
+            let diffuse = this.evalDiffuseBRDF(baseColor, directions)
+            return diffuse * (1 - Fr) + specular
+        })
+
+        this.evalBRDF = ti.func((material: any, normal: ti.types.vector, lightDir: ti.types.vector, viewDir: ti.types.vector) => {
+            let halfDir = ti.normalized(viewDir + lightDir)
+            let directions = {
+                normal: normal,
+                lightDir: lightDir,
+                viewDir: viewDir,
+                halfDir: halfDir,
+                NdotH: ti.dot(normal, halfDir),
+                NdotV: ti.dot(normal, viewDir),
+                NdotL: ti.dot(normal, lightDir),
+                HdotV: ti.dot(halfDir, viewDir),
+                HdotL: ti.dot(halfDir, lightDir),
+            }
+            let alpha = material.roughness * material.roughness
+            let metallicBRDF = this.evalMetalBRDF(alpha, material.baseColor.rgb, directions)
+            let dielectricBRDF = this.evalDielectricBRDF(alpha, material.baseColor.rgb, directions)
+            return material.metallic * metallicBRDF + (1.0 - material.metallic) * dielectricBRDF
+        })
+
+        this.evalShadow = ti.func((pos: ti.types.vector, shadowMap: DepthTexture, shadowInfo: ShadowInfo) => {
+            let vp = shadowInfo.viewProjection
+            let clipSpacePos = ti.matmul(vp, pos.concat([1.0]))
+            let depth = clipSpacePos.z / clipSpacePos.w
+            let coords: ti.types.vector = (clipSpacePos.xy / clipSpacePos.w) * 0.5 + 0.5
+            coords.y = 1.0 - coords.y
+            let visibility = ti.textureSampleCompare(shadowMap, coords, depth - 0.01)
+            let contribution = (1.0 - (1.0 - visibility) * shadowInfo.strength)
+            return contribution
+        })
+
+        this.evalIBL = ti.func((material: any, normal: ti.types.vector, viewDir: ti.types.vector, pos: ti.types.vector) => {
+            let dielectricF0: ti.types.vector = [0.04, 0.04, 0.04]
+            let result: ti.types.vector = [0.0, 0.0, 0.0]
+            //@ts-ignore
+            if (ti.static(this.scene.ibl !== undefined)) {
+                let diffuseColor = (1.0 - material.metallic) * (1.0 - dielectricF0) * material.baseColor.rgb
+                let normalUV = this.dirToUV(normal)
+                let diffuseLight = this.sRGBToLinear(this.tonemap(ti.textureSample(this.iblLambertianFiltered!, normalUV).rgb, this.scene.ibl!.exposure))
+                let diffuse = diffuseColor * diffuseLight
+
+                let specularColor = (1.0 - material.metallic) * dielectricF0 + material.metallic * material.baseColor.rgb
+                let reflection = ti.normalized((2.0 * normal * ti.dot(normal, viewDir) - viewDir))
+                let reflectionUV = this.dirToUV(reflection)
+                let specularLight = this.sRGBToLinear(this.tonemap(ti.textureSample(this.iblGGXFiltered!, reflectionUV.concat([material.roughness])).rgb, this.scene.ibl!.exposure))
+                let NdotV = ti.dot(normal, viewDir)
+                let scaleBias = ti.textureSample(this.LUT!, [NdotV, material.roughness]).rg
+                let specular = specularLight * (specularColor * scaleBias[0] + scaleBias[1])
+
+                result = specular + diffuse
+                //@ts-ignore
+                for (let i of ti.static(ti.range(this.scene.iblShadows.length))) {
+                    let contribution = this.evalShadow(pos, this.iblShadowMaps[i], this.scene.iblShadows[i])
+                    result *= contribution
+                }
+            }
+            return result
+        })
 
         this.getNormal = ti.func(
             (normal: ti.types.vector, normalMap: ti.types.vector, texCoords: ti.types.vector, position: ti.types.vector) => {
@@ -244,143 +390,9 @@ export class Renderer {
         this.renderKernel = ti.classKernel(this,
             { camera: Camera.getKernelType() },
             (camera: any) => {
-
                 ti.useDepth(this.depthTexture, { storeDepth: false, clearDepth: false });
                 ti.clearColor(this.directLightingTexture, [0, 0, 0, 1]);
-                ti.clearColor(this.environmentLightingTexture, [0, 0, 0, 1]);
-
-                let getLightBrightnessAndDir = (light: any, fragPos: ti.types.vector) => {
-                    let brightness: ti.types.vector = [0.0, 0.0, 0.0]
-                    let lightDir: ti.types.vector = [0.0, 0.0, 0.0]
-                    if (light.type === this.engine.LightType.Point || light.type === this.engine.LightType.Spot) {
-                        let fragToLight = light.position - fragPos
-                        let distance = ti.norm(fragToLight)
-                        let attenuation = 1.0 / (Math.max(distance * distance, 0.01 * 0.01))
-                        let window = (1 - (distance / light.influenceRadius) ** 2) ** 4
-                        //@ts-ignore
-                        brightness = light.brightness * attenuation * window
-                        if (light.type === this.engine.LightType.Spot) {
-                            let cosAngle = ti.dot(-ti.normalized(fragToLight), light.direction)
-                            let spotScale = 1.0 / Math.max(Math.cos(light.innerConeAngle) - Math.cos(light.outerConeAngle), 1e-4)
-                            let spotOffset = -Math.cos(light.outerConeAngle) * spotScale
-                            let t = cosAngle * spotScale + spotOffset
-                            t = Math.max(0.0, Math.min(1.0, t))
-                            //@ts-ignore
-                            brightness = brightness * t * t
-                        }
-                        lightDir = ti.normalized(fragToLight)
-                    }
-                    else if (light.type === this.engine.LightType.Directional) {
-                        brightness = light.brightness
-                        lightDir = -light.direction
-                    }
-                    return {
-                        brightness,
-                        lightDir
-                    }
-                }
-
-                let lerp = (x: ti.types.vector | number, y: ti.types.vector | number, s: number): ti.types.vector | number => {
-                    return x * (1.0 - s) + y * s
-                }
-
-                let linearTosRGB = (x: ti.types.vector | number): ti.types.vector | number => {
-                    return Math.pow(x, 1.0 / 2.2)
-                }
-
-                let sRGBToLinear = (x: ti.types.vector | number): ti.types.vector | number => {
-                    return Math.pow(x, 2.2)
-                }
-
-                let fresnel = (F0: ti.types.vector | number, directions: any) => {
-                    return F0 + (1.0 - F0) * (1.0 - Math.abs(directions.HdotV)) ** 5
-                }
-
-                let evalSpecularBRDF = (alpha: number, Fr: ti.types.vector | number, directions: any) => {
-                    let D = this.ggxDistribution(directions.NdotH, alpha)
-                    let NdotL = Math.abs(directions.NdotL)
-                    let NdotV = Math.abs(directions.NdotV)
-                    let G2_Over_4_NdotL_NdotV = 0.5 / lerp(2 * NdotL * NdotV, NdotL + NdotV, alpha)
-                    return G2_Over_4_NdotL_NdotV * D * Fr * this.characteristic(directions.HdotL) * this.characteristic(directions.HdotV)
-                }
-
-                let evalDiffuseBRDF = (albedo: any, directions: any) => {
-                    return albedo * (1.0 / Math.PI) * this.characteristic(directions.NdotL) * this.characteristic(directions.NdotV)
-                }
-
-                let evalMetalBRDF = (alpha: number, baseColor: ti.types.vector, directions: any) => {
-                    let F0 = baseColor
-                    let Fr = fresnel(F0, directions)
-                    return evalSpecularBRDF(alpha, Fr, directions)
-                }
-
-                let dielectricF0: ti.types.vector = [0.04, 0.04, 0.04]
-
-                let evalDielectricBRDF = (alpha: number, baseColor: ti.types.vector, directions: any) => {
-                    let Fr = fresnel(dielectricF0, directions)
-                    let specular = evalSpecularBRDF(alpha, Fr, directions)
-                    let diffuse = evalDiffuseBRDF(baseColor, directions)
-                    return diffuse * (1 - Fr) + specular
-                }
-
-                let evalBRDF = (material: any, normal: ti.types.vector, lightDir: ti.types.vector, viewDir: ti.types.vector) => {
-                    let halfDir = ti.normalized(viewDir + lightDir)
-                    let directions = {
-                        normal: normal,
-                        lightDir: lightDir,
-                        viewDir: viewDir,
-                        halfDir: halfDir,
-                        NdotH: ti.dot(normal, halfDir),
-                        NdotV: ti.dot(normal, viewDir),
-                        NdotL: ti.dot(normal, lightDir),
-                        HdotV: ti.dot(halfDir, viewDir),
-                        HdotL: ti.dot(halfDir, lightDir),
-                    }
-                    let alpha = material.roughness * material.roughness
-                    let metallicBRDF = evalMetalBRDF(alpha, material.baseColor.rgb, directions)
-                    let dielectricBRDF = evalDielectricBRDF(alpha, material.baseColor.rgb, directions)
-                    return material.metallic * metallicBRDF + (1.0 - material.metallic) * dielectricBRDF
-                }
-
-                let evalShadow = (pos: ti.types.vector, shadowMap: DepthTexture, shadowInfo: ShadowInfo) => {
-                    let vp = shadowInfo.viewProjection
-                    let clipSpacePos = ti.matmul(vp, pos.concat([1.0]))
-                    let depth = clipSpacePos.z / clipSpacePos.w
-                    let coords: ti.types.vector = (clipSpacePos.xy / clipSpacePos.w) * 0.5 + 0.5
-                    coords.y = 1.0 - coords.y
-                    let visibility = ti.textureSampleCompare(shadowMap, coords, depth - 0.01)
-                    let contribution = (1.0 - (1.0 - visibility) * shadowInfo.strength)
-                    return contribution
-                }
-
-                let evalIBL = (material: any, normal: ti.types.vector, viewDir: ti.types.vector, pos: ti.types.vector) => {
-                    let result: ti.types.vector = [0.0, 0.0, 0.0]
-                    //@ts-ignore
-                    if (ti.static(this.scene.ibl !== undefined)) {
-                        let diffuseColor = (1.0 - material.metallic) * (1.0 - dielectricF0) * material.baseColor.rgb
-                        let normalUV = this.dirToUV(normal)
-                        let diffuseLight = sRGBToLinear(this.tonemap(ti.textureSample(this.iblLambertianFiltered!, normalUV).rgb, this.scene.ibl!.exposure))
-                        let diffuse = diffuseColor * diffuseLight
-
-                        let specularColor = (1.0 - material.metallic) * dielectricF0 + material.metallic * material.baseColor.rgb
-                        let reflection = ti.normalized((2.0 * normal * ti.dot(normal, viewDir) - viewDir))
-                        let reflectionUV = this.dirToUV(reflection)
-                        let specularLight = sRGBToLinear(this.tonemap(ti.textureSample(this.iblGGXFiltered!, reflectionUV.concat([material.roughness])).rgb, this.scene.ibl!.exposure))
-                        let NdotV = ti.dot(normal, viewDir)
-                        let scaleBias = ti.textureSample(this.LUT!, [NdotV, material.roughness]).rg
-                        let specular = specularLight * (specularColor * scaleBias[0] + scaleBias[1])
-
-                        result = specular + diffuse
-                        //@ts-ignore
-                        for (let i of ti.static(ti.range(this.scene.iblShadows.length))) {
-                            let contribution = evalShadow(pos, this.iblShadowMaps[i], this.scene.iblShadows[i])
-                            result *= contribution
-                        }
-                    }
-                    return result
-                }
-
-
+                ti.clearColor(this.environmentLightingTexture, [0, 0, 0, 1]);  
 
                 //@ts-ignore
                 for (let batchID of ti.static(ti.range(this.batchesDrawInfoBuffers.length))) {
@@ -405,7 +417,7 @@ export class Renderer {
                                     texCoords = fragment.texCoords1
                                 }
                                 let sampledBaseColor = ti.textureSample(materialRef.baseColor.texture!, texCoords)
-                                sampledBaseColor.rgb = sRGBToLinear(sampledBaseColor.rgb)
+                                sampledBaseColor.rgb = this.sRGBToLinear(sampledBaseColor.rgb)
                                 material.baseColor *= sampledBaseColor
                             }
                             //@ts-ignore
@@ -425,7 +437,7 @@ export class Renderer {
                                     texCoords = fragment.texCoords1
                                 }
                                 let sampledEmissive = ti.textureSample(materialRef.emissive.texture!, texCoords).rgb
-                                sampledEmissive = sRGBToLinear(sampledEmissive)
+                                sampledEmissive = this.sRGBToLinear(sampledEmissive)
                                 material.emissive *= sampledEmissive
                             }
                             //@ts-ignore
@@ -468,8 +480,8 @@ export class Renderer {
                         directLighting += material.emissive
 
                         let evalLight = (light: any) => {
-                            let brightnessAndDir = getLightBrightnessAndDir(light, f.position)
-                            let brdf = evalBRDF(material, normal, brightnessAndDir.lightDir, viewDir)
+                            let brightnessAndDir = this.getLightBrightnessAndDir(light, f.position)
+                            let brdf = this.evalBRDF(material, normal, brightnessAndDir.lightDir, viewDir)
                             return brightnessAndDir.brightness * brdf
                         }
 
@@ -486,15 +498,15 @@ export class Renderer {
                             for (let i of ti.static(ti.range(this.scene.lights.length))) {
                                 //@ts-ignore
                                 if (ti.static(this.scene.lights[i].castsShadow)) {
-                                    directLighting += evalLight(this.scene.lights[i]) * evalShadow(f.position, this.lightShadowMaps[i]!, this.scene.lights[i].shadow!)
+                                    directLighting += evalLight(this.scene.lights[i]) * this.evalShadow(f.position, this.lightShadowMaps[i]!, this.scene.lights[i].shadow!)
                                 }
                             }
                         }
 
-                        let environmentLighting: ti.types.vector = evalIBL(material, normal, viewDir, f.position)
+                        let environmentLighting: ti.types.vector = this.evalIBL(material, normal, viewDir, f.position)
 
-                        directLighting = linearTosRGB(directLighting)
-                        environmentLighting = linearTosRGB(environmentLighting)
+                        directLighting = this.linearTosRGB(directLighting)
+                        environmentLighting = this.linearTosRGB(environmentLighting)
                         ti.outputColor(this.directLightingTexture, directLighting.concat([1.0]));
                         ti.outputColor(this.environmentLightingTexture, environmentLighting.concat([1.0]));
                     }
@@ -510,7 +522,7 @@ export class Renderer {
                         let dir = f.normalized()
                         let uv = this.dirToUV(dir)
                         let color = ti.textureSample(this.iblGGXFiltered!, uv.concat([0.2]))
-                        color.rgb = linearTosRGB(this.tonemap(color.rgb, this.scene.ibl!.exposure))
+                        color.rgb = this.linearTosRGB(this.tonemap(color.rgb, this.scene.ibl!.exposure))
                         color[3] = 1.0
                         ti.outputDepth(1 - 1e-6)
                         ti.outputColor(this.directLightingTexture, [0.0, 0.0, 0.0, 0.0]);
