@@ -20,10 +20,7 @@ export class Renderer {
         this.quadIBO = ti.field(ti.i32, 6);
     }
 
-    private renderKernel: ti.KernelType = () => { }
-    private shadowKernel: ti.KernelType = () => { }
-    private presentKernel: ti.KernelType = () => { }
-    private zPrePassKernel: ti.KernelType = () => { }
+
 
     private depthTexture: DepthTexture
     private renderTexture: Texture
@@ -59,64 +56,23 @@ export class Renderer {
     private geometryOnlyDrawInfoBuffer?: Field
     private geometryOnlyDrawInstanceInfoBuffer?: Field
 
-    engine = ti.engine
+    private engine = ti.engine
 
-    uvToDir = ti.func(
-        (uv: ti.types.vector): ti.types.vector => {
-            let y = Math.cos((1.0 - uv[1]) * Math.PI)
-            let phi = (uv[0] - 0.5) * Math.PI / 0.5
-            let absZOverX = Math.abs(Math.tan(phi))
-            let xSquared = (1.0 - y * y) / (1.0 + absZOverX * absZOverX)
-            let x = Math.sqrt(xSquared)
-            let z = x * absZOverX
-            if (Math.abs(phi) >= Math.PI * 0.5) {
-                x = -x;
-            }
-            if (phi < 0) {
-                z = -z;
-            }
-            return [x, y, z]
-        }
-    )
 
-    dirToUV = ti.func(
-        (dir: ti.types.vector): ti.types.vector => {
-            return [0.5 + 0.5 * Math.atan2(dir[2], dir[0]) / Math.PI, 1.0 - Math.acos(dir[1]) / Math.PI]
-        }
-    )
+    // ti.funcs
+    private uvToDir: ti.FuncType = () => { }
+    private dirToUV: ti.FuncType = () => { }
+    private tonemap: ti.FuncType = () => { }
+    private characteristic: ti.FuncType = () => { }
+    private ggxDistribution: ti.FuncType = () => { }
+    private getNormal: ti.FuncType = () => { }
 
-    tonemap = ti.func(
-        (color: ti.types.vector, exposure: number) => {
-            let A = 2.51;
-            let B = 0.03;
-            let C = 2.43;
-            let D = 0.59;
-            let E = 0.14;
-            //@ts-ignore
-            let temp = color * exposure
-            temp = (temp * (A * temp + B)) / (temp * (C * temp + D) + E)
-            return Math.max(0.0, Math.min(1.0, temp))
-        }
-    )
 
-    characteristic = ti.func(
-        (x: number) => {
-            let result = 1
-            if (x < 0) {
-                result = 0
-            }
-            return result
-        }
-    )
-
-    ggxDistribution = ti.func(
-        (NdotH: number, alpha: number) => {
-            let numerator = alpha * alpha * this.characteristic(NdotH)
-            let temp = NdotH * NdotH * (alpha * alpha - 1) + 1
-            let denominator = Math.PI * temp * temp
-            return numerator / denominator
-        }
-    )
+    // ti.classKernels
+    private renderKernel: ti.KernelType = () => { }
+    private shadowKernel: ti.KernelType = () => { }
+    private presentKernel: ti.KernelType = () => { }
+    private zPrePassKernel: ti.KernelType = () => { }
 
 
     async init() {
@@ -141,8 +97,90 @@ export class Renderer {
 
         await this.computeDrawBatches()
 
+        await this.initHelperFuncs()
         await this.initIBL()
         await this.initKernels()
+    }
+
+    async initHelperFuncs() {
+        this.uvToDir = ti.func(
+            (uv: ti.types.vector): ti.types.vector => {
+                let y = Math.cos((1.0 - uv[1]) * Math.PI)
+                let phi = (uv[0] - 0.5) * Math.PI / 0.5
+                let absZOverX = Math.abs(Math.tan(phi))
+                let xSquared = (1.0 - y * y) / (1.0 + absZOverX * absZOverX)
+                let x = Math.sqrt(xSquared)
+                let z = x * absZOverX
+                if (Math.abs(phi) >= Math.PI * 0.5) {
+                    x = -x;
+                }
+                if (phi < 0) {
+                    z = -z;
+                }
+                return [x, y, z]
+            }
+        )
+
+        this.dirToUV = ti.func(
+            (dir: ti.types.vector): ti.types.vector => {
+                return [0.5 + 0.5 * Math.atan2(dir[2], dir[0]) / Math.PI, 1.0 - Math.acos(dir[1]) / Math.PI]
+            }
+        )
+
+        this.tonemap = ti.func(
+            (color: ti.types.vector, exposure: number) => {
+                let A = 2.51;
+                let B = 0.03;
+                let C = 2.43;
+                let D = 0.59;
+                let E = 0.14;
+                //@ts-ignore
+                let temp = color * exposure
+                temp = (temp * (A * temp + B)) / (temp * (C * temp + D) + E)
+                return Math.max(0.0, Math.min(1.0, temp))
+            }
+        )
+
+        this.characteristic = ti.func(
+            (x: number) => {
+                let result = 1
+                if (x < 0) {
+                    result = 0
+                }
+                return result
+            }
+        )
+
+        this.ggxDistribution = ti.func(
+            (NdotH: number, alpha: number) => {
+                let numerator = alpha * alpha * this.characteristic(NdotH)
+                let temp = NdotH * NdotH * (alpha * alpha - 1) + 1
+                let denominator = Math.PI * temp * temp
+                return numerator / denominator
+            }
+        )
+
+        this.getNormal = ti.func(
+            (normal: ti.types.vector, normalMap: ti.types.vector, texCoords: ti.types.vector, position: ti.types.vector) => {
+                let uvDx: ti.types.vector = ti.dpdx(texCoords.concat([0.0]))
+                let uvDy: ti.types.vector = ti.dpdy(texCoords.concat([0.0]))
+                let posDx: ti.types.vector = ti.dpdx(position)
+                let posDy: ti.types.vector = ti.dpdy(position)
+                let denom = (uvDx[0] * uvDy[1] - uvDy[0] * uvDx[1])
+                let temp = (uvDy[1] * posDx - uvDx[1] * posDy) / denom
+                let tangent = temp - normal * ti.dot(normal, temp)
+                let tangentNorm = ti.norm(tangent)
+                let bitangent = ti.cross(normal, tangent)
+                let bitangentNorm = ti.norm(bitangent)
+                let mat = ti.transpose([tangent / tangentNorm, bitangent / bitangentNorm, normal])
+                let normalMapValue = ti.normalized(normalMap * 2.0 - 1.0)
+                let result = ti.normalized(ti.matmul(mat, normalMapValue))
+                if (denom === 0.0 || tangentNorm === 0.0 || bitangentNorm === 0.0) {
+                    result = normal
+                }
+                return result
+            }
+        )
     }
 
     async initKernels() {
@@ -307,25 +345,7 @@ export class Renderer {
                     return result
                 }
 
-                let getNormal = (normal: ti.types.vector, normalMap: ti.types.vector, texCoords: ti.types.vector, position: ti.types.vector) => {
-                    let uvDx: ti.types.vector = ti.dpdx(texCoords.concat([0.0]))
-                    let uvDy: ti.types.vector = ti.dpdy(texCoords.concat([0.0]))
-                    let posDx: ti.types.vector = ti.dpdx(position)
-                    let posDy: ti.types.vector = ti.dpdy(position)
-                    let denom = (uvDx[0] * uvDy[1] - uvDy[0] * uvDx[1])
-                    let temp = (uvDy[1] * posDx - uvDx[1] * posDy) / denom
-                    let tangent = temp - normal * ti.dot(normal, temp)
-                    let tangentNorm = ti.norm(tangent)
-                    let bitangent = ti.cross(normal, tangent)
-                    let bitangentNorm = ti.norm(bitangent)
-                    let mat = ti.transpose([tangent / tangentNorm, bitangent / bitangentNorm, normal])
-                    let normalMapValue = ti.normalized(normalMap * 2.0 - 1.0)
-                    let result = ti.normalized(ti.matmul(mat, normalMapValue))
-                    if (denom === 0.0 || tangentNorm === 0.0 || bitangentNorm === 0.0) {
-                        result = normal
-                    }
-                    return result
-                }
+
 
                 //@ts-ignore
                 for (let batchID of ti.static(ti.range(this.batchesDrawInfoBuffers.length))) {
@@ -406,7 +426,7 @@ export class Renderer {
                         let materialID = f.materialIndex
                         let material = getMaterial(f, materialID)
                         let normal = f.normal.normalized()
-                        normal = getNormal(normal, material.normalMap, f.texCoords0, f.position)
+                        normal = this.getNormal(normal, material.normalMap, f.texCoords0, f.position)
                         let viewDir = ti.normalized(camera.position - f.position)
 
                         let color: ti.types.vector = [0.0, 0.0, 0.0]
