@@ -13,7 +13,10 @@ import { ShadowInfo } from "./common/ShadowInfo";
 export class Renderer {
     public constructor(public scene: Scene, public htmlCanvas: HTMLCanvasElement) {
         this.depthTexture = ti.depthTexture([htmlCanvas.width, htmlCanvas.height], 4);
-        this.renderTexture = ti.texture(4, [htmlCanvas.width, htmlCanvas.height], 4);
+        this.gNormalTexture = ti.texture(4, [htmlCanvas.width, htmlCanvas.height], 4);
+        this.directLightingTexture = ti.texture(4, [htmlCanvas.width, htmlCanvas.height], 4);
+        this.environmentLightingTexture = ti.texture(4, [htmlCanvas.width, htmlCanvas.height], 4);
+        this.renderResultTexture = ti.texture(4, [htmlCanvas.width, htmlCanvas.height], 4);
         this.canvasTexture = ti.canvasTexture(htmlCanvas, 4)
 
         this.quadVBO = ti.field(ti.types.vector(ti.f32, 2), 4);
@@ -23,7 +26,10 @@ export class Renderer {
 
 
     private depthTexture: DepthTexture
-    private renderTexture: Texture
+    private gNormalTexture: Texture
+    private directLightingTexture: Texture
+    private environmentLightingTexture: Texture
+    private renderResultTexture: Texture
     private canvasTexture: CanvasTexture
 
     private sceneData?: SceneData
@@ -69,10 +75,12 @@ export class Renderer {
 
 
     // ti.classKernels
-    private renderKernel: ti.KernelType = () => { }
-    private shadowKernel: ti.KernelType = () => { }
-    private presentKernel: ti.KernelType = () => { }
     private zPrePassKernel: ti.KernelType = () => { }
+    private gPrePassKernel: ti.KernelType = () => { }
+    private shadowKernel: ti.KernelType = () => { }
+    private renderKernel: ti.KernelType = () => { }
+    private combineKernel: ti.KernelType = () => { }
+    private presentKernel: ti.KernelType = () => { }
 
 
     async init() {
@@ -207,12 +215,39 @@ export class Renderer {
                 }
             }
         )
+        this.gPrePassKernel = ti.classKernel(this,
+            { camera: Camera.getKernelType() },
+            (camera: any) => {
+                ti.useDepth(this.depthTexture);
+                ti.clearColor(this.gNormalTexture, [0.0, 0.0, 0.0, 0.0])
+                //@ts-ignore
+                for (let v of ti.inputVertices(this.sceneData!.vertexBuffer, this.sceneData!.indexBuffer, ti.static(this.geometryOnlyDrawInfoBuffer), ti.static(this.geometryOnlyDrawInfoBuffer.dimensions[0]))) {
+                    let instanceIndex = ti.getInstanceIndex()
+                    //@ts-ignore
+                    let instanceInfo = this.geometryOnlyDrawInstanceInfoBuffer[instanceIndex]
+                    let nodeIndex = instanceInfo.nodeIndex
+                    //@ts-ignore
+                    let modelMatrix = this.sceneData.nodesBuffer[nodeIndex].globalTransform.matrix
+                    v.normal = ti.transpose(ti.inverse(modelMatrix.slice([0, 0], [3, 3]))).matmul(v.normal)
+                    v.position = modelMatrix.matmul(v.position.concat([1.0])).xyz
+                    let pos = ti.matmul(camera.viewProjection, v.position.concat([1.0]));
+                    ti.outputPosition(pos);
+                    ti.outputVertex(v);
+                }
+                for (let f of ti.inputFragments()) {
+                    //no-op
+                    let normal = ti.normalized(f.normal)
+                    ti.outputColor(this.gNormalTexture, normal.concat([1.0]))
+                }
+            }
+        )
         this.renderKernel = ti.classKernel(this,
             { camera: Camera.getKernelType() },
             (camera: any) => {
 
                 ti.useDepth(this.depthTexture, { storeDepth: false, clearDepth: false });
-                ti.clearColor(this.renderTexture, [0.1, 0.2, 0.3, 1]);
+                ti.clearColor(this.directLightingTexture, [0, 0, 0, 1]);
+                ti.clearColor(this.environmentLightingTexture, [0, 0, 0, 1]);
 
                 let getLightBrightnessAndDir = (light: any, fragPos: ti.types.vector) => {
                     let brightness: ti.types.vector = [0.0, 0.0, 0.0]
@@ -429,9 +464,8 @@ export class Renderer {
                         normal = this.getNormal(normal, material.normalMap, f.texCoords0, f.position)
                         let viewDir = ti.normalized(camera.position - f.position)
 
-                        let color: ti.types.vector = [0.0, 0.0, 0.0]
-
-                        color += material.emissive
+                        let directLighting: ti.types.vector = [0.0, 0.0, 0.0]
+                        directLighting += material.emissive
 
                         let evalLight = (light: any) => {
                             let brightnessAndDir = getLightBrightnessAndDir(light, f.position)
@@ -445,22 +479,24 @@ export class Renderer {
                                 //@ts-ignore
                                 let light = this.sceneData.lightsInfoBuffer[i]
                                 if (!light.castsShadow) {
-                                    color += evalLight(light)
+                                    directLighting += evalLight(light)
                                 }
                             }
                             //@ts-ignore
                             for (let i of ti.static(ti.range(this.scene.lights.length))) {
                                 //@ts-ignore
                                 if (ti.static(this.scene.lights[i].castsShadow)) {
-                                    color += evalLight(this.scene.lights[i]) * evalShadow(f.position, this.lightShadowMaps[i]!, this.scene.lights[i].shadow!)
+                                    directLighting += evalLight(this.scene.lights[i]) * evalShadow(f.position, this.lightShadowMaps[i]!, this.scene.lights[i].shadow!)
                                 }
                             }
                         }
 
-                        color += evalIBL(material, normal, viewDir, f.position)
+                        let environmentLighting: ti.types.vector = evalIBL(material, normal, viewDir, f.position)
 
-                        color = linearTosRGB(color)
-                        ti.outputColor(this.renderTexture, color.concat([1.0]));
+                        directLighting = linearTosRGB(directLighting)
+                        environmentLighting = linearTosRGB(environmentLighting)
+                        ti.outputColor(this.directLightingTexture, directLighting.concat([1.0]));
+                        ti.outputColor(this.environmentLightingTexture, environmentLighting.concat([1.0]));
                     }
                 }
                 //@ts-ignore
@@ -477,7 +513,8 @@ export class Renderer {
                         color.rgb = linearTosRGB(this.tonemap(color.rgb, this.scene.ibl!.exposure))
                         color[3] = 1.0
                         ti.outputDepth(1 - 1e-6)
-                        ti.outputColor(this.renderTexture, color);
+                        ti.outputColor(this.directLightingTexture, [0.0, 0.0, 0.0, 0.0]);
+                        ti.outputColor(this.environmentLightingTexture, color);
                     }
                 }
             }
@@ -502,6 +539,25 @@ export class Renderer {
                 }
                 for (let f of ti.inputFragments()) {
                     //no-op
+                }
+            }
+        )
+        this.combineKernel = ti.classKernel(this,
+            {},
+            () => {
+                ti.clearColor(this.renderResultTexture, [0.0, 0.0, 0.0, 1]);
+                for (let v of ti.inputVertices(this.quadVBO, this.quadIBO)) {
+                    ti.outputPosition([v.x, v.y, 0.0, 1.0]);
+                    ti.outputVertex(v);
+                }
+                for (let f of ti.inputFragments()) {
+                    let coord: ti.types.vector = (f + 1) / 2.0
+                    coord[1] = 1 - coord[1]
+
+                    let directLighting = ti.textureSample(this.directLightingTexture, coord).rgb
+                    let environmentLighting = ti.textureSample(this.environmentLightingTexture, coord).rgb
+                    let color = directLighting + environmentLighting
+                    ti.outputColor(this.renderResultTexture, color.concat([1.0]))
                 }
             }
         )
@@ -850,9 +906,11 @@ export class Renderer {
         for (let i = 0; i < this.scene.iblShadows.length; ++i) {
             this.shadowKernel(this.iblShadowMaps[i], this.scene.iblShadows[i])
         }
+        this.gPrePassKernel(camera)
         this.zPrePassKernel(camera)
         this.renderKernel(camera)
-        this.presentKernel(this.renderTexture)
+        this.combineKernel()
+        this.presentKernel(this.renderResultTexture)
         await ti.sync()
     }
 }
