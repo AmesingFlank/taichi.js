@@ -76,7 +76,7 @@ class SetImage {
 
 
 
-    async render(image: Field | Texture) {
+    async render(image: Field | Texture | DepthTexture) {
         if (image instanceof Field) {
             await this.renderFieldKernel(image);
         }
