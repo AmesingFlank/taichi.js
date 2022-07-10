@@ -37,8 +37,8 @@ declare class BuiltinBinaryOp extends BuiltinOp {
 }
 declare class BuiltinCustomOp extends BuiltinOp {
     constructor(name: string, arity: number, checkType: (args: Value[]) => TypeError, apply: (args: Value[]) => Value);
-    apply_: (args: Value[]) => Value;
-    checkType_: (args: Value[]) => TypeError;
+    private apply_;
+    private checkType_;
     checkType(args: Value[]): TypeError;
     apply(args: Value[]): Value;
 }

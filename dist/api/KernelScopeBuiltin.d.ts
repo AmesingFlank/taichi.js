@@ -53,3 +53,4 @@ export declare function bitcast_i32(number: number | ti.types.vector): number | 
 export declare function bitcast_f32(number: number | ti.types.vector): number | ti.types.vector;
 export declare function not(number: number | ti.types.vector): number | ti.types.vector;
 export declare function rsqrt(number: number | ti.types.vector): number | ti.types.vector;
+export declare function Static(x: any): any;

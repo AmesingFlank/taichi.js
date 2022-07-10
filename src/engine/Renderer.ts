@@ -17,10 +17,13 @@ export class Renderer {
         this.directLightingTexture = ti.texture(4, [htmlCanvas.width, htmlCanvas.height], 4);
         this.environmentLightingTexture = ti.texture(4, [htmlCanvas.width, htmlCanvas.height], 4);
         this.renderResultTexture = ti.texture(4, [htmlCanvas.width, htmlCanvas.height], 4);
+        this.ssdoTexture = ti.texture(4, [htmlCanvas.width, htmlCanvas.height], 4);
         this.canvasTexture = ti.canvasTexture(htmlCanvas, 4)
 
         this.quadVBO = ti.field(ti.types.vector(ti.f32, 2), 4);
         this.quadIBO = ti.field(ti.i32, 6);
+
+        this.ssdoSamples = ti.field(ti.types.vector(ti.f32, 3), [64, 4, 4])
     }
 
 
@@ -29,6 +32,7 @@ export class Renderer {
     private gNormalTexture: Texture
     private directLightingTexture: Texture
     private environmentLightingTexture: Texture
+    private ssdoTexture: Texture
     private renderResultTexture: Texture
     private canvasTexture: CanvasTexture
 
@@ -43,6 +47,8 @@ export class Renderer {
     private iblLambertianFiltered?: Texture
     private iblGGXFiltered?: Texture
     private LUT?: Texture
+
+    private ssdoSamples: Field
 
     // batches based on materials
     private batchInfos: BatchInfo[] = []
@@ -84,6 +90,10 @@ export class Renderer {
     private evalBRDF: ti.FuncType = () => { }
     private evalShadow: ti.FuncType = () => { }
     private evalIBL: ti.FuncType = () => { }
+    private hammersley2d: ti.FuncType = () => { }
+    private generateTBN: ti.FuncType = () => { }
+    private cosineSampleHemisphere: ti.FuncType = () => { }
+    private cosineSampleHemispherePdf: ti.FuncType = () => { }
 
 
     // ti.classKernels
@@ -119,6 +129,7 @@ export class Renderer {
 
         await this.initHelperFuncs()
         await this.initIBL()
+        await this.initSSDO()
         await this.initKernels()
     }
 
@@ -333,6 +344,77 @@ export class Renderer {
                 return result
             }
         )
+
+        this.hammersley2d = ti.func((i: number, N: number) => {
+            let radicalInverseVdC = (bits: number) => {
+                bits = (bits << 16) | (bits >>> 16);
+                bits = ((bits & 0x55555555) << 1) | ((bits & 0xAAAAAAAA) >>> 1);
+                bits = ((bits & 0x33333333) << 2) | ((bits & 0xCCCCCCCC) >>> 2);
+                bits = ((bits & 0x0F0F0F0F) << 4) | ((bits & 0xF0F0F0F0) >>> 4);
+                bits = ((bits & 0x00FF00FF) << 8) | ((bits & 0xFF00FF00) >>> 8);
+                //@ts-ignore
+                let result = f32(bits) * 2.3283064365386963e-10;
+                if (bits < 0) {
+                    //@ts-ignore
+                    result = 1.0 + f32(bits) * 2.3283064365386963e-10;
+                }
+                return result
+            }
+            //@ts-ignore
+            return [f32(i) / N, radicalInverseVdC(i32(i))];
+        })
+
+        this.generateTBN = ti.func((normal: ti.types.vector) => {
+            let bitangent = [0.0, 1.0, 0.0];
+
+            let NdotUp = ti.dot(normal, [0.0, 1.0, 0.0]);
+            let epsilon = 0.0000001;
+            if (1.0 - Math.abs(NdotUp) <= epsilon) {
+                // Sampling +Y or -Y, so we need a more robust bitangent.
+                if (NdotUp > 0.0) {
+                    bitangent = [0.0, 0.0, 1.0];
+                }
+                else {
+                    bitangent = [0.0, 0.0, -1.0];
+                }
+            }
+
+            let tangent = ti.normalized(ti.cross(bitangent, normal));
+            bitangent = ti.cross(normal, tangent);
+
+            return ti.transpose([tangent, bitangent, normal]);
+        })
+
+        this.cosineSampleHemisphere = ti.func((randomSource: ti.types.vector) => {
+            let concentricSampleDisk = (randomSource: ti.types.vector) => {
+                let result: ti.types.vector = [0.0, 0.0]
+                let uOffset: ti.types.vector = 2.0 * randomSource - 1.0;
+                if (uOffset.x !== 0 || uOffset.y !== 0) {
+                    let theta = 0.0
+                    let r = 0.0
+                    if (Math.abs(uOffset.x) > Math.abs(uOffset.y)) {
+                        r = uOffset.x
+                        theta = (Math.PI / 4.0) * (uOffset.y / uOffset.x)
+                    }
+                    else {
+                        r = uOffset.y
+                        theta = (Math.PI / 2.0) - (Math.PI / 4.0) * (uOffset.x / uOffset.y);
+                    }
+                    //@ts-ignore
+                    result = r * [Math.cos(theta), Math.sin(theta)];
+                }
+                return result
+            }
+            let d = concentricSampleDisk(randomSource);
+            let z = Math.sqrt(Math.max(0.0, 1 - d.x * d.x - d.y * d.y));
+            return [d.x, d.y, z]
+        })
+
+        this.cosineSampleHemispherePdf = ti.func((sampled: ti.types.vector) => {
+            let cosTheta = sampled.z
+            return cosTheta / Math.PI
+        })
+
     }
 
     async initKernels() {
@@ -574,6 +656,27 @@ export class Renderer {
         )
     }
 
+    async initSSDO() {
+        let generateSamples = ti.classKernel(this,
+            () => {
+                let numSamples = this.ssdoSamples.dimensions[0]
+                let blockSizeX = this.ssdoSamples.dimensions[1]
+                let blockSizeY = this.ssdoSamples.dimensions[2]
+                for (let I of ti.ndrange(numSamples, blockSizeX, blockSizeY)) {
+                    let sampleId = I[0]
+                    let randomSource = this.hammersley2d(sampleId, numSamples)
+                    let sample = this.cosineSampleHemisphere(randomSource)
+                    let length = Math.random()
+                    length = this.lerp(0.1, 1.0, length * length)
+                    sample *= length
+                    //@ts-ignore
+                    this.ssdoSamples[I] = sample
+                }
+            }
+        )
+        await generateSamples()
+    }
+
     async initIBL() {
         if (this.scene.ibl) {
 
@@ -603,64 +706,17 @@ export class Renderer {
                 () => {
                     let kSampleCount = 1024
 
-                    let radicalInverseVdC = (bits: number) => {
-                        bits = (bits << 16) | (bits >>> 16);
-                        bits = ((bits & 0x55555555) << 1) | ((bits & 0xAAAAAAAA) >>> 1);
-                        bits = ((bits & 0x33333333) << 2) | ((bits & 0xCCCCCCCC) >>> 2);
-                        bits = ((bits & 0x0F0F0F0F) << 4) | ((bits & 0xF0F0F0F0) >>> 4);
-                        bits = ((bits & 0x00FF00FF) << 8) | ((bits & 0xFF00FF00) >>> 8);
-                        //@ts-ignore
-                        let result = f32(bits) * 2.3283064365386963e-10;
-                        if (bits < 0) {
-                            //@ts-ignore
-                            result = 1.0 + f32(bits) * 2.3283064365386963e-10;
-                        }
-                        return result
-                    }
-
-                    let hammersley2d = (i: number, N: number) => {
-                        //@ts-ignore
-                        return [f32(i) / N, radicalInverseVdC(i32(i))];
-                    }
-
-                    let generateTBN = (normal: ti.types.vector) => {
-                        let bitangent = [0.0, 1.0, 0.0];
-
-                        let NdotUp = ti.dot(normal, [0.0, 1.0, 0.0]);
-                        let epsilon = 0.0000001;
-                        if (1.0 - Math.abs(NdotUp) <= epsilon) {
-                            // Sampling +Y or -Y, so we need a more robust bitangent.
-                            if (NdotUp > 0.0) {
-                                bitangent = [0.0, 0.0, 1.0];
-                            }
-                            else {
-                                bitangent = [0.0, 0.0, -1.0];
-                            }
-                        }
-
-                        let tangent = ti.normalized(ti.cross(bitangent, normal));
-                        bitangent = ti.cross(normal, tangent);
-
-                        return ti.transpose([tangent, bitangent, normal]);
-                    }
-
                     let computeLod = (pdf: number) => {
                         return 0.5 * Math.log(6.0 * this.scene.ibl!.texture.dimensions[0] * this.scene.ibl!.texture.dimensions[0] / (kSampleCount * pdf)) / Math.log(2.0);
                     }
 
                     let getLambertianImportanceSample = (normal: ti.types.vector, xi: ti.types.vector) => {
-                        let cosTheta = Math.sqrt(1.0 - xi[1]);
-                        let sinTheta = Math.sqrt(xi[1]);
-                        let phi = 2.0 * Math.PI * xi[0];
-                        let localSpaceDirection = [
-                            sinTheta * Math.cos(phi),
-                            sinTheta * Math.sin(phi),
-                            cosTheta
-                        ]
-                        let TBN = generateTBN(normal);
+                        let localSpaceDirection = this.cosineSampleHemisphere(xi)
+                        let pdf = this.cosineSampleHemispherePdf(localSpaceDirection)
+                        let TBN = this.generateTBN(normal);
                         let direction = ti.matmul(TBN, localSpaceDirection);
                         return {
-                            pdf: cosTheta / Math.PI,
+                            pdf: pdf,
                             direction: direction
                         }
                     }
@@ -668,7 +724,7 @@ export class Renderer {
                     let filterLambertian = (normal: ti.types.vector) => {
                         let color: any = [0.0, 0.0, 0.0]
                         for (let i of ti.range(kSampleCount)) {
-                            let xi = hammersley2d(i, kSampleCount)
+                            let xi = this.hammersley2d(i, kSampleCount)
                             let importanceSample = getLambertianImportanceSample(normal, xi)
                             let halfDir = importanceSample.direction
                             let pdf = importanceSample.pdf
@@ -705,7 +761,7 @@ export class Renderer {
                             sinTheta * Math.sin(phi),
                             cosTheta
                         ]
-                        let TBN = generateTBN(normal);
+                        let TBN = this.generateTBN(normal);
                         let direction = ti.matmul(TBN, localSpaceDirection);
                         return {
                             pdf: pdf,
@@ -716,7 +772,7 @@ export class Renderer {
                     let filterGGX = (normal: ti.types.vector, roughness: number) => {
                         let color = [0.0, 0.0, 0.0]
                         for (let i of ti.range(kSampleCount)) {
-                            let xi = hammersley2d(i, kSampleCount)
+                            let xi = this.hammersley2d(i, kSampleCount)
                             let importanceSample = getGGXImportanceSample(normal, roughness, xi)
                             let halfDir = importanceSample.direction
                             let pdf = importanceSample.pdf
@@ -753,7 +809,7 @@ export class Renderer {
                         let C = 0.0;
 
                         for (let i of ti.range(kSampleCount)) {
-                            let xi = hammersley2d(i, kSampleCount)
+                            let xi = this.hammersley2d(i, kSampleCount)
                             let importanceSample = getGGXImportanceSample(N, roughness, xi)
                             let H: any = importanceSample.direction;
                             // float pdf = importanceSample.w;
