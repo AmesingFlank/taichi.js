@@ -735,6 +735,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             this.assertNode(node, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && (argumentValues[0].hostSideValue instanceof DepthTexture), "the first argument of textureSampleComapre() must be a depth texture object that's visible in kernel scope")
             let texture = argumentValues[0].hostSideValue as DepthTexture
             let dim = texture.getTextureDimensionality()
+            this.assertNode(node, texture.sampleCount === 1, "textureSampleCompare() cannot be used on multi-sampled depth textures")
 
             let coords = argumentValues[1]
             this.assertNode(node, coords.getType().getCategory() === TypeCategory.Vector, "coords must be a vector")
@@ -759,7 +760,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             this.assertNode(node, node.arguments.length === 2, "textureLoad() must have exactly 2 arguments, one for texture, the other for the coordinates")
             this.assertNode(node, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && isTexture(argumentValues[0].hostSideValue), "the first argument of textureLoad() must be a texture object that's visible in kernel scope")
             let texture = argumentValues[0].hostSideValue as TextureBase
-            this.assertNode(node, !(texture instanceof DepthTexture), "textureLoad() cannot be called on a depth texture")
+            let isDepth = texture instanceof DepthTexture
             let dim = texture.getTextureDimensionality()
 
             let coords = argumentValues[1]
@@ -771,12 +772,18 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
             let sampleResultStmt = this.irBuilder.create_texture_load(texture, coords.stmts.slice())
 
-            let resultType = new VectorType(PrimitiveType.f32, 4)
-            let result = new Value(resultType)
-            for (let i = 0; i < 4; ++i) {
-                result.stmts.push(this.irBuilder.create_composite_extract(sampleResultStmt, i))
+            if (isDepth) {
+                let result = new Value(new ScalarType(PrimitiveType.f32), [sampleResultStmt])
+                return result
             }
-            return result
+            else {
+                let resultType = new VectorType(PrimitiveType.f32, 4)
+                let result = new Value(resultType)
+                for (let i = 0; i < 4; ++i) {
+                    result.stmts.push(this.irBuilder.create_composite_extract(sampleResultStmt, i))
+                }
+                return result
+            }
         }
 
         if (this.isBuiltinFunctionWithName(funcText, "textureStore")) {

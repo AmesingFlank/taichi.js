@@ -364,9 +364,10 @@ export class CodegenVisitor extends IRVisitor {
 
     override visitTextureFunctionStmt(stmt: TextureFunctionStmt): void {
         let texture = stmt.texture
+        let isDepth = texture instanceof DepthTexture
         let textureResource = new ResourceInfo(ResourceType.Texture, texture.textureId)
         let requiresSampler = false
-        let resultNumComponents = 4
+        let resultNumComponents = isDepth ? 1 : 4;
 
         switch (stmt.func) {
             case TextureFunctionKind.Sample: {
@@ -1168,7 +1169,12 @@ var<${storageAndAcess}> ${name}: ${name}_type;
                     }
                 }
                 else {
-                    typeName = "texture_depth_2d"
+                    if (texture.sampleCount === 1) {
+                        typeName = "texture_depth_2d"
+                    }
+                    else {
+                        typeName = "texture_depth_multisampled_2d"
+                    }
                 }
                 break;
             }

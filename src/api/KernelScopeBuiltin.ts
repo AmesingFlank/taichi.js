@@ -219,10 +219,10 @@ export function outputColor(tex: TextureBase, col: any) { throwNotImplementedErr
 export function outputDepth(depth: number) { throwNotImplementedError() }
 export function discard() { throwNotImplementedError() }
 
-export function textureSample(texture: TextureBase, coords: any): any { throwNotImplementedError(); return [0.0, 0.0, 0.0, 0.0] }
-export function textureSampleLod(texture: TextureBase, coords: any, lod: number) { throwNotImplementedError(); return [0.0, 0.0, 0.0, 0.0] }
-export function textureSampleCompare(texture: DepthTexture, coords: any, depthReference: number) { throwNotImplementedError(); return 0.0 }
-export function textureLoad(texture: TextureBase, coords: any) { throwNotImplementedError(); return [0.0, 0.0, 0.0, 0.0] }
+export function textureSample(texture: TextureBase, coords: any): ti.types.vector { throwNotImplementedError(); return [0.0, 0.0, 0.0, 0.0] }
+export function textureSampleLod(texture: TextureBase, coords: any, lod: number): ti.types.vector { throwNotImplementedError(); return [0.0, 0.0, 0.0, 0.0] }
+export function textureSampleCompare(texture: DepthTexture, coords: any, depthReference: number): ti.types.vector { throwNotImplementedError(); return 0.0 }
+export function textureLoad(texture: TextureBase, coords: any): ti.types.vector { throwNotImplementedError(); return [0.0, 0.0, 0.0, 0.0] }
 export function textureStore(texture: TextureBase, coords: any, val: any) { throwNotImplementedError(); }
 
 export function getVertexIndex(): number { throwNotImplementedError(); return 0 }

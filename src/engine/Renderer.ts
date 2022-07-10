@@ -14,6 +14,7 @@ export class Renderer {
     public constructor(public scene: Scene, public htmlCanvas: HTMLCanvasElement) {
         this.depthTexture = ti.depthTexture([htmlCanvas.width, htmlCanvas.height], 4);
         this.gNormalTexture = ti.texture(4, [htmlCanvas.width, htmlCanvas.height], 4);
+        this.gPositionTexture = ti.texture(4, [htmlCanvas.width, htmlCanvas.height], 4);
         this.directLightingTexture = ti.texture(4, [htmlCanvas.width, htmlCanvas.height], 4);
         this.environmentLightingTexture = ti.texture(4, [htmlCanvas.width, htmlCanvas.height], 4);
         this.renderResultTexture = ti.texture(4, [htmlCanvas.width, htmlCanvas.height], 4);
@@ -30,6 +31,7 @@ export class Renderer {
 
     private depthTexture: DepthTexture
     private gNormalTexture: Texture
+    private gPositionTexture: Texture
     private directLightingTexture: Texture
     private environmentLightingTexture: Texture
     private ssdoTexture: Texture
@@ -101,6 +103,7 @@ export class Renderer {
     private gPrePassKernel: ti.KernelType = () => { }
     private shadowKernel: ti.KernelType = () => { }
     private renderKernel: ti.KernelType = () => { }
+    private ssdoKernel: ti.KernelType = () => { }
     private combineKernel: ti.KernelType = () => { }
     private presentKernel: ti.KernelType = () => { }
 
@@ -445,6 +448,7 @@ export class Renderer {
             (camera: any) => {
                 ti.useDepth(this.depthTexture);
                 ti.clearColor(this.gNormalTexture, [0.0, 0.0, 0.0, 0.0])
+                ti.clearColor(this.gPositionTexture, [0.0, 0.0, 0.0, 0.0])
                 for (let v of ti.inputVertices(this.sceneData!.vertexBuffer, this.sceneData!.indexBuffer, ti.Static(this.geometryOnlyDrawInfoBuffer), ti.Static(this.geometryOnlyDrawInfoBuffer!.dimensions[0]))) {
                     let instanceIndex = ti.getInstanceIndex()
                     //@ts-ignore
@@ -462,6 +466,7 @@ export class Renderer {
                     //no-op
                     let normal = ti.normalized(f.normal)
                     ti.outputColor(this.gNormalTexture, normal.concat([1.0]))
+                    ti.outputColor(this.gPositionTexture, f.position.concat([1.0]))
                 }
             }
         )
@@ -570,8 +575,6 @@ export class Renderer {
 
                         let environmentLighting: ti.types.vector = this.evalIBL(material, normal, viewDir, f.position)
 
-                        directLighting = this.linearTosRGB(directLighting)
-                        environmentLighting = this.linearTosRGB(environmentLighting)
                         ti.outputColor(this.directLightingTexture, directLighting.concat([1.0]));
                         ti.outputColor(this.environmentLightingTexture, environmentLighting.concat([1.0]));
                     }
@@ -586,11 +589,120 @@ export class Renderer {
                         let dir = f.normalized()
                         let uv = this.dirToUV(dir)
                         let color = ti.textureSample(this.iblGGXFiltered!, uv.concat([0.2]))
-                        color.rgb = this.linearTosRGB(this.tonemap(color.rgb, this.scene.ibl!.exposure))
+                        color.rgb = this.tonemap(color.rgb, this.scene.ibl!.exposure)
                         color[3] = 1.0
                         ti.outputDepth(1 - 1e-6)
                         ti.outputColor(this.directLightingTexture, [0.0, 0.0, 0.0, 0.0]);
                         ti.outputColor(this.environmentLightingTexture, color);
+                    }
+                }
+            }
+        )
+        this.ssdoKernel = ti.classKernel(this,
+            { camera: Camera.getKernelType() },
+            (camera: any) => {
+                ti.useDepth(this.depthTexture, { storeDepth: false, clearDepth: false });
+                ti.clearColor(this.ssdoTexture, [0, 0, 0, 0]);
+
+                for (let batchID of ti.Static(ti.range(this.batchesDrawInfoBuffers.length))) {
+                    let getMaterial = (fragment: any, materialID: number) => {
+                        //@ts-ignore
+                        let materialInfo = this.sceneData.materialInfoBuffer[materialID]
+                        let material = {
+                            baseColor: materialInfo.baseColor.value,
+                            metallic: materialInfo.metallicRoughness.value[0],
+                            roughness: materialInfo.metallicRoughness.value[1],
+                        }
+                        if (ti.Static(this.batchInfos[batchID].materialIndex != -1)) {
+                            let texCoords = fragment.texCoords0
+                            let materialRef = this.scene.materials[this.batchInfos[batchID].materialIndex]
+                            if (ti.Static(materialRef.baseColor.texture !== undefined)) {
+                                if (ti.Static(materialRef.baseColor.texcoordsSet === 1)) {
+                                    texCoords = fragment.texCoords1
+                                }
+                                let sampledBaseColor = ti.textureSample(materialRef.baseColor.texture!, texCoords)
+                                sampledBaseColor.rgb = this.sRGBToLinear(sampledBaseColor.rgb)
+                                material.baseColor *= sampledBaseColor
+                            }
+                            if (ti.Static(materialRef.metallicRoughness.texture !== undefined)) {
+                                if (ti.Static(materialRef.metallicRoughness.texcoordsSet === 1)) {
+                                    texCoords = fragment.texCoords1
+                                }
+                                let metallicRoughness = ti.textureSample(materialRef.metallicRoughness.texture!, texCoords)
+                                material.metallic *= metallicRoughness.b
+                                material.roughness *= metallicRoughness.g
+                            }
+                        }
+                        return material
+                    }
+
+                    for (let v of ti.inputVertices(this.sceneData!.vertexBuffer, this.sceneData!.indexBuffer, ti.Static(this.batchesDrawInfoBuffers[batchID]), ti.Static(this.batchesDrawInfoBuffers[batchID].dimensions[0]))) {
+                        let instanceIndex = ti.getInstanceIndex()
+                        //@ts-ignore
+                        let instanceInfo = this.batchesDrawInstanceInfoBuffers[batchID][instanceIndex]
+                        let nodeIndex = instanceInfo.nodeIndex
+                        let materialIndex = instanceInfo.materialIndex
+                        //@ts-ignore
+                        let modelMatrix = this.sceneData.nodesBuffer[nodeIndex].globalTransform.matrix
+
+                        v.normal = ti.transpose(ti.inverse(modelMatrix.slice([0, 0], [3, 3]))).matmul(v.normal)
+                        v.position = modelMatrix.matmul(v.position.concat([1.0])).xyz
+                        let pos = camera.viewProjection.matmul(v.position.concat([1.0]));
+                        ti.outputPosition(pos);
+                        let vertexOutput = ti.mergeStructs(v, { materialIndex: materialIndex })
+                        ti.outputVertex(vertexOutput);
+                    }
+                    for (let f of ti.inputFragments()) {
+                        let materialID = f.materialIndex
+                        let material = getMaterial(f, materialID)
+                        let normal = f.normal.normalized()
+                        let TBN = this.generateTBN(normal)
+
+
+                        let clipSpacePos = ti.matmul(camera.viewProjection, f.position.concat([1.0]))
+                        let screenSpaceCoords: ti.types.vector = (clipSpacePos.xy / clipSpacePos.w) * 0.5 + 0.5
+                        //@ts-ignore
+                        let texelIndex = ti.i32([screenSpaceCoords.x, 1.0 - screenSpaceCoords.y] * ([this.htmlCanvas.width, this.htmlCanvas.height] - 1))
+                        let indexInBlock: ti.types.vector = [texelIndex.x % this.ssdoSamples.dimensions[1], texelIndex.y % this.ssdoSamples.dimensions[2]]
+                        //@ts-ignore
+                        let numSamples = this.ssdoSamples.dimensions[0]
+                        let viewDir = ti.normalized(f.position - camera.position)
+                        let sampleRadius = ti.norm(f.position - camera.position) * 0.05
+
+                        let sumVisibility = 0.0
+                        let sumIndirectLighting: ti.types.vector = [0.0, 0.0, 0.0]
+
+                        for (let i of ti.range(numSamples)) {
+                            //@ts-ignore
+                            let ssdoSample = this.ssdoSamples[[i, indexInBlock.x, indexInBlock.y]]
+                            let deltaPos = ti.matmul(TBN, ssdoSample) * sampleRadius
+                            let sampledPoint = deltaPos + f.position
+                            let sampledPointClipSpace = ti.matmul(camera.viewProjection, sampledPoint.concat([1.0]))
+                            let depth = sampledPointClipSpace.z / sampledPointClipSpace.w
+                            let sampledPointScreenSpace: ti.types.vector = (sampledPointClipSpace.xy / sampledPointClipSpace.w) * 0.5 + 0.5
+                            let texCoords = [sampledPointScreenSpace.x, 1.0 - sampledPointScreenSpace.y]
+                            //@ts-ignore
+                            let gBufferPos = ti.textureSample(this.gPositionTexture, texCoords).rgb
+                            let gBufferNormal = ti.textureSample(this.gNormalTexture, texCoords).rgb
+
+                            let vis = 1.0;
+                            if (ti.norm(gBufferPos - camera.position) < ti.norm(sampledPoint - camera.position)) {
+                                vis = 0.0
+                            }
+                            sumVisibility += vis // should multiply by cosTheta here (see games 202 lecture), but this is cancelled by dividing the PDF
+
+                            let receivedIndirectLight =
+                                ti.textureSample(this.directLightingTexture, texCoords).rgb +
+                                ti.textureSample(this.environmentLightingTexture, texCoords).rgb
+                            if (ti.dot(gBufferNormal, deltaPos) >= 0.0) {
+                                // sampled point faces away from the fragment
+                                receivedIndirectLight = [0.0, 0.0, 0.0]
+                            }
+                            let brdf = this.evalBRDF(material, normal, ti.normalized(deltaPos), viewDir)
+                            sumIndirectLighting += receivedIndirectLight * brdf * (1.0 - vis)
+                        }
+                        let result = sumIndirectLighting.concat([sumVisibility]) / numSamples
+                        ti.outputColor(this.ssdoTexture, result)
                     }
                 }
             }
@@ -631,7 +743,9 @@ export class Renderer {
 
                     let directLighting = ti.textureSample(this.directLightingTexture, coord).rgb
                     let environmentLighting = ti.textureSample(this.environmentLightingTexture, coord).rgb
-                    let color = directLighting + environmentLighting
+                    let ssdo = ti.textureSample(this.ssdoTexture, coord)
+                    let color = directLighting + environmentLighting + ssdo.rgb
+                    color = this.linearTosRGB(color)
                     ti.outputColor(this.renderResultTexture, color.concat([1.0]))
                 }
             }
@@ -958,6 +1072,7 @@ export class Renderer {
         this.gPrePassKernel(camera)
         this.zPrePassKernel(camera)
         this.renderKernel(camera)
+        //this.ssdoKernel(camera)
         this.combineKernel()
         this.presentKernel(this.renderResultTexture)
         await ti.sync()
