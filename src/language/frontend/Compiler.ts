@@ -788,9 +788,9 @@ class CompilingVisitor extends ASTVisitor<Value>{
 
         if (this.isBuiltinFunctionWithName(funcText, "textureStore")) {
             this.assertNode(node, node.arguments.length === 3, "textureStore() must have exactly 3 arguments, one for texture, one for the coordinates, and one for the texel value")
-            this.assertNode(node, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && isTexture(argumentValues[0].hostSideValue), "the first argument of textureStore() must be a texture object that's visible in kernel scope")
-            let texture = argumentValues[0].hostSideValue as TextureBase
-            this.assertNode(node, !(texture instanceof DepthTexture), "textureStore() cannot be called on a depth texture")
+            this.assertNode(node, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && argumentValues[0].hostSideValue instanceof Texture, "the first argument of textureStore() must be a texture object that's visible in kernel scope")
+            let texture = argumentValues[0].hostSideValue as Texture
+            this.assertNode(node, texture.numComponents === 4, " textureStore() can only be used on textures with 4-component texels") 
             let dim = texture.getTextureDimensionality()
 
             let coords = argumentValues[1]

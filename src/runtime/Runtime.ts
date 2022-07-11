@@ -445,7 +445,7 @@ class Runtime {
             maxAnisotropy: 16
         }
         if (depth) {
-            desc.compare = "less"
+            desc.compare = "less-equal"
         }
         return this.device!.createSampler(desc)
     }
