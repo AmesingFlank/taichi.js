@@ -6,6 +6,7 @@ declare class SNodeTree {
     fields: Field[];
     size: number;
     rootBuffer: GPUBuffer | null;
+    fragmentShaderWritable: boolean;
     constructor();
     addNaiveDenseField(elementType: Type, dimensionsArg: number[] | number): Field;
 }

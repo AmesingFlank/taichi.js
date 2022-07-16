@@ -555,6 +555,10 @@ export class CodegenVisitor extends IRVisitor {
         if (ptr.getKind() === StmtKind.GlobalPtrStmt) {
             ptr = ptr as GlobalPtrStmt
             resourceInfo = new ResourceInfo(ResourceType.Root, ptr.field.snodeTree.treeId)
+            let tree = this.runtime.materializedTrees[ptr.field.snodeTree.treeId]
+            if (tree.fragmentShaderWritable) {
+                error("A vertex shader cannot read from a field marked as `fragmentShaderWritable`")
+            }
         }
         else {
             resourceInfo = new ResourceInfo(ResourceType.GlobalTmps)
@@ -1127,6 +1131,12 @@ fn main(${builtInInput} ${stageInput}) ${maybeOutput}
                     return false
                 }
             }
+            if (buffer.resourceType === ResourceType.Root || buffer.resourceType === ResourceType.RootAtomic) {
+                let tree = this.runtime.materializedTrees[buffer.resourceID!]
+                if (!tree.fragmentShaderWritable) {
+                    return false
+                }
+            }
         }
         return true
     }
@@ -1151,11 +1161,23 @@ fn main(${builtInInput} ${stageInput}) ${maybeOutput}
                         error("a fragment shader is not allowed to write to global temporary variables, if the corresponding vertex shader reads any global temporary variable")
                     }
                     else if (buffer.resourceType === ResourceType.Root || buffer.resourceType === ResourceType.RootAtomic) {
-                        error("a fragment shader is not allowed to write to a field, if the corresponding vertex shader reads from the same field")
+                        let tree = this.runtime.materializedTrees[buffer.resourceID!]
+                        if (tree.fragmentShaderWritable) {
+                            error("[Internal Error] the vertex shader shouldn't have been able to read from the field which is marked as `fragmentShaderWritable`")
+                        }
+                        else {
+                            error("[Internal Error] a fragment shader can only write to a field if it is marked as `fragmentShaderWritable`")
+                        }
                     }
                     else {
                         error("[Internal Error] Unexpected resource type")
                     }
+                }
+            }
+            if (buffer.resourceType === ResourceType.Root || buffer.resourceType === ResourceType.RootAtomic) {
+                let tree = this.runtime.materializedTrees[buffer.resourceID!]
+                if (!tree.fragmentShaderWritable) {
+                    error("[Internal Error] a fragment shader can only write to a field if it is marked as `fragmentShaderWritable`")
                 }
             }
         }

@@ -20,6 +20,7 @@ class SNodeTree {
     fields: Field[] = []
     size: number = 0
     rootBuffer: GPUBuffer | null = null
+    fragmentShaderWritable = false
     constructor() {
     }
 
