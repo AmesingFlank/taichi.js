@@ -142,13 +142,13 @@ export class GltfLoader {
                 let index = getIndex(inputMaterial.emissiveTexture.index)
                 let bitmapIndex = textures[index].imageIndex
                 resultMaterial.emissive.texture = await Texture.createFromBitmap(images[bitmapIndex])
-                resultMaterial.emissive.texcoordsSet = getTexCoordsSet(pbr.emissiveTexture.texCoord)
+                resultMaterial.emissive.texcoordsSet = getTexCoordsSet(inputMaterial.emissiveTexture.texCoord)
             }
             if (inputMaterial.normalTexture !== undefined) {
                 let index = getIndex(inputMaterial.normalTexture.index)
                 let bitmapIndex = textures[index].imageIndex
                 resultMaterial.normalMap.texture = await Texture.createFromBitmap(images[bitmapIndex])
-                resultMaterial.normalMap.texcoordsSet = getTexCoordsSet(pbr.normalTexture.texCoord)
+                resultMaterial.normalMap.texcoordsSet = getTexCoordsSet(inputMaterial.normalTexture.texCoord)
             }
             resultScene.materials.push(resultMaterial)
         }

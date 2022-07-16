@@ -311,13 +311,13 @@ export class Renderer {
             if (ti.Static(this.scene.ibl !== undefined)) {
                 let diffuseColor = (1.0 - material.metallic) * (1.0 - dielectricF0) * material.baseColor.rgb
                 let normalUV = this.dirToUV(normal)
-                let diffuseLight = this.sRGBToLinear(this.tonemap(ti.textureSample(this.iblLambertianFiltered!, normalUV).rgb, this.scene.ibl!.exposure))
+                let diffuseLight = ti.textureSample(this.iblLambertianFiltered!, normalUV).rgb
                 let diffuse = diffuseColor * diffuseLight
 
                 let specularColor = (1.0 - material.metallic) * dielectricF0 + material.metallic * material.baseColor.rgb
                 let reflection = ti.normalized((2.0 * normal * ti.dot(normal, viewDir) - viewDir))
                 let reflectionUV = this.dirToUV(reflection)
-                let specularLight = this.sRGBToLinear(this.tonemap(ti.textureSample(this.iblGGXFiltered!, reflectionUV.concat([material.roughness])).rgb, this.scene.ibl!.exposure))
+                let specularLight = ti.textureSample(this.iblGGXFiltered!, reflectionUV.concat([material.roughness])).rgb
                 let NdotV = ti.dot(normal, viewDir)
                 let scaleBias = ti.textureSample(this.LUT!, [NdotV, material.roughness]).rg
                 let specular = specularLight * (specularColor * scaleBias[0] + scaleBias[1])
@@ -742,6 +742,7 @@ export class Renderer {
                     let occlusion = hbao[3]
                     let color: ti.types.vector = directLighting - environmentLighting * (1.0 - occlusion)
                     color = this.linearTosRGB(color)
+                    //color = [occlusion, occlusion, occlusion]
                     ti.outputColor(this.renderResultTexture, color.concat([1.0]))
                 }
             }
