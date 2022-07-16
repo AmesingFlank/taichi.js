@@ -78,6 +78,8 @@ declare class CompilingVisitor extends ASTVisitor<Value> {
     protected visitRangeFor(indexSymbols: ts.Symbol[], rangeExpr: ts.NodeArray<ts.Expression>, body: ts.Statement, shouldUnroll: boolean): VisitorResult<Value>;
     protected visitNdrangeFor(indexSymbols: ts.Symbol[], rangeExpr: ts.NodeArray<ts.Expression>, body: ts.Statement, shouldUnroll: boolean): VisitorResult<Value>;
     protected isAtTopLevel(): boolean;
+    protected isInVertexFor(): boolean;
+    protected isInFragmentFor(): boolean;
     protected isInVertexOrFragmentFor(): boolean;
     protected isFragmentFor(node: ts.Node): boolean;
     protected visitVertexFor(indexSymbols: ts.Symbol[], vertexArgs: ts.NodeArray<ts.Expression>, body: ts.Statement): VisitorResult<Value>;

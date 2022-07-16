@@ -17,8 +17,8 @@ export declare class CodegenVisitor extends IRVisitor {
     offload: OffloadedModule;
     argBytes: number;
     retBytes: number;
-    bindingPointBegin: number;
-    constructor(runtime: Runtime, offload: OffloadedModule, argBytes: number, retBytes: number, bindingPointBegin?: number);
+    previousStageBindings: ResourceBinding[];
+    constructor(runtime: Runtime, offload: OffloadedModule, argBytes: number, retBytes: number, previousStageBindings: ResourceBinding[]);
     visitConstStmt(stmt: ConstStmt): void;
     visitRandStmt(stmt: RandStmt): void;
     visitUnaryOpStmt(stmt: UnaryOpStmt): void;
@@ -101,6 +101,8 @@ export declare class CodegenVisitor extends IRVisitor {
     getElementCount(buffer: ResourceInfo): number;
     resourceBindings: ResourceBindingMap;
     getBufferName(buffer: ResourceInfo): string;
+    isBufferWritable(buffer: ResourceInfo): boolean;
+    assertBufferWritable(buffer: ResourceInfo): void;
     declareNewBuffer(buffer: ResourceInfo, name: string, binding: number, elementType: string, elementCount: number): void;
     getBufferMemberName(buffer: ResourceInfo): string;
     getTextureName(textureInfo: ResourceInfo): string;

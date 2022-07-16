@@ -328,8 +328,8 @@ class CompilingVisitor extends ASTVisitor<Value>{
                 this.errorNode(node, "Left hand side of assignment must be an l-value. ", leftType.getCategory())
             }
             let leftPointerType = leftType as PointerType
-            if (this.isInVertexOrFragmentFor() && leftPointerType.getIsGlobal()) {
-                this.errorNode(node, "vertex/fragment shaders are not allowed to write to global temporary variables or global fields.")
+            if (this.isInVertexFor() && leftPointerType.getIsGlobal()) {
+                this.errorNode(node, "vertex shaders are not allowed to write to global temporary variables or global fields.")
             }
             let storeOp = this.builtinOps.get("=")!
             let typeError = storeOp.checkType([left, rightValue])
@@ -790,7 +790,7 @@ class CompilingVisitor extends ASTVisitor<Value>{
             this.assertNode(node, node.arguments.length === 3, "textureStore() must have exactly 3 arguments, one for texture, one for the coordinates, and one for the texel value")
             this.assertNode(node, argumentValues[0].getType().getCategory() === TypeCategory.HostObjectReference && argumentValues[0].hostSideValue instanceof Texture, "the first argument of textureStore() must be a texture object that's visible in kernel scope")
             let texture = argumentValues[0].hostSideValue as Texture
-            this.assertNode(node, texture.numComponents === 4, " textureStore() can only be used on textures with 4-component texels") 
+            this.assertNode(node, texture.numComponents === 4, " textureStore() can only be used on textures with 4-component texels")
             let dim = texture.getTextureDimensionality()
 
             let coords = argumentValues[1]
@@ -1463,8 +1463,16 @@ class CompilingVisitor extends ASTVisitor<Value>{
         return this.loopStack.length === 0 && this.branchDepth === 0
     }
 
+    protected isInVertexFor() {
+        return (this.startedVertex && !this.finishedVertex)
+    }
+
+    protected isInFragmentFor() {
+        return this.startedFragment
+    }
+
     protected isInVertexOrFragmentFor() {
-        return (this.startedVertex && !this.finishedVertex) || this.startedFragment
+        return this.isInVertexFor() || this.isInFragmentFor()
     }
 
     protected isFragmentFor(node: ts.Node): boolean {
@@ -1836,11 +1844,11 @@ export class KernelCompiler extends CompilingVisitor {
 
         for (let i = 0; i < offloadedModules.length; ++i) {
             let offload = offloadedModules[i]
-            let bindingPointBegin = 0
+            let previousStageBindings: ResourceBinding[] = []
             if (offload.type === OffloadType.Fragment) {
-                bindingPointBegin = this.renderPipelineParams[currentRenderPipelineParamsId].vertex.bindings.length
+                previousStageBindings = this.renderPipelineParams[currentRenderPipelineParamsId].vertex.bindings.slice()
             }
-            let codegen = new CodegenVisitor(Program.getCurrentProgram().runtime!, offload, argBytes, returnBytes, bindingPointBegin)
+            let codegen = new CodegenVisitor(Program.getCurrentProgram().runtime!, offload, argBytes, returnBytes, previousStageBindings)
             let params = codegen.generate()
             if (Program.getCurrentProgram().options.printWGSL) {
                 console.log(params.code)
@@ -1930,9 +1938,6 @@ export class KernelCompiler extends CompilingVisitor {
             }
             else if (binding.info.resourceType === ResourceType.Rets) {
                 error("[Compiler Bug] vertex and fragment shaders are not allowed to have return values")
-            }
-            else if (binding.info.resourceType === ResourceType.RootAtomic) {
-                error("vertex and fragment shaders are not allowed to use atomics")
             }
         }
     }

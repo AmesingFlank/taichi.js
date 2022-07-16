@@ -1,6 +1,6 @@
 export { init } from './api/Init';
 export * from './api/Kernels';
-export { field, Vector, Matrix, Struct, } from "./api/Fields";
+export * from "./api/Fields";
 export { texture, canvasTexture, depthTexture, Texture, CubeTexture, TextureSamplingOptions, WrapMode } from "./api/Textures";
 export { Canvas } from "./api/ui/Canvas";
 export { Timer } from "./utils/Timer";

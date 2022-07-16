@@ -200,7 +200,7 @@ class ReplaceValuesUsedInParallelForsPass extends IRTransformer {
             for (let i = 0; i < stmt.operands.length; ++i) {
                 if (this.gtempsAllocation.has(stmt.operands[i])) {
                     let offset = this.gtempsAllocation.get(stmt.operands[i])!
-                    let gtemp = new GlobalTemporaryStmt(stmt.getReturnType(), offset, this.module.getNewId())
+                    let gtemp = new GlobalTemporaryStmt(stmt.operands[i].getReturnType(), offset, this.module.getNewId())
                     this.pushNewStmt(gtemp)
                     let gtempLoad = new GlobalTemporaryLoadStmt(gtemp, this.module.getNewId())
                     this.pushNewStmt(gtempLoad)

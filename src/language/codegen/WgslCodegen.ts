@@ -43,7 +43,8 @@ export class CodegenVisitor extends IRVisitor {
         public offload: OffloadedModule,
         public argBytes: number,
         public retBytes: number,
-        public bindingPointBegin = 0
+        // when generating code for fragment shader, need to take into count the bindings used by the vertex shader, because they are in the same synchronization scope
+        public previousStageBindings: ResourceBinding[]
     ) {
         super()
     }
@@ -576,9 +577,7 @@ export class CodegenVisitor extends IRVisitor {
             resourceInfo = new ResourceInfo(ResourceType.GlobalTmps)
         }
         let bufferName = this.getBufferMemberName(resourceInfo)
-        if (this.isVertexFor() || this.isFragmentFor()) {
-            error("global memory write cannot be used in vertex-for or fragment-for")
-        }
+        this.assertBufferWritable(resourceInfo)
         this.body.write(this.getIndentation(), `${bufferName}[${ptr.getName()}] = bitcast<${this.getRawDataTypeName()}>(${stmt.getValue().getName()});\n`)
     }
 
@@ -612,6 +611,7 @@ export class CodegenVisitor extends IRVisitor {
             error("atomics on global temporary variables are not supported")
             resourceInfo = new ResourceInfo(ResourceType.GlobalTmps)
         }
+        this.assertBufferWritable(resourceInfo)
         let bufferName = this.getBufferMemberName(resourceInfo)
 
 
@@ -1070,7 +1070,7 @@ fn main(${builtInInput} ${stageInput}) ${maybeOutput}
         let name = ""
         let binding: number
         if (!this.resourceBindings.has(buffer)) {
-            binding = this.bindingPointBegin + this.resourceBindings.size()
+            binding = this.previousStageBindings.length + this.resourceBindings.size()
         }
         else {
             binding = this.resourceBindings.get(buffer)!
@@ -1115,9 +1115,55 @@ fn main(${builtInInput} ${stageInput}) ${maybeOutput}
         return name
     }
 
+    isBufferWritable(buffer: ResourceInfo) {
+        // vertex shader not allowed to write to global memory
+        if (this.isVertexFor()) {
+            return false
+        }
+        if (this.isFragmentFor()) {
+            for (let vertexBinding of this.previousStageBindings) {
+                if (vertexBinding.info.equals(buffer)) {
+                    // fragment shader not allowed to bind as writable buffer, if the same buffer is also bound in vert shader
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
+    assertBufferWritable(buffer: ResourceInfo) {
+        // vertex shader not allowed to write to global memory
+        if (this.isVertexFor()) {
+            if (buffer.resourceType === ResourceType.GlobalTmps) {
+                error("a vertex shader is not allowed to write to global temporary variables")
+            }
+            else if (buffer.resourceType === ResourceType.Root || buffer.resourceType === ResourceType.RootAtomic) {
+                error("a vertex shader is not allowed to write to fields")
+            }
+            else {
+                error("[Internal Error] Unexpected resource type")
+            }
+        }
+        if (this.isFragmentFor()) {
+            for (let vertexBinding of this.previousStageBindings) {
+                if (vertexBinding.info.equals(buffer)) {
+                    if (buffer.resourceType === ResourceType.GlobalTmps) {
+                        error("a fragment shader is not allowed to write to global temporary variables, if the corresponding vertex shader reads any global temporary variable")
+                    }
+                    else if (buffer.resourceType === ResourceType.Root || buffer.resourceType === ResourceType.RootAtomic) {
+                        error("a fragment shader is not allowed to write to a field, if the corresponding vertex shader reads from the same field")
+                    }
+                    else {
+                        error("[Internal Error] Unexpected resource type")
+                    }
+                }
+            }
+        }
+    }
+
     declareNewBuffer(buffer: ResourceInfo, name: string, binding: number, elementType: string, elementCount: number) {
         let storageAndAcess = "storage, read_write"
-        if (this.isVertexFor() || this.isFragmentFor()) {
+        if (!this.isBufferWritable(buffer)) {
             storageAndAcess = "storage, read";
         }
         let code = `
@@ -1140,7 +1186,7 @@ var<${storageAndAcess}> ${name}: ${name}_type;
         }
         let binding: number
         if (!this.resourceBindings.has(textureInfo)) {
-            binding = this.bindingPointBegin + this.resourceBindings.size()
+            binding = this.previousStageBindings.length + this.resourceBindings.size()
         }
         else {
             binding = this.resourceBindings.get(textureInfo)!
@@ -1241,7 +1287,7 @@ var ${name}: ${typeName}${templateArgs};
         }
         let binding: number
         if (!this.resourceBindings.has(samplerInfo)) {
-            binding = this.bindingPointBegin + this.resourceBindings.size()
+            binding = this.previousStageBindings.length + this.resourceBindings.size()
         }
         else {
             binding = this.resourceBindings.get(samplerInfo)!
