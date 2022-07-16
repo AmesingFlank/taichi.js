@@ -278,7 +278,7 @@ export function rotateAxisAngle(axis: ti.types.vector, angle: number): ti.types.
     let a = angle
     let c = Math.cos(a)
     let s = Math.sin(a)
-    let temp: ti.types.vector = (1.0 - c) * axis
+    let temp: ti.types.vector = ti.mul((1.0 - c), axis)
 
     let m = [
         [1.0, 0.0, 0.0, 0.0],
