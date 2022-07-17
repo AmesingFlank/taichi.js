@@ -609,7 +609,7 @@ export class Renderer {
                         }
                         let dir = f.normalized()
                         let uv = this.dirToUV(dir)
-                        let color = ti.textureSample(this.iblGGXFiltered!, uv.concat([1.0]))
+                        let color = ti.textureSample(this.iblGGXFiltered!, uv.concat([this.scene.iblBackgroundBlur]))
                         //color *= this.scene.iblIntensity
                         color.rgb = this.tonemap(color.rgb, this.scene.ibl!.exposure)
                         color[3] = 1.0
