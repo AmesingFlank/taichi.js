@@ -19,14 +19,14 @@ export class Renderer {
         this.directLightingTexture = ti.texture(4, [htmlCanvas.width, htmlCanvas.height], 4);
         this.environmentLightingTexture = ti.texture(4, [htmlCanvas.width, htmlCanvas.height], 4);
         this.renderResultTexture = ti.texture(4, [htmlCanvas.width, htmlCanvas.height], 4);
-        this.hbaoTexture = ti.texture(4, [htmlCanvas.width, htmlCanvas.height], 4);
-        this.hbaoBlurredTexture = ti.texture(4, [htmlCanvas.width, htmlCanvas.height], 1);
+        this.ssaoTexture = ti.texture(4, [htmlCanvas.width, htmlCanvas.height], 4);
+        this.ssaoBlurredTexture = ti.texture(4, [htmlCanvas.width, htmlCanvas.height], 1);
         this.canvasTexture = ti.canvasTexture(htmlCanvas, 4)
 
         this.quadVBO = ti.field(ti.types.vector(ti.f32, 2), 4);
         this.quadIBO = ti.field(ti.i32, 6);
 
-        this.hbaoSamples = ti.field(ti.types.vector(ti.f32, 3), [32, 4, 4])
+        this.ssaoSamples = ti.field(ti.types.vector(ti.f32, 3), [32, 5, 5])
     }
 
 
@@ -37,8 +37,8 @@ export class Renderer {
     private gPositionTexture: Texture
     private directLightingTexture: Texture
     private environmentLightingTexture: Texture
-    private hbaoTexture: Texture
-    private hbaoBlurredTexture: Texture
+    private ssaoTexture: Texture
+    private ssaoBlurredTexture: Texture
     private renderResultTexture: Texture
     private canvasTexture: CanvasTexture
 
@@ -54,7 +54,7 @@ export class Renderer {
     private iblGGXFiltered?: Texture
     private LUT?: Texture
 
-    private hbaoSamples: Field
+    private ssaoSamples: Field
 
     // batches based on materials
     private batchInfos: BatchInfo[] = []
@@ -107,8 +107,8 @@ export class Renderer {
     private gPrePassKernel: ti.KernelType = () => { }
     private shadowKernel: ti.KernelType = () => { }
     private renderKernel: ti.KernelType = () => { }
-    private hbaoKernel: ti.KernelType = () => { }
-    private hbaoBlurKernel: ti.KernelType = () => { }
+    private ssaoKernel: ti.KernelType = () => { }
+    private ssaoBlurKernel: ti.KernelType = () => { }
     private combineKernel: ti.KernelType = () => { }
     private presentKernel: ti.KernelType = () => { }
 
@@ -137,7 +137,7 @@ export class Renderer {
 
         await this.initHelperFuncs()
         await this.initIBL()
-        await this.inithbao()
+        await this.initSSAO()
         await this.initKernels()
     }
 
@@ -620,11 +620,11 @@ export class Renderer {
                 }
             }
         )
-        this.hbaoKernel = ti.classKernel(this,
+        this.ssaoKernel = ti.classKernel(this,
             { camera: Camera.getKernelType() },
             (camera: any) => {
                 ti.useDepth(this.depthTexture);
-                ti.clearColor(this.hbaoTexture, [0, 0, 0, 0]);
+                ti.clearColor(this.ssaoTexture, [0, 0, 0, 1]);
 
                 for (let v of ti.inputVertices(this.sceneData!.vertexBuffer, this.sceneData!.indexBuffer, ti.Static(this.geometryOnlyDrawInfoBuffer), ti.Static(this.geometryOnlyDrawInfoBuffer!.dimensions[0]))) {
                     let instanceIndex = ti.getInstanceIndex()
@@ -653,17 +653,17 @@ export class Renderer {
                     let screenSpaceCoords: ti.types.vector = (clipSpacePos.xy / clipSpacePos.w) * 0.5 + 0.5
                     //@ts-ignore
                     let texelIndex = ti.i32([screenSpaceCoords.x, 1.0 - screenSpaceCoords.y] * ([this.htmlCanvas.width, this.htmlCanvas.height] - 1))
-                    let indexInBlock: ti.types.vector = [texelIndex.x % this.hbaoSamples.dimensions[1], texelIndex.y % this.hbaoSamples.dimensions[2]]
+                    let indexInBlock: ti.types.vector = [texelIndex.x % this.ssaoSamples.dimensions[1], texelIndex.y % this.ssaoSamples.dimensions[2]]
                     //@ts-ignore
-                    let numSamples = this.hbaoSamples.dimensions[0]
+                    let numSamples = this.ssaoSamples.dimensions[0]
                     let sampleRadius = ti.norm(camera.position - f.position) * 0.05
 
                     let sumVisibility = 0.0
 
                     for (let i of ti.range(numSamples)) {
                         //@ts-ignore
-                        let hbaoSample = this.hbaoSamples[[i, indexInBlock.x, indexInBlock.y]]
-                        let deltaPos = ti.matmul(TBN, hbaoSample) * sampleRadius
+                        let ssaoSample = this.ssaoSamples[[i, indexInBlock.x, indexInBlock.y]]
+                        let deltaPos = ti.matmul(TBN, ssaoSample) * sampleRadius
                         let sampledPoint = deltaPos + f.position
                         let sampledPointClipSpace = ti.matmul(camera.viewProjection, sampledPoint.concat([1.0]))
                         //@ts-ignore
@@ -676,31 +676,27 @@ export class Renderer {
                         if (sampledPointDepth >= ti.textureLoad(this.depthPrePassTexture, ti.i32(texCoords * (this.depthPrePassTexture.dimensions - 1)))) {
                             vis = 0.0
                         }
-                        let gBufferNormal = ti.textureSample(this.gNormalTexture, texCoords).rgb
-                        if (ti.dot(gBufferNormal, deltaPos) >= 0.0) {
-                            vis = 1.0
-                        }
                         sumVisibility += vis // should multiply by cosTheta here (see games 202 lecture), but this is cancelled by dividing the PDF
                     }
                     let meanVisibility = sumVisibility / numSamples
-                    ti.outputColor(this.hbaoTexture, [0.0, 0.0, 0.0, meanVisibility])
-                    //ti.outputColor(this.hbaoTexture, [1 - result.w, 1-result.w, 1-result.w, 1.0])
+                    ti.outputColor(this.ssaoTexture, [0.0, 0.0, 0.0, meanVisibility])
+                    //ti.outputColor(this.ssaoTexture, [1 - result.w, 1-result.w, 1-result.w, 1.0])
                 }
             }
         )
 
-        this.hbaoBlurKernel = ti.classKernel(this,
+        this.ssaoBlurKernel = ti.classKernel(this,
             () => {
-                for (let I of ti.ndrange(this.hbaoTexture.dimensions[0], this.hbaoTexture.dimensions[1])) {
-                    let hbaoSum: ti.types.vector = [0.0, 0.0, 0.0, 0.0]
+                for (let I of ti.ndrange(this.ssaoTexture.dimensions[0], this.ssaoTexture.dimensions[1])) {
+                    let ssaoSum: ti.types.vector = [0.0, 0.0, 0.0, 0.0]
                     for (let delta of ti.ndrange(5, 5)) {
-                        let J = I + delta - 2
+                        let J: ti.types.vector = I + delta - 1
                         //@ts-ignore
-                        J = Math.max(0, Math.min(this.hbaoTexture.dimensions - 1, J))
-                        let hbao = ti.textureLoad(this.hbaoTexture, J)
-                        hbaoSum += hbao
+                        J = Math.max(0, Math.min(this.ssaoTexture.dimensions - 1, J))
+                        let ssao = ti.textureLoad(this.ssaoTexture, J)
+                        ssaoSum += ssao
                     }
-                    ti.textureStore(this.hbaoBlurredTexture, I, hbaoSum / 25)
+                    ti.textureStore(this.ssaoBlurredTexture, I, ssaoSum / 25.0)
                 }
             }
         )
@@ -740,8 +736,8 @@ export class Renderer {
 
                     let directLighting = ti.textureSample(this.directLightingTexture, coord).rgb
                     let environmentLighting = ti.textureSample(this.environmentLightingTexture, coord).rgb
-                    let hbao = ti.textureSample(this.hbaoBlurredTexture, coord)
-                    let occlusion = hbao[3]
+                    let ssao = ti.textureSample(this.ssaoBlurredTexture, coord)
+                    let occlusion = ssao[3]
                     let color: ti.types.vector = directLighting - environmentLighting * (1.0 - occlusion)
                     color = this.linearTosRGB(this.tonemap(color, 1.0))
                     //color = [occlusion, occlusion, occlusion]
@@ -769,12 +765,12 @@ export class Renderer {
         )
     }
 
-    async inithbao() {
+    async initSSAO() {
         let generateSamples = ti.classKernel(this,
             () => {
-                let numSamples = this.hbaoSamples.dimensions[0]
-                let blockSizeX = this.hbaoSamples.dimensions[1]
-                let blockSizeY = this.hbaoSamples.dimensions[2]
+                let numSamples = this.ssaoSamples.dimensions[0]
+                let blockSizeX = this.ssaoSamples.dimensions[1]
+                let blockSizeY = this.ssaoSamples.dimensions[2]
                 for (let I of ti.ndrange(numSamples, blockSizeX, blockSizeY)) {
                     let sampleId = I[0]
                     let randomSource = this.hammersley2d(sampleId, numSamples)
@@ -783,7 +779,7 @@ export class Renderer {
                     length = this.lerp(0.1, 1.0, length)
                     sample *= length
                     //@ts-ignore
-                    this.hbaoSamples[I] = sample
+                    this.ssaoSamples[I] = sample
                 }
             }
         )
@@ -1071,8 +1067,8 @@ export class Renderer {
         this.zPrePassKernel(camera)
         this.gPrePassKernel(camera)
         this.renderKernel(camera)
-        this.hbaoKernel(camera)
-        this.hbaoBlurKernel()
+        this.ssaoKernel(camera)
+        this.ssaoBlurKernel()
         this.combineKernel()
         this.presentKernel(this.renderResultTexture)
         await ti.sync()
