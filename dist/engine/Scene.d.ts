@@ -24,6 +24,7 @@ export declare class Scene {
     meshes: Mesh[];
     lights: LightInfo[];
     ibl: HdrTexture | undefined;
+    iblIntensity: number;
     iblShadows: ShadowInfo[];
     vertexAttribSet: VertexAttribSet;
     getKernelData(): Promise<SceneData>;

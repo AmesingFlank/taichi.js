@@ -327,6 +327,7 @@ export class Renderer {
                     let contribution = this.evalShadow(pos, this.iblShadowMaps[i], this.scene.iblShadows[i])
                     result *= contribution
                 }
+                result = result * this.scene.iblIntensity
             }
             return result
         })
@@ -608,7 +609,8 @@ export class Renderer {
                         }
                         let dir = f.normalized()
                         let uv = this.dirToUV(dir)
-                        let color = ti.textureSample(this.iblGGXFiltered!, uv.concat([0.2]))
+                        let color = ti.textureSample(this.iblGGXFiltered!, uv.concat([1.0]))
+                        //color *= this.scene.iblIntensity
                         color.rgb = this.tonemap(color.rgb, this.scene.ibl!.exposure)
                         color[3] = 1.0
                         ti.outputColor(this.directLightingTexture, color);
@@ -741,7 +743,7 @@ export class Renderer {
                     let hbao = ti.textureSample(this.hbaoBlurredTexture, coord)
                     let occlusion = hbao[3]
                     let color: ti.types.vector = directLighting - environmentLighting * (1.0 - occlusion)
-                    color = this.linearTosRGB(color)
+                    color = this.linearTosRGB(this.tonemap(color, 1.0))
                     //color = [occlusion, occlusion, occlusion]
                     ti.outputColor(this.renderResultTexture, color.concat([1.0]))
                 }

@@ -43,6 +43,7 @@ export class Scene {
     lights: LightInfo[] = []
 
     ibl: HdrTexture | undefined = undefined
+    iblIntensity = 1.0
     iblShadows: ShadowInfo[] = []
 
     vertexAttribSet: VertexAttribSet = new VertexAttribSet(VertexAttrib.None)
