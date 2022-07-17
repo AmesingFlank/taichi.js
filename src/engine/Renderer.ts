@@ -673,7 +673,7 @@ export class Renderer {
 
                         let vis = 1.0;
                         //@ts-ignore
-                        if (sampledPointDepth > ti.textureLoad(this.depthPrePassTexture, ti.i32(texCoords * (this.depthPrePassTexture.dimensions - 1)))) {
+                        if (sampledPointDepth >= ti.textureLoad(this.depthPrePassTexture, ti.i32(texCoords * (this.depthPrePassTexture.dimensions - 1)))) {
                             vis = 0.0
                         }
                         let gBufferNormal = ti.textureSample(this.gNormalTexture, texCoords).rgb
@@ -780,7 +780,7 @@ export class Renderer {
                     let randomSource = this.hammersley2d(sampleId, numSamples)
                     let sample = this.cosineSampleHemisphere(randomSource)
                     let length = Math.random()
-                    length = this.lerp(0.1, 1.0, length * length)
+                    length = this.lerp(0.1, 1.0, length)
                     sample *= length
                     //@ts-ignore
                     this.hbaoSamples[I] = sample
