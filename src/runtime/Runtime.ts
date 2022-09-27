@@ -455,7 +455,7 @@ class Runtime {
         if (context === null) {
             error("canvas webgpu context is null")
         }
-        let presentationFormat = context!.getPreferredFormat(this.adapter!)
+        let presentationFormat = navigator.gpu.getPreferredCanvasFormat()
 
         context!.configure({
             device: this.device!,
