@@ -711,7 +711,7 @@ export class CodegenVisitor extends IRVisitor {
                 this.emitLet(newVal, "f32")
                 this.body.write(`${newValExpr};\n`)
 
-                this.body.write(this.getIndentation(), `if(atomicCompareExchangeWeak(${ptr}, bitcast<i32>(${oldVal}), bitcast<i32>(${newVal})).y!=0){\n`)
+                this.body.write(this.getIndentation(), `if(atomicCompareExchangeWeak(${ptr}, bitcast<i32>(${oldVal}), bitcast<i32>(${newVal})).exchanged){\n`)
                 this.indent()
                 this.body.write(this.getIndentation(), `${result} = ${oldVal};\n`)
                 this.body.write(this.getIndentation(), `break;\n`)
