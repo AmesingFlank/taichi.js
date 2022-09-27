@@ -910,7 +910,7 @@ export class CodegenVisitor extends IRVisitor {
     startComputeFunction(blockSizeX: number) {
         assert(this.funtionSignature.empty(), "already has a signature")
         let signature = `
-@stage(compute) @workgroup_size(${blockSizeX}, 1, 1)
+@compute @workgroup_size(${blockSizeX}, 1, 1)
 fn main(
     @builtin(global_invocation_id) gid3 : vec3<u32>, 
     @builtin(num_workgroups) n_workgroups : vec3<u32>) 
@@ -944,7 +944,7 @@ fn main(
             maybeOutput = "-> StageOutput"
         }
         let signature = `
-@stage(${stageName})
+@${stageName}
 fn main(${builtInInput} ${stageInput}) ${maybeOutput}
 {
 `
