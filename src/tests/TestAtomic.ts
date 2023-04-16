@@ -38,7 +38,7 @@ async function testAtomic(): Promise<boolean> {
         }
     )
 
-    kernel()
+    await kernel()
     
     let f1Host = await f1.toArray1D()
     let f2Host = await f2.toArray1D()
@@ -66,6 +66,25 @@ async function testAtomic(): Promise<boolean> {
     for(let i = 0;i<n2; ++i){
         passed &&= assertEqual([i2Host[i]], [i])
     }
+
+
+    let kernelGtemps = ti.kernel(
+        () => {
+            let s = 0.0
+            for(let i of range(100)){
+                s += i
+            }
+            return s
+        }
+    )
+    let returnValue = await kernelGtemps()
+    let expectedReturnValue = 0
+    for(let i of ti.range(100)){
+        expectedReturnValue += i
+    }
+    passed &&= assertEqual(returnValue, expectedReturnValue)
+    console.log(returnValue)
+
     return passed
 }
 

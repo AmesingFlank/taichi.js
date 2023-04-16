@@ -621,7 +621,6 @@ export class CodegenVisitor extends IRVisitor {
         let dtName = this.getPrimitiveTypeName(dt)
         let resourceInfo: ResourceInfo
         let dest = stmt.getDestination()
-        assert(dest.getKind() === StmtKind.GlobalPtrStmt, "atomic can only be applied to global mem (fields)")
         if (dest.getKind() === StmtKind.GlobalPtrStmt) {
             dest = dest as GlobalPtrStmt
             resourceInfo = new ResourceInfo(ResourceType.RootAtomic, (dest as GlobalPtrStmt).field.snodeTree.treeId)
