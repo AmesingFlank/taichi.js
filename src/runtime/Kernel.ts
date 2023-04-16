@@ -5,7 +5,7 @@ import { Field } from "../data/Field"
 import { error } from "../utils/Logging"
 import { Runtime } from "./Runtime"
 enum ResourceType {
-    Root, RootAtomic, GlobalTmps, Args, RandStates, Rets, Texture, Sampler, StorageTexture
+    Root, RootAtomic, GlobalTmps, GlobalTmpsAtomic, Args, RandStates, Rets, Texture, Sampler, StorageTexture
 }
 
 class ResourceInfo {

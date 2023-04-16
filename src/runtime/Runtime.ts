@@ -321,7 +321,8 @@ class Runtime {
                     buffer = this.materializedTrees[binding.info.resourceID!].rootBuffer!
                     break;
                 }
-                case ResourceType.GlobalTmps: {
+                case ResourceType.GlobalTmps:
+                case ResourceType.GlobalTmpsAtomic: {
                     buffer = this.globalTmpsBuffer!
                     break;
                 }

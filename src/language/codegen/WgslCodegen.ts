@@ -549,56 +549,71 @@ export class CodegenVisitor extends IRVisitor {
         this.body.write(stmt.offset, ";\n");
     }
 
-    emitGlobalLoadExpr(stmt: GlobalLoadStmt | GlobalTemporaryLoadStmt) {
+    emitGlobalLoadExpr(stmt: GlobalLoadStmt | GlobalTemporaryLoadStmt | AtomicLoadStmt, atomic:boolean = false) {
         let resourceInfo: ResourceInfo
         let ptr = stmt.getPointer()
         if (ptr.getKind() === StmtKind.GlobalPtrStmt) {
             ptr = ptr as GlobalPtrStmt
-            resourceInfo = new ResourceInfo(ResourceType.Root, ptr.field.snodeTree.treeId)
+            let resourceType = atomic?ResourceType.RootAtomic : ResourceType.Root
+            resourceInfo = new ResourceInfo(resourceType, ptr.field.snodeTree.treeId)
             let tree = this.runtime.materializedTrees[ptr.field.snodeTree.treeId]
             if (tree.fragmentShaderWritable) {
                 error("A vertex shader cannot read from a field marked as `fragmentShaderWritable`")
             }
         }
         else {
-            resourceInfo = new ResourceInfo(ResourceType.GlobalTmps)
+            let resourceType = atomic?ResourceType.GlobalTmpsAtomic : ResourceType.GlobalTmps
+            resourceInfo = new ResourceInfo(resourceType)
         }
         let bufferName = this.getBufferMemberName(resourceInfo)
         let dt = stmt.getReturnType()
         let dtName = this.getPrimitiveTypeName(dt)
         this.emitLet(stmt.getName(), dt)
-        this.body.write(`bitcast<${dtName}>(${bufferName}[${ptr.getName()}]);\n`)
+        if (atomic){
+            this.body.write(`bitcast<${dtName}>(atomicLoad(&(${bufferName}[${ptr.getName()}])));\n`)
+        }
+        else{
+            this.body.write(`bitcast<${dtName}>(${bufferName}[${ptr.getName()}]);\n`)
+        }
     }
 
-    emitGlobalStore(stmt: GlobalStoreStmt | GlobalTemporaryStoreStmt) {
+    emitGlobalStore(stmt: GlobalStoreStmt | GlobalTemporaryStoreStmt| AtomicStoreStmt, atomic:boolean = false) {
         let resourceInfo: ResourceInfo
         let ptr = stmt.getPointer()
         if (ptr.getKind() === StmtKind.GlobalPtrStmt) {
             ptr = ptr as GlobalPtrStmt
-            resourceInfo = new ResourceInfo(ResourceType.Root, ptr.field.snodeTree.treeId)
+            let resourceType = atomic?ResourceType.RootAtomic : ResourceType.Root
+            resourceInfo = new ResourceInfo(resourceType, ptr.field.snodeTree.treeId)
         }
         else {
-            resourceInfo = new ResourceInfo(ResourceType.GlobalTmps)
+            let resourceType = atomic?ResourceType.GlobalTmpsAtomic : ResourceType.GlobalTmps
+            resourceInfo = new ResourceInfo(resourceType)
         }
         let bufferName = this.getBufferMemberName(resourceInfo)
         this.assertBufferWritable(resourceInfo)
-        this.body.write(this.getIndentation(), `${bufferName}[${ptr.getName()}] = bitcast<${this.getRawDataTypeName()}>(${stmt.getValue().getName()});\n`)
+        let value = `bitcast<${this.getRawDataTypeName()}>(${stmt.getValue().getName()})`
+        if (atomic){
+            this.body.write(this.getIndentation(),`atomicStore(&(${bufferName}[${ptr.getName()}]), ${value});\n`)
+        }
+        else{
+            this.body.write(this.getIndentation(), `${bufferName}[${ptr.getName()}] = ${value};\n`)
+        }
     }
 
     override visitGlobalLoadStmt(stmt: GlobalLoadStmt): void {
-        this.emitGlobalLoadExpr(stmt)
+        this.emitGlobalLoadExpr(stmt, /*atomic=*/ false)
     }
 
     override visitGlobalStoreStmt(stmt: GlobalStoreStmt): void {
-        this.emitGlobalStore(stmt)
+        this.emitGlobalStore(stmt,/*atomic=*/ false)
     }
 
     override visitGlobalTemporaryLoadStmt(stmt: GlobalTemporaryLoadStmt): void {
-        this.emitGlobalLoadExpr(stmt)
+        this.emitGlobalLoadExpr(stmt,/*atomic=*/ false)
     }
 
     override visitGlobalTemporaryStoreStmt(stmt: GlobalTemporaryStoreStmt): void {
-        this.emitGlobalStore(stmt)
+        this.emitGlobalStore(stmt,/*atomic=*/ false)
     }
 
     override visitAtomicOpStmt(stmt: AtomicOpStmt): void {
@@ -612,8 +627,7 @@ export class CodegenVisitor extends IRVisitor {
             resourceInfo = new ResourceInfo(ResourceType.RootAtomic, (dest as GlobalPtrStmt).field.snodeTree.treeId)
         }
         else {
-            error("atomics on global temporary variables are not supported")
-            resourceInfo = new ResourceInfo(ResourceType.GlobalTmps)
+            resourceInfo = new ResourceInfo(ResourceType.GlobalTmpsAtomic)
         }
         this.assertBufferWritable(resourceInfo)
         let bufferName = this.getBufferMemberName(resourceInfo)
@@ -730,11 +744,11 @@ export class CodegenVisitor extends IRVisitor {
     }
 
     override visitAtomicLoadStmt(stmt: AtomicLoadStmt): void {
-        
+        this.emitGlobalLoadExpr(stmt,/*atomic=*/ true)
     }
 
     override visitAtomicStoreStmt(stmt: AtomicStoreStmt): void {
-        
+        this.emitGlobalStore(stmt,/*atomic=*/ true)
     }
 
     override visitLoopIndexStmt(stmt: LoopIndexStmt): void {
@@ -750,11 +764,11 @@ export class CodegenVisitor extends IRVisitor {
     }
 
     override visitFragmentForStmt(stmt: FragmentForStmt): void {
-        error(" this should have been offloaded")
+        error("FragmentForStmt should have been offloaded")
     }
 
     override visitVertexForStmt(stmt: VertexForStmt): void {
-        error(" this should have been offloaded")
+        error("VertexForStmt should have been offloaded")
     }
 
     generateSerialKernel(): TaskParams {
@@ -1040,6 +1054,10 @@ fn main(${builtInInput} ${stageInput}) ${maybeOutput}
         return "i32"
     }
 
+    getAtomicRawDataTypeName() {
+        return `atomic<${this.getRawDataTypeName()}>`
+    }
+
     getRawDataTypeSize() {
         return 4
     }
@@ -1056,6 +1074,10 @@ fn main(${builtInInput} ${stageInput}) ${maybeOutput}
                 // WGSL doesn't allow atomic<vec4<i32>>, so the type size is always 4
             }
             case ResourceType.GlobalTmps: {
+                return divUp(65536, this.getRawDataTypeSize());
+                // maximum size (ubo) allowed by WebGPU Chrome DX backend. matches Runtime.ts
+            }
+            case ResourceType.GlobalTmpsAtomic: {
                 return divUp(65536, this.getRawDataTypeSize());
                 // maximum size (ubo) allowed by WebGPU Chrome DX backend. matches Runtime.ts
             }
@@ -1095,11 +1117,16 @@ fn main(${builtInInput} ${stageInput}) ${maybeOutput}
             }
             case ResourceType.RootAtomic: {
                 name = `root_buffer_atomic_binding_${binding}`
-                elementType = "atomic<i32>";
+                elementType = this.getAtomicRawDataTypeName();
                 break;
             }
             case ResourceType.GlobalTmps: {
                 name = "global_tmps_";
+                break;
+            }
+            case ResourceType.GlobalTmpsAtomic: {
+                name = "global_tmps_atomic_";
+                elementType = this.getAtomicRawDataTypeName();
                 break;
             }
             case ResourceType.RandStates: {
@@ -1152,7 +1179,7 @@ fn main(${builtInInput} ${stageInput}) ${maybeOutput}
     assertBufferWritable(buffer: ResourceInfo) {
         // vertex shader not allowed to write to global memory
         if (this.isVertexFor()) {
-            if (buffer.resourceType === ResourceType.GlobalTmps) {
+            if (buffer.resourceType === ResourceType.GlobalTmps || buffer.resourceType === ResourceType.GlobalTmpsAtomic) {
                 error("a vertex shader is not allowed to write to global temporary variables")
             }
             else if (buffer.resourceType === ResourceType.Root || buffer.resourceType === ResourceType.RootAtomic) {
@@ -1165,7 +1192,7 @@ fn main(${builtInInput} ${stageInput}) ${maybeOutput}
         if (this.isFragmentFor()) {
             for (let vertexBinding of this.previousStageBindings) {
                 if (vertexBinding.info.equals(buffer)) {
-                    if (buffer.resourceType === ResourceType.GlobalTmps) {
+                    if (buffer.resourceType === ResourceType.GlobalTmps || buffer.resourceType === ResourceType.GlobalTmpsAtomic) {
                         error("a fragment shader is not allowed to write to global temporary variables, if the corresponding vertex shader reads any global temporary variable")
                     }
                     else if (buffer.resourceType === ResourceType.Root || buffer.resourceType === ResourceType.RootAtomic) {

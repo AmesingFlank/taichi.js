@@ -44,8 +44,8 @@ export declare class CodegenVisitor extends IRVisitor {
     visitLocalStoreStmt(stmt: LocalStoreStmt): void;
     visitGlobalPtrStmt(stmt: GlobalPtrStmt): void;
     visitGlobalTemporaryStmt(stmt: GlobalTemporaryStmt): void;
-    emitGlobalLoadExpr(stmt: GlobalLoadStmt | GlobalTemporaryLoadStmt): void;
-    emitGlobalStore(stmt: GlobalStoreStmt | GlobalTemporaryStoreStmt): void;
+    emitGlobalLoadExpr(stmt: GlobalLoadStmt | GlobalTemporaryLoadStmt | AtomicLoadStmt, atomic?: boolean): void;
+    emitGlobalStore(stmt: GlobalStoreStmt | GlobalTemporaryStoreStmt | AtomicStoreStmt, atomic?: boolean): void;
     visitGlobalLoadStmt(stmt: GlobalLoadStmt): void;
     visitGlobalStoreStmt(stmt: GlobalStoreStmt): void;
     visitGlobalTemporaryLoadStmt(stmt: GlobalTemporaryLoadStmt): void;
@@ -99,6 +99,7 @@ export declare class CodegenVisitor extends IRVisitor {
     isVertexFor(): boolean;
     isFragmentFor(): boolean;
     getRawDataTypeName(): string;
+    getAtomicRawDataTypeName(): string;
     getRawDataTypeSize(): number;
     getElementCount(buffer: ResourceInfo): number;
     resourceBindings: ResourceBindingMap;

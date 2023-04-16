@@ -7,12 +7,13 @@ declare enum ResourceType {
     Root = 0,
     RootAtomic = 1,
     GlobalTmps = 2,
-    Args = 3,
-    RandStates = 4,
-    Rets = 5,
-    Texture = 6,
-    Sampler = 7,
-    StorageTexture = 8
+    GlobalTmpsAtomic = 3,
+    Args = 4,
+    RandStates = 5,
+    Rets = 6,
+    Texture = 7,
+    Sampler = 8,
+    StorageTexture = 9
 }
 declare class ResourceInfo {
     resourceType: ResourceType;
