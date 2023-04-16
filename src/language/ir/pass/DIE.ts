@@ -11,7 +11,7 @@ class IdentifyUsefulInstructions extends IRVisitor {
         let kind = stmt.getKind()
         if ([
             StmtKind.GlobalStoreStmt, StmtKind.LocalStoreStmt, StmtKind.GlobalTemporaryStoreStmt,
-            StmtKind.ReturnStmt, StmtKind.AtomicOpStmt,
+            StmtKind.ReturnStmt, StmtKind.AtomicOpStmt, StmtKind.AtomicLoadStmt, StmtKind.AtomicStoreStmt,
             StmtKind.IfStmt, StmtKind.WhileStmt, StmtKind.RangeForStmt, StmtKind.FragmentForStmt, StmtKind.VertexForStmt,
             StmtKind.WhileControlStmt, StmtKind.ContinueStmt, StmtKind.DiscardStmt,
             StmtKind.VertexOutputStmt, StmtKind.BuiltInOutputStmt,

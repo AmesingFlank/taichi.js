@@ -1,7 +1,7 @@
 import { Field } from "../../data/Field";
 import { TextureBase } from "../../data/Texture";
 import { PrimitiveType } from "../frontend/Type";
-import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, AtomicOpType, BinaryOpStmt, BinaryOpType, Block, BuiltInInputStmt, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, IRModule, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, PointerStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
+import { AllocaStmt, ArgLoadStmt, AtomicLoadStmt, AtomicOpStmt, AtomicOpType, AtomicStoreStmt, BinaryOpStmt, BinaryOpType, Block, BuiltInInputStmt, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, IRModule, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, PointerStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
 export declare class IRBuilder {
     constructor();
     module: IRModule;
@@ -22,6 +22,8 @@ export declare class IRBuilder {
     create_binary_op(lhs: Stmt, rhs: Stmt, op: BinaryOpType): BinaryOpStmt;
     create_unary_op(operand: Stmt, op: UnaryOpType): UnaryOpStmt;
     create_atomic_op(dest: PointerStmt, val: Stmt, op: AtomicOpType): AtomicOpStmt;
+    create_atomic_load(ptr: PointerStmt): AtomicLoadStmt;
+    create_atomic_store(ptr: PointerStmt, value: AtomicStoreStmt): AtomicStoreStmt;
     create_while_true(): WhileStmt;
     create_if(cond: Stmt): IfStmt;
     create_break(): WhileControlStmt;

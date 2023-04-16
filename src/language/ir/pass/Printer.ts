@@ -1,7 +1,7 @@
 import { error } from "../../../utils/Logging";
 import { StringBuilder } from "../../../utils/StringBuilder";
 import { PrimitiveType } from "../../frontend/Type";
-import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, AtomicOpType, BinaryOpStmt, BinaryOpType, BuiltInInputKind, BuiltInInputStmt, BuiltInOutputKind, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeDirection, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, IRModule, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionKind, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "../Stmt";
+import { AllocaStmt, ArgLoadStmt, AtomicLoadStmt, AtomicOpStmt, AtomicOpType, AtomicStoreStmt, BinaryOpStmt, BinaryOpType, BuiltInInputKind, BuiltInInputStmt, BuiltInOutputKind, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeDirection, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, IRModule, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionKind, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "../Stmt";
 import { IRVisitor } from "../Visitor";
 
 function str(stmt: Stmt) {
@@ -173,6 +173,13 @@ class IRPrinter extends IRVisitor {
         }
         this.write(`${str(stmt)} : ${typeName(stmt.getReturnType())} = atomic op ${f()}, dest ${str(stmt.getDestination())}, operand ${str(stmt.getOperand())}`)
     }
+    override visitAtomicLoadStmt(stmt: AtomicLoadStmt) {
+        this.write(`${str(stmt)} : ${typeName(stmt.getReturnType())} = atomic load, ptr ${str(stmt.getPointer())}`)
+    }
+    override visitAtomicStoreStmt(stmt: AtomicStoreStmt) {
+        this.write(`${str(stmt)} : ${typeName(stmt.getReturnType())} = atomic store, ptr ${str(stmt.getPointer())}, val ${str(stmt.getValue())}`)
+    }
+
     override visitVertexForStmt(stmt: VertexForStmt) {
         this.write(`${str(stmt)} = vertex for {`)
         this.indent()

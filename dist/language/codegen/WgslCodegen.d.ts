@@ -2,7 +2,7 @@ import { FragmentShaderParams, ResourceBinding, ResourceInfo, TaskParams, Vertex
 import { Runtime } from "../../runtime/Runtime";
 import { StringBuilder } from "../../utils/StringBuilder";
 import { PrimitiveType } from "../frontend/Type";
-import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, BinaryOpStmt, BuiltInInputStmt, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionStmt, UnaryOpStmt, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "../ir/Stmt";
+import { AllocaStmt, ArgLoadStmt, AtomicLoadStmt, AtomicOpStmt, AtomicStoreStmt, BinaryOpStmt, BuiltInInputStmt, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionStmt, UnaryOpStmt, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "../ir/Stmt";
 import { IRVisitor } from "../ir/Visitor";
 import { OffloadedModule } from "./Offload";
 declare class ResourceBindingMap {
@@ -51,6 +51,8 @@ export declare class CodegenVisitor extends IRVisitor {
     visitGlobalTemporaryLoadStmt(stmt: GlobalTemporaryLoadStmt): void;
     visitGlobalTemporaryStoreStmt(stmt: GlobalTemporaryStoreStmt): void;
     visitAtomicOpStmt(stmt: AtomicOpStmt): void;
+    visitAtomicLoadStmt(stmt: AtomicLoadStmt): void;
+    visitAtomicStoreStmt(stmt: AtomicStoreStmt): void;
     visitLoopIndexStmt(stmt: LoopIndexStmt): void;
     visitFragmentForStmt(stmt: FragmentForStmt): void;
     visitVertexForStmt(stmt: VertexForStmt): void;

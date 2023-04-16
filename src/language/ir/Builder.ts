@@ -1,7 +1,7 @@
 import { Field } from "../../data/Field";
 import { TextureBase } from "../../data/Texture";
 import { PrimitiveType } from "../frontend/Type";
-import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, AtomicOpType, BinaryOpStmt, BinaryOpType, Block, BuiltInInputKind, BuiltInInputStmt, BuiltInOutputKind, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeDirection, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, IRModule, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, PointerStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionKind, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
+import { AllocaStmt, ArgLoadStmt, AtomicLoadStmt, AtomicOpStmt, AtomicOpType, AtomicStoreStmt, BinaryOpStmt, BinaryOpType, Block, BuiltInInputKind, BuiltInInputStmt, BuiltInOutputKind, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeDirection, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, IRModule, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, PointerStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionKind, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
 
 // designed to have the same API as native taichi's IRBuilder
 // which is why there're some camel_case and camelCase mash-ups
@@ -75,6 +75,14 @@ export class IRBuilder {
 
     create_atomic_op(dest: PointerStmt, val: Stmt, op: AtomicOpType) {
         return this.pushNewStmt(new AtomicOpStmt(dest, val, op, this.getNewId()))
+    }
+
+    create_atomic_load(ptr: PointerStmt) {
+        return this.pushNewStmt(new AtomicLoadStmt(ptr, this.getNewId()))
+    }
+
+    create_atomic_store(ptr: PointerStmt, value: AtomicStoreStmt) {
+        return this.pushNewStmt(new AtomicStoreStmt(ptr, value, this.getNewId()))
     }
 
     create_while_true() {

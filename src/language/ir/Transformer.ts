@@ -1,5 +1,5 @@
 import { Guard, IRBuilder } from "./Builder";
-import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, BinaryOpStmt, Block, BuiltInInputStmt, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, IRModule, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionStmt, UnaryOpStmt, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
+import { AllocaStmt, ArgLoadStmt, AtomicLoadStmt, AtomicOpStmt, AtomicStoreStmt, BinaryOpStmt, Block, BuiltInInputStmt, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, IRModule, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionStmt, UnaryOpStmt, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
 import { IRVisitor } from "./Visitor";
 
 export class IRTransformer extends IRVisitor {
@@ -8,7 +8,7 @@ export class IRTransformer extends IRVisitor {
 
     module: IRModule = new IRModule;
 
-    transform(module:IRModule) {
+    transform(module: IRModule) {
         this.module = module;
         this.visitBlock(module.block)
     }
@@ -102,6 +102,12 @@ export class IRTransformer extends IRVisitor {
         this.pushNewStmt(stmt)
     }
     override visitAtomicOpStmt(stmt: AtomicOpStmt) {
+        this.pushNewStmt(stmt)
+    }
+    override visitAtomicLoadStmt(stmt: AtomicLoadStmt) {
+        this.pushNewStmt(stmt)
+    }
+    override visitAtomicStoreStmt(stmt: AtomicStoreStmt) {
         this.pushNewStmt(stmt)
     }
     override visitVertexForStmt(stmt: VertexForStmt) {

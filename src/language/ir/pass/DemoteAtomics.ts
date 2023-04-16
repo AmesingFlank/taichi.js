@@ -1,4 +1,4 @@
-import { AllocaStmt, AtomicOpStmt, AtomicOpType, BinaryOpStmt, BinaryOpType, IRModule, LocalLoadStmt, LocalStoreStmt, StmtKind } from "../Stmt";
+import { AllocaStmt, AtomicLoadStmt, AtomicOpStmt, AtomicOpType, AtomicStoreStmt, BinaryOpStmt, BinaryOpType, IRModule, LocalLoadStmt, LocalStoreStmt, StmtKind } from "../Stmt";
 import { IRTransformer } from "../Transformer";
 import { DelayedStmtReplacer } from "./Replacer";
 
@@ -28,6 +28,24 @@ class DemoteAtomicsPass extends IRTransformer {
         let binaryOpStmt = this.pushNewStmt(new BinaryOpStmt(lhs, rhs, binaryOp, this.module.getNewId()))
         this.replacer.markReplace(stmt, binaryOpStmt)
         this.pushNewStmt(new LocalStoreStmt(dest, binaryOpStmt, this.module.getNewId()))
+    }
+    override visitAtomicLoadStmt(stmt: AtomicLoadStmt) {
+        if (stmt.getPointer().getKind() !== StmtKind.AllocaStmt) {
+            this.pushNewStmt(stmt)
+            return;
+        }
+        let ptr = stmt.getPointer() as AllocaStmt
+        let load = this.pushNewStmt(new LocalLoadStmt(ptr, this.module.getNewId()))
+        this.replacer.markReplace(stmt, load)
+    }
+    override visitAtomicStoreStmt(stmt: AtomicStoreStmt) {
+        if (stmt.getPointer().getKind() !== StmtKind.AllocaStmt) {
+            this.pushNewStmt(stmt)
+            return;
+        }
+        let ptr = stmt.getPointer() as AllocaStmt
+        let value = stmt.getValue()
+        this.pushNewStmt(new AtomicStoreStmt(ptr, value, this.module.getNewId()))
     }
     override transform(module: IRModule): void {
         super.transform(module)

@@ -24,17 +24,19 @@ export declare enum StmtKind {
     RandStmt = 19,
     ReturnStmt = 20,
     AtomicOpStmt = 21,
-    VertexForStmt = 22,
-    FragmentForStmt = 23,
-    VertexInputStmt = 24,
-    VertexOutputStmt = 25,
-    FragmentInputStmt = 26,
-    BuiltInOutputStmt = 27,
-    BuiltInInputStmt = 28,
-    FragmentDerivativeStmt = 29,
-    DiscardStmt = 30,
-    TextureFunctionStmt = 31,
-    CompositeExtractStmt = 32
+    AtomicLoadStmt = 22,
+    AtomicStoreStmt = 23,
+    VertexForStmt = 24,
+    FragmentForStmt = 25,
+    VertexInputStmt = 26,
+    VertexOutputStmt = 27,
+    FragmentInputStmt = 28,
+    BuiltInOutputStmt = 29,
+    BuiltInInputStmt = 30,
+    FragmentDerivativeStmt = 31,
+    DiscardStmt = 32,
+    TextureFunctionStmt = 33,
+    CompositeExtractStmt = 34
 }
 export declare abstract class Stmt {
     id: number;
@@ -247,6 +249,20 @@ export declare class AtomicOpStmt extends Stmt {
     getKind(): StmtKind;
     getDestination(): PointerStmt;
     getOperand(): Stmt;
+}
+export declare class AtomicLoadStmt extends Stmt {
+    ptr: PointerStmt;
+    constructor(ptr: PointerStmt, id: number, nameHint?: string);
+    getPointer(): PointerStmt;
+    getKind(): StmtKind;
+}
+export declare class AtomicStoreStmt extends Stmt {
+    ptr: PointerStmt;
+    value: Stmt;
+    constructor(ptr: PointerStmt, value: Stmt, id: number, nameHint?: string);
+    getPointer(): PointerStmt;
+    getValue(): Stmt;
+    getKind(): StmtKind;
 }
 export declare class VertexForStmt extends Stmt {
     body: Block;

@@ -1,5 +1,5 @@
 import { error } from "../../utils/Logging";
-import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, BinaryOpStmt, Block, BuiltInInputStmt, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, IRModule, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, StmtKind, TextureFunctionStmt, UnaryOpStmt, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
+import { AllocaStmt, ArgLoadStmt, AtomicLoadStmt, AtomicOpStmt, AtomicStoreStmt, BinaryOpStmt, Block, BuiltInInputStmt, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, IRModule, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, StmtKind, TextureFunctionStmt, UnaryOpStmt, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
 
 
 export abstract class IRVisitor {
@@ -79,6 +79,12 @@ export abstract class IRVisitor {
             case StmtKind.AtomicOpStmt:
                 this.visitAtomicOpStmt(stmt as AtomicOpStmt)
                 break;
+            case StmtKind.AtomicLoadStmt:
+                this.visitAtomicLoadStmt(stmt as AtomicLoadStmt)
+                break;
+            case StmtKind.AtomicStoreStmt:
+                this.visitAtomicStoreStmt(stmt as AtomicStoreStmt)
+                break;
             case StmtKind.VertexForStmt:
                 this.visitVertexForStmt(stmt as VertexForStmt)
                 break;
@@ -147,6 +153,8 @@ export abstract class IRVisitor {
     visitRandStmt(stmt: RandStmt) { }
     visitReturnStmt(stmt: ReturnStmt) { }
     visitAtomicOpStmt(stmt: AtomicOpStmt) { }
+    visitAtomicLoadStmt(stmt: AtomicLoadStmt) { }
+    visitAtomicStoreStmt(stmt: AtomicStoreStmt) { }
     visitVertexForStmt(stmt: VertexForStmt) {
         this.visitBlock(stmt.body)
     }

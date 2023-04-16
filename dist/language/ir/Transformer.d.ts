@@ -1,5 +1,5 @@
 import { Guard } from "./Builder";
-import { AllocaStmt, ArgLoadStmt, AtomicOpStmt, BinaryOpStmt, Block, BuiltInInputStmt, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, IRModule, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionStmt, UnaryOpStmt, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
+import { AllocaStmt, ArgLoadStmt, AtomicLoadStmt, AtomicOpStmt, AtomicStoreStmt, BinaryOpStmt, Block, BuiltInInputStmt, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, IRModule, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionStmt, UnaryOpStmt, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
 import { IRVisitor } from "./Visitor";
 export declare class IRTransformer extends IRVisitor {
     guards: Guard[];
@@ -30,6 +30,8 @@ export declare class IRTransformer extends IRVisitor {
     visitRandStmt(stmt: RandStmt): void;
     visitReturnStmt(stmt: ReturnStmt): void;
     visitAtomicOpStmt(stmt: AtomicOpStmt): void;
+    visitAtomicLoadStmt(stmt: AtomicLoadStmt): void;
+    visitAtomicStoreStmt(stmt: AtomicStoreStmt): void;
     visitVertexForStmt(stmt: VertexForStmt): void;
     visitFragmentForStmt(stmt: FragmentForStmt): void;
     visitVertexInputStmt(stmt: VertexInputStmt): void;

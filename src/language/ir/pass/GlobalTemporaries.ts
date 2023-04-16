@@ -1,6 +1,6 @@
 import { error } from "../../../utils/Logging"
 import { PrimitiveType } from "../../frontend/Type"
-import { WhileStmt, IfStmt, VertexForStmt, FragmentForStmt, RangeForStmt, Stmt, AllocaStmt, LocalLoadStmt, LocalStoreStmt, AtomicOpStmt, StmtKind, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, IRModule, GlobalTemporaryStoreStmt, isPointerStmt } from "../Stmt"
+import { WhileStmt, IfStmt, VertexForStmt, FragmentForStmt, RangeForStmt, Stmt, AllocaStmt, LocalLoadStmt, LocalStoreStmt, AtomicOpStmt, StmtKind, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, IRModule, GlobalTemporaryStoreStmt, isPointerStmt, AtomicLoadStmt, AtomicStoreStmt } from "../Stmt"
 import { IRTransformer } from "../Transformer"
 import { IRVisitor } from "../Visitor"
 import { DelayedStmtReplacer } from "./Replacer"
@@ -63,6 +63,16 @@ class IdentifyAllocasUsedInParallelForsPass extends IRVisitor {
             this.maybeAllocateGtemp(stmt.getDestination() as AllocaStmt)
         }
     }
+    override visitAtomicLoadStmt(stmt: AtomicLoadStmt): void {
+        if (stmt.getPointer().getKind() === StmtKind.AllocaStmt) {
+            this.maybeAllocateGtemp(stmt.getPointer() as AllocaStmt)
+        }
+    }
+    override visitAtomicStoreStmt(stmt: AtomicStoreStmt): void {
+        if (stmt.getPointer().getKind() === StmtKind.AllocaStmt) {
+            this.maybeAllocateGtemp(stmt.getPointer() as AllocaStmt)
+        }
+    }
 }
 
 class ReplaceAllocasUsedInParallelForsPass extends IRTransformer {
@@ -110,6 +120,33 @@ class ReplaceAllocasUsedInParallelForsPass extends IRTransformer {
                 this.pushNewStmt(gtemp)
                 this.pushNewStmt(atomicStmt)
                 this.replacer.markReplace(stmt, atomicStmt)
+                return
+            }
+        }
+        this.pushNewStmt(stmt)
+    }
+    override visitAtomicLoadStmt(stmt: AtomicLoadStmt): void {
+        if (stmt.getPointer().getKind() === StmtKind.AllocaStmt) {
+            let alloca = stmt.getPointer() as AllocaStmt
+            let gtemp = this.maybeGetReplacementGtemp(alloca)
+            if (gtemp) {
+                let atomicStmt = new AtomicLoadStmt(gtemp, this.module.getNewId())
+                this.pushNewStmt(gtemp)
+                this.pushNewStmt(atomicStmt)
+                this.replacer.markReplace(stmt, atomicStmt)
+                return
+            }
+        }
+        this.pushNewStmt(stmt)
+    }
+    override visitAtomicStoreStmt(stmt: AtomicStoreStmt): void {
+        if (stmt.getPointer().getKind() === StmtKind.AllocaStmt) {
+            let alloca = stmt.getPointer() as AllocaStmt
+            let gtemp = this.maybeGetReplacementGtemp(alloca)
+            if (gtemp) {
+                let atomicStmt = new AtomicStoreStmt(gtemp, stmt.getValue(), this.module.getNewId())
+                this.pushNewStmt(gtemp)
+                this.pushNewStmt(atomicStmt)
                 return
             }
         }

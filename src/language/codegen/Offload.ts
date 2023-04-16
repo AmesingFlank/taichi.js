@@ -1,6 +1,6 @@
 import { assert, error } from "../../utils/Logging";
 import { Guard } from "../ir/Builder";
-import { AtomicOpStmt, ConstStmt, ContinueStmt, FragmentForStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStoreStmt, IRModule, RangeForStmt, ReturnStmt, Stmt, StmtKind, VertexForStmt } from "../ir/Stmt";
+import { AtomicOpStmt, AtomicStoreStmt, ConstStmt, ContinueStmt, FragmentForStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStoreStmt, IRModule, RangeForStmt, ReturnStmt, Stmt, StmtKind, VertexForStmt } from "../ir/Stmt";
 import { IRTransformer } from "../ir/Transformer";
 import { IRVisitor } from "../ir/Visitor";
 
@@ -123,6 +123,9 @@ class IdentifyTrivialSerialModule extends IRVisitor {
         this.isTrivial = false
     }
     override visitAtomicOpStmt(stmt: AtomicOpStmt): void {
+        this.isTrivial = false
+    }
+    override visitAtomicStoreStmt(stmt: AtomicStoreStmt): void {
         this.isTrivial = false
     }
     override visitReturnStmt(stmt: ReturnStmt): void {

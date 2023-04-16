@@ -30,6 +30,8 @@ export enum StmtKind {
     RandStmt,
     ReturnStmt,
     AtomicOpStmt,
+    AtomicLoadStmt,
+    AtomicStoreStmt,
 
     VertexForStmt,
     FragmentForStmt,
@@ -596,6 +598,45 @@ export class AtomicOpStmt extends Stmt {
     }
     getOperand() {
         return this.operands[1]
+    }
+}
+
+export class AtomicLoadStmt extends Stmt {
+    constructor(
+        public ptr: PointerStmt,
+        id: number,
+        nameHint: string = ""
+    ) {
+        let returnType = getPointedType(ptr)
+        super(id, returnType, nameHint)
+        this.operands = [ptr]
+    }
+    getPointer() {
+        return this.operands[0] as PointerStmt
+    }
+    override getKind(): StmtKind {
+        return StmtKind.AtomicLoadStmt
+    }
+}
+
+export class AtomicStoreStmt extends Stmt {
+    constructor(
+        public ptr: PointerStmt,
+        public value: Stmt,
+        id: number,
+        nameHint: string = ""
+    ) {
+        super(id, undefined, nameHint)
+        this.operands = [ptr, value]
+    }
+    getPointer() {
+        return this.operands[0] as PointerStmt
+    }
+    getValue() {
+        return this.operands[1]
+    }
+    override getKind(): StmtKind {
+        return StmtKind.AtomicStoreStmt
     }
 }
 
