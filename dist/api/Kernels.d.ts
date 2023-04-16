@@ -1,0 +1,13 @@
+import { PrimitiveType } from "../language/frontend/Type";
+import { Template } from '../language/frontend/KernelFactory';
+export declare function addToKernelScope(obj: any): void;
+export declare function clearKernelScope(): void;
+export declare function template(): Template;
+export declare type KernelType = ((...args: any[]) => any);
+export declare type FuncType = ((...args: any[]) => any);
+export declare function kernel(argTypesOrCode: any, codeOrUndefined?: any): KernelType;
+export declare function classKernel(thisObj: any, argTypesOrCode: any, codeOrUndefined?: any): KernelType;
+export declare function func(f: any): FuncType;
+export declare function sync(): Promise<void>;
+export declare const i32 = PrimitiveType.i32;
+export declare const f32 = PrimitiveType.f32;
