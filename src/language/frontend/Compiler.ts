@@ -25,6 +25,7 @@ import { stringifyIR } from "../ir/pass/Printer";
 import { fixOpTypes } from "../ir/pass/FixOpTypes";
 import { remapIds } from "../ir/pass/RemapIds";
 import { deadInstructionElimination } from "../ir/pass/DIE";
+import { promoteLoadStoreToAtomics } from "../ir/pass/PromoteLoadStoreToAtomics";
 
 enum LoopKind {
     For, While, VertexFor, FragmentFor
@@ -1819,6 +1820,9 @@ export class KernelCompiler extends CompilingVisitor {
 
         demoteAtomics(irModule)
         if (printIR) console.log("demoted atomics\n", stringifyIR(irModule))
+
+        promoteLoadStoreToAtomics(irModule)
+        if (printIR) console.log("promoted load stores to atomics\n", stringifyIR(irModule))
 
         let offloadedModules = offload(irModule)
         if (printIR) console.log("offloaded\n")
