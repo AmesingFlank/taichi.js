@@ -10,8 +10,8 @@ export declare class Renderer {
     private gPositionTexture;
     private directLightingTexture;
     private environmentLightingTexture;
-    private hbaoTexture;
-    private hbaoBlurredTexture;
+    private ssaoTexture;
+    private ssaoBlurredTexture;
     private renderResultTexture;
     private canvasTexture;
     private sceneData?;
@@ -22,7 +22,7 @@ export declare class Renderer {
     private iblLambertianFiltered?;
     private iblGGXFiltered?;
     private LUT?;
-    private hbaoSamples;
+    private ssaoSamples;
     private batchInfos;
     private batchesDrawInfos;
     private batchesDrawInstanceInfos;
@@ -61,14 +61,14 @@ export declare class Renderer {
     private gPrePassKernel;
     private shadowKernel;
     private renderKernel;
-    private hbaoKernel;
-    private hbaoBlurKernel;
+    private ssaoKernel;
+    private ssaoBlurKernel;
     private combineKernel;
     private presentKernel;
     init(): Promise<void>;
     initHelperFuncs(): Promise<void>;
     initKernels(): Promise<void>;
-    inithbao(): Promise<void>;
+    initSSAO(): Promise<void>;
     initIBL(): Promise<void>;
     computeDrawBatches(): Promise<void>;
     render(camera: Camera): Promise<void>;
