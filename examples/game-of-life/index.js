@@ -5,45 +5,51 @@ let main = async () => {
 
     let N = 128;
 
-    let cells = ti.field(ti.i32, [N, N])
+    let liveness = ti.field(ti.i32, [N, N])
+    let numNeighbors = ti.field(ti.i32, [N, N])
 
-    ti.addToKernelScope({ N, cells });
+    ti.addToKernelScope({ N, liveness, numNeighbors });
 
     let init = ti.kernel(() => {
         for (let I of ti.ndrange(N, N)) {
-            cells[I] = 0
+            liveness[I] = 0
             let f = ti.random()
-            if (f < 0.1) {
-                cells[I] = 1
+            if (f < 0.2) {
+                liveness[I] = 1
             }
         }
     })
     await init()
 
-    let step = ti.kernel(() => {
+    let countNeighbors = ti.kernel(() => {
         for (let I of ti.ndrange(N, N)) {
             let neighbors = 0
-            for (let delta of ti.ndrange(2, 2)) {
+            for (let delta of ti.ndrange(3, 3)) {
                 let J = I + delta - [1, 1]
-                if (J.x < 0 || J.y >= N) {
-                    continue;
-                }
-                if (cells[J] == 1) {
-                    neighbors = neighbors + 1;
+                if (J.x >= 0 && J.x < N && J.y >= 0 && J.y < N) {
+                    if ((J.x != I.x || J.y != I.y) && liveness[J] == 1) {
+                        neighbors = neighbors + 1;
+                    }
                 }
             }
-            if (cells[I] == 1) {
+            numNeighbors[I] = neighbors
+        }
+    });
+    let updateLiveness = ti.kernel(() => {
+        for (let I of ti.ndrange(N, N)) {
+            let neighbors = numNeighbors[I]
+            if (liveness[I] == 1) {
                 if (neighbors < 2 || neighbors > 3) {
-                    cells[I] = 0;
+                    liveness[I] = 0;
                 }
             }
             else {
                 if (neighbors == 3) {
-                    cells[I] = 1;
+                    liveness[I] = 1;
                 }
             }
         }
-    });
+    })
 
     let vertices = ti.field(ti.types.vector(ti.f32, 2), [4])
     await vertices.fromArray([
@@ -71,16 +77,18 @@ let main = async () => {
             }
             for (let f of ti.inputFragments()) {
                 let coord = (f + 1) / 2.0
-                let texelIndex = ti.i32(coord * (cells.dimensions - 1))
-                let live = ti.f32(cells[texelIndex])
+                let texelIndex = ti.i32(coord * (liveness.dimensions - 1))
+                let live = ti.f32(liveness[texelIndex])
                 ti.outputColor(renderTarget, [live, live, live, 1.0])
             }
         }
     )
 
 
+
     async function frame() {
-        await step()
+        await countNeighbors()
+        await updateLiveness()
         await render();
         requestAnimationFrame(frame);
     }
