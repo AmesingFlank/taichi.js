@@ -218,7 +218,7 @@ export class CodegenVisitor extends IRVisitor {
 
         this.visitBlock(stmt.body)
 
-        this.body.write(this.getIndentation(), `${stmt.getName()} = ${stmt.getName()} + 1;\n`);
+        this.body.write(this.getIndentation(), `continuing { ${stmt.getName()} = ${stmt.getName()} + 1; }\n`);
         this.dedent()
         this.body.write(this.getIndentation(), "}\n")
     }
