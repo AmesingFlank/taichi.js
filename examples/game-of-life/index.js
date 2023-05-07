@@ -25,7 +25,7 @@ let main = async () => {
         for (let I of ti.ndrange(N, N)) {
             let neighbors = 0
             for (let delta of ti.ndrange(3, 3)) {
-                let J = (I + delta - [1, 1]) % N
+                let J = (I + delta - 1) % N
                 if ((J.x != I.x || J.y != I.y) && liveness[J] == 1) {
                     neighbors = neighbors + 1;
                 }
@@ -81,8 +81,6 @@ let main = async () => {
             }
         }
     )
-
-
 
     async function frame() {
         await countNeighbors()
