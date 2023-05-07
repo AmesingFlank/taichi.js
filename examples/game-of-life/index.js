@@ -49,38 +49,36 @@ let main = async () => {
         }
     })
 
-    let vertices = ti.field(ti.types.vector(ti.f32, 2), [4])
+    let vertices = ti.field(ti.types.vector(ti.f32, 2), [6]);
     await vertices.fromArray([
         [-1, -1],
         [1, -1],
         [-1, 1],
+        [1, -1],
         [1, 1],
+        [-1, 1],
     ]);
-    let indices = ti.field(ti.i32, [6])
-    await indices.fromArray([0, 1, 2, 1, 3, 2]);
 
     let htmlCanvas = document.getElementById('result_canvas');
     htmlCanvas.width = 512;
     htmlCanvas.height = 512;
-    let renderTarget = ti.canvasTexture(htmlCanvas)
+    let renderTarget = ti.canvasTexture(htmlCanvas);
 
-    ti.addToKernelScope({ vertices, indices, renderTarget });
+    ti.addToKernelScope({ vertices, renderTarget });
 
-    let render = ti.kernel(
-        () => {
-            ti.clearColor(renderTarget, [0.0, 0.0, 0.0, 1]);
-            for (let v of ti.inputVertices(vertices, indices)) {
-                ti.outputPosition([v.x, v.y, 0.0, 1.0]);
-                ti.outputVertex(v);
-            }
-            for (let f of ti.inputFragments()) {
-                let coord = (f + 1) / 2.0
-                let texelIndex = ti.i32(coord * (liveness.dimensions - 1))
-                let live = ti.f32(liveness[texelIndex])
-                ti.outputColor(renderTarget, [live, live, live, 1.0])
-            }
+    let render = ti.kernel(() => {
+        ti.clearColor(renderTarget, [0.0, 0.0, 0.0, 1]);
+        for (let v of ti.inputVertices(vertices)) {
+            ti.outputPosition([v.x, v.y, 0.0, 1.0]);
+            ti.outputVertex(v);
         }
-    )
+        for (let f of ti.inputFragments()) {
+            let coord = (f + 1) / 2.0;
+            let texelIndex = ti.i32(coord * (liveness.dimensions - 1));
+            let live = ti.f32(liveness[texelIndex]);
+            ti.outputColor(renderTarget, [live, live, live, 1.0]);
+        }
+    });
 
     async function frame() {
         await countNeighbors()
