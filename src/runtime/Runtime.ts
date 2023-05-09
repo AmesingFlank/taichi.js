@@ -31,7 +31,7 @@ class Runtime {
 
     async createDevice() {
         let alertWebGPUError = () => {
-            alert(`Webgpu not supported. Please ensure that you have Chrome v103+ with WebGPU Origin Trial Tokens, Chrome Canary, Firefox Nightly, or Safary Tech Preview`)
+            alert(`Webgpu not supported. Please ensure that you have Chrome v113+`)
         }
         if (!navigator.gpu) {
             alertWebGPUError()
