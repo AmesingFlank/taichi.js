@@ -49,6 +49,11 @@ let main = async () => {
         }
     })
 
+    let htmlCanvas = document.getElementById('result_canvas');
+    htmlCanvas.width = 512;
+    htmlCanvas.height = 512;
+    let renderTarget = ti.canvasTexture(htmlCanvas);
+
     let vertices = ti.field(ti.types.vector(ti.f32, 2), [6]);
     await vertices.fromArray([
         [-1, -1],
@@ -59,30 +64,25 @@ let main = async () => {
         [-1, 1],
     ]);
 
-    let htmlCanvas = document.getElementById('result_canvas');
-    htmlCanvas.width = 512;
-    htmlCanvas.height = 512;
-    let renderTarget = ti.canvasTexture(htmlCanvas);
-
     ti.addToKernelScope({ vertices, renderTarget });
 
     let render = ti.kernel(() => {
-        ti.clearColor(renderTarget, [0.0, 0.0, 0.0, 1]);
+        ti.clearColor(renderTarget, [0.0, 0.0, 0.0, 1.0]);
         for (let v of ti.inputVertices(vertices)) {
             ti.outputPosition([v.x, v.y, 0.0, 1.0]);
             ti.outputVertex(v);
         }
         for (let f of ti.inputFragments()) {
             let coord = (f + 1) / 2.0;
-            let texelIndex = ti.i32(coord * (liveness.dimensions - 1));
-            let live = ti.f32(liveness[texelIndex]);
+            let cellIndex = ti.i32(coord * (liveness.dimensions - 1));
+            let live = ti.f32(liveness[cellIndex]);
             ti.outputColor(renderTarget, [live, live, live, 1.0]);
         }
     });
 
     async function frame() {
-        await countNeighbors()
-        await updateLiveness()
+        countNeighbors()
+        updateLiveness()
         await render();
         requestAnimationFrame(frame);
     }
