@@ -1,25 +1,25 @@
-import * as ti from "../taichi"
-import { Field } from "../data/Field";
-import { Material } from "./Material";
-import { getVertexAttribSetKernelType, Vertex, VertexAttrib, VertexAttribSet } from "./Vertex";
-import { SceneNode } from "./SceneNode";
-import { Mesh } from "./Mesh";
-import { DrawInfo } from "./common/DrawInfo";
-import { Transform } from "./Transform";
-import { InstanceInfo } from "./common/InstanceInfo";
-import { BatchInfo } from "./common/BatchInfo";
-import { LightInfo } from "./common/LightInfo";
-import { HdrTexture } from "./loaders/HDRLoader";
-import { error } from "../utils/Logging";
-import { GltfLoader } from "./loaders/GLTFLoader";
-import { ShadowInfo } from "./common/ShadowInfo";
+import * as ti from '../taichi'
+import { Field } from '../data/Field'
+import { Material } from './Material'
+import { getVertexAttribSetKernelType, Vertex, VertexAttrib, VertexAttribSet } from './Vertex'
+import { SceneNode } from './SceneNode'
+import { Mesh } from './Mesh'
+import { DrawInfo } from './common/DrawInfo'
+import { Transform } from './Transform'
+import { InstanceInfo } from './common/InstanceInfo'
+import { BatchInfo } from './common/BatchInfo'
+import { LightInfo } from './common/LightInfo'
+import { HdrTexture } from './loaders/HDRLoader'
+import { error } from '../utils/Logging'
+import { GltfLoader } from './loaders/GLTFLoader'
+import { ShadowInfo } from './common/ShadowInfo'
 
 export interface SceneData {
-    vertexBuffer: Field, // Field of Vertex
-    indexBuffer: Field,  // Field of int 
+    vertexBuffer: Field // Field of Vertex
+    indexBuffer: Field // Field of int
 
-    materialInfoBuffer: Field, // Field of MaterialInfo 
-    nodesBuffer: Field,
+    materialInfoBuffer: Field // Field of MaterialInfo
+    nodesBuffer: Field
 
     lightsInfoBuffer: Field | undefined
 }
@@ -29,7 +29,7 @@ export class Scene {
         this.vertexAttribSet.set(VertexAttrib.Position)
         this.vertexAttribSet.set(VertexAttrib.Normal)
         this.vertexAttribSet.set(VertexAttrib.TexCoords0)
-        this.nodes = [new SceneNode]
+        this.nodes = [new SceneNode()]
         this.rootNode = 0
     }
 
@@ -57,7 +57,7 @@ export class Scene {
         await indexBuffer.fromArray(this.indices)
 
         let materialInfoBuffer = ti.field(new Material(0).getInfoKernelType(), this.materials.length)
-        let infosHost = this.materials.map(mat => mat.getInfo())
+        let infosHost = this.materials.map((mat) => mat.getInfo())
         await materialInfoBuffer.fromArray(infosHost)
 
         let nodesBuffer: Field = ti.field(SceneNode.getKernelType(), this.nodes.length)
@@ -74,7 +74,7 @@ export class Scene {
             indexBuffer,
             materialInfoBuffer,
             nodesBuffer,
-            lightsInfoBuffer
+            lightsInfoBuffer,
         }
     }
 
@@ -90,11 +90,10 @@ export class Scene {
                 visit(child, node.globalTransform)
             }
         }
-        visit(this.rootNode, new Transform)
+        visit(this.rootNode, new Transform())
     }
 
-    async add(scene: Scene, transform: Transform = new Transform) {
-
+    async add(scene: Scene, transform: Transform = new Transform()) {
         let nodeOffset = this.nodes.length
         this.nodes = this.nodes.concat(scene.nodes)
 
@@ -122,7 +121,7 @@ export class Scene {
             if (node.parent !== -1) {
                 node.parent = node.parent + nodeOffset
             }
-            node.children = node.children.map(id => id + nodeOffset)
+            node.children = node.children.map((id) => id + nodeOffset)
             if (node.mesh !== -1) {
                 node.mesh += meshOffset
             }
@@ -142,7 +141,7 @@ export class Scene {
         return sceneRootCurrentId
     }
 
-    async addGLTF(url: string, transform: Transform = new Transform) {
+    async addGLTF(url: string, transform: Transform = new Transform()) {
         let gltf = await GltfLoader.loadFromURL(url)
         return await this.add(gltf, transform)
     }

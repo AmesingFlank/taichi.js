@@ -1,6 +1,6 @@
 import { KernelCompiler } from '../language/frontend/Compiler'
 import { Program } from '../program/Program'
-import { PrimitiveType, ScalarType, Type } from "../language/frontend/Type"
+import { PrimitiveType, ScalarType, Type } from '../language/frontend/Type'
 import { assert, error } from '../utils/Logging'
 import { CompiledKernel } from '../runtime/Kernel'
 import { ParsedFunction } from '../language/frontend/ParsedFunction'
@@ -16,21 +16,19 @@ export function clearKernelScope() {
     program.clearKernelScope()
 }
 
-
 export function template() {
     return new Template()
 }
 
-export type KernelType = ((...args: any[]) => any)
-export type FuncType = ((...args: any[]) => any)
+export type KernelType = (...args: any[]) => any
+export type FuncType = (...args: any[]) => any
 
 export function kernel(argTypesOrCode: any, codeOrUndefined?: any): KernelType {
     let argsMapObj: any = {}
     let code: any
-    if (typeof argTypesOrCode === "function" || typeof argTypesOrCode === "string") {
+    if (typeof argTypesOrCode === 'function' || typeof argTypesOrCode === 'string') {
         code = argTypesOrCode
-    }
-    else {
+    } else {
         code = codeOrUndefined
         argsMapObj = argTypesOrCode
     }
@@ -40,10 +38,9 @@ export function kernel(argTypesOrCode: any, codeOrUndefined?: any): KernelType {
 export function classKernel(thisObj: any, argTypesOrCode: any, codeOrUndefined?: any): KernelType {
     let argsMapObj: any = {}
     let code: any
-    if (typeof argTypesOrCode === "function" || typeof argTypesOrCode === "string") {
+    if (typeof argTypesOrCode === 'function' || typeof argTypesOrCode === 'string') {
         code = argTypesOrCode
-    }
-    else {
+    } else {
         code = codeOrUndefined
         argsMapObj = argTypesOrCode
     }

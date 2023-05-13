@@ -1,6 +1,18 @@
-import { Type, TypeCategory, ScalarType, VectorType, MatrixType, PointerType, VoidType, PrimitiveType, TypeUtils, StructType, HostObjectReferenceType } from "./Type"
-import { assert } from "../../utils/Logging"
-import { Stmt } from "../ir/Stmt"
+import {
+    Type,
+    TypeCategory,
+    ScalarType,
+    VectorType,
+    MatrixType,
+    PointerType,
+    VoidType,
+    PrimitiveType,
+    TypeUtils,
+    StructType,
+    HostObjectReferenceType,
+} from './Type'
+import { assert } from '../../utils/Logging'
+import { Stmt } from '../ir/Stmt'
 
 export class Value {
     public constructor(
@@ -11,7 +23,7 @@ export class Value {
         this.type_ = type
     }
 
-    // only used when 
+    // only used when
     // type.getCategory() === TypeCategory.Function, in which case it is a ParsedFunction
     // type.getCategory() === TypeCategory.HostObjectReference, in which case it can be anything
     hostSideValue: any = undefined
@@ -45,8 +57,7 @@ export class ValueUtils {
             primitiveType = TypeUtils.getPrimitiveType(pointerType.getValueType())
             scalarType = new ScalarType(primitiveType)
             scalarType = new PointerType(scalarType, pointerType.getIsGlobal())
-        }
-        else {
+        } else {
             primitiveType = TypeUtils.getPrimitiveType(vec.getType())
             scalarType = new ScalarType(primitiveType)
         }
@@ -72,8 +83,7 @@ export class ValueUtils {
             let primitiveType = TypeUtils.getPrimitiveType(matType)
             scalarType = new ScalarType(primitiveType)
             scalarType = new PointerType(scalarType, pointerType.getIsGlobal())
-        }
-        else {
+        } else {
             matType = mat.getType() as MatrixType
             let primitiveType = TypeUtils.getPrimitiveType(matType)
             scalarType = new ScalarType(primitiveType)
@@ -125,8 +135,7 @@ export class ValueUtils {
             }
             resultType = new VectorType(primitiveType, numRows)
             resultType = new PointerType(resultType, pointerType.getIsGlobal())
-        }
-        else {
+        } else {
             let primitiveType = TypeUtils.getPrimitiveType(values[0].getType())
             for (let val of values) {
                 assert(TypeUtils.getPrimitiveType(val.getType()) === primitiveType)
@@ -171,8 +180,7 @@ export class ValueUtils {
             }
             resultType = new MatrixType(primitiveType, numRows, numCols)
             resultType = new PointerType(resultType, pointerType.getIsGlobal())
-        }
-        else {
+        } else {
             let primitiveType = TypeUtils.getPrimitiveType(values[0].getType())
             for (let val of values) {
                 assert(TypeUtils.getPrimitiveType(val.getType()) === primitiveType)
@@ -297,8 +305,7 @@ export class ValueUtils {
         let structType: StructType
         if (isPointer) {
             structType = (structValue.getType() as PointerType).getValueType() as StructType
-        }
-        else {
+        } else {
             structType = structValue.getType() as StructType
         }
         let keys = structType.getPropertyNames()
@@ -311,8 +318,7 @@ export class ValueUtils {
                 let memberValueType = structType.getPropertyType(k)
                 memberType = new PointerType(memberValueType, (structValue.getType() as PointerType).getIsGlobal())
                 numPrims = memberValueType.getPrimitivesList().length
-            }
-            else {
+            } else {
                 memberType = structType.getPropertyType(k)
                 numPrims = memberType.getPrimitivesList().length
             }

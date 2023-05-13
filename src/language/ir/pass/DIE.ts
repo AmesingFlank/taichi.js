@@ -1,6 +1,16 @@
-import { GlobalLoadStmt, GlobalTemporaryStoreStmt, IfStmt, IRModule, LocalStoreStmt, ReturnStmt, Stmt, StmtKind, WhileStmt } from "../Stmt";
-import { IRTransformer } from "../Transformer";
-import { IRVisitor } from "../Visitor";
+import {
+    GlobalLoadStmt,
+    GlobalTemporaryStoreStmt,
+    IfStmt,
+    IRModule,
+    LocalStoreStmt,
+    ReturnStmt,
+    Stmt,
+    StmtKind,
+    WhileStmt,
+} from '../Stmt'
+import { IRTransformer } from '../Transformer'
+import { IRVisitor } from '../Visitor'
 
 class IdentifyUsefulInstructions extends IRVisitor {
     constructor() {
@@ -9,14 +19,28 @@ class IdentifyUsefulInstructions extends IRVisitor {
     public usefulInstructions: Set<Stmt> = new Set<Stmt>()
     override visit(stmt: Stmt): void {
         let kind = stmt.getKind()
-        if ([
-            StmtKind.GlobalStoreStmt, StmtKind.LocalStoreStmt, StmtKind.GlobalTemporaryStoreStmt,
-            StmtKind.ReturnStmt, StmtKind.AtomicOpStmt, StmtKind.AtomicLoadStmt, StmtKind.AtomicStoreStmt,
-            StmtKind.IfStmt, StmtKind.WhileStmt, StmtKind.RangeForStmt, StmtKind.FragmentForStmt, StmtKind.VertexForStmt,
-            StmtKind.WhileControlStmt, StmtKind.ContinueStmt, StmtKind.DiscardStmt,
-            StmtKind.VertexOutputStmt, StmtKind.BuiltInOutputStmt,
-            StmtKind.TextureFunctionStmt,
-        ].includes(kind)) {
+        if (
+            [
+                StmtKind.GlobalStoreStmt,
+                StmtKind.LocalStoreStmt,
+                StmtKind.GlobalTemporaryStoreStmt,
+                StmtKind.ReturnStmt,
+                StmtKind.AtomicOpStmt,
+                StmtKind.AtomicLoadStmt,
+                StmtKind.AtomicStoreStmt,
+                StmtKind.IfStmt,
+                StmtKind.WhileStmt,
+                StmtKind.RangeForStmt,
+                StmtKind.FragmentForStmt,
+                StmtKind.VertexForStmt,
+                StmtKind.WhileControlStmt,
+                StmtKind.ContinueStmt,
+                StmtKind.DiscardStmt,
+                StmtKind.VertexOutputStmt,
+                StmtKind.BuiltInOutputStmt,
+                StmtKind.TextureFunctionStmt,
+            ].includes(kind)
+        ) {
             this.usefulInstructions.add(stmt)
         }
         super.visit(stmt)

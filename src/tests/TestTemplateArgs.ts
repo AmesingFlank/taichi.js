@@ -1,21 +1,24 @@
 //@ts-nocheck
-import * as ti from "../taichi"
-import { assertEqual } from "./Utils"
+import * as ti from '../taichi'
+import { assertEqual } from './Utils'
 
 async function testTemplateArgs(): Promise<boolean> {
-    console.log("testTemplateArgs")
+    console.log('testTemplateArgs')
 
     await ti.init()
 
     let i = 12345
     let f = 1.1
     let v = [1.1, 2.2]
-    let m = [[1.1, 2.2], [3.3, 4.4]]
+    let m = [
+        [1.1, 2.2],
+        [3.3, 4.4],
+    ]
     let o = {
         i: i,
         f: f,
         v: v,
-        m: m
+        m: m,
     }
 
     let iType = ti.i32
@@ -34,11 +37,19 @@ async function testTemplateArgs(): Promise<boolean> {
     let vField = ti.field(vType, [1])
     let mField = ti.field(mType, [1])
     let oField = ti.field(oType, [1])
- 
+
     let kernel = ti.kernel(
-        { 
-            i: ti.template(), f: ti.template(), v: ti.template(), m: ti.template(), o: ti.template(),
-            iField: ti.template(), fField: ti.template(), mField: ti.template(), vField: ti.template(), oField: ti.template(), 
+        {
+            i: ti.template(),
+            f: ti.template(),
+            v: ti.template(),
+            m: ti.template(),
+            o: ti.template(),
+            iField: ti.template(),
+            fField: ti.template(),
+            mField: ti.template(),
+            vField: ti.template(),
+            oField: ti.template(),
         },
         (i, f, v, m, o, iField, fField, vField, mField, oField) => {
             iField[0] = i
@@ -56,12 +67,13 @@ async function testTemplateArgs(): Promise<boolean> {
     console.log(await mField.get([0]))
     console.log(await oField.get([0]))
 
-    let passed = true
-        && assertEqual(await iField.get([0]), i)
-        && assertEqual(await fField.get([0]), f)
-        && assertEqual(await vField.get([0]), v)
-        && assertEqual(await mField.get([0]), m)
-        && assertEqual(await oField.get([0]), o)
+    let passed =
+        true &&
+        assertEqual(await iField.get([0]), i) &&
+        assertEqual(await fField.get([0]), f) &&
+        assertEqual(await vField.get([0]), v) &&
+        assertEqual(await mField.get([0]), m) &&
+        assertEqual(await oField.get([0]), o)
 
     let iField2 = ti.field(iType, [1])
     let i2 = 54321

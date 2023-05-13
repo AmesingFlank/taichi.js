@@ -1,8 +1,8 @@
 //@ts-nocheck
-import { assertEqual } from "./Utils"
+import { assertEqual } from './Utils'
 
 async function testHostObjectReference(): Promise<boolean> {
-    console.log("testHostObjectReference")
+    console.log('testHostObjectReference')
 
     await ti.init()
 
@@ -12,29 +12,27 @@ async function testHostObjectReference(): Promise<boolean> {
     let data = [
         {
             valueWanted: 123,
-            field: f0
+            field: f0,
         },
         {
             valueWanted: 456,
-            field: undefined
+            field: undefined,
         },
         {
             valueWanted: 789,
-            field: f2
+            field: f2,
         },
     ]
 
-    ti.addToKernelScope({data})
+    ti.addToKernelScope({ data })
 
-    let kernel = ti.kernel(
-        () => {
-            for (let i of ti.static(range(3))) {
-                if (ti.static(data[i].field !== undefined)) {
-                    data[i].field[0] = data[i].valueWanted
-                }
+    let kernel = ti.kernel(() => {
+        for (let i of ti.static(range(3))) {
+            if (ti.static(data[i].field !== undefined)) {
+                data[i].field[0] = data[i].valueWanted
             }
         }
-    )
+    })
 
     kernel()
 

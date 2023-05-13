@@ -1,6 +1,5 @@
-import { IRModule, Stmt } from "../Stmt";
-import { IRTransformer } from "../Transformer";
-
+import { IRModule, Stmt } from '../Stmt'
+import { IRTransformer } from '../Transformer'
 
 class RemapIdsPass extends IRTransformer {
     override transform(module: IRModule): void {
@@ -13,7 +12,7 @@ class RemapIdsPass extends IRTransformer {
     }
     idBound: number = 0
     getNewId() {
-        return this.idBound++;
+        return this.idBound++
     }
 }
 

@@ -1,17 +1,62 @@
-import { Field } from "../../data/Field";
-import { TextureBase } from "../../data/Texture";
-import { PrimitiveType } from "../frontend/Type";
-import { AllocaStmt, ArgLoadStmt, AtomicLoadStmt, AtomicOpStmt, AtomicOpType, AtomicStoreStmt, BinaryOpStmt, BinaryOpType, Block, BuiltInInputKind, BuiltInInputStmt, BuiltInOutputKind, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeDirection, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, IRModule, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, PointerStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionKind, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
+import { Field } from '../../data/Field'
+import { TextureBase } from '../../data/Texture'
+import { PrimitiveType } from '../frontend/Type'
+import {
+    AllocaStmt,
+    ArgLoadStmt,
+    AtomicLoadStmt,
+    AtomicOpStmt,
+    AtomicOpType,
+    AtomicStoreStmt,
+    BinaryOpStmt,
+    BinaryOpType,
+    Block,
+    BuiltInInputKind,
+    BuiltInInputStmt,
+    BuiltInOutputKind,
+    BuiltInOutputStmt,
+    CompositeExtractStmt,
+    ConstStmt,
+    ContinueStmt,
+    DiscardStmt,
+    FragmentDerivativeDirection,
+    FragmentDerivativeStmt,
+    FragmentForStmt,
+    FragmentInputStmt,
+    GlobalLoadStmt,
+    GlobalPtrStmt,
+    GlobalStoreStmt,
+    GlobalTemporaryLoadStmt,
+    GlobalTemporaryStmt,
+    GlobalTemporaryStoreStmt,
+    IfStmt,
+    IRModule,
+    LocalLoadStmt,
+    LocalStoreStmt,
+    LoopIndexStmt,
+    PointerStmt,
+    RandStmt,
+    RangeForStmt,
+    ReturnStmt,
+    Stmt,
+    TextureFunctionKind,
+    TextureFunctionStmt,
+    UnaryOpStmt,
+    UnaryOpType,
+    VertexForStmt,
+    VertexInputStmt,
+    VertexOutputStmt,
+    WhileControlStmt,
+    WhileStmt,
+} from './Stmt'
 
 // designed to have the same API as native taichi's IRBuilder
 // which is why there're some camel_case and camelCase mash-ups
 
 export class IRBuilder {
-    constructor() {
+    constructor() {}
 
-    }
-
-    module: IRModule = new IRModule
+    module: IRModule = new IRModule()
     guards: Guard[] = [new Guard(this, this.module.block)]
 
     get_int32(val: number) {
@@ -22,7 +67,7 @@ export class IRBuilder {
     }
 
     create_range_for(range: Stmt, shouldStrictlySerialize: boolean) {
-        return this.pushNewStmt(new RangeForStmt(range, shouldStrictlySerialize, new Block, this.getNewId()))
+        return this.pushNewStmt(new RangeForStmt(range, shouldStrictlySerialize, new Block(), this.getNewId()))
     }
 
     get_loop_index(loop: Stmt) {
@@ -86,11 +131,11 @@ export class IRBuilder {
     }
 
     create_while_true() {
-        return this.pushNewStmt(new WhileStmt(new Block, this.getNewId()))
+        return this.pushNewStmt(new WhileStmt(new Block(), this.getNewId()))
     }
 
     create_if(cond: Stmt) {
-        return this.pushNewStmt(new IfStmt(cond, new Block, new Block, this.getNewId()))
+        return this.pushNewStmt(new IfStmt(cond, new Block(), new Block(), this.getNewId()))
     }
 
     create_break() {
@@ -138,11 +183,11 @@ export class IRBuilder {
     }
 
     create_vertex_for() {
-        return this.pushNewStmt(new VertexForStmt(new Block, this.getNewId()))
+        return this.pushNewStmt(new VertexForStmt(new Block(), this.getNewId()))
     }
 
     create_fragment_for() {
-        return this.pushNewStmt(new FragmentForStmt(new Block, this.getNewId()))
+        return this.pushNewStmt(new FragmentForStmt(new Block(), this.getNewId()))
     }
 
     create_discard() {
@@ -154,15 +199,21 @@ export class IRBuilder {
     }
 
     create_texture_sample(texture: TextureBase, coords: Stmt[]) {
-        return this.pushNewStmt(new TextureFunctionStmt(texture, TextureFunctionKind.Sample, coords, [], this.getNewId()))
+        return this.pushNewStmt(
+            new TextureFunctionStmt(texture, TextureFunctionKind.Sample, coords, [], this.getNewId())
+        )
     }
 
     create_texture_sample_lod(texture: TextureBase, coords: Stmt[], lod: Stmt) {
-        return this.pushNewStmt(new TextureFunctionStmt(texture, TextureFunctionKind.SampleLod, coords, [lod], this.getNewId()))
+        return this.pushNewStmt(
+            new TextureFunctionStmt(texture, TextureFunctionKind.SampleLod, coords, [lod], this.getNewId())
+        )
     }
 
     create_texture_sample_compare(texture: TextureBase, coords: Stmt[], depthRef: Stmt) {
-        return this.pushNewStmt(new TextureFunctionStmt(texture, TextureFunctionKind.SampleCompare, coords, [depthRef], this.getNewId()))
+        return this.pushNewStmt(
+            new TextureFunctionStmt(texture, TextureFunctionKind.SampleCompare, coords, [depthRef], this.getNewId())
+        )
     }
 
     create_texture_load(texture: TextureBase, coords: Stmt[]) {
@@ -170,7 +221,9 @@ export class IRBuilder {
     }
 
     create_texture_store(texture: TextureBase, coords: Stmt[], vals: Stmt[]) {
-        return this.pushNewStmt(new TextureFunctionStmt(texture, TextureFunctionKind.Store, coords, vals, this.getNewId()))
+        return this.pushNewStmt(
+            new TextureFunctionStmt(texture, TextureFunctionKind.Store, coords, vals, this.getNewId())
+        )
     }
 
     create_composite_extract(composite: Stmt, index: number) {
@@ -216,16 +269,14 @@ export class IRBuilder {
     get_if_guard(stmt: IfStmt, branch: boolean) {
         if (branch) {
             return this.addGuard(stmt.trueBranch)
-        }
-        else {
+        } else {
             return this.addGuard(stmt.falseBranch)
         }
     }
 
     getNewId() {
-        return this.module.getNewId();
+        return this.module.getNewId()
     }
-
 
     pushNewStmt<T extends Stmt>(stmt: T) {
         this.guards.at(-1)!.block.stmts.push(stmt)
@@ -240,9 +291,7 @@ export class IRBuilder {
 }
 
 export class Guard {
-    constructor(public parent: { guards: Guard[] }, public block: Block) {
-
-    }
+    constructor(public parent: { guards: Guard[] }, public block: Block) {}
     delete() {
         this.parent.guards.pop()
     }

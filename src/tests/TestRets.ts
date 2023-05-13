@@ -1,9 +1,9 @@
 //@ts-nocheck
-import * as ti from "../taichi"
-import { assertEqual } from "./Utils"
+import * as ti from '../taichi'
+import { assertEqual } from './Utils'
 
 async function testRets(): Promise<boolean> {
-    console.log("testRets")
+    console.log('testRets')
 
     await ti.init()
 
@@ -12,35 +12,35 @@ async function testRets(): Promise<boolean> {
     let matrix = [[4, 5]]
     let struct = {
         s: 6.6,
-        v: [7.7, 8.8]
+        v: [7.7, 8.8],
     }
     let nestedStruct = {
         s: 9,
         v: [10, 11],
-        ss: struct
+        ss: struct,
     }
 
     ti.addToKernelScope({ scalar, vector, matrix, struct, nestedStruct })
 
-    let kScalar = ti.kernel(
-        () => { return scalar }
-    )
+    let kScalar = ti.kernel(() => {
+        return scalar
+    })
 
-    let kVector = ti.kernel(
-        () => { return vector  }
-    )
+    let kVector = ti.kernel(() => {
+        return vector
+    })
 
-    let kMatrix = ti.kernel(
-        () => { return matrix }
-    )
+    let kMatrix = ti.kernel(() => {
+        return matrix
+    })
 
-    let kStruct = ti.kernel(
-        () => { return struct }
-    )
+    let kStruct = ti.kernel(() => {
+        return struct
+    })
 
-    let kNestedStruct = ti.kernel(
-        () => { return nestedStruct }
-    )
+    let kNestedStruct = ti.kernel(() => {
+        return nestedStruct
+    })
 
     let scalarResult = await kScalar()
     let vectorResult = await kVector()
@@ -50,11 +50,13 @@ async function testRets(): Promise<boolean> {
 
     console.log(scalarResult, vectorResult, matrixResult, structResult, nestedStructResult)
 
-    return assertEqual(scalar, scalarResult)
-        && assertEqual(vector, vectorResult)
-        && assertEqual(matrix, matrixResult)
-        && assertEqual(struct, structResult)
-        && assertEqual(nestedStruct, nestedStructResult)
+    return (
+        assertEqual(scalar, scalarResult) &&
+        assertEqual(vector, vectorResult) &&
+        assertEqual(matrix, matrixResult) &&
+        assertEqual(struct, structResult) &&
+        assertEqual(nestedStruct, nestedStructResult)
+    )
 }
 
 export { testRets }

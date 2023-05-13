@@ -1,15 +1,53 @@
-import { Guard, IRBuilder } from "./Builder";
-import { AllocaStmt, ArgLoadStmt, AtomicLoadStmt, AtomicOpStmt, AtomicStoreStmt, BinaryOpStmt, Block, BuiltInInputStmt, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, IRModule, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionStmt, UnaryOpStmt, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
-import { IRVisitor } from "./Visitor";
+import { Guard, IRBuilder } from './Builder'
+import {
+    AllocaStmt,
+    ArgLoadStmt,
+    AtomicLoadStmt,
+    AtomicOpStmt,
+    AtomicStoreStmt,
+    BinaryOpStmt,
+    Block,
+    BuiltInInputStmt,
+    BuiltInOutputStmt,
+    CompositeExtractStmt,
+    ConstStmt,
+    ContinueStmt,
+    DiscardStmt,
+    FragmentDerivativeStmt,
+    FragmentForStmt,
+    FragmentInputStmt,
+    GlobalLoadStmt,
+    GlobalPtrStmt,
+    GlobalStoreStmt,
+    GlobalTemporaryLoadStmt,
+    GlobalTemporaryStmt,
+    GlobalTemporaryStoreStmt,
+    IfStmt,
+    IRModule,
+    LocalLoadStmt,
+    LocalStoreStmt,
+    LoopIndexStmt,
+    RandStmt,
+    RangeForStmt,
+    ReturnStmt,
+    Stmt,
+    TextureFunctionStmt,
+    UnaryOpStmt,
+    VertexForStmt,
+    VertexInputStmt,
+    VertexOutputStmt,
+    WhileControlStmt,
+    WhileStmt,
+} from './Stmt'
+import { IRVisitor } from './Visitor'
 
 export class IRTransformer extends IRVisitor {
-
     guards: Guard[] = []
 
-    module: IRModule = new IRModule;
+    module: IRModule = new IRModule()
 
     transform(module: IRModule) {
-        this.module = module;
+        this.module = module
         this.visitBlock(module.block)
     }
 
@@ -25,7 +63,7 @@ export class IRTransformer extends IRVisitor {
     }
 
     override visitBlock(block: Block) {
-        let result = new Block
+        let result = new Block()
         let guard = this.addGuard(result)
         for (let s of block.stmts) {
             this.visit(s)

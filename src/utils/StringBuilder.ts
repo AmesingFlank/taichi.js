@@ -6,7 +6,7 @@ export class StringBuilder {
         }
     }
     getString() {
-        return this.parts.join("")
+        return this.parts.join('')
     }
     empty() {
         return this.parts.length === 0

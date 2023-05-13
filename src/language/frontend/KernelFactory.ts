@@ -1,16 +1,13 @@
-import { CompiledKernel } from "../../runtime/Kernel"
-import { Program } from "../../program/Program"
-import { assert, error } from "../../utils/Logging"
-import { KernelCompiler } from "./Compiler"
-import { ParsedFunction } from "./ParsedFunction"
-import { Scope } from "./Scope"
-import { PrimitiveType, ScalarType, Type } from "./Type"
-
+import { CompiledKernel } from '../../runtime/Kernel'
+import { Program } from '../../program/Program'
+import { assert, error } from '../../utils/Logging'
+import { KernelCompiler } from './Compiler'
+import { ParsedFunction } from './ParsedFunction'
+import { Scope } from './Scope'
+import { PrimitiveType, ScalarType, Type } from './Type'
 
 // Similar to Python Taichi, Template is a dummy class whose sole purpose is for marking template arguments with ti.template()
-export class Template {
-
-}
+export class Template {}
 
 export class TemplateKernel {
     instances: [Map<string, any>, CompiledKernel][] = []
@@ -32,11 +29,10 @@ export class TemplateKernel {
     }
 }
 
-
 export class KernelFactory {
     static templateKernelCache: Map<string, TemplateKernel> = new Map<string, TemplateKernel>()
 
-    static kernel(scope: Scope, argTypes: any, code: any): ((...args: any[]) => void) {
+    static kernel(scope: Scope, argTypes: any, code: any): (...args: any[]) => void {
         let argsMapObj: any = {}
         code = code.toString() as string
         if (argTypes) {
@@ -50,15 +46,12 @@ export class KernelFactory {
             if (type === PrimitiveType.f32 || type === PrimitiveType.i32) {
                 type = new ScalarType(type)
                 argTypesMap.set(k, type)
-            }
-            else if (type instanceof Type) {
+            } else if (type instanceof Type) {
                 argTypesMap.set(k, type)
-            }
-            else if (type instanceof Template) {
+            } else if (type instanceof Template) {
                 templateArgNamesSet.add(k)
-            }
-            else {
-                error("Invalid argument type annotations")
+            } else {
+                error('Invalid argument type annotations')
             }
         }
         let codeString = code.toString()
@@ -79,11 +72,12 @@ export class KernelFactory {
                 return await program.runtime!.launchKernel(kernel, ...args)
             }
             return result
-        }
-        else {
+        } else {
             let result = async (...args: any[]) => {
-                assert(args.length === argNames.length,
-                    `Kernel requires ${argNames.length} arguments, but ${args.length} is provided`)
+                assert(
+                    args.length === argNames.length,
+                    `Kernel requires ${argNames.length} arguments, but ${args.length} is provided`
+                )
                 let templateArgs = new Map<string, any>()
                 let nonTemplateArgs: any[] = []
                 for (let i = 0; i < args.length; ++i) {
@@ -91,8 +85,7 @@ export class KernelFactory {
                     let val = args[i]
                     if (templateArgNamesSet.has(name)) {
                         templateArgs.set(name, val)
-                    }
-                    else {
+                    } else {
                         nonTemplateArgs.push(val)
                     }
                 }
@@ -110,5 +103,4 @@ export class KernelFactory {
             return result
         }
     }
-
 }

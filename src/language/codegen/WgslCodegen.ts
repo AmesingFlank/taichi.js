@@ -1,14 +1,69 @@
-import { DepthTexture, getTextureCoordsNumComponents, TextureDimensionality } from "../../data/Texture";
-import { Program } from "../../program/Program";
-import { FragmentShaderParams, ResourceBinding, ResourceInfo, ResourceType, TaskParams, VertexShaderParams } from "../../runtime/Kernel";
-import { Runtime } from "../../runtime/Runtime";
-import { assert, error } from "../../utils/Logging";
-import { StringBuilder } from "../../utils/StringBuilder";
-import { divUp } from "../../utils/Utils";
-import { PrimitiveType } from "../frontend/Type";
-import { AllocaStmt, ArgLoadStmt, AtomicLoadStmt, AtomicOpStmt, AtomicOpType, AtomicStoreStmt, BinaryOpStmt, BinaryOpType, BuiltInInputKind, BuiltInInputStmt, BuiltInOutputKind, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeDirection, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, getBuiltinInputComponentCount, getBuiltinInputPrimitiveType, getPointedType, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, StmtKind, TextureFunctionKind, TextureFunctionStmt, UnaryOpStmt, UnaryOpType, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "../ir/Stmt";
-import { IRVisitor } from "../ir/Visitor";
-import { ComputeModule, OffloadedModule, OffloadType } from "./Offload";
+import { DepthTexture, getTextureCoordsNumComponents, TextureDimensionality } from '../../data/Texture'
+import { Program } from '../../program/Program'
+import {
+    FragmentShaderParams,
+    ResourceBinding,
+    ResourceInfo,
+    ResourceType,
+    TaskParams,
+    VertexShaderParams,
+} from '../../runtime/Kernel'
+import { Runtime } from '../../runtime/Runtime'
+import { assert, error } from '../../utils/Logging'
+import { StringBuilder } from '../../utils/StringBuilder'
+import { divUp } from '../../utils/Utils'
+import { PrimitiveType } from '../frontend/Type'
+import {
+    AllocaStmt,
+    ArgLoadStmt,
+    AtomicLoadStmt,
+    AtomicOpStmt,
+    AtomicOpType,
+    AtomicStoreStmt,
+    BinaryOpStmt,
+    BinaryOpType,
+    BuiltInInputKind,
+    BuiltInInputStmt,
+    BuiltInOutputKind,
+    BuiltInOutputStmt,
+    CompositeExtractStmt,
+    ConstStmt,
+    ContinueStmt,
+    DiscardStmt,
+    FragmentDerivativeDirection,
+    FragmentDerivativeStmt,
+    FragmentForStmt,
+    FragmentInputStmt,
+    getBuiltinInputComponentCount,
+    getBuiltinInputPrimitiveType,
+    getPointedType,
+    GlobalLoadStmt,
+    GlobalPtrStmt,
+    GlobalStoreStmt,
+    GlobalTemporaryLoadStmt,
+    GlobalTemporaryStmt,
+    GlobalTemporaryStoreStmt,
+    IfStmt,
+    LocalLoadStmt,
+    LocalStoreStmt,
+    LoopIndexStmt,
+    RandStmt,
+    RangeForStmt,
+    ReturnStmt,
+    Stmt,
+    StmtKind,
+    TextureFunctionKind,
+    TextureFunctionStmt,
+    UnaryOpStmt,
+    UnaryOpType,
+    VertexForStmt,
+    VertexInputStmt,
+    VertexOutputStmt,
+    WhileControlStmt,
+    WhileStmt,
+} from '../ir/Stmt'
+import { IRVisitor } from '../ir/Visitor'
+import { ComputeModule, OffloadedModule, OffloadType } from './Offload'
 
 class ResourceBindingMap {
     bindings: ResourceBinding[] = []
@@ -56,22 +111,22 @@ export class CodegenVisitor extends IRVisitor {
         switch (dt) {
             case PrimitiveType.f32: {
                 let s = val.toPrecision(8)
-                if (!s.includes(".") && !s.includes("e") && !s.includes("E")) {
-                    s += ".f"
+                if (!s.includes('.') && !s.includes('e') && !s.includes('E')) {
+                    s += '.f'
                 }
                 this.body.write(s)
-                break;
+                break
             }
             case PrimitiveType.i32: {
-                assert(Number.isInteger(val), "expecting integer")
+                assert(Number.isInteger(val), 'expecting integer')
                 this.body.write(val.toString())
-                break;
+                break
             }
             default: {
-                error("unrecognized return type ", stmt)
+                error('unrecognized return type ', stmt)
             }
         }
-        this.body.write(";\n")
+        this.body.write(';\n')
     }
 
     override visitRandStmt(stmt: RandStmt): void {
@@ -79,15 +134,15 @@ export class CodegenVisitor extends IRVisitor {
         this.emitLet(stmt.getName(), this.getPrimitiveTypeName(stmt.getReturnType()))
         switch (stmt.getReturnType()) {
             case PrimitiveType.i32: {
-                this.body.write("rand_i32(gid3.x);\n");
-                break;
+                this.body.write('rand_i32(gid3.x);\n')
+                break
             }
             case PrimitiveType.f32: {
-                this.body.write("rand_f32(gid3.x);\n");
-                break;
+                this.body.write('rand_f32(gid3.x);\n')
+                break
             }
             default: {
-                error("unrecognized primitive type")
+                error('unrecognized primitive type')
             }
         }
     }
@@ -100,41 +155,63 @@ export class CodegenVisitor extends IRVisitor {
         let op = stmt.op
         let getValue = (op: UnaryOpType) => {
             switch (op) {
-                case UnaryOpType.neg: return `(-(${operand}))`
-                case UnaryOpType.sqrt: return `sqrt(f32(${operand}))`
-                case UnaryOpType.round: return `round(f32(${operand}))`
-                case UnaryOpType.floor: return `floor(f32(${operand}))`
-                case UnaryOpType.ceil: return `ceil(f32(${operand}))`
-                case UnaryOpType.cast_i32_value: return `i32(${operand})`
-                case UnaryOpType.cast_f32_value: return `f32(${operand})`
-                case UnaryOpType.cast_i32_bits: return `bitcast<i32>(${operand})`
-                case UnaryOpType.cast_f32_bits: return `bitcast<f32>(${operand})`
-                case UnaryOpType.abs: return `abs(${operand})`
-                case UnaryOpType.sgn: return `sign(${operand})`
-                case UnaryOpType.sin: return `sin(f32(${operand}))`
-                case UnaryOpType.asin: return `asin(f32(${operand}))`
-                case UnaryOpType.cos: return `cos(f32(${operand}))`
-                case UnaryOpType.acos: return `acos(f32(${operand}))`
-                case UnaryOpType.tan: return `tan(f32(${operand}))`
-                case UnaryOpType.tanh: return `tanh(f32(${operand}))`
-                case UnaryOpType.inv: return `1.f / f32(${operand})`
-                case UnaryOpType.rcp: return `1.f / f32(${operand})`
-                case UnaryOpType.exp: return `exp(f32(${operand}))`
-                case UnaryOpType.log: return `log(f32(${operand}))`
-                case UnaryOpType.rsqrt: return `inverseSqrt(f32(${operand}))`
+                case UnaryOpType.neg:
+                    return `(-(${operand}))`
+                case UnaryOpType.sqrt:
+                    return `sqrt(f32(${operand}))`
+                case UnaryOpType.round:
+                    return `round(f32(${operand}))`
+                case UnaryOpType.floor:
+                    return `floor(f32(${operand}))`
+                case UnaryOpType.ceil:
+                    return `ceil(f32(${operand}))`
+                case UnaryOpType.cast_i32_value:
+                    return `i32(${operand})`
+                case UnaryOpType.cast_f32_value:
+                    return `f32(${operand})`
+                case UnaryOpType.cast_i32_bits:
+                    return `bitcast<i32>(${operand})`
+                case UnaryOpType.cast_f32_bits:
+                    return `bitcast<f32>(${operand})`
+                case UnaryOpType.abs:
+                    return `abs(${operand})`
+                case UnaryOpType.sgn:
+                    return `sign(${operand})`
+                case UnaryOpType.sin:
+                    return `sin(f32(${operand}))`
+                case UnaryOpType.asin:
+                    return `asin(f32(${operand}))`
+                case UnaryOpType.cos:
+                    return `cos(f32(${operand}))`
+                case UnaryOpType.acos:
+                    return `acos(f32(${operand}))`
+                case UnaryOpType.tan:
+                    return `tan(f32(${operand}))`
+                case UnaryOpType.tanh:
+                    return `tanh(f32(${operand}))`
+                case UnaryOpType.inv:
+                    return `1.f / f32(${operand})`
+                case UnaryOpType.rcp:
+                    return `1.f / f32(${operand})`
+                case UnaryOpType.exp:
+                    return `exp(f32(${operand}))`
+                case UnaryOpType.log:
+                    return `log(f32(${operand}))`
+                case UnaryOpType.rsqrt:
+                    return `inverseSqrt(f32(${operand}))`
                 case UnaryOpType.logic_not: {
-                    let zero = "0"
+                    let zero = '0'
                     switch (srcType) {
                         case PrimitiveType.f32: {
-                            zero = "0.f";
-                            break;
+                            zero = '0.f'
+                            break
                         }
                         case PrimitiveType.i32: {
-                            zero = "0";
-                            break;
+                            zero = '0'
+                            break
                         }
                         default:
-                            error("unexpected prim type")
+                            error('unexpected prim type')
                     }
                     return `i32(${operand} == ${zero})`
                 }
@@ -142,14 +219,14 @@ export class CodegenVisitor extends IRVisitor {
                     return `(~(${operand}))`
                 }
                 default: {
-                    error("unhandled unary op ", op)
-                    return "error"
+                    error('unhandled unary op ', op)
+                    return 'error'
                 }
             }
         }
         let value = getValue(op)!
         this.emitLet(stmt.getName(), dstTypeName)
-        this.body.write(`${dstType}(${value});\n`);
+        this.body.write(`${dstType}(${value});\n`)
     }
 
     override visitBinaryOpStmt(stmt: BinaryOpStmt): void {
@@ -160,29 +237,52 @@ export class CodegenVisitor extends IRVisitor {
 
         let getValue = () => {
             switch (op) {
-                case BinaryOpType.mul: return `(${lhs} * ${rhs})`
-                case BinaryOpType.add: return `(${lhs} + ${rhs})`
-                case BinaryOpType.sub: return `(${lhs} - ${rhs})`
-                case BinaryOpType.truediv: return `(f32(${lhs}) / f32(${rhs}))`
-                case BinaryOpType.floordiv: return `i32(${lhs} / ${rhs})`
-                case BinaryOpType.mod: return `(${lhs} % ${rhs})`
-                case BinaryOpType.max: return `max(${lhs}, ${rhs})`
-                case BinaryOpType.min: return `min(${lhs}, ${rhs})`
-                case BinaryOpType.bit_and: return `(${lhs} & ${rhs})`
-                case BinaryOpType.bit_or: return `(${lhs} | ${rhs})`
-                case BinaryOpType.bit_xor: return `(${lhs} ^ ${rhs})`
-                case BinaryOpType.bit_shl: return `(${lhs} << u32(${rhs}))`
-                case BinaryOpType.bit_shr: return `(u32(${lhs}) >> u32(${rhs}))`
-                case BinaryOpType.bit_sar: return `(${lhs} >> u32(${rhs}))`
-                case BinaryOpType.cmp_lt: return `(${lhs} < ${rhs})`
-                case BinaryOpType.cmp_le: return `(${lhs} <= ${rhs})`
-                case BinaryOpType.cmp_gt: return `(${lhs} > ${rhs})`
-                case BinaryOpType.cmp_ge: return `(${lhs} >= ${rhs})`
-                case BinaryOpType.cmp_eq: return `(${lhs} == ${rhs})`
-                case BinaryOpType.cmp_ne: return `(${lhs} != ${rhs})`
-                case BinaryOpType.atan2: return `atan2(f32(${lhs}), f32(${rhs}))`
-                case BinaryOpType.logical_or: return `(${lhs} | ${rhs})`
-                case BinaryOpType.logical_and: return `(${lhs} & ${rhs})`
+                case BinaryOpType.mul:
+                    return `(${lhs} * ${rhs})`
+                case BinaryOpType.add:
+                    return `(${lhs} + ${rhs})`
+                case BinaryOpType.sub:
+                    return `(${lhs} - ${rhs})`
+                case BinaryOpType.truediv:
+                    return `(f32(${lhs}) / f32(${rhs}))`
+                case BinaryOpType.floordiv:
+                    return `i32(${lhs} / ${rhs})`
+                case BinaryOpType.mod:
+                    return `(${lhs} % ${rhs})`
+                case BinaryOpType.max:
+                    return `max(${lhs}, ${rhs})`
+                case BinaryOpType.min:
+                    return `min(${lhs}, ${rhs})`
+                case BinaryOpType.bit_and:
+                    return `(${lhs} & ${rhs})`
+                case BinaryOpType.bit_or:
+                    return `(${lhs} | ${rhs})`
+                case BinaryOpType.bit_xor:
+                    return `(${lhs} ^ ${rhs})`
+                case BinaryOpType.bit_shl:
+                    return `(${lhs} << u32(${rhs}))`
+                case BinaryOpType.bit_shr:
+                    return `(u32(${lhs}) >> u32(${rhs}))`
+                case BinaryOpType.bit_sar:
+                    return `(${lhs} >> u32(${rhs}))`
+                case BinaryOpType.cmp_lt:
+                    return `(${lhs} < ${rhs})`
+                case BinaryOpType.cmp_le:
+                    return `(${lhs} <= ${rhs})`
+                case BinaryOpType.cmp_gt:
+                    return `(${lhs} > ${rhs})`
+                case BinaryOpType.cmp_ge:
+                    return `(${lhs} >= ${rhs})`
+                case BinaryOpType.cmp_eq:
+                    return `(${lhs} == ${rhs})`
+                case BinaryOpType.cmp_ne:
+                    return `(${lhs} != ${rhs})`
+                case BinaryOpType.atan2:
+                    return `atan2(f32(${lhs}), f32(${rhs}))`
+                case BinaryOpType.logical_or:
+                    return `(${lhs} | ${rhs})`
+                case BinaryOpType.logical_and:
+                    return `(${lhs} & ${rhs})`
                 case BinaryOpType.pow: {
                     // pow is special because
                     // 1. for integer LHS and RHS, result is integer
@@ -196,8 +296,8 @@ export class CodegenVisitor extends IRVisitor {
                             return `pow(f32(${lhs}), f32(${rhs}))`
                         }
                         default: {
-                            error("unrecgnized prim type")
-                            return "error"
+                            error('unrecgnized prim type')
+                            return 'error'
                         }
                     }
                 }
@@ -210,17 +310,17 @@ export class CodegenVisitor extends IRVisitor {
     }
 
     override visitRangeForStmt(stmt: RangeForStmt): void {
-        this.emitVar(stmt.getName(), "i32")
-        this.body.write("0;\n");
-        this.body.write(this.getIndentation(), "loop {\n")
+        this.emitVar(stmt.getName(), 'i32')
+        this.body.write('0;\n')
+        this.body.write(this.getIndentation(), 'loop {\n')
         this.indent()
         this.body.write(this.getIndentation(), `if (${stmt.getName()} >= ${stmt.getRange().getName()}) { break; }\n`)
 
         this.visitBlock(stmt.body)
 
-        this.body.write(this.getIndentation(), `continuing { ${stmt.getName()} = ${stmt.getName()} + 1; }\n`);
+        this.body.write(this.getIndentation(), `continuing { ${stmt.getName()} = ${stmt.getName()} + 1; }\n`)
         this.dedent()
-        this.body.write(this.getIndentation(), "}\n")
+        this.body.write(this.getIndentation(), '}\n')
     }
 
     override visitIfStmt(stmt: IfStmt): void {
@@ -228,22 +328,22 @@ export class CodegenVisitor extends IRVisitor {
         this.indent()
         this.visitBlock(stmt.trueBranch)
         this.dedent()
-        this.body.write(this.getIndentation(), "}\n");
+        this.body.write(this.getIndentation(), '}\n')
 
         this.body.write(this.getIndentation(), `else {\n`)
         this.indent()
         this.visitBlock(stmt.falseBranch)
         this.dedent()
-        this.body.write(this.getIndentation(), "}\n");
+        this.body.write(this.getIndentation(), '}\n')
     }
 
     override visitWhileControlStmt(stmt: WhileControlStmt): void {
-        this.body.write(this.getIndentation(), "break;\n");
+        this.body.write(this.getIndentation(), 'break;\n')
     }
 
     override visitContinueStmt(stmt: ContinueStmt): void {
         // the `continuing` block means that this will work for both normal loops and grid-strided loops
-        this.body.write(this.getIndentation(), "continue;\n");
+        this.body.write(this.getIndentation(), 'continue;\n')
     }
 
     override visitWhileStmt(stmt: WhileStmt): void {
@@ -251,7 +351,7 @@ export class CodegenVisitor extends IRVisitor {
         this.indent()
         this.visitBlock(stmt.body)
         this.dedent()
-        this.body.write(this.getIndentation(), "}\n");
+        this.body.write(this.getIndentation(), '}\n')
     }
 
     override visitVertexInputStmt(stmt: VertexInputStmt): void {
@@ -262,7 +362,7 @@ export class CodegenVisitor extends IRVisitor {
         let flat = stmt.getReturnType() == PrimitiveType.i32
         this.addStageInMember(inputName, dtName, loc, flat)
         this.emitLet(stmt.getName(), dtName)
-        this.body.write(`stage_input.${inputName};\n`);
+        this.body.write(`stage_input.${inputName};\n`)
     }
 
     override visitFragmentInputStmt(stmt: FragmentInputStmt): void {
@@ -273,7 +373,7 @@ export class CodegenVisitor extends IRVisitor {
         let flat = stmt.getReturnType() == PrimitiveType.i32
         this.addStageInMember(inputName, dtName, loc, flat)
         this.emitLet(stmt.getName(), dtName)
-        this.body.write(`stage_input.${inputName};\n`);
+        this.body.write(`stage_input.${inputName};\n`)
     }
 
     override visitVertexOutputStmt(stmt: VertexOutputStmt): void {
@@ -283,7 +383,7 @@ export class CodegenVisitor extends IRVisitor {
         this.ensureStageOutStruct()
         let flat = stmt.getValue().getReturnType() == PrimitiveType.i32
         this.addStageOutMember(outputName, dtName, loc, flat)
-        this.body.write(this.getIndentation(), `stage_output.${outputName} = ${stmt.getValue().getName()};\n`);
+        this.body.write(this.getIndentation(), `stage_output.${outputName} = ${stmt.getValue().getName()};\n`)
     }
 
     override visitBuiltInOutputStmt(stmt: BuiltInOutputStmt): void {
@@ -292,28 +392,28 @@ export class CodegenVisitor extends IRVisitor {
         let primType = stmt.getValues()[0].getReturnType()
         let typeName = this.getScalarOrVectorTypeName(primType, numComponents)
         let outputExpr = this.getScalarOrVectorExpr(stmt.getValues(), typeName)
-        let outputName = ""
+        let outputName = ''
         switch (stmt.builtinKind) {
             case BuiltInOutputKind.Color: {
                 let loc = stmt.location!
                 outputName = `color_${loc}`
                 this.addStageOutMember(outputName, typeName, loc, false)
-                break;
+                break
             }
             case BuiltInOutputKind.Position: {
                 outputName = `position`
-                this.addStageOutBuiltinMember(outputName, typeName, "position")
-                break;
+                this.addStageOutBuiltinMember(outputName, typeName, 'position')
+                break
             }
             case BuiltInOutputKind.FragDepth: {
                 outputName = `frag_depth`
-                this.addStageOutBuiltinMember(outputName, typeName, "frag_depth")
-                break;
+                this.addStageOutBuiltinMember(outputName, typeName, 'frag_depth')
+                break
             }
             default:
-                error("unrecognized builtin kind")
+                error('unrecognized builtin kind')
         }
-        this.body.write(this.getIndentation(), `stage_output.${outputName} = ${outputExpr};\n`);
+        this.body.write(this.getIndentation(), `stage_output.${outputName} = ${outputExpr};\n`)
     }
 
     override visitBuiltInInputStmt(stmt: BuiltInInputStmt): void {
@@ -324,21 +424,21 @@ export class CodegenVisitor extends IRVisitor {
         this.body.write(`${dtName}(`)
         switch (stmt.builtinKind) {
             case BuiltInInputKind.VertexIndex: {
-                this.body.write("vertex_index");
-                break;
+                this.body.write('vertex_index')
+                break
             }
             case BuiltInInputKind.InstanceIndex: {
-                this.body.write("instance_index");
-                break;
+                this.body.write('instance_index')
+                break
             }
             case BuiltInInputKind.FragCoord: {
-                this.body.write("frag_coord");
-                break;
+                this.body.write('frag_coord')
+                break
             }
             default:
-                error("unrecognized builtin kind")
+                error('unrecognized builtin kind')
         }
-        this.body.write(");\n")
+        this.body.write(');\n')
     }
 
     override visitFragmentDerivativeStmt(stmt: FragmentDerivativeStmt): void {
@@ -346,21 +446,21 @@ export class CodegenVisitor extends IRVisitor {
         this.emitLet(stmt.getName(), dtName)
         switch (stmt.direction) {
             case FragmentDerivativeDirection.x: {
-                this.body.write("dpdxFine")
-                break;
+                this.body.write('dpdxFine')
+                break
             }
             case FragmentDerivativeDirection.y: {
-                this.body.write("dpdyFine")
-                break;
+                this.body.write('dpdyFine')
+                break
             }
             default:
-                error("unrecognized direction")
+                error('unrecognized direction')
         }
         this.body.write(`(${stmt.getValue().getName()});\n`)
     }
 
     override visitDiscardStmt(stmt: DiscardStmt): void {
-        this.body.write(this.getIndentation(), "discard;\n")
+        this.body.write(this.getIndentation(), 'discard;\n')
     }
 
     override visitTextureFunctionStmt(stmt: TextureFunctionStmt): void {
@@ -368,46 +468,46 @@ export class CodegenVisitor extends IRVisitor {
         let isDepth = texture instanceof DepthTexture
         let textureResource = new ResourceInfo(ResourceType.Texture, texture.textureId)
         let requiresSampler = false
-        let resultNumComponents = isDepth ? 1 : 4;
+        let resultNumComponents = isDepth ? 1 : 4
 
         switch (stmt.func) {
             case TextureFunctionKind.Sample: {
                 requiresSampler = true
-                break;
+                break
             }
             case TextureFunctionKind.SampleLod: {
                 requiresSampler = true
-                break;
+                break
             }
             case TextureFunctionKind.SampleCompare: {
                 requiresSampler = true
                 resultNumComponents = 1
-                break;
+                break
             }
             case TextureFunctionKind.Load: {
                 requiresSampler = false
-                break;
+                break
             }
             case TextureFunctionKind.Store: {
                 requiresSampler = false
                 textureResource.resourceType = ResourceType.StorageTexture
-                break;
+                break
             }
             default: {
-                error("unrecognized texture func")
+                error('unrecognized texture func')
             }
         }
         let textureName = this.getTextureName(textureResource)
 
         let texelTypeName = this.getScalarOrVectorTypeName(PrimitiveType.f32, resultNumComponents)
 
-        let samplerName = ""
+        let samplerName = ''
         if (requiresSampler) {
             let samplerResource = new ResourceInfo(ResourceType.Sampler, texture.textureId)
             samplerName = this.getSamplerName(samplerResource)
         }
         let coordsComponentCount = getTextureCoordsNumComponents(texture.getTextureDimensionality())
-        assert(coordsComponentCount === stmt.getCoordinates().length, "component count mismatch", stmt)
+        assert(coordsComponentCount === stmt.getCoordinates().length, 'component count mismatch', stmt)
 
         let coordsPrimType = stmt.getCoordinates()[0].getReturnType()
         let coordsTypeName = this.getScalarOrVectorTypeName(coordsPrimType, coordsComponentCount)
@@ -417,34 +517,42 @@ export class CodegenVisitor extends IRVisitor {
             case TextureFunctionKind.Sample: {
                 this.emitLet(stmt.getName(), texelTypeName)
                 this.body.write(`textureSample(${textureName}, ${samplerName}, ${coordsExpr});\n`)
-                break;
+                break
             }
             case TextureFunctionKind.SampleLod: {
-                assert(stmt.getAdditionalOperands().length === 1, "expecting 1 lod value")
+                assert(stmt.getAdditionalOperands().length === 1, 'expecting 1 lod value')
                 this.emitLet(stmt.getName(), texelTypeName)
-                this.body.write(`textureSampleLevel(${textureName}, ${samplerName}, ${coordsExpr}, ${stmt.getAdditionalOperands()[0].getName()});\n`)
-                break;
+                this.body.write(
+                    `textureSampleLevel(${textureName}, ${samplerName}, ${coordsExpr}, ${stmt
+                        .getAdditionalOperands()[0]
+                        .getName()});\n`
+                )
+                break
             }
             case TextureFunctionKind.SampleCompare: {
-                assert(stmt.getAdditionalOperands().length === 1, "expecting 1 depth ref value")
+                assert(stmt.getAdditionalOperands().length === 1, 'expecting 1 depth ref value')
                 this.emitLet(stmt.getName(), texelTypeName)
-                this.body.write(`textureSampleCompare(${textureName}, ${samplerName}, ${coordsExpr}, ${stmt.getAdditionalOperands()[0].getName()});\n`)
-                break;
+                this.body.write(
+                    `textureSampleCompare(${textureName}, ${samplerName}, ${coordsExpr}, ${stmt
+                        .getAdditionalOperands()[0]
+                        .getName()});\n`
+                )
+                break
             }
             case TextureFunctionKind.Load: {
                 this.emitLet(stmt.getName(), texelTypeName)
                 this.body.write(`textureLoad(${textureName}, ${coordsExpr}, 0);\n`)
-                break;
+                break
             }
             case TextureFunctionKind.Store: {
                 let valuePrimType = stmt.getAdditionalOperands()[0].getReturnType()
                 let valueTypeName = this.getScalarOrVectorTypeName(valuePrimType, stmt.getAdditionalOperands().length)
                 let valueExpr = this.getScalarOrVectorExpr(stmt.getAdditionalOperands(), valueTypeName)
                 this.body.write(this.getIndentation(), `textureStore(${textureName}, ${coordsExpr}, ${valueExpr});\n`)
-                break;
+                break
             }
             default: {
-                error("unrecognized texture func")
+                error('unrecognized texture func')
             }
         }
     }
@@ -455,26 +563,26 @@ export class CodegenVisitor extends IRVisitor {
         this.body.write(stmt.getComposite().getName())
         switch (stmt.elementIndex) {
             case 0: {
-                this.body.write(".x")
-                break;
+                this.body.write('.x')
+                break
             }
             case 1: {
-                this.body.write(".y")
-                break;
+                this.body.write('.y')
+                break
             }
             case 2: {
-                this.body.write(".z")
-                break;
+                this.body.write('.z')
+                break
             }
             case 3: {
-                this.body.write(".w")
-                break;
+                this.body.write('.w')
+                break
             }
             default: {
-                error("unsupported composite extract index: ", stmt.elementIndex);
+                error('unsupported composite extract index: ', stmt.elementIndex)
             }
         }
-        this.body.write(";\n");
+        this.body.write(';\n')
     }
 
     override visitArgLoadStmt(stmt: ArgLoadStmt): void {
@@ -488,23 +596,26 @@ export class CodegenVisitor extends IRVisitor {
 
     override visitReturnStmt(stmt: ReturnStmt): void {
         if (this.isVertexFor() || this.isFragmentFor()) {
-            error("Return cannot be used in a vertex-for or a fragment-for")
+            error('Return cannot be used in a vertex-for or a fragment-for')
         }
         let values = stmt.getValues()
         for (let i = 0; i < values.length; ++i) {
-            this.body.write(this.getIndentation(), `${this.getBufferMemberName(new ResourceInfo(ResourceType.Rets))}[${i}] = `)
+            this.body.write(
+                this.getIndentation(),
+                `${this.getBufferMemberName(new ResourceInfo(ResourceType.Rets))}[${i}] = `
+            )
             let dt = values[i].getReturnType()
             switch (dt) {
                 case PrimitiveType.f32: {
                     this.body.write(`bitcast<i32>(${values[i].getName()});\n`)
-                    break;
+                    break
                 }
                 case PrimitiveType.i32: {
                     this.body.write(`${values[i].getName()};\n`)
-                    break;
+                    break
                 }
                 default: {
-                    error("unrecognized prim type")
+                    error('unrecognized prim type')
                 }
             }
         }
@@ -519,7 +630,7 @@ export class CodegenVisitor extends IRVisitor {
     override visitLocalLoadStmt(stmt: LocalLoadStmt): void {
         let dt = stmt.getReturnType()
         this.emitLet(stmt.getName(), dt)
-        this.body.write(stmt.getPointer().getName(), ";\n")
+        this.body.write(stmt.getPointer().getName(), ';\n')
     }
 
     override visitLocalStoreStmt(stmt: LocalStoreStmt): void {
@@ -529,73 +640,71 @@ export class CodegenVisitor extends IRVisitor {
     override visitGlobalPtrStmt(stmt: GlobalPtrStmt): void {
         let field = stmt.field
         let indices = stmt.getIndices()
-        assert(indices.length === field.dimensions.length, "global ptr dimension mismatch")
-        let elementIndex = ""
+        assert(indices.length === field.dimensions.length, 'global ptr dimension mismatch')
+        let elementIndex = ''
         let currStride = 1
         for (let i = field.dimensions.length - 1; i >= 0; --i) {
             elementIndex += `${currStride} * ${indices[i].getName()}`
             if (i > 0) {
-                elementIndex += " + "
+                elementIndex += ' + '
             }
             currStride *= field.dimensions[i]
         }
-        let index = `${field.offsetBytes / 4} + ${field.elementType.getPrimitivesList().length} * (${elementIndex}) + ${stmt.offsetInElement}`
+        let index = `${field.offsetBytes / 4} + ${field.elementType.getPrimitivesList().length} * (${elementIndex}) + ${
+            stmt.offsetInElement
+        }`
         this.emitLet(stmt.getName(), this.getPointerIntTypeName())
-        this.body.write(index, ";\n");
+        this.body.write(index, ';\n')
     }
 
     override visitGlobalTemporaryStmt(stmt: GlobalTemporaryStmt): void {
         this.emitLet(stmt.getName(), this.getPointerIntTypeName())
-        this.body.write(stmt.offset, ";\n");
+        this.body.write(stmt.offset, ';\n')
     }
 
-    emitGlobalLoadExpr(stmt: GlobalLoadStmt | GlobalTemporaryLoadStmt | AtomicLoadStmt, atomic:boolean = false) {
+    emitGlobalLoadExpr(stmt: GlobalLoadStmt | GlobalTemporaryLoadStmt | AtomicLoadStmt, atomic: boolean = false) {
         let resourceInfo: ResourceInfo
         let ptr = stmt.getPointer()
         if (ptr.getKind() === StmtKind.GlobalPtrStmt) {
             ptr = ptr as GlobalPtrStmt
-            let resourceType = atomic?ResourceType.RootAtomic : ResourceType.Root
+            let resourceType = atomic ? ResourceType.RootAtomic : ResourceType.Root
             resourceInfo = new ResourceInfo(resourceType, ptr.field.snodeTree.treeId)
             let tree = this.runtime.materializedTrees[ptr.field.snodeTree.treeId]
             if (tree.fragmentShaderWritable) {
-                error("A vertex shader cannot read from a field marked as `fragmentShaderWritable`")
+                error('A vertex shader cannot read from a field marked as `fragmentShaderWritable`')
             }
-        }
-        else {
-            let resourceType = atomic?ResourceType.GlobalTmpsAtomic : ResourceType.GlobalTmps
+        } else {
+            let resourceType = atomic ? ResourceType.GlobalTmpsAtomic : ResourceType.GlobalTmps
             resourceInfo = new ResourceInfo(resourceType)
         }
         let bufferName = this.getBufferMemberName(resourceInfo)
         let dt = stmt.getReturnType()
         let dtName = this.getPrimitiveTypeName(dt)
         this.emitLet(stmt.getName(), dt)
-        if (atomic){
+        if (atomic) {
             this.body.write(`bitcast<${dtName}>(atomicLoad(&(${bufferName}[${ptr.getName()}])));\n`)
-        }
-        else{
+        } else {
             this.body.write(`bitcast<${dtName}>(${bufferName}[${ptr.getName()}]);\n`)
         }
     }
 
-    emitGlobalStore(stmt: GlobalStoreStmt | GlobalTemporaryStoreStmt| AtomicStoreStmt, atomic:boolean = false) {
+    emitGlobalStore(stmt: GlobalStoreStmt | GlobalTemporaryStoreStmt | AtomicStoreStmt, atomic: boolean = false) {
         let resourceInfo: ResourceInfo
         let ptr = stmt.getPointer()
         if (ptr.getKind() === StmtKind.GlobalPtrStmt) {
             ptr = ptr as GlobalPtrStmt
-            let resourceType = atomic?ResourceType.RootAtomic : ResourceType.Root
+            let resourceType = atomic ? ResourceType.RootAtomic : ResourceType.Root
             resourceInfo = new ResourceInfo(resourceType, ptr.field.snodeTree.treeId)
-        }
-        else {
-            let resourceType = atomic?ResourceType.GlobalTmpsAtomic : ResourceType.GlobalTmps
+        } else {
+            let resourceType = atomic ? ResourceType.GlobalTmpsAtomic : ResourceType.GlobalTmps
             resourceInfo = new ResourceInfo(resourceType)
         }
         let bufferName = this.getBufferMemberName(resourceInfo)
         this.assertBufferWritable(resourceInfo)
         let value = `bitcast<${this.getRawDataTypeName()}>(${stmt.getValue().getName()})`
-        if (atomic){
-            this.body.write(this.getIndentation(),`atomicStore(&(${bufferName}[${ptr.getName()}]), ${value});\n`)
-        }
-        else{
+        if (atomic) {
+            this.body.write(this.getIndentation(), `atomicStore(&(${bufferName}[${ptr.getName()}]), ${value});\n`)
+        } else {
             this.body.write(this.getIndentation(), `${bufferName}[${ptr.getName()}] = ${value};\n`)
         }
     }
@@ -605,15 +714,15 @@ export class CodegenVisitor extends IRVisitor {
     }
 
     override visitGlobalStoreStmt(stmt: GlobalStoreStmt): void {
-        this.emitGlobalStore(stmt,/*atomic=*/ false)
+        this.emitGlobalStore(stmt, /*atomic=*/ false)
     }
 
     override visitGlobalTemporaryLoadStmt(stmt: GlobalTemporaryLoadStmt): void {
-        this.emitGlobalLoadExpr(stmt,/*atomic=*/ false)
+        this.emitGlobalLoadExpr(stmt, /*atomic=*/ false)
     }
 
     override visitGlobalTemporaryStoreStmt(stmt: GlobalTemporaryStoreStmt): void {
-        this.emitGlobalStore(stmt,/*atomic=*/ false)
+        this.emitGlobalStore(stmt, /*atomic=*/ false)
     }
 
     override visitAtomicOpStmt(stmt: AtomicOpStmt): void {
@@ -624,55 +733,53 @@ export class CodegenVisitor extends IRVisitor {
         if (dest.getKind() === StmtKind.GlobalPtrStmt) {
             dest = dest as GlobalPtrStmt
             resourceInfo = new ResourceInfo(ResourceType.RootAtomic, (dest as GlobalPtrStmt).field.snodeTree.treeId)
-        }
-        else {
+        } else {
             resourceInfo = new ResourceInfo(ResourceType.GlobalTmpsAtomic)
         }
         this.assertBufferWritable(resourceInfo)
         let bufferName = this.getBufferMemberName(resourceInfo)
 
-
-        let result = this.getTemp("atomic_op_result");
+        let result = this.getTemp('atomic_op_result')
         this.body.write(this.getIndentation(), `var ${result} : ${dtName};\n`)
         let ptr = `&(${bufferName}[${stmt.getDestination().getName()}])`
         switch (dt) {
             case PrimitiveType.i32: {
-                let atomicFuncName = ""
+                let atomicFuncName = ''
                 switch (stmt.op) {
                     case AtomicOpType.add: {
-                        atomicFuncName = "atomicAdd";
-                        break;
+                        atomicFuncName = 'atomicAdd'
+                        break
                     }
                     case AtomicOpType.sub: {
-                        atomicFuncName = "atomicSub";
-                        break;
+                        atomicFuncName = 'atomicSub'
+                        break
                     }
                     case AtomicOpType.max: {
-                        atomicFuncName = "atomicMax";
-                        break;
+                        atomicFuncName = 'atomicMax'
+                        break
                     }
                     case AtomicOpType.min: {
-                        atomicFuncName = "atomicMin";
-                        break;
+                        atomicFuncName = 'atomicMin'
+                        break
                     }
                     case AtomicOpType.bit_and: {
-                        atomicFuncName = "atomicAnd";
-                        break;
+                        atomicFuncName = 'atomicAnd'
+                        break
                     }
                     case AtomicOpType.bit_or: {
-                        atomicFuncName = "atomicOr";
-                        break;
+                        atomicFuncName = 'atomicOr'
+                        break
                     }
                     case AtomicOpType.bit_xor: {
-                        atomicFuncName = "atomicXor";
-                        break;
+                        atomicFuncName = 'atomicXor'
+                        break
                     }
                     default: {
-                        error("atomic op not supported")
+                        error('atomic op not supported')
                     }
                 }
                 this.body.write(`${result} = ${atomicFuncName}(${ptr}, ${stmt.getOperand().getName()});\n`)
-                break;
+                break
             }
             case PrimitiveType.f32: {
                 /*
@@ -690,52 +797,55 @@ export class CodegenVisitor extends IRVisitor {
                 // WGSL doesn't allow declaring a function whose argument is a pointer to
                 // SSBO... so we inline it
 
-                this.body.write(this.getIndentation(), "loop { \n");
+                this.body.write(this.getIndentation(), 'loop { \n')
                 this.indent()
 
-                let oldVal = this.getTemp("old_val");
-                this.emitLet(oldVal, "f32")
+                let oldVal = this.getTemp('old_val')
+                this.emitLet(oldVal, 'f32')
                 this.body.write(`bitcast<f32>(atomicLoad(${ptr}));\n`)
 
-                let newValExpr = ""
+                let newValExpr = ''
                 switch (stmt.op) {
                     case AtomicOpType.add: {
-                        newValExpr = `${oldVal} + ${stmt.getOperand().getName()}`;
-                        break;
+                        newValExpr = `${oldVal} + ${stmt.getOperand().getName()}`
+                        break
                     }
                     case AtomicOpType.sub: {
-                        newValExpr = `${oldVal} - ${stmt.getOperand().getName()}`;
-                        break;
+                        newValExpr = `${oldVal} - ${stmt.getOperand().getName()}`
+                        break
                     }
                     case AtomicOpType.max: {
-                        newValExpr = `max(${oldVal}, ${stmt.getOperand().getName()})`;
-                        break;
+                        newValExpr = `max(${oldVal}, ${stmt.getOperand().getName()})`
+                        break
                     }
                     case AtomicOpType.min: {
-                        newValExpr = `min(${oldVal}, ${stmt.getOperand().getName()})`;
-                        break;
+                        newValExpr = `min(${oldVal}, ${stmt.getOperand().getName()})`
+                        break
                     }
                     default: {
-                        error("atomic op not supported for f32")
+                        error('atomic op not supported for f32')
                     }
                 }
 
-                let newVal = this.getTemp("new_val");
-                this.emitLet(newVal, "f32")
+                let newVal = this.getTemp('new_val')
+                this.emitLet(newVal, 'f32')
                 this.body.write(`${newValExpr};\n`)
 
-                this.body.write(this.getIndentation(), `if(atomicCompareExchangeWeak(${ptr}, bitcast<i32>(${oldVal}), bitcast<i32>(${newVal})).exchanged){\n`)
+                this.body.write(
+                    this.getIndentation(),
+                    `if(atomicCompareExchangeWeak(${ptr}, bitcast<i32>(${oldVal}), bitcast<i32>(${newVal})).exchanged){\n`
+                )
                 this.indent()
                 this.body.write(this.getIndentation(), `${result} = ${oldVal};\n`)
                 this.body.write(this.getIndentation(), `break;\n`)
                 this.dedent()
-                this.body.write(this.getIndentation(), "}\n")
+                this.body.write(this.getIndentation(), '}\n')
                 this.dedent()
-                this.body.write(this.getIndentation(), "}\n")
-                break;
+                this.body.write(this.getIndentation(), '}\n')
+                break
             }
             default: {
-                error("unrecognized prim type")
+                error('unrecognized prim type')
             }
         }
         this.emitLet(stmt.getName(), dtName)
@@ -743,31 +853,30 @@ export class CodegenVisitor extends IRVisitor {
     }
 
     override visitAtomicLoadStmt(stmt: AtomicLoadStmt): void {
-        this.emitGlobalLoadExpr(stmt,/*atomic=*/ true)
+        this.emitGlobalLoadExpr(stmt, /*atomic=*/ true)
     }
 
     override visitAtomicStoreStmt(stmt: AtomicStoreStmt): void {
-        this.emitGlobalStore(stmt,/*atomic=*/ true)
+        this.emitGlobalStore(stmt, /*atomic=*/ true)
     }
 
     override visitLoopIndexStmt(stmt: LoopIndexStmt): void {
         let loop = stmt.getLoop() as RangeForStmt
         if (loop.isParallelFor) {
-            this.emitLet(stmt.getName(), "i32")
-            this.body.write("ii;\n")
-        }
-        else {
-            this.emitLet(stmt.getName(), "i32")
+            this.emitLet(stmt.getName(), 'i32')
+            this.body.write('ii;\n')
+        } else {
+            this.emitLet(stmt.getName(), 'i32')
             this.body.write(`${stmt.getLoop().getName()};\n`)
         }
     }
 
     override visitFragmentForStmt(stmt: FragmentForStmt): void {
-        error("FragmentForStmt should have been offloaded")
+        error('FragmentForStmt should have been offloaded')
     }
 
     override visitVertexForStmt(stmt: VertexForStmt): void {
-        error("VertexForStmt should have been offloaded")
+        error('VertexForStmt should have been offloaded')
     }
 
     generateSerialKernel(): TaskParams {
@@ -781,12 +890,11 @@ export class CodegenVisitor extends IRVisitor {
         let numWorkgroups = 512
 
         let offload = this.offload as ComputeModule
-        let endExpr = ""
+        let endExpr = ''
         if (offload.hasConstRange) {
             endExpr = `${offload.rangeArg}`
             numWorkgroups = divUp(offload.rangeArg, blockSize)
-        }
-        else {
+        } else {
             let resource = new ResourceInfo(ResourceType.GlobalTmps)
             let buffer = this.getBufferMemberName(resource)
             endExpr = `${buffer}[${offload.rangeArg}]`
@@ -794,18 +902,18 @@ export class CodegenVisitor extends IRVisitor {
 
         this.startComputeFunction(blockSize)
 
-        let end = this.getTemp("end")
-        this.emitLet(end, "i32")
+        let end = this.getTemp('end')
+        this.emitLet(end, 'i32')
         this.body.write(`${endExpr};\n`)
 
-        let totalInvocs = this.getTemp("total_invocs")
-        this.emitLet(totalInvocs, "i32");
+        let totalInvocs = this.getTemp('total_invocs')
+        this.emitLet(totalInvocs, 'i32')
         this.body.write(`${blockSize} * i32(n_workgroups.x);\n`)
 
-        this.emitVar("ii", "i32")
-        this.body.write("i32(gid3.x);\n")
+        this.emitVar('ii', 'i32')
+        this.body.write('i32(gid3.x);\n')
 
-        this.body.write(this.getIndentation(), "loop {\n")
+        this.body.write(this.getIndentation(), 'loop {\n')
         this.indent()
 
         this.body.write(this.getIndentation(), `if(ii >= ${end}) { break; }\n`)
@@ -813,7 +921,7 @@ export class CodegenVisitor extends IRVisitor {
         this.body.write(this.getIndentation(), `continuing { ii = ii + ${totalInvocs}; }\n`)
 
         this.dedent()
-        this.body.write(this.getIndentation(), "}\n")
+        this.body.write(this.getIndentation(), '}\n')
         return new TaskParams(this.assembleShader(), blockSize, numWorkgroups, this.resourceBindings.bindings)
     }
 
@@ -855,18 +963,18 @@ export class CodegenVisitor extends IRVisitor {
     }
 
     getPointerIntTypeName() {
-        return "i32"
+        return 'i32'
     }
 
     getPrimitiveTypeName(dt: PrimitiveType) {
         switch (dt) {
             case PrimitiveType.f32:
-                return "f32"
+                return 'f32'
             case PrimitiveType.i32:
-                return "i32"
+                return 'i32'
             default:
                 error(`unsupported primitive type `, dt)
-                return "error"
+                return 'error'
         }
     }
 
@@ -886,27 +994,26 @@ export class CodegenVisitor extends IRVisitor {
             for (let i = 1; i < values.length; ++i) {
                 outputExpr += `, ${values[i].getName()}`
             }
-            outputExpr += ")"
+            outputExpr += ')'
         }
         return outputExpr
     }
 
+    globalDecls = new StringBuilder()
 
-    globalDecls = new StringBuilder
+    stageInStructBegin = new StringBuilder()
+    stageInStructBody = new StringBuilder()
+    stageInStructEnd = new StringBuilder()
 
-    stageInStructBegin = new StringBuilder
-    stageInStructBody = new StringBuilder
-    stageInStructEnd = new StringBuilder
+    stageOutStructBegin = new StringBuilder()
+    stageOutStructBody = new StringBuilder()
+    stageOutStructEnd = new StringBuilder()
 
-    stageOutStructBegin = new StringBuilder
-    stageOutStructBody = new StringBuilder
-    stageOutStructEnd = new StringBuilder
-
-    funtionSignature = new StringBuilder
-    functionBodyPrologue = new StringBuilder
-    body = new StringBuilder
-    functionBodyEpilogue = new StringBuilder
-    functionEnd = new StringBuilder
+    funtionSignature = new StringBuilder()
+    functionBodyPrologue = new StringBuilder()
+    body = new StringBuilder()
+    functionBodyEpilogue = new StringBuilder()
+    functionEnd = new StringBuilder()
 
     assembleShader() {
         return (
@@ -914,11 +1021,9 @@ export class CodegenVisitor extends IRVisitor {
             this.stageInStructBegin.getString() +
             this.stageInStructBody.getString() +
             this.stageInStructEnd.getString() +
-
             this.stageOutStructBegin.getString() +
             this.stageOutStructBody.getString() +
             this.stageOutStructEnd.getString() +
-
             this.funtionSignature.getString() +
             this.functionBodyPrologue.getString() +
             this.body.getString() +
@@ -927,9 +1032,8 @@ export class CodegenVisitor extends IRVisitor {
         )
     }
 
-
     startComputeFunction(blockSizeX: number) {
-        assert(this.funtionSignature.empty(), "already has a signature")
+        assert(this.funtionSignature.empty(), 'already has a signature')
         let signature = `
 @compute @workgroup_size(${blockSizeX}, 1, 1)
 fn main(
@@ -938,31 +1042,29 @@ fn main(
 {        
 `
         this.funtionSignature.write(signature)
-        this.functionEnd.write("}\n")
+        this.functionEnd.write('}\n')
     }
 
     startGraphicsFunction() {
-        assert(this.funtionSignature.empty(), "already has a signature")
-        let stageName = ""
-        let builtInInput = ""
-        let stageInput = ""
-        let maybeOutput = ""
+        assert(this.funtionSignature.empty(), 'already has a signature')
+        let stageName = ''
+        let builtInInput = ''
+        let stageInput = ''
+        let maybeOutput = ''
         if (this.isVertexFor()) {
-            stageName = "vertex"
+            stageName = 'vertex'
             builtInInput = `@builtin(vertex_index) vertex_index : u32,  @builtin(instance_index) instance_index : u32`
-        }
-        else if (this.isFragmentFor()) {
-            stageName = "fragment"
-            builtInInput = "@builtin(position) frag_coord : vec4<f32>"
-        }
-        else {
+        } else if (this.isFragmentFor()) {
+            stageName = 'fragment'
+            builtInInput = '@builtin(position) frag_coord : vec4<f32>'
+        } else {
             error("emit_graphics_function called, but we're not in vert/frag for")
         }
         if (!this.stageInStructBegin.empty()) {
-            stageInput = ", stage_input: StageInput"
+            stageInput = ', stage_input: StageInput'
         }
         if (!this.stageOutStructBegin.empty()) {
-            maybeOutput = "-> StageOutput"
+            maybeOutput = '-> StageOutput'
         }
         let signature = `
 @${stageName}
@@ -970,27 +1072,25 @@ fn main(${builtInInput} ${stageInput}) ${maybeOutput}
 {
 `
         this.funtionSignature.write(signature)
-        this.functionEnd.write("\n}\n")
+        this.functionEnd.write('\n}\n')
     }
-
 
     ensureStageInStruct() {
         if (this.stageInStructBegin.parts.length > 0) {
             return
         }
-        this.stageInStructBegin.write("struct StageInput {\n")
-        this.stageInStructEnd.write("};\n")
-
+        this.stageInStructBegin.write('struct StageInput {\n')
+        this.stageInStructEnd.write('};\n')
     }
     ensureStageOutStruct() {
         if (this.stageOutStructBegin.parts.length > 0) {
             return
         }
-        this.stageOutStructBegin.write("struct StageOutput {\n")
-        this.stageOutStructEnd.write("};\n")
+        this.stageOutStructBegin.write('struct StageOutput {\n')
+        this.stageOutStructEnd.write('};\n')
 
-        this.functionBodyPrologue.write("  var stage_output: StageOutput;\n")
-        this.functionBodyEpilogue.write("  return stage_output;\n")
+        this.functionBodyPrologue.write('  var stage_output: StageOutput;\n')
+        this.functionBodyEpilogue.write('  return stage_output;\n')
     }
 
     stageInMembers: Set<string> = new Set<string>()
@@ -1000,7 +1100,7 @@ fn main(${builtInInput} ${stageInput}) ${maybeOutput}
             if (flat) {
                 this.stageInStructBody.write(`@interpolate(flat) `)
             }
-            this.stageInStructBody.write(`${name} : ${dt},\n`);
+            this.stageInStructBody.write(`${name} : ${dt},\n`)
             this.stageInMembers.add(name)
         }
     }
@@ -1012,7 +1112,7 @@ fn main(${builtInInput} ${stageInput}) ${maybeOutput}
             if (flat) {
                 this.stageOutStructBody.write(`@interpolate(flat) `)
             }
-            this.stageOutStructBody.write(`${name} : ${dt},\n`);
+            this.stageOutStructBody.write(`${name} : ${dt},\n`)
             this.stageOutMembers.add(name)
         }
     }
@@ -1025,19 +1125,19 @@ fn main(${builtInInput} ${stageInput}) ${maybeOutput}
         }
     }
 
-    bodyIndentCount = 1;
+    bodyIndentCount = 1
     indent() {
-        this.bodyIndentCount++;
+        this.bodyIndentCount++
     }
     dedent() {
-        this.bodyIndentCount--;
+        this.bodyIndentCount--
     }
     getIndentation() {
-        return "  ".repeat(this.bodyIndentCount)
+        return '  '.repeat(this.bodyIndentCount)
     }
 
     nextInternalTemp = 0
-    getTemp(hint: string = "") {
+    getTemp(hint: string = '') {
         return `_internal_temp_${this.nextInternalTemp++}_${hint}`
     }
 
@@ -1050,7 +1150,7 @@ fn main(${builtInInput} ${stageInput}) ${maybeOutput}
     }
 
     getRawDataTypeName() {
-        return "i32"
+        return 'i32'
     }
 
     getAtomicRawDataTypeName() {
@@ -1073,76 +1173,75 @@ fn main(${builtInInput} ${stageInput}) ${maybeOutput}
                 // WGSL doesn't allow atomic<vec4<i32>>, so the type size is always 4
             }
             case ResourceType.GlobalTmps: {
-                return divUp(65536, this.getRawDataTypeSize());
+                return divUp(65536, this.getRawDataTypeSize())
                 // maximum size (ubo) allowed by WebGPU Chrome DX backend. matches Runtime.ts
             }
             case ResourceType.GlobalTmpsAtomic: {
-                return divUp(65536, this.getRawDataTypeSize());
+                return divUp(65536, this.getRawDataTypeSize())
                 // maximum size (ubo) allowed by WebGPU Chrome DX backend. matches Runtime.ts
             }
             case ResourceType.RandStates: {
-                return 65536;
+                return 65536
                 // matches Runtime.ts // note that we have up to 65536 shader invocations
             }
             case ResourceType.Args: {
-                return divUp(this.argBytes, this.getRawDataTypeSize());
+                return divUp(this.argBytes, this.getRawDataTypeSize())
             }
             case ResourceType.Rets: {
-                return divUp(this.retBytes, this.getRawDataTypeSize());
+                return divUp(this.retBytes, this.getRawDataTypeSize())
             }
             default: {
-                error("not a buffer")
+                error('not a buffer')
                 return -1
             }
         }
     }
 
-    resourceBindings: ResourceBindingMap = new ResourceBindingMap
+    resourceBindings: ResourceBindingMap = new ResourceBindingMap()
 
     getBufferName(buffer: ResourceInfo) {
-        let name = ""
+        let name = ''
         let binding: number
         if (!this.resourceBindings.has(buffer)) {
             binding = this.previousStageBindings.length + this.resourceBindings.size()
-        }
-        else {
+        } else {
             binding = this.resourceBindings.get(buffer)!
         }
         let elementType = this.getRawDataTypeName()
         switch (buffer.resourceType) {
             case ResourceType.Root: {
                 name = `root_buffer_binding_${binding}`
-                break;
+                break
             }
             case ResourceType.RootAtomic: {
                 name = `root_buffer_atomic_binding_${binding}`
-                elementType = this.getAtomicRawDataTypeName();
-                break;
+                elementType = this.getAtomicRawDataTypeName()
+                break
             }
             case ResourceType.GlobalTmps: {
-                name = "global_tmps_";
-                break;
+                name = 'global_tmps_'
+                break
             }
             case ResourceType.GlobalTmpsAtomic: {
-                name = "global_tmps_atomic_";
-                elementType = this.getAtomicRawDataTypeName();
-                break;
+                name = 'global_tmps_atomic_'
+                elementType = this.getAtomicRawDataTypeName()
+                break
             }
             case ResourceType.RandStates: {
-                name = "rand_states_";
-                elementType = "RandState";
-                break;
+                name = 'rand_states_'
+                elementType = 'RandState'
+                break
             }
             case ResourceType.Args: {
-                name = "args_";
-                break;
+                name = 'args_'
+                break
             }
             case ResourceType.Rets: {
-                name = "rets_";
-                break;
+                name = 'rets_'
+                break
             }
             default: {
-                error("not a buffer")
+                error('not a buffer')
             }
         }
         if (!this.resourceBindings.has(buffer)) {
@@ -1178,49 +1277,61 @@ fn main(${builtInInput} ${stageInput}) ${maybeOutput}
     assertBufferWritable(buffer: ResourceInfo) {
         // vertex shader not allowed to write to global memory
         if (this.isVertexFor()) {
-            if (buffer.resourceType === ResourceType.GlobalTmps || buffer.resourceType === ResourceType.GlobalTmpsAtomic) {
-                error("a vertex shader is not allowed to write to global temporary variables")
-            }
-            else if (buffer.resourceType === ResourceType.Root || buffer.resourceType === ResourceType.RootAtomic) {
-                error("a vertex shader is not allowed to write to fields")
-            }
-            else {
-                error("[Internal Error] Unexpected resource type")
+            if (
+                buffer.resourceType === ResourceType.GlobalTmps ||
+                buffer.resourceType === ResourceType.GlobalTmpsAtomic
+            ) {
+                error('a vertex shader is not allowed to write to global temporary variables')
+            } else if (buffer.resourceType === ResourceType.Root || buffer.resourceType === ResourceType.RootAtomic) {
+                error('a vertex shader is not allowed to write to fields')
+            } else {
+                error('[Internal Error] Unexpected resource type')
             }
         }
         if (this.isFragmentFor()) {
             for (let vertexBinding of this.previousStageBindings) {
                 if (vertexBinding.info.equals(buffer)) {
-                    if (buffer.resourceType === ResourceType.GlobalTmps || buffer.resourceType === ResourceType.GlobalTmpsAtomic) {
-                        error("a fragment shader is not allowed to write to global temporary variables, if the corresponding vertex shader reads any global temporary variable")
-                    }
-                    else if (buffer.resourceType === ResourceType.Root || buffer.resourceType === ResourceType.RootAtomic) {
+                    if (
+                        buffer.resourceType === ResourceType.GlobalTmps ||
+                        buffer.resourceType === ResourceType.GlobalTmpsAtomic
+                    ) {
+                        error(
+                            'a fragment shader is not allowed to write to global temporary variables, if the corresponding vertex shader reads any global temporary variable'
+                        )
+                    } else if (
+                        buffer.resourceType === ResourceType.Root ||
+                        buffer.resourceType === ResourceType.RootAtomic
+                    ) {
                         let tree = this.runtime.materializedTrees[buffer.resourceID!]
                         if (tree.fragmentShaderWritable) {
-                            error("[Internal Error] the vertex shader shouldn't have been able to read from the field which is marked as `fragmentShaderWritable`")
+                            error(
+                                "[Internal Error] the vertex shader shouldn't have been able to read from the field which is marked as `fragmentShaderWritable`"
+                            )
+                        } else {
+                            error(
+                                '[Internal Error] a fragment shader can only write to a field if it is marked as `fragmentShaderWritable`'
+                            )
                         }
-                        else {
-                            error("[Internal Error] a fragment shader can only write to a field if it is marked as `fragmentShaderWritable`")
-                        }
-                    }
-                    else {
-                        error("[Internal Error] Unexpected resource type")
+                    } else {
+                        error('[Internal Error] Unexpected resource type')
                     }
                 }
             }
             if (buffer.resourceType === ResourceType.Root || buffer.resourceType === ResourceType.RootAtomic) {
                 let tree = this.runtime.materializedTrees[buffer.resourceID!]
                 if (!tree.fragmentShaderWritable) {
-                    error("[Internal Error] a fragment shader can only write to a field if it is marked as `fragmentShaderWritable`")
+                    error(
+                        '[Internal Error] a fragment shader can only write to a field if it is marked as `fragmentShaderWritable`'
+                    )
                 }
             }
         }
     }
 
     declareNewBuffer(buffer: ResourceInfo, name: string, binding: number, elementType: string, elementCount: number) {
-        let storageAndAcess = "storage, read_write"
+        let storageAndAcess = 'storage, read_write'
         if (!this.isBufferWritable(buffer)) {
-            storageAndAcess = "storage, read";
+            storageAndAcess = 'storage, read'
         }
         let code = `
 struct ${name}_type {
@@ -1233,95 +1344,87 @@ var<${storageAndAcess}> ${name}: ${name}_type;
     }
 
     getBufferMemberName(buffer: ResourceInfo) {
-        return this.getBufferName(buffer) + ".member"
+        return this.getBufferName(buffer) + '.member'
     }
 
     getTextureName(textureInfo: ResourceInfo) {
-        if (textureInfo.resourceType !== ResourceType.Texture && textureInfo.resourceType !== ResourceType.StorageTexture) {
-            error("not a texture")
+        if (
+            textureInfo.resourceType !== ResourceType.Texture &&
+            textureInfo.resourceType !== ResourceType.StorageTexture
+        ) {
+            error('not a texture')
         }
         let binding: number
         if (!this.resourceBindings.has(textureInfo)) {
             binding = this.previousStageBindings.length + this.resourceBindings.size()
-        }
-        else {
+        } else {
             binding = this.resourceBindings.get(textureInfo)!
         }
-        let isStorageTexture = (textureInfo.resourceType === ResourceType.StorageTexture)
+        let isStorageTexture = textureInfo.resourceType === ResourceType.StorageTexture
         let texture = this.runtime.textures[textureInfo.resourceID!]
         let name: string
         if (isStorageTexture) {
             name = `texture_binding_${binding}`
-        }
-        else {
+        } else {
             name = `storage_texture_binding_${binding}`
         }
         let elementType = this.getPrimitiveTypeName(PrimitiveType.f32)
-        let typeName = ""
+        let typeName = ''
         let isDepth = texture instanceof DepthTexture
-        assert(!(isDepth && isStorageTexture), "cannot have depth storeage texture")
+        assert(!(isDepth && isStorageTexture), 'cannot have depth storeage texture')
         switch (texture.getTextureDimensionality()) {
             case TextureDimensionality.Dim2d: {
                 if (!isDepth) {
                     if (isStorageTexture) {
-                        typeName = "texture_storage_2d"
+                        typeName = 'texture_storage_2d'
+                    } else {
+                        typeName = 'texture_2d'
                     }
-                    else {
-                        typeName = "texture_2d"
-                    }
-                }
-                else {
+                } else {
                     if (texture.sampleCount === 1) {
-                        typeName = "texture_depth_2d"
-                    }
-                    else {
-                        typeName = "texture_depth_multisampled_2d"
+                        typeName = 'texture_depth_2d'
+                    } else {
+                        typeName = 'texture_depth_multisampled_2d'
                     }
                 }
-                break;
+                break
             }
             case TextureDimensionality.Dim3d: {
                 if (!isDepth) {
                     if (isStorageTexture) {
-                        typeName = "texture_storage_3d"
+                        typeName = 'texture_storage_3d'
+                    } else {
+                        typeName = 'texture_3d'
                     }
-                    else {
-                        typeName = "texture_3d"
-                    }
+                } else {
+                    error('depth 3d texture not supported')
                 }
-                else {
-                    error("depth 3d texture not supported")
-                }
-                break;
+                break
             }
             case TextureDimensionality.DimCube: {
                 if (!isDepth) {
                     if (isStorageTexture) {
-                        error("storage cube texture not supported")
+                        error('storage cube texture not supported')
+                    } else {
+                        typeName = 'texture_3d'
                     }
-                    else {
-                        typeName = "texture_3d"
-                    }
+                } else {
+                    error('depth cube texture not supported')
                 }
-                else {
-                    error("depth cube texture not supported")
-                }
-                break;
+                break
             }
             default: {
-                error("unrecognized dimensionality")
+                error('unrecognized dimensionality')
             }
         }
         if (!this.resourceBindings.has(textureInfo)) {
             this.resourceBindings.add(textureInfo, binding)
-            let templateArgs = ""
+            let templateArgs = ''
             if (isStorageTexture) {
                 templateArgs = `<${texture.getGPUTextureFormat() as string}, write>`
-            }
-            else if (isDepth) {
+            } else if (isDepth) {
                 templateArgs = ``
-            }
-            else {
+            } else {
                 templateArgs = `<${elementType}>`
             }
             this.declareNewTexture(textureInfo, name, typeName, templateArgs, binding)
@@ -1339,21 +1442,20 @@ var ${name}: ${typeName}${templateArgs};
 
     getSamplerName(samplerInfo: ResourceInfo) {
         if (samplerInfo.resourceType !== ResourceType.Sampler) {
-            error("not a sampler")
+            error('not a sampler')
         }
         let binding: number
         if (!this.resourceBindings.has(samplerInfo)) {
             binding = this.previousStageBindings.length + this.resourceBindings.size()
-        }
-        else {
+        } else {
             binding = this.resourceBindings.get(samplerInfo)!
         }
         let texture = this.runtime.textures[samplerInfo.resourceID!]
         let name = `sampler_binding_${binding}`
-        let typeName = "sampler"
+        let typeName = 'sampler'
         let isDepth = texture instanceof DepthTexture
         if (isDepth) {
-            typeName = "sampler_comparison"
+            typeName = 'sampler_comparison'
         }
         if (!this.resourceBindings.has(samplerInfo)) {
             this.resourceBindings.add(samplerInfo, binding)
@@ -1417,9 +1519,4 @@ fn rand_i32(id:u32) -> i32 {
         this.globalDecls.write(randFuncs)
         this.randInitiated = true
     }
-
-
-
-
 }
-

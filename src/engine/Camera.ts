@@ -1,4 +1,4 @@
-import * as ti from "../taichi"
+import * as ti from '../taichi'
 
 export class Camera {
     constructor(
@@ -8,17 +8,15 @@ export class Camera {
         public fov: number = 45,
         public near: number = 0.1,
         public far: number = 1000
-    ) {
-
-    }
+    ) {}
     public view: number[][] = []
     public projection: number[][] = []
     public viewProjection: number[][] = []
 
     computeMatrices(aspectRatio: number) {
-        this.view = ti.lookAt(this.position, ti.add(this.position, this.direction), this.up);
-        this.projection = ti.perspective(this.fov, aspectRatio, this.near, this.far);
-        this.viewProjection = ti.matmul(this.projection, this.view);
+        this.view = ti.lookAt(this.position, ti.add(this.position, this.direction), this.up)
+        this.projection = ti.perspective(this.fov, aspectRatio, this.near, this.far)
+        this.viewProjection = ti.matmul(this.projection, this.view)
     }
 
     static getKernelType(): any {
@@ -31,7 +29,7 @@ export class Camera {
             far: ti.f32,
             view: ti.types.matrix(ti.f32, 4, 4),
             projection: ti.types.matrix(ti.f32, 4, 4),
-            viewProjection: ti.types.matrix(ti.f32, 4, 4)
+            viewProjection: ti.types.matrix(ti.f32, 4, 4),
         })
     }
     track(canvas: HTMLCanvasElement, yawSpeed: number = 2, pitchSpeed: number = 2, movementSpeed: number = 0.01) {
@@ -44,8 +42,7 @@ export class Camera {
             let yaw: number
             if (Math.abs(sinYaw) < eps) {
                 yaw = 0.0
-            }
-            else {
+            } else {
                 yaw = Math.acos(cosYaw)
                 if (sinYaw < 0) {
                     yaw = -yaw
@@ -83,7 +80,7 @@ export class Camera {
                 yaw += dx * yawSpeed
                 pitch += dy * pitchSpeed
 
-                let pitchLimit = Math.PI / 2 * 0.99
+                let pitchLimit = (Math.PI / 2) * 0.99
                 if (pitch > pitchLimit) {
                     pitch = pitchLimit
                 }
@@ -100,4 +97,4 @@ export class Camera {
             this.position = ti.add(this.position, ti.mul(this.direction, -ev.deltaY * movementSpeed))
         }
     }
-} 
+}

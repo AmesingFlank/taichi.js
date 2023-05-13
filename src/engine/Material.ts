@@ -1,6 +1,6 @@
-import { TextureBase } from "../data/Texture"
-import { Type } from "../language/frontend/Type"
-import * as ti from "../taichi"
+import { TextureBase } from '../data/Texture'
+import { Type } from '../language/frontend/Type'
+import * as ti from '../taichi'
 
 export class MaterialAttribute {
     constructor(
@@ -8,9 +8,7 @@ export class MaterialAttribute {
         public value: number[],
         public texture: TextureBase | undefined = undefined,
         public texcoordsSet: number = 0
-    ) {
-
-    }
+    ) {}
 
     getInfo(): MaterialAttributeInfo {
         return {
@@ -23,17 +21,15 @@ export class MaterialAttribute {
         let valueType = ti.types.vector(ti.f32, this.numComponents)
         return ti.types.struct({
             value: valueType,
-            hasTexture: ti.i32
+            hasTexture: ti.i32,
         })
     }
 }
 
 export class Material {
-    constructor(public materialID: number) {
+    constructor(public materialID: number) {}
 
-    }
-
-    name: string = ""
+    name: string = ''
     baseColor: MaterialAttribute = new MaterialAttribute(4, [1, 1, 1, 1])
     metallicRoughness: MaterialAttribute = new MaterialAttribute(2, [0, 0])
     emissive: MaterialAttribute = new MaterialAttribute(3, [0, 0, 0])
@@ -45,7 +41,7 @@ export class Material {
             baseColor: this.baseColor.getInfo(),
             metallicRoughness: this.metallicRoughness.getInfo(),
             emissive: this.emissive.getInfo(),
-            normalMap: this.normalMap.getInfo()
+            normalMap: this.normalMap.getInfo(),
         }
     }
 
@@ -64,7 +60,6 @@ export class Material {
     }
 }
 
-
 export interface MaterialAttributeInfo {
     value: number | number[]
     hasTexture: number // 1 or 0, representing true or false
@@ -73,10 +68,9 @@ export interface MaterialAttributeInfo {
 // used by shaders
 export interface MaterialInfo {
     materialID: number
-    baseColor: MaterialAttributeInfo,
-    metallicRoughness: MaterialAttributeInfo,
-    emissive: MaterialAttributeInfo,
+    baseColor: MaterialAttributeInfo
+    metallicRoughness: MaterialAttributeInfo
+    emissive: MaterialAttributeInfo
     normalMap: MaterialAttributeInfo
     // other stuff
 }
-

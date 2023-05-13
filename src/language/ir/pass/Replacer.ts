@@ -1,5 +1,5 @@
-import { Stmt } from "../Stmt";
-import { IRTransformer } from "../Transformer";
+import { Stmt } from '../Stmt'
+import { IRTransformer } from '../Transformer'
 
 export class DelayedStmtReplacer extends IRTransformer {
     replaceMap: Map<Stmt, Stmt> = new Map<Stmt, Stmt>()

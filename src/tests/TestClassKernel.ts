@@ -1,10 +1,10 @@
 //@ts-nocheck
-import { Field } from "../data/Field"
-import * as ti from "../taichi"
-import { assertEqual } from "./Utils"
+import { Field } from '../data/Field'
+import * as ti from '../taichi'
+import { assertEqual } from './Utils'
 
 async function testClassKernel(): Promise<boolean> {
-    console.log("testClassKernel")
+    console.log('testClassKernel')
 
     await ti.init()
 
@@ -15,7 +15,8 @@ async function testClassKernel(): Promise<boolean> {
                 this.f[0] = this.x
                 return this.x
             })
-            this.tk = ti.classKernel(this,
+            this.tk = ti.classKernel(
+                this,
                 { f: ti.template(), x: ti.f32 }, // arg type annotation
                 (f, x) => {
                     f[0] = x

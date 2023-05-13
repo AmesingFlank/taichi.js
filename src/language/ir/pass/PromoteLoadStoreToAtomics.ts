@@ -1,8 +1,24 @@
-import { AtomicLoadStmt, AtomicOpStmt, AtomicStoreStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStoreStmt, IfStmt, IRModule, LocalStoreStmt, PointerStmt, ReturnStmt, Stmt, StmtKind, WhileStmt } from "../Stmt";
-import { IRTransformer } from "../Transformer";
-import { IRVisitor } from "../Visitor";
-import { DelayedStmtReplacer } from "./Replacer";
-
+import {
+    AtomicLoadStmt,
+    AtomicOpStmt,
+    AtomicStoreStmt,
+    GlobalLoadStmt,
+    GlobalPtrStmt,
+    GlobalStoreStmt,
+    GlobalTemporaryLoadStmt,
+    GlobalTemporaryStoreStmt,
+    IfStmt,
+    IRModule,
+    LocalStoreStmt,
+    PointerStmt,
+    ReturnStmt,
+    Stmt,
+    StmtKind,
+    WhileStmt,
+} from '../Stmt'
+import { IRTransformer } from '../Transformer'
+import { IRVisitor } from '../Visitor'
+import { DelayedStmtReplacer } from './Replacer'
 
 // If a buffer is used atomically at any point, all accesses to this buffer must be atomic
 
@@ -18,8 +34,7 @@ class IdentifyAtomicResources extends IRVisitor {
             let gloablPtr = pointer as GlobalPtrStmt
             let treeId = gloablPtr.field.snodeTree.treeId
             this.atomicTrees.add(treeId)
-        }
-        else if (pointer.getKind() == StmtKind.GlobalTemporaryStmt) {
+        } else if (pointer.getKind() == StmtKind.GlobalTemporaryStmt) {
             this.atomicGtemps = true
         }
     }
@@ -54,8 +69,7 @@ class PromoteLoadStores extends IRTransformer {
         if (this.atomicTrees.has(ptr.field.snodeTree.treeId)) {
             let atomicLoad = this.pushNewStmt(new AtomicLoadStmt(ptr, this.module.getNewId()))
             this.replacer.markReplace(stmt, atomicLoad)
-        }
-        else {
+        } else {
             this.pushNewStmt(stmt)
         }
     }
@@ -63,8 +77,7 @@ class PromoteLoadStores extends IRTransformer {
         let ptr = stmt.getPointer()
         if (this.atomicTrees.has(ptr.field.snodeTree.treeId)) {
             this.pushNewStmt(new AtomicStoreStmt(ptr, stmt.getValue(), this.module.getNewId()))
-        }
-        else {
+        } else {
             this.pushNewStmt(stmt)
         }
     }
@@ -73,8 +86,7 @@ class PromoteLoadStores extends IRTransformer {
         if (this.atomicGtemps) {
             let atomicLoad = this.pushNewStmt(new AtomicLoadStmt(ptr, this.module.getNewId()))
             this.replacer.markReplace(stmt, atomicLoad)
-        }
-        else {
+        } else {
             this.pushNewStmt(stmt)
         }
     }
@@ -82,8 +94,7 @@ class PromoteLoadStores extends IRTransformer {
         let ptr = stmt.getPointer()
         if (this.atomicGtemps) {
             this.pushNewStmt(new AtomicStoreStmt(ptr, stmt.getValue(), this.module.getNewId()))
-        }
-        else {
+        } else {
             this.pushNewStmt(stmt)
         }
     }

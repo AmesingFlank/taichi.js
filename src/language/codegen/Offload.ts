@@ -1,21 +1,33 @@
-import { assert, error } from "../../utils/Logging";
-import { Guard } from "../ir/Builder";
-import { AtomicOpStmt, AtomicStoreStmt, ConstStmt, ContinueStmt, FragmentForStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStoreStmt, IRModule, RangeForStmt, ReturnStmt, Stmt, StmtKind, VertexForStmt } from "../ir/Stmt";
-import { IRTransformer } from "../ir/Transformer";
-import { IRVisitor } from "../ir/Visitor";
-
+import { assert, error } from '../../utils/Logging'
+import { Guard } from '../ir/Builder'
+import {
+    AtomicOpStmt,
+    AtomicStoreStmt,
+    ConstStmt,
+    ContinueStmt,
+    FragmentForStmt,
+    GlobalStoreStmt,
+    GlobalTemporaryLoadStmt,
+    GlobalTemporaryStoreStmt,
+    IRModule,
+    RangeForStmt,
+    ReturnStmt,
+    Stmt,
+    StmtKind,
+    VertexForStmt,
+} from '../ir/Stmt'
+import { IRTransformer } from '../ir/Transformer'
+import { IRVisitor } from '../ir/Visitor'
 
 export enum OffloadType {
     Serial,
     Compute,
     Vertex,
-    Fragment
+    Fragment,
 }
 
 export class OffloadedModule extends IRModule {
-    constructor(
-        public type: OffloadType
-    ) {
+    constructor(public type: OffloadType) {
         super()
     }
 }
@@ -44,14 +56,12 @@ export class FragmentModule extends OffloadedModule {
     }
 }
 
-
-
 class OffloadingPass extends IRTransformer {
     offloadedModules: OffloadedModule[] = []
     currentOffloadType: OffloadType = OffloadType.Serial
 
     override transform(module: IRModule): void {
-        this.resetTransformerState(new SerialModule)
+        this.resetTransformerState(new SerialModule())
         for (let s of module.block.stmts) {
             this.visit(s)
         }
@@ -73,40 +83,37 @@ class OffloadingPass extends IRTransformer {
             if (range.getKind() === StmtKind.ConstStmt) {
                 isConst = true
                 rangeArg = (range as ConstStmt).val
-            }
-            else if (range.getKind() === StmtKind.GlobalTemporaryLoadStmt) {
+            } else if (range.getKind() === StmtKind.GlobalTemporaryLoadStmt) {
                 isConst = false
                 rangeArg = (range as GlobalTemporaryLoadStmt).getPointer().offset
-            }
-            else {
-                error("InternalError: range of be const or global temp load")
+            } else {
+                error('InternalError: range of be const or global temp load')
             }
             let module = new ComputeModule(rangeArg, isConst)
             this.resetTransformerState(module)
             for (let s of stmt.body.stmts) {
                 this.visit(s)
             }
-            this.resetTransformerState(new SerialModule)
-        }
-        else {
+            this.resetTransformerState(new SerialModule())
+        } else {
             super.visitRangeForStmt(stmt)
         }
     }
     override visitVertexForStmt(stmt: VertexForStmt) {
-        let module = new VertexModule
+        let module = new VertexModule()
         this.resetTransformerState(module)
         for (let s of stmt.body.stmts) {
             this.visit(s)
         }
-        this.resetTransformerState(new SerialModule)
+        this.resetTransformerState(new SerialModule())
     }
     override visitFragmentForStmt(stmt: FragmentForStmt) {
-        let module = new FragmentModule
+        let module = new FragmentModule()
         this.resetTransformerState(module)
         for (let s of stmt.body.stmts) {
             this.visit(s)
         }
-        this.resetTransformerState(new SerialModule)
+        this.resetTransformerState(new SerialModule())
     }
 }
 
@@ -134,7 +141,7 @@ class IdentifyTrivialSerialModule extends IRVisitor {
 }
 
 export function offload(module: IRModule) {
-    let pass = new OffloadingPass
+    let pass = new OffloadingPass()
     pass.transform(module)
     let modules = pass.offloadedModules
 

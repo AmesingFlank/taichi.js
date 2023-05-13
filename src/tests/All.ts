@@ -1,49 +1,48 @@
-
-import { error } from "../utils/Logging"
-import { testSimple } from "./TestSimple"
-import { testCopyFieldToHost1D } from "./TestCopyFieldToHost1D"
-import { test2DField } from "./Test2DField"
-import { testLocalVar } from "./TestLocalVar"
-import { testVector } from "./TestVector"
-import { testMatrix } from "./TestMatrix"
-import { testVectorLocalVar } from "./TestVectorLocalVar"
-import { testMatrixLocalVar } from "./TestMatrixLocalVar"
-import { testMultipleSNodeTree } from "./TestMultipleSNodeTree"
-import { testNdrange } from "./TestNdrange"
-import { testVectorArithmetic } from "./TestVectorArithmetic"
-import { testFloat } from "./TestFloat"
-import { testSerial } from "./TestSerial"
-import { testMath } from "./TestMath"
-import { testKernelScope } from "./TestKernelScope"
-import { testIf } from "./TestIf"
-import { testWhile } from "./TestWhile"
-import { testBreak } from "./TestBreak"
-import { testContinue } from "./TestContinue"
-import { testUnary } from "./TestUnary"
-import { testArrowFunctionKernel } from "./TestArrowFunctionKernel"
-import { testArgs } from "./TestArgs"
-import { testFunc } from "./TestFunc"
-import { testVectorComponent } from "./TestVectorComponent"
-import { testPropertyFunc } from "./TestPropertyFunc"
-import { testSwizzle } from "./TestSwizzle"
-import { testRandom } from "./TestRandom"
-import { testAtomic } from "./TestAtomic"
-import { testMatrixOps } from "./TestMatrixOps"
-import { testLibraryFuncs } from "./TestLibraryFuncs"
-import { testStaticLoopUnroll } from "./TestStaticLoopUnroll"
-import { testBroadcast } from "./TestBroadCast"
-import { testTypes } from "./TestTypes"
-import { testToArray } from "./TestToArray"
-import { testFieldAccessor } from "./TestFieldAccessor"
-import { testFromArray } from "./TestFromArray"
-import { testStruct } from "./TestStruct"
-import { testRets } from "./TestRets"
-import { testArgAnnotation } from "./TestArgAnnotation"
-import { testTemplateArgs } from "./TestTemplateArgs"
-import { testLambda } from "./TestLambda"
-import { testHostObjectReference } from "./TestHostObjectReferece"
-import { testStaticIf } from "./TestStaticIf"
-import { testClassKernel } from "./TestClassKernel"
+import { error } from '../utils/Logging'
+import { testSimple } from './TestSimple'
+import { testCopyFieldToHost1D } from './TestCopyFieldToHost1D'
+import { test2DField } from './Test2DField'
+import { testLocalVar } from './TestLocalVar'
+import { testVector } from './TestVector'
+import { testMatrix } from './TestMatrix'
+import { testVectorLocalVar } from './TestVectorLocalVar'
+import { testMatrixLocalVar } from './TestMatrixLocalVar'
+import { testMultipleSNodeTree } from './TestMultipleSNodeTree'
+import { testNdrange } from './TestNdrange'
+import { testVectorArithmetic } from './TestVectorArithmetic'
+import { testFloat } from './TestFloat'
+import { testSerial } from './TestSerial'
+import { testMath } from './TestMath'
+import { testKernelScope } from './TestKernelScope'
+import { testIf } from './TestIf'
+import { testWhile } from './TestWhile'
+import { testBreak } from './TestBreak'
+import { testContinue } from './TestContinue'
+import { testUnary } from './TestUnary'
+import { testArrowFunctionKernel } from './TestArrowFunctionKernel'
+import { testArgs } from './TestArgs'
+import { testFunc } from './TestFunc'
+import { testVectorComponent } from './TestVectorComponent'
+import { testPropertyFunc } from './TestPropertyFunc'
+import { testSwizzle } from './TestSwizzle'
+import { testRandom } from './TestRandom'
+import { testAtomic } from './TestAtomic'
+import { testMatrixOps } from './TestMatrixOps'
+import { testLibraryFuncs } from './TestLibraryFuncs'
+import { testStaticLoopUnroll } from './TestStaticLoopUnroll'
+import { testBroadcast } from './TestBroadCast'
+import { testTypes } from './TestTypes'
+import { testToArray } from './TestToArray'
+import { testFieldAccessor } from './TestFieldAccessor'
+import { testFromArray } from './TestFromArray'
+import { testStruct } from './TestStruct'
+import { testRets } from './TestRets'
+import { testArgAnnotation } from './TestArgAnnotation'
+import { testTemplateArgs } from './TestTemplateArgs'
+import { testLambda } from './TestLambda'
+import { testHostObjectReference } from './TestHostObjectReferece'
+import { testStaticIf } from './TestStaticIf'
+import { testClassKernel } from './TestClassKernel'
 
 async function runAllTests() {
     let passed = true
@@ -93,12 +92,10 @@ async function runAllTests() {
     passed &&= await testClassKernel()
 
     if (passed) {
-        console.log("All tests passed")
-    }
-    else {
-        error("TESTS FAILED")
+        console.log('All tests passed')
+    } else {
+        error('TESTS FAILED')
     }
 }
-
 
 export { runAllTests }

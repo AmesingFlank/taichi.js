@@ -1,7 +1,7 @@
-import { Type } from "../language/frontend/Type";
-import { Program } from "../program/Program";
-import { product } from "../utils/Utils";
-import { Field } from "./Field";
+import { Type } from '../language/frontend/Type'
+import { Program } from '../program/Program'
+import { product } from '../utils/Utils'
+import { Field } from './Field'
 
 export class FieldFactory {
     static createField(type: Type, dimensions: number[], fragmentShaderWritable: boolean = false): Field {

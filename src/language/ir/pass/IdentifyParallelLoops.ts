@@ -1,7 +1,6 @@
-import { IRBuilder } from "../Builder";
-import { Block, IRModule, RangeForStmt } from "../Stmt";
-import { IRVisitor } from "../Visitor";
-
+import { IRBuilder } from '../Builder'
+import { Block, IRModule, RangeForStmt } from '../Stmt'
+import { IRVisitor } from '../Visitor'
 
 class IdentifyParallelLoopsPass extends IRVisitor {
     override visitModule(module: IRModule) {
@@ -9,9 +8,7 @@ class IdentifyParallelLoopsPass extends IRVisitor {
             this.visit(stmt)
         }
     }
-    override visitBlock(block: Block) {
-
-    }
+    override visitBlock(block: Block) {}
     override visitRangeForStmt(stmt: RangeForStmt) {
         stmt.isParallelFor = !stmt.strictlySerialize
     }

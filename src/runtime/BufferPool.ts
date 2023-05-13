@@ -1,12 +1,10 @@
 export interface PooledBuffer {
-    buffer: GPUBuffer,
+    buffer: GPUBuffer
     size: number
 }
 
 export class BufferPool {
-    private constructor(private device: GPUDevice, public usage: GPUBufferUsageFlags) {
-
-    }
+    private constructor(private device: GPUDevice, public usage: GPUBufferUsageFlags) {}
 
     private static pools: Map<GPUBufferUsageFlags, BufferPool> = new Map<GPUBufferUsageFlags, BufferPool>()
 
@@ -25,7 +23,7 @@ export class BufferPool {
         for (let pair of this.buffers.keys()) {
             if (pair.size >= size) {
                 selectedPair = pair
-                break;
+                break
             }
         }
         if (selectedPair) {
@@ -34,11 +32,11 @@ export class BufferPool {
         }
         let buffer = this.device.createBuffer({
             size: size,
-            usage: this.usage
+            usage: this.usage,
         })
         return {
             buffer: buffer,
-            size: size
+            size: size,
         }
     }
 

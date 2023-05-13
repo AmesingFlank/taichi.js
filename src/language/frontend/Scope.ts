@@ -1,18 +1,15 @@
-
-
 class Scope {
-    constructor() {
-    }
+    constructor() {}
 
     obj: any = {}
     thisObj: any = {}
 
     hasStored(name: string): boolean {
-        return name in this.obj;
+        return name in this.obj
     }
 
     getStored(name: string): any {
-        return this.obj[name];
+        return this.obj[name]
     }
 
     addStored(name: string, val: any) {
@@ -32,13 +29,16 @@ class Scope {
         // magic.
         // https://stackoverflow.com/questions/9781285/specify-scope-for-eval-in-javascript
         let scopedEval = (context: any, expr: string): any => {
-            const evaluator = Function.apply(this.thisObj, [...Object.keys(context), 'expr', "return eval('expr = undefined;' + expr)"]);
-            return evaluator.apply(this.thisObj, [...Object.values(context), expr]);
+            const evaluator = Function.apply(this.thisObj, [
+                ...Object.keys(context),
+                'expr',
+                "return eval('expr = undefined;' + expr)",
+            ])
+            return evaluator.apply(this.thisObj, [...Object.values(context), expr])
         }
         try {
             return scopedEval(this.obj, str)
-        }
-        catch (e) {
+        } catch (e) {
             return undefined
         }
     }
@@ -48,7 +48,7 @@ class Scope {
         for (let k in this.obj) {
             newObj[k] = this.obj[k]
         }
-        let result = new Scope
+        let result = new Scope()
         result.obj = newObj
         result.thisObj = this.thisObj
         return result

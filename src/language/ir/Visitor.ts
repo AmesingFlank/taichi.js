@@ -1,6 +1,45 @@
-import { error } from "../../utils/Logging";
-import { AllocaStmt, ArgLoadStmt, AtomicLoadStmt, AtomicOpStmt, AtomicStoreStmt, BinaryOpStmt, Block, BuiltInInputStmt, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, IRModule, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, StmtKind, TextureFunctionStmt, UnaryOpStmt, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "./Stmt";
-
+import { error } from '../../utils/Logging'
+import {
+    AllocaStmt,
+    ArgLoadStmt,
+    AtomicLoadStmt,
+    AtomicOpStmt,
+    AtomicStoreStmt,
+    BinaryOpStmt,
+    Block,
+    BuiltInInputStmt,
+    BuiltInOutputStmt,
+    CompositeExtractStmt,
+    ConstStmt,
+    ContinueStmt,
+    DiscardStmt,
+    FragmentDerivativeStmt,
+    FragmentForStmt,
+    FragmentInputStmt,
+    GlobalLoadStmt,
+    GlobalPtrStmt,
+    GlobalStoreStmt,
+    GlobalTemporaryLoadStmt,
+    GlobalTemporaryStmt,
+    GlobalTemporaryStoreStmt,
+    IfStmt,
+    IRModule,
+    LocalLoadStmt,
+    LocalStoreStmt,
+    LoopIndexStmt,
+    RandStmt,
+    RangeForStmt,
+    ReturnStmt,
+    Stmt,
+    StmtKind,
+    TextureFunctionStmt,
+    UnaryOpStmt,
+    VertexForStmt,
+    VertexInputStmt,
+    VertexOutputStmt,
+    WhileControlStmt,
+    WhileStmt,
+} from './Stmt'
 
 export abstract class IRVisitor {
     visitModule(module: IRModule) {
@@ -15,131 +54,129 @@ export abstract class IRVisitor {
         switch (stmt.getKind()) {
             case StmtKind.ConstStmt:
                 this.visitConstStmt(stmt as ConstStmt)
-                break;
+                break
             case StmtKind.RangeForStmt:
                 this.visitRangeForStmt(stmt as RangeForStmt)
-                break;
+                break
             case StmtKind.LoopIndexStmt:
                 this.visitLoopIndexStmt(stmt as LoopIndexStmt)
-                break;
+                break
             case StmtKind.AllocaStmt:
                 this.visitAllocaStmt(stmt as AllocaStmt)
-                break;
+                break
             case StmtKind.LocalLoadStmt:
                 this.visitLocalLoadStmt(stmt as LocalLoadStmt)
-                break;
+                break
             case StmtKind.LocalStoreStmt:
                 this.visitLocalStoreStmt(stmt as LocalStoreStmt)
-                break;
+                break
             case StmtKind.GlobalPtrStmt:
                 this.visitGlobalPtrStmt(stmt as GlobalPtrStmt)
-                break;
+                break
             case StmtKind.GlobalLoadStmt:
                 this.visitGlobalLoadStmt(stmt as GlobalLoadStmt)
-                break;
+                break
             case StmtKind.GlobalStoreStmt:
                 this.visitGlobalStoreStmt(stmt as GlobalStoreStmt)
-                break;
+                break
             case StmtKind.GlobalTemporaryStmt:
                 this.visitGlobalTemporaryStmt(stmt as GlobalTemporaryStmt)
-                break;
+                break
             case StmtKind.GlobalTemporaryLoadStmt:
                 this.visitGlobalTemporaryLoadStmt(stmt as GlobalTemporaryLoadStmt)
-                break;
+                break
             case StmtKind.GlobalTemporaryStoreStmt:
                 this.visitGlobalTemporaryStoreStmt(stmt as GlobalTemporaryStoreStmt)
-                break;
+                break
             case StmtKind.BinaryOpStmt:
                 this.visitBinaryOpStmt(stmt as BinaryOpStmt)
-                break;
+                break
             case StmtKind.UnaryOpStmt:
                 this.visitUnaryOpStmt(stmt as UnaryOpStmt)
-                break;
+                break
             case StmtKind.WhileStmt:
                 this.visitWhileStmt(stmt as WhileStmt)
-                break;
+                break
             case StmtKind.IfStmt:
                 this.visitIfStmt(stmt as IfStmt)
-                break;
+                break
             case StmtKind.WhileControlStmt:
                 this.visitWhileControlStmt(stmt as WhileControlStmt)
-                break;
+                break
             case StmtKind.ContinueStmt:
                 this.visitContinueStmt(stmt as ContinueStmt)
-                break;
+                break
             case StmtKind.ArgLoadStmt:
                 this.visitArgLoadStmt(stmt as ArgLoadStmt)
-                break;
+                break
             case StmtKind.RandStmt:
                 this.visitRandStmt(stmt as RandStmt)
-                break;
+                break
             case StmtKind.ReturnStmt:
                 this.visitReturnStmt(stmt as ReturnStmt)
-                break;
+                break
             case StmtKind.AtomicOpStmt:
                 this.visitAtomicOpStmt(stmt as AtomicOpStmt)
-                break;
+                break
             case StmtKind.AtomicLoadStmt:
                 this.visitAtomicLoadStmt(stmt as AtomicLoadStmt)
-                break;
+                break
             case StmtKind.AtomicStoreStmt:
                 this.visitAtomicStoreStmt(stmt as AtomicStoreStmt)
-                break;
+                break
             case StmtKind.VertexForStmt:
                 this.visitVertexForStmt(stmt as VertexForStmt)
-                break;
+                break
             case StmtKind.FragmentForStmt:
                 this.visitFragmentForStmt(stmt as FragmentForStmt)
-                break;
+                break
             case StmtKind.VertexInputStmt:
                 this.visitVertexInputStmt(stmt as VertexInputStmt)
-                break;
+                break
             case StmtKind.VertexOutputStmt:
                 this.visitVertexOutputStmt(stmt as VertexOutputStmt)
-                break;
+                break
             case StmtKind.FragmentInputStmt:
                 this.visitFragmentInputStmt(stmt as FragmentInputStmt)
-                break;
+                break
             case StmtKind.BuiltInOutputStmt:
                 this.visitBuiltInOutputStmt(stmt as BuiltInOutputStmt)
-                break;
+                break
             case StmtKind.BuiltInInputStmt:
                 this.visitBuiltInInputStmt(stmt as BuiltInInputStmt)
-                break;
+                break
             case StmtKind.FragmentDerivativeStmt:
                 this.visitFragmentDerivativeStmt(stmt as FragmentDerivativeStmt)
-                break;
+                break
             case StmtKind.DiscardStmt:
                 this.visitDiscardStmt(stmt as DiscardStmt)
-                break;
+                break
             case StmtKind.TextureFunctionStmt:
                 this.visitTextureFunctionStmt(stmt as TextureFunctionStmt)
-                break;
+                break
             case StmtKind.CompositeExtractStmt:
                 this.visitCompositeExtractStmt(stmt as CompositeExtractStmt)
-                break;
+                break
             default:
-                error("unrecognized stmt: ", stmt)
+                error('unrecognized stmt: ', stmt)
         }
     }
-    visitConstStmt(stmt: ConstStmt) {
-
-    }
+    visitConstStmt(stmt: ConstStmt) {}
     visitRangeForStmt(stmt: RangeForStmt) {
         this.visitBlock(stmt.body)
     }
-    visitLoopIndexStmt(stmt: LoopIndexStmt) { }
-    visitAllocaStmt(stmt: AllocaStmt) { }
-    visitLocalLoadStmt(stmt: LocalLoadStmt) { }
-    visitLocalStoreStmt(stmt: LocalStoreStmt) { }
-    visitGlobalPtrStmt(stmt: GlobalPtrStmt) { }
-    visitGlobalLoadStmt(stmt: GlobalLoadStmt) { }
-    visitGlobalStoreStmt(stmt: GlobalStoreStmt) { }
-    visitGlobalTemporaryStmt(stmt: GlobalTemporaryStmt) { }
-    visitGlobalTemporaryLoadStmt(stmt: GlobalTemporaryLoadStmt) { }
-    visitGlobalTemporaryStoreStmt(stmt: GlobalTemporaryStoreStmt) { }
-    visitBinaryOpStmt(stmt: BinaryOpStmt) { }
-    visitUnaryOpStmt(stmt: UnaryOpStmt) { }
+    visitLoopIndexStmt(stmt: LoopIndexStmt) {}
+    visitAllocaStmt(stmt: AllocaStmt) {}
+    visitLocalLoadStmt(stmt: LocalLoadStmt) {}
+    visitLocalStoreStmt(stmt: LocalStoreStmt) {}
+    visitGlobalPtrStmt(stmt: GlobalPtrStmt) {}
+    visitGlobalLoadStmt(stmt: GlobalLoadStmt) {}
+    visitGlobalStoreStmt(stmt: GlobalStoreStmt) {}
+    visitGlobalTemporaryStmt(stmt: GlobalTemporaryStmt) {}
+    visitGlobalTemporaryLoadStmt(stmt: GlobalTemporaryLoadStmt) {}
+    visitGlobalTemporaryStoreStmt(stmt: GlobalTemporaryStoreStmt) {}
+    visitBinaryOpStmt(stmt: BinaryOpStmt) {}
+    visitUnaryOpStmt(stmt: UnaryOpStmt) {}
     visitWhileStmt(stmt: WhileStmt) {
         this.visitBlock(stmt.body)
     }
@@ -147,27 +184,27 @@ export abstract class IRVisitor {
         this.visitBlock(stmt.trueBranch)
         this.visitBlock(stmt.falseBranch)
     }
-    visitWhileControlStmt(stmt: WhileControlStmt) { }
-    visitContinueStmt(stmt: ContinueStmt) { }
-    visitArgLoadStmt(stmt: ArgLoadStmt) { }
-    visitRandStmt(stmt: RandStmt) { }
-    visitReturnStmt(stmt: ReturnStmt) { }
-    visitAtomicOpStmt(stmt: AtomicOpStmt) { }
-    visitAtomicLoadStmt(stmt: AtomicLoadStmt) { }
-    visitAtomicStoreStmt(stmt: AtomicStoreStmt) { }
+    visitWhileControlStmt(stmt: WhileControlStmt) {}
+    visitContinueStmt(stmt: ContinueStmt) {}
+    visitArgLoadStmt(stmt: ArgLoadStmt) {}
+    visitRandStmt(stmt: RandStmt) {}
+    visitReturnStmt(stmt: ReturnStmt) {}
+    visitAtomicOpStmt(stmt: AtomicOpStmt) {}
+    visitAtomicLoadStmt(stmt: AtomicLoadStmt) {}
+    visitAtomicStoreStmt(stmt: AtomicStoreStmt) {}
     visitVertexForStmt(stmt: VertexForStmt) {
         this.visitBlock(stmt.body)
     }
     visitFragmentForStmt(stmt: FragmentForStmt) {
         this.visitBlock(stmt.body)
     }
-    visitVertexInputStmt(stmt: VertexInputStmt) { }
-    visitVertexOutputStmt(stmt: VertexOutputStmt) { }
-    visitFragmentInputStmt(stmt: FragmentInputStmt) { }
-    visitBuiltInOutputStmt(stmt: BuiltInOutputStmt) { }
-    visitBuiltInInputStmt(stmt: BuiltInInputStmt) { }
-    visitFragmentDerivativeStmt(stmt: FragmentDerivativeStmt) { }
-    visitDiscardStmt(stmt: DiscardStmt) { }
-    visitTextureFunctionStmt(stmt: TextureFunctionStmt) { }
-    visitCompositeExtractStmt(stmt: CompositeExtractStmt) { }
+    visitVertexInputStmt(stmt: VertexInputStmt) {}
+    visitVertexOutputStmt(stmt: VertexOutputStmt) {}
+    visitFragmentInputStmt(stmt: FragmentInputStmt) {}
+    visitBuiltInOutputStmt(stmt: BuiltInOutputStmt) {}
+    visitBuiltInInputStmt(stmt: BuiltInInputStmt) {}
+    visitFragmentDerivativeStmt(stmt: FragmentDerivativeStmt) {}
+    visitDiscardStmt(stmt: DiscardStmt) {}
+    visitTextureFunctionStmt(stmt: TextureFunctionStmt) {}
+    visitCompositeExtractStmt(stmt: CompositeExtractStmt) {}
 }

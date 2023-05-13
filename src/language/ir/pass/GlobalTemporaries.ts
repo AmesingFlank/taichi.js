@@ -1,11 +1,28 @@
-import { error } from "../../../utils/Logging"
-import { PrimitiveType } from "../../frontend/Type"
-import { WhileStmt, IfStmt, VertexForStmt, FragmentForStmt, RangeForStmt, Stmt, AllocaStmt, LocalLoadStmt, LocalStoreStmt, AtomicOpStmt, StmtKind, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, IRModule, GlobalTemporaryStoreStmt, isPointerStmt, AtomicLoadStmt, AtomicStoreStmt } from "../Stmt"
-import { IRTransformer } from "../Transformer"
-import { IRVisitor } from "../Visitor"
-import { DelayedStmtReplacer } from "./Replacer"
-
-
+import { error } from '../../../utils/Logging'
+import { PrimitiveType } from '../../frontend/Type'
+import {
+    WhileStmt,
+    IfStmt,
+    VertexForStmt,
+    FragmentForStmt,
+    RangeForStmt,
+    Stmt,
+    AllocaStmt,
+    LocalLoadStmt,
+    LocalStoreStmt,
+    AtomicOpStmt,
+    StmtKind,
+    GlobalTemporaryLoadStmt,
+    GlobalTemporaryStmt,
+    IRModule,
+    GlobalTemporaryStoreStmt,
+    isPointerStmt,
+    AtomicLoadStmt,
+    AtomicStoreStmt,
+} from '../Stmt'
+import { IRTransformer } from '../Transformer'
+import { IRVisitor } from '../Visitor'
+import { DelayedStmtReplacer } from './Replacer'
 
 class IdentifyAllocasUsedInParallelForsPass extends IRVisitor {
     inParallelLoop: boolean = false
@@ -76,7 +93,7 @@ class IdentifyAllocasUsedInParallelForsPass extends IRVisitor {
 }
 
 class ReplaceAllocasUsedInParallelForsPass extends IRTransformer {
-    replacer: DelayedStmtReplacer = new DelayedStmtReplacer
+    replacer: DelayedStmtReplacer = new DelayedStmtReplacer()
     constructor(public gtempsAllocation: Map<Stmt, number>) {
         super()
     }
@@ -95,8 +112,7 @@ class ReplaceAllocasUsedInParallelForsPass extends IRTransformer {
             this.pushNewStmt(gtemp)
             this.pushNewStmt(gtempLoadStmt)
             this.replacer.markReplace(stmt, gtempLoadStmt)
-        }
-        else {
+        } else {
             this.pushNewStmt(stmt)
         }
     }
@@ -106,8 +122,7 @@ class ReplaceAllocasUsedInParallelForsPass extends IRTransformer {
             let gtempStoreStmt = new GlobalTemporaryStoreStmt(gtemp, stmt.getValue(), this.module.getNewId())
             this.pushNewStmt(gtemp)
             this.pushNewStmt(gtempStoreStmt)
-        }
-        else {
+        } else {
             this.pushNewStmt(stmt)
         }
     }
@@ -237,7 +252,11 @@ class ReplaceValuesUsedInParallelForsPass extends IRTransformer {
             for (let i = 0; i < stmt.operands.length; ++i) {
                 if (this.gtempsAllocation.has(stmt.operands[i])) {
                     let offset = this.gtempsAllocation.get(stmt.operands[i])!
-                    let gtemp = new GlobalTemporaryStmt(stmt.operands[i].getReturnType(), offset, this.module.getNewId())
+                    let gtemp = new GlobalTemporaryStmt(
+                        stmt.operands[i].getReturnType(),
+                        offset,
+                        this.module.getNewId()
+                    )
                     this.pushNewStmt(gtemp)
                     let gtempLoad = new GlobalTemporaryLoadStmt(gtemp, this.module.getNewId())
                     this.pushNewStmt(gtempLoad)
@@ -264,7 +283,7 @@ class LoopRangeGtempPass extends IRTransformer {
         if (stmt.isParallelFor) {
             let range = stmt.getRange()
             if (range.returnType !== PrimitiveType.i32) {
-                error("Internal Error: The range of a range-for must be an i32")
+                error('Internal Error: The range of a range-for must be an i32')
             }
             if (range.getKind() !== StmtKind.ConstStmt && range.getKind() !== StmtKind.GlobalTemporaryLoadStmt) {
                 let slot = this.nextGtempSlot++
@@ -283,7 +302,7 @@ class LoopRangeGtempPass extends IRTransformer {
         if (stmt.isParallelFor) {
             let range = stmt.getRange()
             if (range.returnType !== PrimitiveType.i32) {
-                error("Internal Error: The range of a range-for must be an i32")
+                error('Internal Error: The range of a range-for must be an i32')
             }
             if (range.getKind() !== StmtKind.ConstStmt && range.getKind() !== StmtKind.GlobalTemporaryLoadStmt) {
                 let slot = this.nextGtempSlot++

@@ -1,17 +1,14 @@
 export class PipelineCache {
-    constructor(public device: GPUDevice) {
-
-    }
+    constructor(public device: GPUDevice) {}
     private shaderModuleCache: Map<string, GPUShaderModule> = new Map<string, GPUShaderModule>()
     getOrCreateShaderModule(code: string): GPUShaderModule {
         if (!this.shaderModuleCache.has(code)) {
             let module = this.device!.createShaderModule({
-                code: code
+                code: code,
             })
             this.shaderModuleCache.set(code, module)
             // console.log("new module", code)
-        }
-        else {
+        } else {
             // console.log("found existing module")
         }
         return this.shaderModuleCache.get(code)!
@@ -30,18 +27,15 @@ export class PipelineCache {
                     return false
                 }
             }
-        }
-        else if (typeof v1 !== "object") {
+        } else if (typeof v1 !== 'object') {
             if (v1 !== v2) {
                 return false
             }
-        }
-        else if (v1 instanceof GPUShaderModule && v2 instanceof GPUShaderModule) {
+        } else if (v1 instanceof GPUShaderModule && v2 instanceof GPUShaderModule) {
             if (v1 !== v2) {
                 return false
             }
-        }
-        else {
+        } else {
             // v1 v2 both "object"
             for (let k in v1) {
                 if (!(k in v2)) {

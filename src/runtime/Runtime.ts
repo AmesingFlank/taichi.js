@@ -1,14 +1,22 @@
-import { CompiledTask, CompiledKernel, TaskParams, ResourceType, KernelParams, ResourceBinding, CompiledRenderPipeline, RenderPipelineParams, CompiledRenderPassInfo } from './Kernel'
+import {
+    CompiledTask,
+    CompiledKernel,
+    TaskParams,
+    ResourceType,
+    KernelParams,
+    ResourceBinding,
+    CompiledRenderPipeline,
+    RenderPipelineParams,
+    CompiledRenderPassInfo,
+} from './Kernel'
 import { SNodeTree } from '../data/SNodeTree'
 import { divUp, elementToInt32Array, int32ArrayToElement } from '../utils/Utils'
-import { assert, error } from "../utils/Logging"
+import { assert, error } from '../utils/Logging'
 import { Field } from '../data/Field'
 import { TypeCategory } from '../language/frontend/Type'
 import { TextureBase, TextureDimensionality, TextureSamplingOptions } from '../data/Texture'
 import { PipelineCache } from './PipelineCache'
 import { BufferPool, PooledBuffer } from './BufferPool'
-
-
 
 class Runtime {
     adapter: GPUAdapter | null = null
@@ -21,7 +29,7 @@ class Runtime {
     private randStatesBuffer: GPUBuffer | null = null
     private pipelineCache: PipelineCache | null = null
 
-    constructor() { }
+    constructor() {}
 
     async init() {
         await this.createDevice()
@@ -37,19 +45,19 @@ class Runtime {
             alertWebGPUError()
         }
         const adapter = await navigator.gpu.requestAdapter({
-            powerPreference: "high-performance"
-        });
+            powerPreference: 'high-performance',
+        })
         if (!adapter) {
             alertWebGPUError()
         }
-        const requiredFeatures: GPUFeatureName[] = [];
+        const requiredFeatures: GPUFeatureName[] = []
         if (adapter!.features.has('indirect-first-instance')) {
             requiredFeatures.push('indirect-first-instance')
         }
 
         const device = await adapter!.requestDevice({
-            requiredFeatures
-        });
+            requiredFeatures,
+        })
         if (!device) {
             alertWebGPUError()
         }
@@ -64,8 +72,7 @@ class Runtime {
             if (taskParams instanceof TaskParams) {
                 let task = new CompiledTask(taskParams, this)
                 kernel.tasks.push(task)
-            }
-            else if (taskParams instanceof RenderPipelineParams) {
+            } else if (taskParams instanceof RenderPipelineParams) {
                 assert(params.renderPassParams !== null)
                 let task = new CompiledRenderPipeline(taskParams, params.renderPassParams!, this)
                 kernel.tasks.push(task)
@@ -84,8 +91,10 @@ class Runtime {
     }
 
     async launchKernel(kernel: CompiledKernel, ...args: any[]): Promise<any> {
-        assert(args.length === kernel.argTypes.length,
-            `Kernel requires ${kernel.argTypes.length} arguments, but ${args.length} is provided`)
+        assert(
+            args.length === kernel.argTypes.length,
+            `Kernel requires ${kernel.argTypes.length} arguments, but ${args.length} is provided`
+        )
 
         let requiresArgsBuffer = false
         let requiresRetsBuffer = false
@@ -133,43 +142,42 @@ class Runtime {
             thisRetsBufferCPU = retsBufferPoolCPU.getBuffer(retsSize)
         }
 
-        let commandEncoder = this.device!.createCommandEncoder();
+        let commandEncoder = this.device!.createCommandEncoder()
         let computeEncoder: GPUComputePassEncoder | null = null
         let renderEncoder: GPURenderPassEncoder | null = null
 
-        let computeState: EncoderState = new EncoderState
-        let renderState: EncoderState = new EncoderState
+        let computeState: EncoderState = new EncoderState()
+        let renderState: EncoderState = new EncoderState()
 
         let endCompute = () => {
             if (computeEncoder) {
                 computeEncoder.end()
             }
             computeEncoder = null
-            computeState = new EncoderState
+            computeState = new EncoderState()
         }
         let endRender = () => {
             if (renderEncoder) {
                 renderEncoder.end()
             }
             renderEncoder = null
-            renderState = new EncoderState
+            renderState = new EncoderState()
         }
         let beginCompute = () => {
             endRender()
             if (!computeEncoder) {
-                computeEncoder = commandEncoder.beginComputePass();
-                computeState = new EncoderState
+                computeEncoder = commandEncoder.beginComputePass()
+                computeState = new EncoderState()
             }
         }
         let beginRender = () => {
             endCompute()
             if (!renderEncoder) {
-                assert(kernel.renderPassInfo !== null, "render pass info is null")
+                assert(kernel.renderPassInfo !== null, 'render pass info is null')
                 renderEncoder = commandEncoder.beginRenderPass(kernel.renderPassInfo!.getGPURenderPassDescriptor())
-                renderState = new EncoderState
+                renderState = new EncoderState()
             }
         }
-
 
         let indirectPolyfills = new Map<CompiledRenderPipeline, IndirectPolyfillInfo>()
         for (let task of kernel.tasks) {
@@ -187,7 +195,7 @@ class Runtime {
         for (let task of kernel.tasks) {
             task.bindGroup = this.device!.createBindGroup({
                 layout: task.pipeline!.getBindGroupLayout(0),
-                entries: this.getGPUBindGroupEntries(task.params.bindings, thisArgsBuffer, thisRetsBufferGPU?.buffer)
+                entries: this.getGPUBindGroupEntries(task.params.bindings, thisArgsBuffer, thisRetsBufferGPU?.buffer),
             })
 
             if (task instanceof CompiledTask) {
@@ -200,9 +208,8 @@ class Runtime {
                 let workgroupSize = task.params.workgroupSize
                 let numWorkgroups = task.params.numWorkgroups
 
-                computeEncoder!.dispatchWorkgroups(numWorkgroups);
-            }
-            else if (task instanceof CompiledRenderPipeline) {
+                computeEncoder!.dispatchWorkgroups(numWorkgroups)
+            } else if (task instanceof CompiledRenderPipeline) {
                 beginRender()
                 if (renderState.renderPipeline !== task.pipeline!) {
                     renderEncoder!.setPipeline(task.pipeline!)
@@ -212,31 +219,51 @@ class Runtime {
 
                 if (task.params.vertexBuffer) {
                     let vertexBufferTree = this.materializedTrees[task.params.vertexBuffer.snodeTree.treeId]
-                    renderEncoder!.setVertexBuffer(0, vertexBufferTree.rootBuffer!, task.params.vertexBuffer.offsetBytes, task.params.vertexBuffer.sizeBytes)
+                    renderEncoder!.setVertexBuffer(
+                        0,
+                        vertexBufferTree.rootBuffer!,
+                        task.params.vertexBuffer.offsetBytes,
+                        task.params.vertexBuffer.sizeBytes
+                    )
                 }
 
                 if (task.params.indexBuffer) {
                     let indexBufferTree = this.materializedTrees[task.params.indexBuffer.snodeTree.treeId]
-                    renderEncoder!.setIndexBuffer(indexBufferTree.rootBuffer!, "uint32", task.params.indexBuffer.offsetBytes, task.params.indexBuffer.sizeBytes)
+                    renderEncoder!.setIndexBuffer(
+                        indexBufferTree.rootBuffer!,
+                        'uint32',
+                        task.params.indexBuffer.offsetBytes,
+                        task.params.indexBuffer.sizeBytes
+                    )
                 }
                 if (!task.params.indirectBuffer) {
                     if (task.params.indexBuffer) {
                         renderEncoder!.drawIndexed(task.getVertexCount())
-                    }
-                    else {
+                    } else {
                         renderEncoder!.draw(task.getVertexCount())
                     }
-                }
-                else {
-                    if (task.params.indirectCount === 1 && this.supportsIndirectFirstInstance() && task.params.indirectBuffer instanceof Field) {
+                } else {
+                    if (
+                        task.params.indirectCount === 1 &&
+                        this.supportsIndirectFirstInstance() &&
+                        task.params.indirectBuffer instanceof Field
+                    ) {
                         let indirectBufferTree = this.materializedTrees[task.params.indirectBuffer.snodeTree.treeId]
-                        renderEncoder!.drawIndexedIndirect(indirectBufferTree.rootBuffer!, task.params.indirectBuffer.offsetBytes)
-                    }
-                    else {
+                        renderEncoder!.drawIndexedIndirect(
+                            indirectBufferTree.rootBuffer!,
+                            task.params.indirectBuffer.offsetBytes
+                        )
+                    } else {
                         assert(indirectPolyfills.has(task))
                         let polyfill = indirectPolyfills.get(task)!
                         for (let draw of polyfill.commands) {
-                            renderEncoder!.drawIndexed(draw.indexCount, draw.instanceCount, draw.firstIndex, draw.baseVertex, draw.firstInstance)
+                            renderEncoder!.drawIndexed(
+                                draw.indexCount,
+                                draw.instanceCount,
+                                draw.firstIndex,
+                                draw.baseVertex,
+                                draw.firstInstance
+                            )
                         }
                     }
                 }
@@ -244,7 +271,7 @@ class Runtime {
         }
         endCompute()
         endRender()
-        this.device!.queue.submit([commandEncoder.finish()]);
+        this.device!.queue.submit([commandEncoder.finish()])
 
         /**
          * launchKernel is an async function
@@ -259,11 +286,11 @@ class Runtime {
         }
 
         if (kernel.returnType.getCategory() !== TypeCategory.Void) {
-            assert(thisRetsBufferGPU !== null && thisRetsBufferCPU !== null, "missing rets buffer!")
+            assert(thisRetsBufferGPU !== null && thisRetsBufferCPU !== null, 'missing rets buffer!')
 
-            let commandEncoder = this.device!.createCommandEncoder();
+            let commandEncoder = this.device!.createCommandEncoder()
             commandEncoder.copyBufferToBuffer(thisRetsBufferGPU!.buffer, 0, thisRetsBufferCPU!.buffer, 0, retsSize)
-            this.device!.queue.submit([commandEncoder.finish()]);
+            this.device!.queue.submit([commandEncoder.finish()])
             await this.device!.queue.onSubmittedWorkDone()
 
             await thisRetsBufferCPU!.buffer.mapAsync(GPUMapMode.READ, 0, retsSize)
@@ -285,7 +312,7 @@ class Runtime {
         let buffer = this.device!.createBuffer({
             size: size,
             usage: GPUBufferUsage.STORAGE,
-            mappedAtCreation: true
+            mappedAtCreation: true,
         })
         return buffer
     }
@@ -305,11 +332,15 @@ class Runtime {
     private createRandStatesBuffer() {
         this.randStatesBuffer = this.device!.createBuffer({
             size: 65536 * 4 * 4,
-            usage: GPUBufferUsage.STORAGE
+            usage: GPUBufferUsage.STORAGE,
         })
     }
 
-    getGPUBindGroupEntries(bindings: ResourceBinding[], argsBuffer: GPUBuffer | undefined, retsBuffer: GPUBuffer | undefined): GPUBindGroupEntry[] {
+    getGPUBindGroupEntries(
+        bindings: ResourceBinding[],
+        argsBuffer: GPUBuffer | undefined,
+        retsBuffer: GPUBuffer | undefined
+    ): GPUBindGroupEntry[] {
         let entries: GPUBindGroupEntry[] = []
         for (let binding of bindings) {
             let buffer: GPUBuffer | undefined = undefined
@@ -319,58 +350,55 @@ class Runtime {
                 case ResourceType.Root:
                 case ResourceType.RootAtomic: {
                     buffer = this.materializedTrees[binding.info.resourceID!].rootBuffer!
-                    break;
+                    break
                 }
                 case ResourceType.GlobalTmps:
                 case ResourceType.GlobalTmpsAtomic: {
                     buffer = this.globalTmpsBuffer!
-                    break;
+                    break
                 }
                 case ResourceType.Args: {
                     assert(argsBuffer !== null)
                     buffer = argsBuffer!
-                    break;
+                    break
                 }
                 case ResourceType.Rets: {
                     assert(retsBuffer !== null)
                     buffer = retsBuffer!
-                    break;
+                    break
                 }
                 case ResourceType.RandStates: {
                     buffer = this.randStatesBuffer!
-                    break;
+                    break
                 }
                 case ResourceType.StorageTexture:
                 case ResourceType.Texture: {
                     texture = this.textures[binding.info.resourceID!].getGPUTextureView()
-                    break;
+                    break
                 }
                 case ResourceType.Sampler: {
                     sampler = this.textures[binding.info.resourceID!].getGPUSampler()
-                    break;
+                    break
                 }
             }
             if (buffer) {
                 entries.push({
                     binding: binding.binding,
                     resource: {
-                        buffer: buffer
-                    }
+                        buffer: buffer,
+                    },
                 })
-            }
-            else if (texture) {
+            } else if (texture) {
                 entries.push({
                     binding: binding.binding,
-                    resource: texture
+                    resource: texture,
                 })
-            }
-            else if (sampler) {
+            } else if (sampler) {
                 entries.push({
                     binding: binding.binding,
-                    resource: sampler
+                    resource: sampler,
                 })
-            }
-            else {
+            } else {
                 error("couldn't identify resource")
             }
         }
@@ -381,7 +409,13 @@ class Runtime {
         let size = tree.size
         let rootBuffer = this.device!.createBuffer({
             size: size,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC | GPUBufferUsage.INDIRECT,
+            usage:
+                GPUBufferUsage.STORAGE |
+                GPUBufferUsage.VERTEX |
+                GPUBufferUsage.INDEX |
+                GPUBufferUsage.COPY_DST |
+                GPUBufferUsage.COPY_SRC |
+                GPUBufferUsage.INDIRECT,
         })
         tree.rootBuffer = rootBuffer
         this.materializedTrees.push(tree)
@@ -391,23 +425,31 @@ class Runtime {
         this.textures.push(texture)
     }
 
-    createGPUTexture(dimensions: number[], dimensionality: TextureDimensionality, format: GPUTextureFormat, renderAttachment: boolean, requiresStorage: boolean, sampleCount: number): GPUTexture {
+    createGPUTexture(
+        dimensions: number[],
+        dimensionality: TextureDimensionality,
+        format: GPUTextureFormat,
+        renderAttachment: boolean,
+        requiresStorage: boolean,
+        sampleCount: number
+    ): GPUTexture {
         let getDescriptor = (): GPUTextureDescriptor => {
             let usage = GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC | GPUTextureUsage.TEXTURE_BINDING
             if (requiresStorage) {
-                usage = usage | GPUTextureUsage.STORAGE_BINDING;
+                usage = usage | GPUTextureUsage.STORAGE_BINDING
             }
             if (dimensions.length === 1) {
-                error("1d texture not supported yet")
+                error('1d texture not supported yet')
                 return {
                     size: { width: dimensions[0] },
-                    dimension: "1d",
+                    dimension: '1d',
                     format: format,
-                    usage: usage
+                    usage: usage,
                 }
-            }
-            else if (dimensions.length === 2) {
-                assert(dimensionality === TextureDimensionality.Dim2d || dimensionality === TextureDimensionality.DimCube)
+            } else if (dimensions.length === 2) {
+                assert(
+                    dimensionality === TextureDimensionality.Dim2d || dimensionality === TextureDimensionality.DimCube
+                )
                 if (renderAttachment) {
                     usage = usage | GPUTextureUsage.RENDER_ATTACHMENT
                 }
@@ -417,18 +459,18 @@ class Runtime {
                 }
                 return {
                     size: size,
-                    dimension: "2d",
+                    dimension: '2d',
                     format: format,
                     usage: usage,
-                    sampleCount
+                    sampleCount,
                 }
-            }
-            else {// if(dimensions.length === 3){ 
+            } else {
+                // if(dimensions.length === 3){
                 return {
                     size: { width: dimensions[0], height: dimensions[1], depthOrArrayLayers: dimensions[2] },
-                    dimension: "3d",
+                    dimension: '3d',
                     format: format,
-                    usage: usage
+                    usage: usage,
                 }
             }
         }
@@ -437,16 +479,16 @@ class Runtime {
 
     createGPUSampler(depth: boolean, samplingOptions: TextureSamplingOptions): GPUSampler {
         let desc: GPUSamplerDescriptor = {
-            addressModeU: samplingOptions.wrapModeU || "repeat",
-            addressModeV: samplingOptions.wrapModeV || "repeat",
-            addressModeW: samplingOptions.wrapModeW || "repeat",
-            minFilter: "linear",
-            magFilter: "linear",
-            mipmapFilter: "linear",
-            maxAnisotropy: 16
+            addressModeU: samplingOptions.wrapModeU || 'repeat',
+            addressModeV: samplingOptions.wrapModeV || 'repeat',
+            addressModeW: samplingOptions.wrapModeW || 'repeat',
+            minFilter: 'linear',
+            magFilter: 'linear',
+            mipmapFilter: 'linear',
+            maxAnisotropy: 16,
         }
         if (depth) {
-            desc.compare = "less-equal"
+            desc.compare = 'less-equal'
         }
         return this.device!.createSampler(desc)
     }
@@ -454,14 +496,14 @@ class Runtime {
     createGPUCanvasContext(htmlCanvas: HTMLCanvasElement): [GPUCanvasContext, GPUTextureFormat] {
         let context = htmlCanvas.getContext('webgpu')
         if (context === null) {
-            error("canvas webgpu context is null")
+            error('canvas webgpu context is null')
         }
         let presentationFormat = navigator.gpu.getPreferredCanvasFormat()
 
         context!.configure({
             device: this.device!,
             format: presentationFormat,
-            alphaMode: 'opaque'
+            alphaMode: 'opaque',
         })
         return [context!, presentationFormat]
     }
@@ -472,9 +514,15 @@ class Runtime {
         }
         let pool = BufferPool.getPool(this.device!, GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ)
         const rootBufferCopy = pool.getBuffer(sizeBytes)
-        let commandEncoder = this.device!.createCommandEncoder();
-        commandEncoder.copyBufferToBuffer(this.materializedTrees[field.snodeTree.treeId].rootBuffer!, field.offsetBytes + offsetBytes, rootBufferCopy.buffer, 0, sizeBytes)
-        this.device!.queue.submit([commandEncoder.finish()]);
+        let commandEncoder = this.device!.createCommandEncoder()
+        commandEncoder.copyBufferToBuffer(
+            this.materializedTrees[field.snodeTree.treeId].rootBuffer!,
+            field.offsetBytes + offsetBytes,
+            rootBufferCopy.buffer,
+            0,
+            sizeBytes
+        )
+        this.device!.queue.submit([commandEncoder.finish()])
         await this.sync()
 
         await rootBufferCopy.buffer.mapAsync(GPUMapMode.READ, 0, sizeBytes)
@@ -491,14 +539,20 @@ class Runtime {
             size: hostArray.byteLength,
             usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.MAP_WRITE,
             mappedAtCreation: true,
-        });
+        })
 
         new Int32Array(rootBufferCopy.getMappedRange()).set(hostArray)
         rootBufferCopy.unmap()
 
-        let commandEncoder = this.device!.createCommandEncoder();
-        commandEncoder.copyBufferToBuffer(rootBufferCopy, 0, this.materializedTrees[field.snodeTree.treeId].rootBuffer!, field.offsetBytes + offsetBytes, hostArray.byteLength)
-        this.device!.queue.submit([commandEncoder.finish()]);
+        let commandEncoder = this.device!.createCommandEncoder()
+        commandEncoder.copyBufferToBuffer(
+            rootBufferCopy,
+            0,
+            this.materializedTrees[field.snodeTree.treeId].rootBuffer!,
+            field.offsetBytes + offsetBytes,
+            hostArray.byteLength
+        )
+        this.device!.queue.submit([commandEncoder.finish()])
         await this.device!.queue.onSubmittedWorkDone()
 
         rootBufferCopy.destroy()
@@ -509,14 +563,14 @@ class Runtime {
     }
     async copyImageBitmapToTexture(bitmap: ImageBitmap, texture: GPUTexture) {
         let copySource: GPUImageCopyExternalImage = {
-            source: bitmap
+            source: bitmap,
         }
         let copyDest: GPUImageCopyTextureTagged = {
-            texture: texture
+            texture: texture,
         }
         let extent: GPUExtent3D = {
             width: bitmap.width,
-            height: bitmap.height
+            height: bitmap.height,
         }
         this.device!.queue.copyExternalImageToTexture(copySource, copyDest, extent)
         await this.device!.queue.onSubmittedWorkDone()
@@ -525,24 +579,24 @@ class Runtime {
         for (let i = 0; i < 6; ++i) {
             let bitmap = bitmaps[i]
             let copySource: GPUImageCopyExternalImage = {
-                source: bitmap
+                source: bitmap,
             }
             let copyDest: GPUImageCopyTextureTagged = {
                 texture: texture,
-                origin: [0, 0, i]
+                origin: [0, 0, i],
             }
             let extent: GPUExtent3D = {
                 width: bitmap.width,
-                height: bitmap.height
+                height: bitmap.height,
             }
             this.device!.queue.copyExternalImageToTexture(copySource, copyDest, extent)
         }
         await this.device!.queue.onSubmittedWorkDone()
     }
     async copyTextureToTexture(src: GPUTexture, dest: GPUTexture, dimensions: number[]) {
-        let commandEncoder = this.device!.createCommandEncoder();
+        let commandEncoder = this.device!.createCommandEncoder()
         commandEncoder.copyTextureToTexture({ texture: src }, { texture: dest }, dimensions)
-        this.device!.queue.submit([commandEncoder.finish()]);
+        this.device!.queue.submit([commandEncoder.finish()])
         await this.device!.queue.onSubmittedWorkDone()
     }
 
@@ -564,12 +618,7 @@ class Runtime {
 }
 
 class FieldHostSideCopy {
-    constructor(
-        public intArray: number[],
-        public floatArray: number[]
-    ) {
-
-    }
+    constructor(public intArray: number[], public floatArray: number[]) {}
 }
 
 class IndirectDrawCommand {
@@ -579,15 +628,11 @@ class IndirectDrawCommand {
         public firstIndex: number,
         public baseVertex: number,
         public firstInstance: number
-    ) {
-
-    }
+    ) {}
 }
 
 class IndirectPolyfillInfo {
-    constructor(public indirectBuffer: Promise<number[]> | Field, public indirectCount: number | Field) {
-
-    }
+    constructor(public indirectBuffer: Promise<number[]> | Field, public indirectCount: number | Field) {}
     commands: IndirectDrawCommand[] = []
     async fillInfo() {
         if (this.indirectCount instanceof Field) {
@@ -596,8 +641,7 @@ class IndirectPolyfillInfo {
         let indirectBufferHost: number[] = []
         if (this.indirectBuffer instanceof Field) {
             indirectBufferHost = await this.indirectBuffer.toInt32Array()
-        }
-        else {
+        } else {
             indirectBufferHost = await this.indirectBuffer
         }
         this.commands = []
@@ -609,11 +653,9 @@ class IndirectPolyfillInfo {
     }
 }
 
-
 class EncoderState {
     computePipeline?: GPUComputePipeline
     renderPipeline?: GPURenderPipeline
 }
-
 
 export { Runtime }

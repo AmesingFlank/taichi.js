@@ -1,21 +1,24 @@
 //@ts-nocheck
-import * as ti from "../taichi"
-import { assertEqual } from "./Utils"
+import * as ti from '../taichi'
+import { assertEqual } from './Utils'
 
 async function testArgAnnotation(): Promise<boolean> {
-    console.log("testArgAnnotation")
+    console.log('testArgAnnotation')
 
     await ti.init()
 
     let i = 12345
     let f = 1.1
     let v = [1.1, 2.2]
-    let m = [[1.1, 2.2], [3.3, 4.4]]
+    let m = [
+        [1.1, 2.2],
+        [3.3, 4.4],
+    ]
     let o = {
         i: i,
         f: f,
         v: v,
-        m: m
+        m: m,
     }
 
     let iType = ti.i32
@@ -36,16 +39,13 @@ async function testArgAnnotation(): Promise<boolean> {
     let oField = ti.field(oType, [1])
 
     ti.addToKernelScope({ iField, fField, vField, mField, oField })
-    let kernel = ti.kernel(
-        { i: iType, f: fType, v: vType, m: mType, o: oType },
-        (i, f, v, m, o) => {
-            iField[0] = i
-            fField[0] = f
-            vField[0] = v
-            mField[0] = m
-            oField[0] = o
-        }
-    )
+    let kernel = ti.kernel({ i: iType, f: fType, v: vType, m: mType, o: oType }, (i, f, v, m, o) => {
+        iField[0] = i
+        fField[0] = f
+        vField[0] = v
+        mField[0] = m
+        oField[0] = o
+    })
     kernel(i, f, v, m, o)
 
     console.log(await iField.get([0]))
@@ -54,12 +54,13 @@ async function testArgAnnotation(): Promise<boolean> {
     console.log(await mField.get([0]))
     console.log(await oField.get([0]))
 
-    let passed = true
-        && assertEqual(await iField.get([0]), i)
-        && assertEqual(await fField.get([0]), f)
-        && assertEqual(await vField.get([0]), v)
-        && assertEqual(await mField.get([0]), m)
-        && assertEqual(await oField.get([0]), o)
+    let passed =
+        true &&
+        assertEqual(await iField.get([0]), i) &&
+        assertEqual(await fField.get([0]), f) &&
+        assertEqual(await vField.get([0]), v) &&
+        assertEqual(await mField.get([0]), m) &&
+        assertEqual(await oField.get([0]), o)
 
     return passed
 }

@@ -1,9 +1,8 @@
-import { Runtime } from "../runtime/Runtime"
-import { SNodeTree } from "../data/SNodeTree"
-import { Scope } from "../language/frontend/Scope"
-import { DepthTexture, TextureBase } from "../data/Texture"
-import { PrimitiveType } from "../language/frontend/Type"
-
+import { Runtime } from '../runtime/Runtime'
+import { SNodeTree } from '../data/SNodeTree'
+import { Scope } from '../language/frontend/Scope'
+import { DepthTexture, TextureBase } from '../data/Texture'
+import { PrimitiveType } from '../language/frontend/Type'
 
 export interface ProgramOptions {
     printIR: boolean
@@ -13,7 +12,7 @@ export interface ProgramOptions {
 class Program {
     options: ProgramOptions = {
         printIR: false,
-        printWGSL: false
+        printWGSL: false,
     }
     async init(options?: ProgramOptions) {
         if (options && options.printIR !== undefined) {
@@ -67,7 +66,7 @@ class Program {
 
     addTexture(texture: TextureBase) {
         let id = this.runtime!.textures.length
-        texture.textureId = id;
+        texture.textureId = id
         this.runtime!.addTexture(texture)
     }
 
@@ -83,12 +82,12 @@ class Program {
 
     private nextAnonymousKernel = 0
     getAnonymousKernelName(): string {
-        return "anonymous_" + (this.nextAnonymousKernel++).toString()
+        return 'anonymous_' + (this.nextAnonymousKernel++).toString()
     }
 
     private nextFunction = 0
     getNextFunctionID(): string {
-        return "anonymous_" + (this.nextAnonymousKernel++).toString()
+        return 'anonymous_' + (this.nextAnonymousKernel++).toString()
     }
 }
 

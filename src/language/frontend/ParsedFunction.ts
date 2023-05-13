@@ -1,16 +1,14 @@
-import * as ts from "typescript";
-import { InMemoryHost } from "./InMemoryHost";
+import * as ts from 'typescript'
+import { InMemoryHost } from './InMemoryHost'
 import { error } from '../../utils/Logging'
-
 
 // A parsed JS function.
 // The optional argument `parent` is a parent JS function whose scope this function resides in
 export class ParsedFunction {
-
     static makeFromCode(code: string): ParsedFunction {
         let parsedFunction = new ParsedFunction()
         let host: InMemoryHost = new InMemoryHost()
-        let tempFileName = "temp.ts"
+        let tempFileName = 'temp.ts'
         host.writeFile(tempFileName, code)
         let tsOptions: ts.CompilerOptions = {
             allowNonTsExtensions: true,
@@ -20,23 +18,35 @@ export class ParsedFunction {
             noImplicitUseStrict: true,
             alwaysStrict: false,
             strictFunctionTypes: false,
-            checkJs: true
-        };
-        parsedFunction.tsProgram = ts.createProgram([tempFileName], tsOptions, host);
+            checkJs: true,
+        }
+        parsedFunction.tsProgram = ts.createProgram([tempFileName], tsOptions, host)
         parsedFunction.errorTsDiagnostics(parsedFunction.tsProgram.getSyntacticDiagnostics())
         parsedFunction.typeChecker = parsedFunction.tsProgram.getTypeChecker()
 
         let sourceFiles = parsedFunction.tsProgram!.getSourceFiles()
-        parsedFunction.assertNode(sourceFiles[0], sourceFiles.length === 1, "Expecting exactly 1 source file, got ", sourceFiles.length)
+        parsedFunction.assertNode(
+            sourceFiles[0],
+            sourceFiles.length === 1,
+            'Expecting exactly 1 source file, got ',
+            sourceFiles.length
+        )
         let sourceFile = sourceFiles[0]
         let statements = sourceFile.statements
-        parsedFunction.assertNode(sourceFiles[0], statements.length === 1, "Expecting exactly 1 statement in ti.kernel (A single function or arrow function)")
+        parsedFunction.assertNode(
+            sourceFiles[0],
+            statements.length === 1,
+            'Expecting exactly 1 statement in ti.kernel (A single function or arrow function)'
+        )
         parsedFunction.registerFunctionNode(statements[0])
         return parsedFunction
     }
 
     // used for functions embedded in another parsed function
-    static makeFromParsedNode(node: ts.ArrowFunction | ts.FunctionDeclaration, parentFunction:ParsedFunction): ParsedFunction {
+    static makeFromParsedNode(
+        node: ts.ArrowFunction | ts.FunctionDeclaration,
+        parentFunction: ParsedFunction
+    ): ParsedFunction {
         let parsedFunction = new ParsedFunction()
         parentFunction.parent = parentFunction
         parsedFunction.typeChecker = parentFunction.typeChecker!
@@ -55,24 +65,23 @@ export class ParsedFunction {
     protected registerFunctionNode(node: ts.Node) {
         if (node.kind === ts.SyntaxKind.FunctionDeclaration) {
             let funcDecl = node as ts.FunctionDeclaration
-            if(funcDecl.name && funcDecl.name.getText().indexOf("$") !== -1){
-                this.errorNode(node, "function name cannot have $ in it")
+            if (funcDecl.name && funcDecl.name.getText().indexOf('$') !== -1) {
+                this.errorNode(node, 'function name cannot have $ in it')
             }
             this.functionNode = node
             this.registerArguments((node as ts.FunctionDeclaration).parameters)
-        }
-        else if (node.kind === ts.SyntaxKind.ExpressionStatement &&
-            (node as ts.ExpressionStatement).expression.kind === ts.SyntaxKind.ArrowFunction) {
+        } else if (
+            node.kind === ts.SyntaxKind.ExpressionStatement &&
+            (node as ts.ExpressionStatement).expression.kind === ts.SyntaxKind.ArrowFunction
+        ) {
             let func = (node as ts.ExpressionStatement).expression as ts.ArrowFunction
             this.functionNode = func
             this.registerArguments(func.parameters)
-        }
-        else if (node.kind === ts.SyntaxKind.ArrowFunction) {
-            this.functionNode = node;
+        } else if (node.kind === ts.SyntaxKind.ArrowFunction) {
+            this.functionNode = node
             this.registerArguments((node as ts.ArrowFunction).parameters)
-        }
-        else {
-            this.errorNode(node, "Expecting a function or an arrow function in kernel/function")
+        } else {
+            this.errorNode(node, 'Expecting a function or an arrow function in kernel/function')
         }
     }
 
@@ -88,7 +97,7 @@ export class ParsedFunction {
     }
 
     getNodeSymbol(node: ts.Node): ts.Symbol {
-        this.assertNode(node, this.hasNodeSymbol(node), "symbol not found for " + node.getText())
+        this.assertNode(node, this.hasNodeSymbol(node), 'symbol not found for ' + node.getText())
         return this.typeChecker!.getSymbolAtLocation(node)!
     }
 
@@ -104,7 +113,7 @@ export class ParsedFunction {
     }
 
     errorTsDiagnostics(diags: readonly ts.DiagnosticWithLocation[]) {
-        let message = ""
+        let message = ''
         for (let diag of diags) {
             if (diag.category === ts.DiagnosticCategory.Error) {
                 let startPos = diag.start
@@ -117,8 +126,8 @@ export class ParsedFunction {
                 `
             }
         }
-        if (message !== "") {
-            error("Kernel/function code cannot be parsed as Javascript: \n" + message)
+        if (message !== '') {
+            error('Kernel/function code cannot be parsed as Javascript: \n' + message)
         }
     }
 
@@ -131,7 +140,7 @@ export class ParsedFunction {
 
     errorNode(node: ts.Node, ...args: any[]) {
         let code = this.getNodeSourceCode(node)
-        let errorMessage = "Error: "
+        let errorMessage = 'Error: '
         for (let a of args) {
             errorMessage += String(a)
         }

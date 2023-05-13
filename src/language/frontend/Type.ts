@@ -1,40 +1,36 @@
-
-import { assert, error } from "../../utils/Logging"
+import { assert, error } from '../../utils/Logging'
 
 export enum PrimitiveType {
-    i32 = "i32",
-    f32 = "f32"
+    i32 = 'i32',
+    f32 = 'f32',
 }
 
-
 export enum TypeCategory {
-    Scalar = "Scalar",
-    Vector = "Vector",
-    Matrix = "Matrix",
-    Struct = "Struct",
-    Pointer = "Pointer",
-    Void = "Void",
-    Function = "Function",
-    HostObjectReference = "HostObjectReference"
+    Scalar = 'Scalar',
+    Vector = 'Vector',
+    Matrix = 'Matrix',
+    Struct = 'Struct',
+    Pointer = 'Pointer',
+    Void = 'Void',
+    Function = 'Function',
+    HostObjectReference = 'HostObjectReference',
 }
 
 export class Type {
-    constructor() {
-
-    }
+    constructor() {}
 
     getCategory(): TypeCategory {
-        error("calling getCategory from Type2 base")
+        error('calling getCategory from Type2 base')
         return TypeCategory.Scalar
     }
 
     public equals(that: Type): boolean {
-        error("calling equals from Type2 base")
+        error('calling equals from Type2 base')
         return false
     }
 
     getPrimitivesList(): PrimitiveType[] {
-        error("calling getPrimitivesList from Type base")
+        error('calling getPrimitivesList from Type base')
         return []
     }
 }
@@ -52,7 +48,7 @@ export class ScalarType extends Type {
     }
 
     getPrimitiveType(): PrimitiveType {
-        return this.primitiveType_;
+        return this.primitiveType_
     }
 
     override getPrimitivesList(): PrimitiveType[] {
@@ -61,7 +57,7 @@ export class ScalarType extends Type {
 
     override equals(that: Type): boolean {
         if (that.getCategory() != this.getCategory()) {
-            return false;
+            return false
         }
         return this.getPrimitiveType() === (that as ScalarType).getPrimitiveType()
     }
@@ -82,11 +78,11 @@ export class VectorType extends Type {
     }
 
     getPrimitiveType(): PrimitiveType {
-        return this.primitiveType_;
+        return this.primitiveType_
     }
 
     getNumRows(): number {
-        return this.numRows_;
+        return this.numRows_
     }
 
     override getPrimitivesList(): PrimitiveType[] {
@@ -99,14 +95,14 @@ export class VectorType extends Type {
 
     override equals(that: Type): boolean {
         if (that.getCategory() != this.getCategory()) {
-            return false;
+            return false
         }
         let thatVector = that as VectorType
-        return this.getPrimitiveType() === thatVector.getPrimitiveType() &&
-            this.getNumRows() === thatVector.getNumRows()
+        return (
+            this.getPrimitiveType() === thatVector.getPrimitiveType() && this.getNumRows() === thatVector.getNumRows()
+        )
     }
 }
-
 
 export class MatrixType extends Type {
     constructor(primitiveType: PrimitiveType, numRows: number, numCols: number) {
@@ -125,15 +121,15 @@ export class MatrixType extends Type {
     }
 
     getPrimitiveType(): PrimitiveType {
-        return this.primitiveType_;
+        return this.primitiveType_
     }
 
     getNumRows(): number {
-        return this.numRows_;
+        return this.numRows_
     }
 
     getNumCols(): number {
-        return this.numCols_;
+        return this.numCols_
     }
 
     override getPrimitivesList(): PrimitiveType[] {
@@ -146,12 +142,14 @@ export class MatrixType extends Type {
 
     override equals(that: Type): boolean {
         if (that.getCategory() != this.getCategory()) {
-            return false;
+            return false
         }
         let thatVector = that as MatrixType
-        return this.getPrimitiveType() === thatVector.getPrimitiveType() &&
+        return (
+            this.getPrimitiveType() === thatVector.getPrimitiveType() &&
             this.getNumRows() === thatVector.getNumRows() &&
             this.getNumCols() === thatVector.getNumCols()
+        )
     }
 }
 
@@ -179,14 +177,14 @@ export class PointerType extends Type {
 
     override equals(that: Type): boolean {
         if (that.getCategory() != this.getCategory()) {
-            return false;
+            return false
         }
         let thatPointer = that as PointerType
         return this.getValueType().equals(thatPointer.getValueType())
     }
 
     override getPrimitivesList(): PrimitiveType[] {
-        error("calling getPrimitivesList from PointerType")
+        error('calling getPrimitivesList from PointerType')
         return []
     }
 }
@@ -209,7 +207,7 @@ export class StructType extends Type {
     private memberTypes_: Map<string, Type>
 
     getPropertyNames(): string[] {
-        return this.keys_;
+        return this.keys_
     }
 
     hasProperty(name: string) {
@@ -231,9 +229,8 @@ export class StructType extends Type {
         for (let k of this.keys_) {
             if (k !== name) {
                 offset += this.getPropertyType(k).getPrimitivesList().length
-            }
-            else {
-                break;
+            } else {
+                break
             }
         }
         return offset
@@ -245,7 +242,7 @@ export class StructType extends Type {
 
     override equals(that: Type): boolean {
         if (that.getCategory() != this.getCategory()) {
-            return false;
+            return false
         }
         let thatStruct = that as StructType
         if (this.keys_.length !== thatStruct.keys_.length) {
@@ -282,7 +279,7 @@ export class VoidType extends Type {
 
     override equals(that: Type): boolean {
         if (that.getCategory() != this.getCategory()) {
-            return false;
+            return false
         }
         return true
     }
@@ -329,26 +326,27 @@ export class HostObjectReferenceType extends Type {
 }
 
 export class TypeUtils {
-
     static isTensorType(type: Type): boolean {
-        let cat = type.getCategory();
+        let cat = type.getCategory()
         return cat === TypeCategory.Scalar || cat === TypeCategory.Vector || cat === TypeCategory.Matrix
     }
 
     static tensorTypeShapeMatch(type0: Type, type1: Type) {
-        assert(TypeUtils.isTensorType(type0) && TypeUtils.isTensorType(type1), "[Compiler bug] tensorTypeShapeMatch() called on non-tensor type")
+        assert(
+            TypeUtils.isTensorType(type0) && TypeUtils.isTensorType(type1),
+            '[Compiler bug] tensorTypeShapeMatch() called on non-tensor type'
+        )
         if (type0.getCategory() !== type1.getCategory()) {
             return false
         }
         if (type0.getCategory() === TypeCategory.Scalar) {
             return true
-        }
-        else if (type0.getCategory() === TypeCategory.Vector) {
+        } else if (type0.getCategory() === TypeCategory.Vector) {
             let vec0 = type0 as VectorType
             let vec1 = type1 as VectorType
             return vec0.getNumRows() === vec1.getNumRows()
-        }
-        else {// if(type0.getCategory() === TypeCategory.Matrix)
+        } else {
+            // if(type0.getCategory() === TypeCategory.Matrix)
             let mat0 = type0 as MatrixType
             let mat1 = type1 as MatrixType
             return mat0.getNumRows() === mat1.getNumRows() && mat0.getNumCols() === mat1.getNumCols()
@@ -356,39 +354,37 @@ export class TypeUtils {
     }
 
     static getPrimitiveType(type: Type): PrimitiveType {
-        assert(TypeUtils.isTensorType(type), "[Compiler bug] getPrimitiveType() called on non-tensor type")
-        let cat = type.getCategory();
+        assert(TypeUtils.isTensorType(type), '[Compiler bug] getPrimitiveType() called on non-tensor type')
+        let cat = type.getCategory()
         if (cat === TypeCategory.Scalar) {
             return (type as ScalarType).getPrimitiveType()
-        }
-        else if (cat === TypeCategory.Vector) {
+        } else if (cat === TypeCategory.Vector) {
             let vecType = type as VectorType
             return vecType.getPrimitiveType()
-        }
-        else { //if(cat ===  TypeCategory.Matrix)
+        } else {
+            //if(cat ===  TypeCategory.Matrix)
             let matType = type as MatrixType
             return matType.getPrimitiveType()
         }
     }
 
     static replacePrimitiveType(type: Type, newPrimitiveType: PrimitiveType): Type {
-        assert(TypeUtils.isTensorType(type), "[Compiler bug] replacePrimitiveType() called on non-tensor type")
-        let cat = type.getCategory();
+        assert(TypeUtils.isTensorType(type), '[Compiler bug] replacePrimitiveType() called on non-tensor type')
+        let cat = type.getCategory()
         if (cat === TypeCategory.Scalar) {
             return new ScalarType(newPrimitiveType)
-        }
-        else if (cat === TypeCategory.Vector) {
+        } else if (cat === TypeCategory.Vector) {
             let vecType = type as VectorType
             return new VectorType(newPrimitiveType, vecType.getNumRows())
-        }
-        else { // if(cat ===  TypeCategory.Matrix){
+        } else {
+            // if(cat ===  TypeCategory.Matrix){
             let matType = type as MatrixType
             return new MatrixType(newPrimitiveType, matType.getNumRows(), matType.getNumCols())
         }
     }
 
     static isPointerOfCategory(type: Type, cat: TypeCategory) {
-        return type.getCategory() === TypeCategory.Pointer && (type as PointerType).getValueType().getCategory() === cat;
+        return type.getCategory() === TypeCategory.Pointer && (type as PointerType).getValueType().getCategory() === cat
     }
 
     static isValueOrPointerOfCategory(type: Type, cat: TypeCategory) {
@@ -396,7 +392,9 @@ export class TypeUtils {
     }
 
     static isPointerOfTensorType(type: Type): boolean {
-        return type.getCategory() === TypeCategory.Pointer && TypeUtils.isTensorType((type as PointerType).getValueType())
+        return (
+            type.getCategory() === TypeCategory.Pointer && TypeUtils.isTensorType((type as PointerType).getValueType())
+        )
     }
 
     static isValueOrPointerOfTensorType(type: Type): boolean {
@@ -405,13 +403,11 @@ export class TypeUtils {
 }
 
 export class TypeError {
-    private constructor(public hasError: boolean, public msg: string = "") {
-
-    }
+    private constructor(public hasError: boolean, public msg: string = '') {}
     public static createNoError() {
         return new TypeError(false)
     }
     public static createError(msg: string) {
         return new TypeError(true, msg)
     }
-} 
+}

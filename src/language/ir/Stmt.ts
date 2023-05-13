@@ -1,11 +1,10 @@
-import { Field } from "../../data/Field"
-import { TextureBase } from "../../data/Texture"
-import { PrimitiveType } from "../frontend/Type"
-import { assert, error } from "../../utils/Logging"
+import { Field } from '../../data/Field'
+import { TextureBase } from '../../data/Texture'
+import { PrimitiveType } from '../frontend/Type'
+import { assert, error } from '../../utils/Logging'
 
-// designed to have the same API as native taichi's IR 
+// designed to have the same API as native taichi's IR
 // which is why there're some camel_case and camelCase mash-ups
-
 
 export enum StmtKind {
     ConstStmt,
@@ -47,13 +46,7 @@ export enum StmtKind {
 }
 
 export abstract class Stmt {
-    constructor(
-        public id: number,
-        public returnType?: PrimitiveType,
-        public nameHint: string = ""
-    ) {
-
-    }
+    constructor(public id: number, public returnType?: PrimitiveType, public nameHint: string = '') {}
 
     getName() {
         return `_${this.id}_${this.nameHint}`
@@ -61,23 +54,18 @@ export abstract class Stmt {
 
     getReturnType() {
         if (!this.returnType) {
-            error("missing return type ", this)
+            error('missing return type ', this)
         }
         return this.returnType!
     }
 
     operands: Stmt[] = []
 
-    abstract getKind(): StmtKind;
+    abstract getKind(): StmtKind
 }
 
 export class ConstStmt extends Stmt {
-    constructor(
-        public val: number,
-        returntype: PrimitiveType,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(public val: number, returntype: PrimitiveType, id: number, nameHint: string = '') {
         super(id, returntype, nameHint)
     }
 
@@ -87,13 +75,7 @@ export class ConstStmt extends Stmt {
 }
 
 export class RangeForStmt extends Stmt {
-    constructor(
-        range: Stmt,
-        public strictlySerialize: boolean,
-        public body: Block,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(range: Stmt, public strictlySerialize: boolean, public body: Block, id: number, nameHint: string = '') {
         super(id, undefined, nameHint)
         this.operands = [range]
     }
@@ -110,11 +92,7 @@ export class RangeForStmt extends Stmt {
 }
 
 export class LoopIndexStmt extends Stmt {
-    constructor(
-        loop: Stmt,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(loop: Stmt, id: number, nameHint: string = '') {
         super(id, PrimitiveType.i32, nameHint)
         this.operands = [loop]
     }
@@ -127,11 +105,7 @@ export class LoopIndexStmt extends Stmt {
 }
 
 export class AllocaStmt extends Stmt {
-    constructor(
-        public allocatedType: PrimitiveType,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(public allocatedType: PrimitiveType, id: number, nameHint: string = '') {
         super(id, undefined, nameHint)
     }
     override getKind(): StmtKind {
@@ -140,11 +114,7 @@ export class AllocaStmt extends Stmt {
 }
 
 export class LocalLoadStmt extends Stmt {
-    constructor(
-        ptr: AllocaStmt,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(ptr: AllocaStmt, id: number, nameHint: string = '') {
         super(id, ptr.allocatedType, nameHint)
         this.operands = [ptr]
     }
@@ -157,12 +127,7 @@ export class LocalLoadStmt extends Stmt {
 }
 
 export class LocalStoreStmt extends Stmt {
-    constructor(
-        ptr: AllocaStmt,
-        value: Stmt,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(ptr: AllocaStmt, value: Stmt, id: number, nameHint: string = '') {
         super(id, undefined, nameHint)
         this.operands = [ptr, value]
     }
@@ -183,7 +148,7 @@ export class GlobalPtrStmt extends Stmt {
         indices: Stmt[],
         public offsetInElement: number,
         id: number,
-        nameHint: string = ""
+        nameHint: string = ''
     ) {
         super(id, undefined, nameHint)
         this.operands = indices.slice()
@@ -200,11 +165,7 @@ export class GlobalPtrStmt extends Stmt {
 }
 
 export class GlobalLoadStmt extends Stmt {
-    constructor(
-        public ptr: GlobalPtrStmt,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(public ptr: GlobalPtrStmt, id: number, nameHint: string = '') {
         let returnType = ptr.field.elementType.getPrimitivesList()[ptr.offsetInElement]
         super(id, returnType, nameHint)
         this.operands = [ptr]
@@ -218,12 +179,7 @@ export class GlobalLoadStmt extends Stmt {
 }
 
 export class GlobalStoreStmt extends Stmt {
-    constructor(
-        public ptr: GlobalPtrStmt,
-        public value: Stmt,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(public ptr: GlobalPtrStmt, public value: Stmt, id: number, nameHint: string = '') {
         super(id, undefined, nameHint)
         this.operands = [ptr, value]
     }
@@ -239,12 +195,7 @@ export class GlobalStoreStmt extends Stmt {
 }
 
 export class GlobalTemporaryStmt extends Stmt {
-    constructor(
-        public type: PrimitiveType,
-        public offset: number,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(public type: PrimitiveType, public offset: number, id: number, nameHint: string = '') {
         super(id, undefined, nameHint)
     }
     override getKind(): StmtKind {
@@ -253,11 +204,7 @@ export class GlobalTemporaryStmt extends Stmt {
 }
 
 export class GlobalTemporaryLoadStmt extends Stmt {
-    constructor(
-        public ptr: GlobalTemporaryStmt,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(public ptr: GlobalTemporaryStmt, id: number, nameHint: string = '') {
         super(id, ptr.type, nameHint)
         this.operands = [ptr]
     }
@@ -270,12 +217,7 @@ export class GlobalTemporaryLoadStmt extends Stmt {
 }
 
 export class GlobalTemporaryStoreStmt extends Stmt {
-    constructor(
-        public ptr: GlobalTemporaryStmt,
-        public value: Stmt,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(public ptr: GlobalTemporaryStmt, public value: Stmt, id: number, nameHint: string = '') {
         super(id, undefined, nameHint)
         this.operands = [ptr, value]
     }
@@ -298,11 +240,14 @@ export function isPointerStmt(stmt: Stmt) {
 
 export function getPointedType(ptr: PointerStmt) {
     switch (ptr.getKind()) {
-        case StmtKind.AllocaStmt: return (ptr as AllocaStmt).allocatedType
-        case StmtKind.GlobalPtrStmt: return (ptr as GlobalPtrStmt).getPointedType()
-        case StmtKind.GlobalTemporaryStmt: return (ptr as GlobalTemporaryStmt).type
+        case StmtKind.AllocaStmt:
+            return (ptr as AllocaStmt).allocatedType
+        case StmtKind.GlobalPtrStmt:
+            return (ptr as GlobalPtrStmt).getPointedType()
+        case StmtKind.GlobalTemporaryStmt:
+            return (ptr as GlobalTemporaryStmt).type
         default: {
-            error("not a pointer type!")
+            error('not a pointer type!')
             return PrimitiveType.i32
         }
     }
@@ -335,7 +280,11 @@ export enum BinaryOpType {
     logical_and,
 }
 
-export function getBinaryOpReturnType(leftType: PrimitiveType, rightType: PrimitiveType, op: BinaryOpType): PrimitiveType | undefined {
+export function getBinaryOpReturnType(
+    leftType: PrimitiveType,
+    rightType: PrimitiveType,
+    op: BinaryOpType
+): PrimitiveType | undefined {
     switch (op) {
         case BinaryOpType.cmp_eq:
         case BinaryOpType.cmp_ge:
@@ -371,14 +320,13 @@ export function getBinaryOpReturnType(leftType: PrimitiveType, rightType: Primit
 }
 
 export class BinaryOpStmt extends Stmt {
-    constructor(
-        public left: Stmt,
-        public right: Stmt,
-        public op: BinaryOpType,
-        id: number,
-        nameHint: string = ""
-    ) {
-        assert(left.returnType !== undefined && right.returnType !== undefined, "LHS and RHS of binary op must both have a valid return type", left, right)
+    constructor(public left: Stmt, public right: Stmt, public op: BinaryOpType, id: number, nameHint: string = '') {
+        assert(
+            left.returnType !== undefined && right.returnType !== undefined,
+            'LHS and RHS of binary op must both have a valid return type',
+            left,
+            right
+        )
         let returnType = getBinaryOpReturnType(left.getReturnType(), right.getReturnType(), op)
         super(id, returnType, nameHint)
         this.operands = [left, right]
@@ -456,13 +404,8 @@ export function getUnaryOpReturnType(operandType: PrimitiveType, op: UnaryOpType
 }
 
 export class UnaryOpStmt extends Stmt {
-    constructor(
-        public operand: Stmt,
-        public op: UnaryOpType,
-        id: number,
-        nameHint: string = ""
-    ) {
-        assert(operand.returnType !== undefined, "Unary op operand must have a valid return type")
+    constructor(public operand: Stmt, public op: UnaryOpType, id: number, nameHint: string = '') {
+        assert(operand.returnType !== undefined, 'Unary op operand must have a valid return type')
         let returnType = getUnaryOpReturnType(operand.getReturnType(), op)
         super(id, returnType, nameHint)
         this.operands = [this.operand]
@@ -476,11 +419,7 @@ export class UnaryOpStmt extends Stmt {
 }
 
 export class WhileStmt extends Stmt {
-    constructor(
-        public body: Block,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(public body: Block, id: number, nameHint: string = '') {
         super(id, undefined, nameHint)
     }
     override getKind(): StmtKind {
@@ -489,13 +428,7 @@ export class WhileStmt extends Stmt {
 }
 
 export class IfStmt extends Stmt {
-    constructor(
-        cond: Stmt,
-        public trueBranch: Block,
-        public falseBranch: Block,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(cond: Stmt, public trueBranch: Block, public falseBranch: Block, id: number, nameHint: string = '') {
         super(id, undefined, nameHint)
         this.operands = [cond]
     }
@@ -508,10 +441,7 @@ export class IfStmt extends Stmt {
 }
 
 export class WhileControlStmt extends Stmt {
-    constructor(
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(id: number, nameHint: string = '') {
         super(id, undefined, nameHint)
     }
     override getKind(): StmtKind {
@@ -520,10 +450,7 @@ export class WhileControlStmt extends Stmt {
 }
 
 export class ContinueStmt extends Stmt {
-    constructor(
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(id: number, nameHint: string = '') {
         super(id, undefined, nameHint)
     }
     override getKind(): StmtKind {
@@ -532,12 +459,7 @@ export class ContinueStmt extends Stmt {
 }
 
 export class ArgLoadStmt extends Stmt {
-    constructor(
-        argType: PrimitiveType,
-        public argId: number,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(argType: PrimitiveType, public argId: number, id: number, nameHint: string = '') {
         super(id, argType, nameHint)
     }
     override getKind(): StmtKind {
@@ -546,11 +468,7 @@ export class ArgLoadStmt extends Stmt {
 }
 
 export class RandStmt extends Stmt {
-    constructor(
-        type: PrimitiveType,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(type: PrimitiveType, id: number, nameHint: string = '') {
         super(id, type, nameHint)
     }
     override getKind(): StmtKind {
@@ -559,11 +477,7 @@ export class RandStmt extends Stmt {
 }
 
 export class ReturnStmt extends Stmt {
-    constructor(
-        values: Stmt[],
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(values: Stmt[], id: number, nameHint: string = '') {
         super(id, undefined, nameHint)
         this.operands = values.slice()
     }
@@ -576,17 +490,17 @@ export class ReturnStmt extends Stmt {
 }
 
 export enum AtomicOpType {
-    add, sub, max, min, bit_and, bit_or, bit_xor
+    add,
+    sub,
+    max,
+    min,
+    bit_and,
+    bit_or,
+    bit_xor,
 }
 
 export class AtomicOpStmt extends Stmt {
-    constructor(
-        dest: PointerStmt,
-        operand: Stmt,
-        public op: AtomicOpType,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(dest: PointerStmt, operand: Stmt, public op: AtomicOpType, id: number, nameHint: string = '') {
         super(id, getPointedType(dest), nameHint)
         this.operands = [dest, operand]
     }
@@ -602,11 +516,7 @@ export class AtomicOpStmt extends Stmt {
 }
 
 export class AtomicLoadStmt extends Stmt {
-    constructor(
-        public ptr: PointerStmt,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(public ptr: PointerStmt, id: number, nameHint: string = '') {
         let returnType = getPointedType(ptr)
         super(id, returnType, nameHint)
         this.operands = [ptr]
@@ -620,12 +530,7 @@ export class AtomicLoadStmt extends Stmt {
 }
 
 export class AtomicStoreStmt extends Stmt {
-    constructor(
-        public ptr: PointerStmt,
-        public value: Stmt,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(public ptr: PointerStmt, public value: Stmt, id: number, nameHint: string = '') {
         super(id, undefined, nameHint)
         this.operands = [ptr, value]
     }
@@ -641,11 +546,7 @@ export class AtomicStoreStmt extends Stmt {
 }
 
 export class VertexForStmt extends Stmt {
-    constructor(
-        public body: Block,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(public body: Block, id: number, nameHint: string = '') {
         super(id, undefined, nameHint)
     }
     override getKind(): StmtKind {
@@ -654,11 +555,7 @@ export class VertexForStmt extends Stmt {
 }
 
 export class FragmentForStmt extends Stmt {
-    constructor(
-        public body: Block,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(public body: Block, id: number, nameHint: string = '') {
         super(id, undefined, nameHint)
     }
     override getKind(): StmtKind {
@@ -667,12 +564,7 @@ export class FragmentForStmt extends Stmt {
 }
 
 export class VertexInputStmt extends Stmt {
-    constructor(
-        type: PrimitiveType,
-        public location: number,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(type: PrimitiveType, public location: number, id: number, nameHint: string = '') {
         super(id, type, nameHint)
     }
     override getKind(): StmtKind {
@@ -681,12 +573,7 @@ export class VertexInputStmt extends Stmt {
 }
 
 export class VertexOutputStmt extends Stmt {
-    constructor(
-        value: Stmt,
-        public location: number,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(value: Stmt, public location: number, id: number, nameHint: string = '') {
         super(id, undefined, nameHint)
         this.operands = [value]
     }
@@ -699,12 +586,7 @@ export class VertexOutputStmt extends Stmt {
 }
 
 export class FragmentInputStmt extends Stmt {
-    constructor(
-        type: PrimitiveType,
-        public location: number,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(type: PrimitiveType, public location: number, id: number, nameHint: string = '') {
         super(id, type, nameHint)
     }
     override getKind(): StmtKind {
@@ -715,7 +597,7 @@ export class FragmentInputStmt extends Stmt {
 export enum BuiltInOutputKind {
     Position,
     Color,
-    FragDepth
+    FragDepth,
 }
 
 export class BuiltInOutputStmt extends Stmt {
@@ -724,7 +606,7 @@ export class BuiltInOutputStmt extends Stmt {
         public builtinKind: BuiltInOutputKind,
         public location: number | undefined,
         id: number,
-        nameHint: string = ""
+        nameHint: string = ''
     ) {
         super(id, undefined, nameHint)
         this.operands = values.slice()
@@ -738,7 +620,9 @@ export class BuiltInOutputStmt extends Stmt {
 }
 
 export enum BuiltInInputKind {
-    VertexIndex = 0, InstanceIndex = 1, FragCoord = 2
+    VertexIndex = 0,
+    InstanceIndex = 1,
+    FragCoord = 2,
 }
 
 export function getBuiltinInputPrimitiveType(kind: BuiltInInputKind) {
@@ -762,11 +646,7 @@ export function getBuiltinInputComponentCount(kind: BuiltInInputKind) {
 }
 
 export class BuiltInInputStmt extends Stmt {
-    constructor(
-        public builtinKind: BuiltInInputKind,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(public builtinKind: BuiltInInputKind, id: number, nameHint: string = '') {
         super(id, getBuiltinInputPrimitiveType(builtinKind), nameHint)
     }
     override getKind(): StmtKind {
@@ -774,15 +654,13 @@ export class BuiltInInputStmt extends Stmt {
     }
 }
 
-export enum FragmentDerivativeDirection { x, y }
+export enum FragmentDerivativeDirection {
+    x,
+    y,
+}
 
 export class FragmentDerivativeStmt extends Stmt {
-    constructor(
-        public direction: FragmentDerivativeDirection,
-        value: Stmt,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(public direction: FragmentDerivativeDirection, value: Stmt, id: number, nameHint: string = '') {
         super(id, PrimitiveType.f32, nameHint)
         this.operands.push(value)
     }
@@ -795,10 +673,7 @@ export class FragmentDerivativeStmt extends Stmt {
 }
 
 export class DiscardStmt extends Stmt {
-    constructor(
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(id: number, nameHint: string = '') {
         super(id, undefined, nameHint)
     }
     override getKind(): StmtKind {
@@ -811,7 +686,7 @@ export enum TextureFunctionKind {
     SampleLod,
     SampleCompare,
     Load,
-    Store
+    Store,
 }
 
 export function getTextureFunctionResultType(func: TextureFunctionKind) {
@@ -833,7 +708,7 @@ export class TextureFunctionStmt extends Stmt {
         coordinates: Stmt[],
         additionalOperands: Stmt[],
         id: number,
-        nameHint: string = ""
+        nameHint: string = ''
     ) {
         super(id, getTextureFunctionResultType(func), nameHint)
         this.additionalOperandsCount = additionalOperands.length
@@ -852,12 +727,7 @@ export class TextureFunctionStmt extends Stmt {
 }
 
 export class CompositeExtractStmt extends Stmt {
-    constructor(
-        composite: Stmt,
-        public elementIndex: number,
-        id: number,
-        nameHint: string = ""
-    ) {
+    constructor(composite: Stmt, public elementIndex: number, id: number, nameHint: string = '') {
         super(id, composite.returnType, nameHint)
         this.operands = [composite]
     }
@@ -869,20 +739,15 @@ export class CompositeExtractStmt extends Stmt {
     }
 }
 
-
 export class Block {
-    constructor(public stmts: Stmt[] = []) {
-
-    }
+    constructor(public stmts: Stmt[] = []) {}
 }
 
 export class IRModule {
-    constructor() {
-
-    }
-    block: Block = new Block
+    constructor() {}
+    block: Block = new Block()
     idBound: number = 0
     getNewId() {
-        return this.idBound++;
+        return this.idBound++
     }
 }

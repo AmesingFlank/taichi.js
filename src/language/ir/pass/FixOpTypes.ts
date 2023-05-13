@@ -1,6 +1,6 @@
-import { PrimitiveType } from "../../frontend/Type";
-import { BinaryOpStmt, IRModule, UnaryOpStmt, UnaryOpType } from "../Stmt";
-import { IRTransformer } from "../Transformer";
+import { PrimitiveType } from '../../frontend/Type'
+import { BinaryOpStmt, IRModule, UnaryOpStmt, UnaryOpType } from '../Stmt'
+import { IRTransformer } from '../Transformer'
 
 class FixOpTypesPass extends IRTransformer {
     override visitBinaryOpStmt(stmt: BinaryOpStmt): void {
@@ -14,8 +14,7 @@ class FixOpTypesPass extends IRTransformer {
         if (LHS.getReturnType() === PrimitiveType.i32) {
             LHS = this.pushNewStmt(new UnaryOpStmt(LHS, UnaryOpType.cast_f32_value, this.module.getNewId()))
             stmt.setLeft(LHS)
-        }
-        else if (RHS.getReturnType() === PrimitiveType.i32) {
+        } else if (RHS.getReturnType() === PrimitiveType.i32) {
             RHS = this.pushNewStmt(new UnaryOpStmt(RHS, UnaryOpType.cast_f32_value, this.module.getNewId()))
             stmt.setRight(RHS)
         }

@@ -1,5 +1,4 @@
-import { VectorType, MatrixType, PrimitiveType, StructType } from "../language/frontend/Type"
-
+import { VectorType, MatrixType, PrimitiveType, StructType } from '../language/frontend/Type'
 
 export function vector(primitiveType: PrimitiveType, n: number) {
     return new VectorType(primitiveType, n)

@@ -1,11 +1,11 @@
-import * as ts from "typescript";
-import { assert } from "../../../utils/Logging"
+import * as ts from 'typescript'
+import { assert } from '../../../utils/Logging'
 
 type VisitorResult<T> = T | void | undefined
 
 class ASTVisitor<T> {
     protected extractVisitorResult(result: VisitorResult<T>): T {
-        assert(result !== undefined, "Result is undefined")
+        assert(result !== undefined, 'Result is undefined')
         return result as T
     }
     protected dispatchVisit(node: ts.Node): VisitorResult<T> {
@@ -75,7 +75,10 @@ class ASTVisitor<T> {
         }
     }
 
-    protected visitEachChild(node: ts.Node, combiner: ((results: VisitorResult<T>[]) => VisitorResult<T>) | null = null): VisitorResult<T> {
+    protected visitEachChild(
+        node: ts.Node,
+        combiner: ((results: VisitorResult<T>[]) => VisitorResult<T>) | null = null
+    ): VisitorResult<T> {
         let results: VisitorResult<T>[] = []
         node.forEachChild((node) => {
             let thisResult = this.dispatchVisit(node)
@@ -198,18 +201,11 @@ class ASTVisitor<T> {
         return this.visitEachChild(node)
     }
 
-    protected visitThisKeyword(): VisitorResult<T> {
+    protected visitThisKeyword(): VisitorResult<T> {}
 
-    }
+    protected visitTrueKeyword(): VisitorResult<T> {}
 
-    protected visitTrueKeyword(): VisitorResult<T> {
-
-    }
-
-    protected visitFalseKeyword(): VisitorResult<T> {
-
-    }
+    protected visitFalseKeyword(): VisitorResult<T> {}
 }
-
 
 export { ASTVisitor, VisitorResult }

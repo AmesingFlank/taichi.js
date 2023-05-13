@@ -1,14 +1,13 @@
 import { Field } from './Field'
-import { nextPowerOf2 } from "../utils/Utils"
-import { Type } from "../language/frontend/Type"
+import { nextPowerOf2 } from '../utils/Utils'
+import { Type } from '../language/frontend/Type'
 
 function numElements(dimensions: number[], packed: boolean = false) {
     let result = 1
     for (let d of dimensions) {
         if (packed) {
             result *= d
-        }
-        else {
+        } else {
             result *= nextPowerOf2(d)
         }
     }
@@ -21,15 +20,13 @@ class SNodeTree {
     size: number = 0
     rootBuffer: GPUBuffer | null = null
     fragmentShaderWritable = false
-    constructor() {
-    }
+    constructor() {}
 
     addNaiveDenseField(elementType: Type, dimensionsArg: number[] | number): Field {
         let dimensions: number[]
-        if (typeof dimensionsArg === "number") {
+        if (typeof dimensionsArg === 'number') {
             dimensions = [dimensionsArg]
-        }
-        else {
+        } else {
             dimensions = dimensionsArg
         }
 
