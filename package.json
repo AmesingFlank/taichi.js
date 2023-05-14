@@ -18,7 +18,7 @@
     "build_prod": "rollup --config rollup/rollup.config.prod.js",
     "build": "npm run build_prod",
     "start": "http-server -a 127.0.0.1 -p 8080",
-    "prettier-format": "prettier --config .prettierrc.json src/**/*.ts --write"
+    "prettier": "prettier --config .prettierrc.json src/**/*.ts examples/**/*.js --write"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^21.0.3",
