@@ -1,5 +1,5 @@
-import * as ti from '../../taichi'
-import { ShadowInfo } from './ShadowInfo'
+import * as ti from '../../taichi';
+import { ShadowInfo } from './ShadowInfo';
 
 export enum LightType {
     Point = 1,
@@ -32,7 +32,7 @@ export class LightInfo {
             innerConeAngle: ti.f32,
             outerConeAngle: ti.f32,
             castsShadow: ti.i32,
-        })
+        });
     }
 }
 
@@ -56,7 +56,7 @@ export class PointLightInfo extends LightInfo {
             0.0,
             castsShadow,
             shadow
-        )
+        );
     }
 }
 export class SpotLightInfo extends LightInfo {
@@ -82,7 +82,7 @@ export class SpotLightInfo extends LightInfo {
             outerConeAngle,
             castsShadow,
             shadow
-        )
+        );
     }
 }
 
@@ -106,6 +106,6 @@ export class DirectionalLightInfo extends LightInfo {
             0.0,
             castsShadow,
             shadow
-        )
+        );
     }
 }

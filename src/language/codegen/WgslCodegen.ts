@@ -1,5 +1,5 @@
-import { DepthTexture, getTextureCoordsNumComponents, TextureDimensionality } from '../../data/Texture'
-import { Program } from '../../program/Program'
+import { DepthTexture, getTextureCoordsNumComponents, TextureDimensionality } from '../../data/Texture';
+import { Program } from '../../program/Program';
 import {
     FragmentShaderParams,
     ResourceBinding,
@@ -7,12 +7,12 @@ import {
     ResourceType,
     TaskParams,
     VertexShaderParams,
-} from '../../runtime/Kernel'
-import { Runtime } from '../../runtime/Runtime'
-import { assert, error } from '../../utils/Logging'
-import { StringBuilder } from '../../utils/StringBuilder'
-import { divUp } from '../../utils/Utils'
-import { PrimitiveType } from '../frontend/Type'
+} from '../../runtime/Kernel';
+import { Runtime } from '../../runtime/Runtime';
+import { assert, error } from '../../utils/Logging';
+import { StringBuilder } from '../../utils/StringBuilder';
+import { divUp } from '../../utils/Utils';
+import { PrimitiveType } from '../frontend/Type';
 import {
     AllocaStmt,
     ArgLoadStmt,
@@ -61,34 +61,34 @@ import {
     VertexOutputStmt,
     WhileControlStmt,
     WhileStmt,
-} from '../ir/Stmt'
-import { IRVisitor } from '../ir/Visitor'
-import { ComputeModule, OffloadedModule, OffloadType } from './Offload'
+} from '../ir/Stmt';
+import { IRVisitor } from '../ir/Visitor';
+import { ComputeModule, OffloadedModule, OffloadType } from './Offload';
 
 class ResourceBindingMap {
-    bindings: ResourceBinding[] = []
+    bindings: ResourceBinding[] = [];
     has(resource: ResourceInfo) {
         for (let b of this.bindings) {
             if (b.info.equals(resource)) {
-                return true
+                return true;
             }
         }
-        return false
+        return false;
     }
     add(resource: ResourceInfo, bindingPoint: number) {
-        let binding = new ResourceBinding(resource, bindingPoint)
-        this.bindings.push(binding)
+        let binding = new ResourceBinding(resource, bindingPoint);
+        this.bindings.push(binding);
     }
     get(resource: ResourceInfo) {
         for (let b of this.bindings) {
             if (b.info.equals(resource)) {
-                return b.binding!
+                return b.binding!;
             }
         }
-        return undefined
+        return undefined;
     }
     size() {
-        return this.bindings.length
+        return this.bindings.length;
     }
 }
 
@@ -101,188 +101,188 @@ export class CodegenVisitor extends IRVisitor {
         // when generating code for fragment shader, need to take into count the bindings used by the vertex shader, because they are in the same synchronization scope
         public previousStageBindings: ResourceBinding[]
     ) {
-        super()
+        super();
     }
 
     override visitConstStmt(stmt: ConstStmt): void {
-        let dt = stmt.getReturnType()
-        let val = stmt.val
-        this.emitLet(stmt.getName(), this.getPrimitiveTypeName(dt))
+        let dt = stmt.getReturnType();
+        let val = stmt.val;
+        this.emitLet(stmt.getName(), this.getPrimitiveTypeName(dt));
         switch (dt) {
             case PrimitiveType.f32: {
-                let s = val.toPrecision(8)
+                let s = val.toPrecision(8);
                 if (!s.includes('.') && !s.includes('e') && !s.includes('E')) {
-                    s += '.f'
+                    s += '.f';
                 }
-                this.body.write(s)
-                break
+                this.body.write(s);
+                break;
             }
             case PrimitiveType.i32: {
-                assert(Number.isInteger(val), 'expecting integer')
-                this.body.write(val.toString())
-                break
+                assert(Number.isInteger(val), 'expecting integer');
+                this.body.write(val.toString());
+                break;
             }
             default: {
-                error('unrecognized return type ', stmt)
+                error('unrecognized return type ', stmt);
             }
         }
-        this.body.write(';\n')
+        this.body.write(';\n');
     }
 
     override visitRandStmt(stmt: RandStmt): void {
-        this.initRand()
-        this.emitLet(stmt.getName(), this.getPrimitiveTypeName(stmt.getReturnType()))
+        this.initRand();
+        this.emitLet(stmt.getName(), this.getPrimitiveTypeName(stmt.getReturnType()));
         switch (stmt.getReturnType()) {
             case PrimitiveType.i32: {
-                this.body.write('rand_i32(gid3.x);\n')
-                break
+                this.body.write('rand_i32(gid3.x);\n');
+                break;
             }
             case PrimitiveType.f32: {
-                this.body.write('rand_f32(gid3.x);\n')
-                break
+                this.body.write('rand_f32(gid3.x);\n');
+                break;
             }
             default: {
-                error('unrecognized primitive type')
+                error('unrecognized primitive type');
             }
         }
     }
 
     override visitUnaryOpStmt(stmt: UnaryOpStmt): void {
-        let operand = stmt.getOperand().getName()
-        let srcType = stmt.getOperand().getReturnType()
-        let dstType = stmt.getReturnType()
-        let dstTypeName = this.getPrimitiveTypeName(dstType)
-        let op = stmt.op
+        let operand = stmt.getOperand().getName();
+        let srcType = stmt.getOperand().getReturnType();
+        let dstType = stmt.getReturnType();
+        let dstTypeName = this.getPrimitiveTypeName(dstType);
+        let op = stmt.op;
         let getValue = (op: UnaryOpType) => {
             switch (op) {
                 case UnaryOpType.neg:
-                    return `(-(${operand}))`
+                    return `(-(${operand}))`;
                 case UnaryOpType.sqrt:
-                    return `sqrt(f32(${operand}))`
+                    return `sqrt(f32(${operand}))`;
                 case UnaryOpType.round:
-                    return `round(f32(${operand}))`
+                    return `round(f32(${operand}))`;
                 case UnaryOpType.floor:
-                    return `floor(f32(${operand}))`
+                    return `floor(f32(${operand}))`;
                 case UnaryOpType.ceil:
-                    return `ceil(f32(${operand}))`
+                    return `ceil(f32(${operand}))`;
                 case UnaryOpType.cast_i32_value:
-                    return `i32(${operand})`
+                    return `i32(${operand})`;
                 case UnaryOpType.cast_f32_value:
-                    return `f32(${operand})`
+                    return `f32(${operand})`;
                 case UnaryOpType.cast_i32_bits:
-                    return `bitcast<i32>(${operand})`
+                    return `bitcast<i32>(${operand})`;
                 case UnaryOpType.cast_f32_bits:
-                    return `bitcast<f32>(${operand})`
+                    return `bitcast<f32>(${operand})`;
                 case UnaryOpType.abs:
-                    return `abs(${operand})`
+                    return `abs(${operand})`;
                 case UnaryOpType.sgn:
-                    return `sign(${operand})`
+                    return `sign(${operand})`;
                 case UnaryOpType.sin:
-                    return `sin(f32(${operand}))`
+                    return `sin(f32(${operand}))`;
                 case UnaryOpType.asin:
-                    return `asin(f32(${operand}))`
+                    return `asin(f32(${operand}))`;
                 case UnaryOpType.cos:
-                    return `cos(f32(${operand}))`
+                    return `cos(f32(${operand}))`;
                 case UnaryOpType.acos:
-                    return `acos(f32(${operand}))`
+                    return `acos(f32(${operand}))`;
                 case UnaryOpType.tan:
-                    return `tan(f32(${operand}))`
+                    return `tan(f32(${operand}))`;
                 case UnaryOpType.tanh:
-                    return `tanh(f32(${operand}))`
+                    return `tanh(f32(${operand}))`;
                 case UnaryOpType.inv:
-                    return `1.f / f32(${operand})`
+                    return `1.f / f32(${operand})`;
                 case UnaryOpType.rcp:
-                    return `1.f / f32(${operand})`
+                    return `1.f / f32(${operand})`;
                 case UnaryOpType.exp:
-                    return `exp(f32(${operand}))`
+                    return `exp(f32(${operand}))`;
                 case UnaryOpType.log:
-                    return `log(f32(${operand}))`
+                    return `log(f32(${operand}))`;
                 case UnaryOpType.rsqrt:
-                    return `inverseSqrt(f32(${operand}))`
+                    return `inverseSqrt(f32(${operand}))`;
                 case UnaryOpType.logic_not: {
-                    let zero = '0'
+                    let zero = '0';
                     switch (srcType) {
                         case PrimitiveType.f32: {
-                            zero = '0.f'
-                            break
+                            zero = '0.f';
+                            break;
                         }
                         case PrimitiveType.i32: {
-                            zero = '0'
-                            break
+                            zero = '0';
+                            break;
                         }
                         default:
-                            error('unexpected prim type')
+                            error('unexpected prim type');
                     }
-                    return `i32(${operand} == ${zero})`
+                    return `i32(${operand} == ${zero})`;
                 }
                 case UnaryOpType.bit_not: {
-                    return `(~(${operand}))`
+                    return `(~(${operand}))`;
                 }
                 default: {
-                    error('unhandled unary op ', op)
-                    return 'error'
+                    error('unhandled unary op ', op);
+                    return 'error';
                 }
             }
-        }
-        let value = getValue(op)!
-        this.emitLet(stmt.getName(), dstTypeName)
-        this.body.write(`${dstType}(${value});\n`)
+        };
+        let value = getValue(op)!;
+        this.emitLet(stmt.getName(), dstTypeName);
+        this.body.write(`${dstType}(${value});\n`);
     }
 
     override visitBinaryOpStmt(stmt: BinaryOpStmt): void {
-        let lhs = stmt.getLeft().getName()
-        let rhs = stmt.getRight().getName()
-        let op = stmt.op
-        let dt = stmt.getReturnType()
+        let lhs = stmt.getLeft().getName();
+        let rhs = stmt.getRight().getName();
+        let op = stmt.op;
+        let dt = stmt.getReturnType();
 
         let getValue = () => {
             switch (op) {
                 case BinaryOpType.mul:
-                    return `(${lhs} * ${rhs})`
+                    return `(${lhs} * ${rhs})`;
                 case BinaryOpType.add:
-                    return `(${lhs} + ${rhs})`
+                    return `(${lhs} + ${rhs})`;
                 case BinaryOpType.sub:
-                    return `(${lhs} - ${rhs})`
+                    return `(${lhs} - ${rhs})`;
                 case BinaryOpType.truediv:
-                    return `(f32(${lhs}) / f32(${rhs}))`
+                    return `(f32(${lhs}) / f32(${rhs}))`;
                 case BinaryOpType.floordiv:
-                    return `i32(${lhs} / ${rhs})`
+                    return `i32(${lhs} / ${rhs})`;
                 case BinaryOpType.mod:
-                    return `(${lhs} % ${rhs})`
+                    return `(${lhs} % ${rhs})`;
                 case BinaryOpType.max:
-                    return `max(${lhs}, ${rhs})`
+                    return `max(${lhs}, ${rhs})`;
                 case BinaryOpType.min:
-                    return `min(${lhs}, ${rhs})`
+                    return `min(${lhs}, ${rhs})`;
                 case BinaryOpType.bit_and:
-                    return `(${lhs} & ${rhs})`
+                    return `(${lhs} & ${rhs})`;
                 case BinaryOpType.bit_or:
-                    return `(${lhs} | ${rhs})`
+                    return `(${lhs} | ${rhs})`;
                 case BinaryOpType.bit_xor:
-                    return `(${lhs} ^ ${rhs})`
+                    return `(${lhs} ^ ${rhs})`;
                 case BinaryOpType.bit_shl:
-                    return `(${lhs} << u32(${rhs}))`
+                    return `(${lhs} << u32(${rhs}))`;
                 case BinaryOpType.bit_shr:
-                    return `(u32(${lhs}) >> u32(${rhs}))`
+                    return `(u32(${lhs}) >> u32(${rhs}))`;
                 case BinaryOpType.bit_sar:
-                    return `(${lhs} >> u32(${rhs}))`
+                    return `(${lhs} >> u32(${rhs}))`;
                 case BinaryOpType.cmp_lt:
-                    return `(${lhs} < ${rhs})`
+                    return `(${lhs} < ${rhs})`;
                 case BinaryOpType.cmp_le:
-                    return `(${lhs} <= ${rhs})`
+                    return `(${lhs} <= ${rhs})`;
                 case BinaryOpType.cmp_gt:
-                    return `(${lhs} > ${rhs})`
+                    return `(${lhs} > ${rhs})`;
                 case BinaryOpType.cmp_ge:
-                    return `(${lhs} >= ${rhs})`
+                    return `(${lhs} >= ${rhs})`;
                 case BinaryOpType.cmp_eq:
-                    return `(${lhs} == ${rhs})`
+                    return `(${lhs} == ${rhs})`;
                 case BinaryOpType.cmp_ne:
-                    return `(${lhs} != ${rhs})`
+                    return `(${lhs} != ${rhs})`;
                 case BinaryOpType.atan2:
-                    return `atan2(f32(${lhs}), f32(${rhs}))`
+                    return `atan2(f32(${lhs}), f32(${rhs}))`;
                 case BinaryOpType.logical_or:
-                    return `(${lhs} | ${rhs})`
+                    return `(${lhs} | ${rhs})`;
                 case BinaryOpType.logical_and:
-                    return `(${lhs} & ${rhs})`
+                    return `(${lhs} & ${rhs})`;
                 case BinaryOpType.pow: {
                     // pow is special because
                     // 1. for integer LHS and RHS, result is integer
@@ -290,496 +290,496 @@ export class CodegenVisitor extends IRVisitor {
                     // so we round the result if the inputs are ints
                     switch (dt) {
                         case PrimitiveType.i32: {
-                            return `round(pow(f32(${lhs}), f32(${rhs})))`
+                            return `round(pow(f32(${lhs}), f32(${rhs})))`;
                         }
                         case PrimitiveType.f32: {
-                            return `pow(f32(${lhs}), f32(${rhs}))`
+                            return `pow(f32(${lhs}), f32(${rhs}))`;
                         }
                         default: {
-                            error('unrecgnized prim type')
-                            return 'error'
+                            error('unrecgnized prim type');
+                            return 'error';
                         }
                     }
                 }
             }
-        }
-        let value = getValue()
-        let dtName = this.getPrimitiveTypeName(dt)
-        this.emitLet(stmt.getName(), dtName)
-        this.body.write(`${dtName}(${value});\n`)
+        };
+        let value = getValue();
+        let dtName = this.getPrimitiveTypeName(dt);
+        this.emitLet(stmt.getName(), dtName);
+        this.body.write(`${dtName}(${value});\n`);
     }
 
     override visitRangeForStmt(stmt: RangeForStmt): void {
-        this.emitVar(stmt.getName(), 'i32')
-        this.body.write('0;\n')
-        this.body.write(this.getIndentation(), 'loop {\n')
-        this.indent()
-        this.body.write(this.getIndentation(), `if (${stmt.getName()} >= ${stmt.getRange().getName()}) { break; }\n`)
+        this.emitVar(stmt.getName(), 'i32');
+        this.body.write('0;\n');
+        this.body.write(this.getIndentation(), 'loop {\n');
+        this.indent();
+        this.body.write(this.getIndentation(), `if (${stmt.getName()} >= ${stmt.getRange().getName()}) { break; }\n`);
 
-        this.visitBlock(stmt.body)
+        this.visitBlock(stmt.body);
 
-        this.body.write(this.getIndentation(), `continuing { ${stmt.getName()} = ${stmt.getName()} + 1; }\n`)
-        this.dedent()
-        this.body.write(this.getIndentation(), '}\n')
+        this.body.write(this.getIndentation(), `continuing { ${stmt.getName()} = ${stmt.getName()} + 1; }\n`);
+        this.dedent();
+        this.body.write(this.getIndentation(), '}\n');
     }
 
     override visitIfStmt(stmt: IfStmt): void {
-        this.body.write(this.getIndentation(), `if (bool(${stmt.getCondition().getName()})) {\n`)
-        this.indent()
-        this.visitBlock(stmt.trueBranch)
-        this.dedent()
-        this.body.write(this.getIndentation(), '}\n')
+        this.body.write(this.getIndentation(), `if (bool(${stmt.getCondition().getName()})) {\n`);
+        this.indent();
+        this.visitBlock(stmt.trueBranch);
+        this.dedent();
+        this.body.write(this.getIndentation(), '}\n');
 
-        this.body.write(this.getIndentation(), `else {\n`)
-        this.indent()
-        this.visitBlock(stmt.falseBranch)
-        this.dedent()
-        this.body.write(this.getIndentation(), '}\n')
+        this.body.write(this.getIndentation(), `else {\n`);
+        this.indent();
+        this.visitBlock(stmt.falseBranch);
+        this.dedent();
+        this.body.write(this.getIndentation(), '}\n');
     }
 
     override visitWhileControlStmt(stmt: WhileControlStmt): void {
-        this.body.write(this.getIndentation(), 'break;\n')
+        this.body.write(this.getIndentation(), 'break;\n');
     }
 
     override visitContinueStmt(stmt: ContinueStmt): void {
         // the `continuing` block means that this will work for both normal loops and grid-strided loops
-        this.body.write(this.getIndentation(), 'continue;\n')
+        this.body.write(this.getIndentation(), 'continue;\n');
     }
 
     override visitWhileStmt(stmt: WhileStmt): void {
-        this.body.write(this.getIndentation(), `loop {\n`)
-        this.indent()
-        this.visitBlock(stmt.body)
-        this.dedent()
-        this.body.write(this.getIndentation(), '}\n')
+        this.body.write(this.getIndentation(), `loop {\n`);
+        this.indent();
+        this.visitBlock(stmt.body);
+        this.dedent();
+        this.body.write(this.getIndentation(), '}\n');
     }
 
     override visitVertexInputStmt(stmt: VertexInputStmt): void {
-        let loc = stmt.location
-        let dtName = this.getPrimitiveTypeName(stmt.getReturnType())
-        let inputName = `in_${loc}_${dtName}`
-        this.ensureStageInStruct()
-        let flat = stmt.getReturnType() == PrimitiveType.i32
-        this.addStageInMember(inputName, dtName, loc, flat)
-        this.emitLet(stmt.getName(), dtName)
-        this.body.write(`stage_input.${inputName};\n`)
+        let loc = stmt.location;
+        let dtName = this.getPrimitiveTypeName(stmt.getReturnType());
+        let inputName = `in_${loc}_${dtName}`;
+        this.ensureStageInStruct();
+        let flat = stmt.getReturnType() == PrimitiveType.i32;
+        this.addStageInMember(inputName, dtName, loc, flat);
+        this.emitLet(stmt.getName(), dtName);
+        this.body.write(`stage_input.${inputName};\n`);
     }
 
     override visitFragmentInputStmt(stmt: FragmentInputStmt): void {
-        let loc = stmt.location
-        let dtName = this.getPrimitiveTypeName(stmt.getReturnType())
-        let inputName = `in_${loc}_${dtName}`
-        this.ensureStageInStruct()
-        let flat = stmt.getReturnType() == PrimitiveType.i32
-        this.addStageInMember(inputName, dtName, loc, flat)
-        this.emitLet(stmt.getName(), dtName)
-        this.body.write(`stage_input.${inputName};\n`)
+        let loc = stmt.location;
+        let dtName = this.getPrimitiveTypeName(stmt.getReturnType());
+        let inputName = `in_${loc}_${dtName}`;
+        this.ensureStageInStruct();
+        let flat = stmt.getReturnType() == PrimitiveType.i32;
+        this.addStageInMember(inputName, dtName, loc, flat);
+        this.emitLet(stmt.getName(), dtName);
+        this.body.write(`stage_input.${inputName};\n`);
     }
 
     override visitVertexOutputStmt(stmt: VertexOutputStmt): void {
-        let loc = stmt.location
-        let dtName = this.getPrimitiveTypeName(stmt.getValue().getReturnType())
-        let outputName = `out_${loc}_${dtName}`
-        this.ensureStageOutStruct()
-        let flat = stmt.getValue().getReturnType() == PrimitiveType.i32
-        this.addStageOutMember(outputName, dtName, loc, flat)
-        this.body.write(this.getIndentation(), `stage_output.${outputName} = ${stmt.getValue().getName()};\n`)
+        let loc = stmt.location;
+        let dtName = this.getPrimitiveTypeName(stmt.getValue().getReturnType());
+        let outputName = `out_${loc}_${dtName}`;
+        this.ensureStageOutStruct();
+        let flat = stmt.getValue().getReturnType() == PrimitiveType.i32;
+        this.addStageOutMember(outputName, dtName, loc, flat);
+        this.body.write(this.getIndentation(), `stage_output.${outputName} = ${stmt.getValue().getName()};\n`);
     }
 
     override visitBuiltInOutputStmt(stmt: BuiltInOutputStmt): void {
-        this.ensureStageOutStruct()
-        let numComponents = stmt.getValues().length
-        let primType = stmt.getValues()[0].getReturnType()
-        let typeName = this.getScalarOrVectorTypeName(primType, numComponents)
-        let outputExpr = this.getScalarOrVectorExpr(stmt.getValues(), typeName)
-        let outputName = ''
+        this.ensureStageOutStruct();
+        let numComponents = stmt.getValues().length;
+        let primType = stmt.getValues()[0].getReturnType();
+        let typeName = this.getScalarOrVectorTypeName(primType, numComponents);
+        let outputExpr = this.getScalarOrVectorExpr(stmt.getValues(), typeName);
+        let outputName = '';
         switch (stmt.builtinKind) {
             case BuiltInOutputKind.Color: {
-                let loc = stmt.location!
-                outputName = `color_${loc}`
-                this.addStageOutMember(outputName, typeName, loc, false)
-                break
+                let loc = stmt.location!;
+                outputName = `color_${loc}`;
+                this.addStageOutMember(outputName, typeName, loc, false);
+                break;
             }
             case BuiltInOutputKind.Position: {
-                outputName = `position`
-                this.addStageOutBuiltinMember(outputName, typeName, 'position')
-                break
+                outputName = `position`;
+                this.addStageOutBuiltinMember(outputName, typeName, 'position');
+                break;
             }
             case BuiltInOutputKind.FragDepth: {
-                outputName = `frag_depth`
-                this.addStageOutBuiltinMember(outputName, typeName, 'frag_depth')
-                break
+                outputName = `frag_depth`;
+                this.addStageOutBuiltinMember(outputName, typeName, 'frag_depth');
+                break;
             }
             default:
-                error('unrecognized builtin kind')
+                error('unrecognized builtin kind');
         }
-        this.body.write(this.getIndentation(), `stage_output.${outputName} = ${outputExpr};\n`)
+        this.body.write(this.getIndentation(), `stage_output.${outputName} = ${outputExpr};\n`);
     }
 
     override visitBuiltInInputStmt(stmt: BuiltInInputStmt): void {
-        let primType = getBuiltinInputPrimitiveType(stmt.builtinKind)
-        let componentCount = getBuiltinInputComponentCount(stmt.builtinKind)
-        let dtName = this.getScalarOrVectorTypeName(primType, componentCount)
-        this.emitLet(stmt.getName(), dtName)
-        this.body.write(`${dtName}(`)
+        let primType = getBuiltinInputPrimitiveType(stmt.builtinKind);
+        let componentCount = getBuiltinInputComponentCount(stmt.builtinKind);
+        let dtName = this.getScalarOrVectorTypeName(primType, componentCount);
+        this.emitLet(stmt.getName(), dtName);
+        this.body.write(`${dtName}(`);
         switch (stmt.builtinKind) {
             case BuiltInInputKind.VertexIndex: {
-                this.body.write('vertex_index')
-                break
+                this.body.write('vertex_index');
+                break;
             }
             case BuiltInInputKind.InstanceIndex: {
-                this.body.write('instance_index')
-                break
+                this.body.write('instance_index');
+                break;
             }
             case BuiltInInputKind.FragCoord: {
-                this.body.write('frag_coord')
-                break
+                this.body.write('frag_coord');
+                break;
             }
             default:
-                error('unrecognized builtin kind')
+                error('unrecognized builtin kind');
         }
-        this.body.write(');\n')
+        this.body.write(');\n');
     }
 
     override visitFragmentDerivativeStmt(stmt: FragmentDerivativeStmt): void {
-        let dtName = this.getPrimitiveTypeName(stmt.getReturnType())
-        this.emitLet(stmt.getName(), dtName)
+        let dtName = this.getPrimitiveTypeName(stmt.getReturnType());
+        this.emitLet(stmt.getName(), dtName);
         switch (stmt.direction) {
             case FragmentDerivativeDirection.x: {
-                this.body.write('dpdxFine')
-                break
+                this.body.write('dpdxFine');
+                break;
             }
             case FragmentDerivativeDirection.y: {
-                this.body.write('dpdyFine')
-                break
+                this.body.write('dpdyFine');
+                break;
             }
             default:
-                error('unrecognized direction')
+                error('unrecognized direction');
         }
-        this.body.write(`(${stmt.getValue().getName()});\n`)
+        this.body.write(`(${stmt.getValue().getName()});\n`);
     }
 
     override visitDiscardStmt(stmt: DiscardStmt): void {
-        this.body.write(this.getIndentation(), 'discard;\n')
+        this.body.write(this.getIndentation(), 'discard;\n');
     }
 
     override visitTextureFunctionStmt(stmt: TextureFunctionStmt): void {
-        let texture = stmt.texture
-        let isDepth = texture instanceof DepthTexture
-        let textureResource = new ResourceInfo(ResourceType.Texture, texture.textureId)
-        let requiresSampler = false
-        let resultNumComponents = isDepth ? 1 : 4
+        let texture = stmt.texture;
+        let isDepth = texture instanceof DepthTexture;
+        let textureResource = new ResourceInfo(ResourceType.Texture, texture.textureId);
+        let requiresSampler = false;
+        let resultNumComponents = isDepth ? 1 : 4;
 
         switch (stmt.func) {
             case TextureFunctionKind.Sample: {
-                requiresSampler = true
-                break
+                requiresSampler = true;
+                break;
             }
             case TextureFunctionKind.SampleLod: {
-                requiresSampler = true
-                break
+                requiresSampler = true;
+                break;
             }
             case TextureFunctionKind.SampleCompare: {
-                requiresSampler = true
-                resultNumComponents = 1
-                break
+                requiresSampler = true;
+                resultNumComponents = 1;
+                break;
             }
             case TextureFunctionKind.Load: {
-                requiresSampler = false
-                break
+                requiresSampler = false;
+                break;
             }
             case TextureFunctionKind.Store: {
-                requiresSampler = false
-                textureResource.resourceType = ResourceType.StorageTexture
-                break
+                requiresSampler = false;
+                textureResource.resourceType = ResourceType.StorageTexture;
+                break;
             }
             default: {
-                error('unrecognized texture func')
+                error('unrecognized texture func');
             }
         }
-        let textureName = this.getTextureName(textureResource)
+        let textureName = this.getTextureName(textureResource);
 
-        let texelTypeName = this.getScalarOrVectorTypeName(PrimitiveType.f32, resultNumComponents)
+        let texelTypeName = this.getScalarOrVectorTypeName(PrimitiveType.f32, resultNumComponents);
 
-        let samplerName = ''
+        let samplerName = '';
         if (requiresSampler) {
-            let samplerResource = new ResourceInfo(ResourceType.Sampler, texture.textureId)
-            samplerName = this.getSamplerName(samplerResource)
+            let samplerResource = new ResourceInfo(ResourceType.Sampler, texture.textureId);
+            samplerName = this.getSamplerName(samplerResource);
         }
-        let coordsComponentCount = getTextureCoordsNumComponents(texture.getTextureDimensionality())
-        assert(coordsComponentCount === stmt.getCoordinates().length, 'component count mismatch', stmt)
+        let coordsComponentCount = getTextureCoordsNumComponents(texture.getTextureDimensionality());
+        assert(coordsComponentCount === stmt.getCoordinates().length, 'component count mismatch', stmt);
 
-        let coordsPrimType = stmt.getCoordinates()[0].getReturnType()
-        let coordsTypeName = this.getScalarOrVectorTypeName(coordsPrimType, coordsComponentCount)
+        let coordsPrimType = stmt.getCoordinates()[0].getReturnType();
+        let coordsTypeName = this.getScalarOrVectorTypeName(coordsPrimType, coordsComponentCount);
 
-        let coordsExpr = this.getScalarOrVectorExpr(stmt.getCoordinates(), coordsTypeName)
+        let coordsExpr = this.getScalarOrVectorExpr(stmt.getCoordinates(), coordsTypeName);
         switch (stmt.func) {
             case TextureFunctionKind.Sample: {
-                this.emitLet(stmt.getName(), texelTypeName)
-                this.body.write(`textureSample(${textureName}, ${samplerName}, ${coordsExpr});\n`)
-                break
+                this.emitLet(stmt.getName(), texelTypeName);
+                this.body.write(`textureSample(${textureName}, ${samplerName}, ${coordsExpr});\n`);
+                break;
             }
             case TextureFunctionKind.SampleLod: {
-                assert(stmt.getAdditionalOperands().length === 1, 'expecting 1 lod value')
-                this.emitLet(stmt.getName(), texelTypeName)
+                assert(stmt.getAdditionalOperands().length === 1, 'expecting 1 lod value');
+                this.emitLet(stmt.getName(), texelTypeName);
                 this.body.write(
                     `textureSampleLevel(${textureName}, ${samplerName}, ${coordsExpr}, ${stmt
                         .getAdditionalOperands()[0]
                         .getName()});\n`
-                )
-                break
+                );
+                break;
             }
             case TextureFunctionKind.SampleCompare: {
-                assert(stmt.getAdditionalOperands().length === 1, 'expecting 1 depth ref value')
-                this.emitLet(stmt.getName(), texelTypeName)
+                assert(stmt.getAdditionalOperands().length === 1, 'expecting 1 depth ref value');
+                this.emitLet(stmt.getName(), texelTypeName);
                 this.body.write(
                     `textureSampleCompare(${textureName}, ${samplerName}, ${coordsExpr}, ${stmt
                         .getAdditionalOperands()[0]
                         .getName()});\n`
-                )
-                break
+                );
+                break;
             }
             case TextureFunctionKind.Load: {
-                this.emitLet(stmt.getName(), texelTypeName)
-                this.body.write(`textureLoad(${textureName}, ${coordsExpr}, 0);\n`)
-                break
+                this.emitLet(stmt.getName(), texelTypeName);
+                this.body.write(`textureLoad(${textureName}, ${coordsExpr}, 0);\n`);
+                break;
             }
             case TextureFunctionKind.Store: {
-                let valuePrimType = stmt.getAdditionalOperands()[0].getReturnType()
-                let valueTypeName = this.getScalarOrVectorTypeName(valuePrimType, stmt.getAdditionalOperands().length)
-                let valueExpr = this.getScalarOrVectorExpr(stmt.getAdditionalOperands(), valueTypeName)
-                this.body.write(this.getIndentation(), `textureStore(${textureName}, ${coordsExpr}, ${valueExpr});\n`)
-                break
+                let valuePrimType = stmt.getAdditionalOperands()[0].getReturnType();
+                let valueTypeName = this.getScalarOrVectorTypeName(valuePrimType, stmt.getAdditionalOperands().length);
+                let valueExpr = this.getScalarOrVectorExpr(stmt.getAdditionalOperands(), valueTypeName);
+                this.body.write(this.getIndentation(), `textureStore(${textureName}, ${coordsExpr}, ${valueExpr});\n`);
+                break;
             }
             default: {
-                error('unrecognized texture func')
+                error('unrecognized texture func');
             }
         }
     }
 
     override visitCompositeExtractStmt(stmt: CompositeExtractStmt): void {
-        let typeName = this.getPrimitiveTypeName(stmt.getReturnType())
-        this.emitLet(stmt.getName(), typeName)
-        this.body.write(stmt.getComposite().getName())
+        let typeName = this.getPrimitiveTypeName(stmt.getReturnType());
+        this.emitLet(stmt.getName(), typeName);
+        this.body.write(stmt.getComposite().getName());
         switch (stmt.elementIndex) {
             case 0: {
-                this.body.write('.x')
-                break
+                this.body.write('.x');
+                break;
             }
             case 1: {
-                this.body.write('.y')
-                break
+                this.body.write('.y');
+                break;
             }
             case 2: {
-                this.body.write('.z')
-                break
+                this.body.write('.z');
+                break;
             }
             case 3: {
-                this.body.write('.w')
-                break
+                this.body.write('.w');
+                break;
             }
             default: {
-                error('unsupported composite extract index: ', stmt.elementIndex)
+                error('unsupported composite extract index: ', stmt.elementIndex);
             }
         }
-        this.body.write(';\n')
+        this.body.write(';\n');
     }
 
     override visitArgLoadStmt(stmt: ArgLoadStmt): void {
-        let argId = stmt.argId
-        let dt = stmt.getReturnType()
-        let dtName = this.getPrimitiveTypeName(dt)
-        let bufferName = this.getBufferMemberName(new ResourceInfo(ResourceType.Args))
-        this.emitLet(stmt.getName(), dtName)
-        this.body.write(`bitcast<${dtName}>(${bufferName}[${argId}]);\n`)
+        let argId = stmt.argId;
+        let dt = stmt.getReturnType();
+        let dtName = this.getPrimitiveTypeName(dt);
+        let bufferName = this.getBufferMemberName(new ResourceInfo(ResourceType.Args));
+        this.emitLet(stmt.getName(), dtName);
+        this.body.write(`bitcast<${dtName}>(${bufferName}[${argId}]);\n`);
     }
 
     override visitReturnStmt(stmt: ReturnStmt): void {
         if (this.isVertexFor() || this.isFragmentFor()) {
-            error('Return cannot be used in a vertex-for or a fragment-for')
+            error('Return cannot be used in a vertex-for or a fragment-for');
         }
-        let values = stmt.getValues()
+        let values = stmt.getValues();
         for (let i = 0; i < values.length; ++i) {
             this.body.write(
                 this.getIndentation(),
                 `${this.getBufferMemberName(new ResourceInfo(ResourceType.Rets))}[${i}] = `
-            )
-            let dt = values[i].getReturnType()
+            );
+            let dt = values[i].getReturnType();
             switch (dt) {
                 case PrimitiveType.f32: {
-                    this.body.write(`bitcast<i32>(${values[i].getName()});\n`)
-                    break
+                    this.body.write(`bitcast<i32>(${values[i].getName()});\n`);
+                    break;
                 }
                 case PrimitiveType.i32: {
-                    this.body.write(`${values[i].getName()};\n`)
-                    break
+                    this.body.write(`${values[i].getName()};\n`);
+                    break;
                 }
                 default: {
-                    error('unrecognized prim type')
+                    error('unrecognized prim type');
                 }
             }
         }
     }
 
     override visitAllocaStmt(stmt: AllocaStmt): void {
-        let dt = stmt.allocatedType
+        let dt = stmt.allocatedType;
         // not using emit_var() because it emits an extra equals token..
-        this.body.write(this.getIndentation(), `var ${stmt.getName()} : ${this.getPrimitiveTypeName(dt)};\n`)
+        this.body.write(this.getIndentation(), `var ${stmt.getName()} : ${this.getPrimitiveTypeName(dt)};\n`);
     }
 
     override visitLocalLoadStmt(stmt: LocalLoadStmt): void {
-        let dt = stmt.getReturnType()
-        this.emitLet(stmt.getName(), dt)
-        this.body.write(stmt.getPointer().getName(), ';\n')
+        let dt = stmt.getReturnType();
+        this.emitLet(stmt.getName(), dt);
+        this.body.write(stmt.getPointer().getName(), ';\n');
     }
 
     override visitLocalStoreStmt(stmt: LocalStoreStmt): void {
-        this.body.write(this.getIndentation(), `${stmt.getPointer().getName()} = ${stmt.getValue().getName()};\n`)
+        this.body.write(this.getIndentation(), `${stmt.getPointer().getName()} = ${stmt.getValue().getName()};\n`);
     }
 
     override visitGlobalPtrStmt(stmt: GlobalPtrStmt): void {
-        let field = stmt.field
-        let indices = stmt.getIndices()
-        assert(indices.length === field.dimensions.length, 'global ptr dimension mismatch')
-        let elementIndex = ''
-        let currStride = 1
+        let field = stmt.field;
+        let indices = stmt.getIndices();
+        assert(indices.length === field.dimensions.length, 'global ptr dimension mismatch');
+        let elementIndex = '';
+        let currStride = 1;
         for (let i = field.dimensions.length - 1; i >= 0; --i) {
-            elementIndex += `${currStride} * ${indices[i].getName()}`
+            elementIndex += `${currStride} * ${indices[i].getName()}`;
             if (i > 0) {
-                elementIndex += ' + '
+                elementIndex += ' + ';
             }
-            currStride *= field.dimensions[i]
+            currStride *= field.dimensions[i];
         }
         let index = `${field.offsetBytes / 4} + ${field.elementType.getPrimitivesList().length} * (${elementIndex}) + ${
             stmt.offsetInElement
-        }`
-        this.emitLet(stmt.getName(), this.getPointerIntTypeName())
-        this.body.write(index, ';\n')
+        }`;
+        this.emitLet(stmt.getName(), this.getPointerIntTypeName());
+        this.body.write(index, ';\n');
     }
 
     override visitGlobalTemporaryStmt(stmt: GlobalTemporaryStmt): void {
-        this.emitLet(stmt.getName(), this.getPointerIntTypeName())
-        this.body.write(stmt.offset, ';\n')
+        this.emitLet(stmt.getName(), this.getPointerIntTypeName());
+        this.body.write(stmt.offset, ';\n');
     }
 
     emitGlobalLoadExpr(stmt: GlobalLoadStmt | GlobalTemporaryLoadStmt | AtomicLoadStmt, atomic: boolean = false) {
-        let resourceInfo: ResourceInfo
-        let ptr = stmt.getPointer()
+        let resourceInfo: ResourceInfo;
+        let ptr = stmt.getPointer();
         if (ptr.getKind() === StmtKind.GlobalPtrStmt) {
-            ptr = ptr as GlobalPtrStmt
-            let resourceType = atomic ? ResourceType.RootAtomic : ResourceType.Root
-            resourceInfo = new ResourceInfo(resourceType, ptr.field.snodeTree.treeId)
-            let tree = this.runtime.materializedTrees[ptr.field.snodeTree.treeId]
+            ptr = ptr as GlobalPtrStmt;
+            let resourceType = atomic ? ResourceType.RootAtomic : ResourceType.Root;
+            resourceInfo = new ResourceInfo(resourceType, ptr.field.snodeTree.treeId);
+            let tree = this.runtime.materializedTrees[ptr.field.snodeTree.treeId];
             if (tree.fragmentShaderWritable) {
-                error('A vertex shader cannot read from a field marked as `fragmentShaderWritable`')
+                error('A vertex shader cannot read from a field marked as `fragmentShaderWritable`');
             }
         } else {
-            let resourceType = atomic ? ResourceType.GlobalTmpsAtomic : ResourceType.GlobalTmps
-            resourceInfo = new ResourceInfo(resourceType)
+            let resourceType = atomic ? ResourceType.GlobalTmpsAtomic : ResourceType.GlobalTmps;
+            resourceInfo = new ResourceInfo(resourceType);
         }
-        let bufferName = this.getBufferMemberName(resourceInfo)
-        let dt = stmt.getReturnType()
-        let dtName = this.getPrimitiveTypeName(dt)
-        this.emitLet(stmt.getName(), dt)
+        let bufferName = this.getBufferMemberName(resourceInfo);
+        let dt = stmt.getReturnType();
+        let dtName = this.getPrimitiveTypeName(dt);
+        this.emitLet(stmt.getName(), dt);
         if (atomic) {
-            this.body.write(`bitcast<${dtName}>(atomicLoad(&(${bufferName}[${ptr.getName()}])));\n`)
+            this.body.write(`bitcast<${dtName}>(atomicLoad(&(${bufferName}[${ptr.getName()}])));\n`);
         } else {
-            this.body.write(`bitcast<${dtName}>(${bufferName}[${ptr.getName()}]);\n`)
+            this.body.write(`bitcast<${dtName}>(${bufferName}[${ptr.getName()}]);\n`);
         }
     }
 
     emitGlobalStore(stmt: GlobalStoreStmt | GlobalTemporaryStoreStmt | AtomicStoreStmt, atomic: boolean = false) {
-        let resourceInfo: ResourceInfo
-        let ptr = stmt.getPointer()
+        let resourceInfo: ResourceInfo;
+        let ptr = stmt.getPointer();
         if (ptr.getKind() === StmtKind.GlobalPtrStmt) {
-            ptr = ptr as GlobalPtrStmt
-            let resourceType = atomic ? ResourceType.RootAtomic : ResourceType.Root
-            resourceInfo = new ResourceInfo(resourceType, ptr.field.snodeTree.treeId)
+            ptr = ptr as GlobalPtrStmt;
+            let resourceType = atomic ? ResourceType.RootAtomic : ResourceType.Root;
+            resourceInfo = new ResourceInfo(resourceType, ptr.field.snodeTree.treeId);
         } else {
-            let resourceType = atomic ? ResourceType.GlobalTmpsAtomic : ResourceType.GlobalTmps
-            resourceInfo = new ResourceInfo(resourceType)
+            let resourceType = atomic ? ResourceType.GlobalTmpsAtomic : ResourceType.GlobalTmps;
+            resourceInfo = new ResourceInfo(resourceType);
         }
-        let bufferName = this.getBufferMemberName(resourceInfo)
-        this.assertBufferWritable(resourceInfo)
-        let value = `bitcast<${this.getRawDataTypeName()}>(${stmt.getValue().getName()})`
+        let bufferName = this.getBufferMemberName(resourceInfo);
+        this.assertBufferWritable(resourceInfo);
+        let value = `bitcast<${this.getRawDataTypeName()}>(${stmt.getValue().getName()})`;
         if (atomic) {
-            this.body.write(this.getIndentation(), `atomicStore(&(${bufferName}[${ptr.getName()}]), ${value});\n`)
+            this.body.write(this.getIndentation(), `atomicStore(&(${bufferName}[${ptr.getName()}]), ${value});\n`);
         } else {
-            this.body.write(this.getIndentation(), `${bufferName}[${ptr.getName()}] = ${value};\n`)
+            this.body.write(this.getIndentation(), `${bufferName}[${ptr.getName()}] = ${value};\n`);
         }
     }
 
     override visitGlobalLoadStmt(stmt: GlobalLoadStmt): void {
-        this.emitGlobalLoadExpr(stmt, /*atomic=*/ false)
+        this.emitGlobalLoadExpr(stmt, /*atomic=*/ false);
     }
 
     override visitGlobalStoreStmt(stmt: GlobalStoreStmt): void {
-        this.emitGlobalStore(stmt, /*atomic=*/ false)
+        this.emitGlobalStore(stmt, /*atomic=*/ false);
     }
 
     override visitGlobalTemporaryLoadStmt(stmt: GlobalTemporaryLoadStmt): void {
-        this.emitGlobalLoadExpr(stmt, /*atomic=*/ false)
+        this.emitGlobalLoadExpr(stmt, /*atomic=*/ false);
     }
 
     override visitGlobalTemporaryStoreStmt(stmt: GlobalTemporaryStoreStmt): void {
-        this.emitGlobalStore(stmt, /*atomic=*/ false)
+        this.emitGlobalStore(stmt, /*atomic=*/ false);
     }
 
     override visitAtomicOpStmt(stmt: AtomicOpStmt): void {
-        let dt = getPointedType(stmt.getDestination())
-        let dtName = this.getPrimitiveTypeName(dt)
-        let resourceInfo: ResourceInfo
-        let dest = stmt.getDestination()
+        let dt = getPointedType(stmt.getDestination());
+        let dtName = this.getPrimitiveTypeName(dt);
+        let resourceInfo: ResourceInfo;
+        let dest = stmt.getDestination();
         if (dest.getKind() === StmtKind.GlobalPtrStmt) {
-            dest = dest as GlobalPtrStmt
-            resourceInfo = new ResourceInfo(ResourceType.RootAtomic, (dest as GlobalPtrStmt).field.snodeTree.treeId)
+            dest = dest as GlobalPtrStmt;
+            resourceInfo = new ResourceInfo(ResourceType.RootAtomic, (dest as GlobalPtrStmt).field.snodeTree.treeId);
         } else {
-            resourceInfo = new ResourceInfo(ResourceType.GlobalTmpsAtomic)
+            resourceInfo = new ResourceInfo(ResourceType.GlobalTmpsAtomic);
         }
-        this.assertBufferWritable(resourceInfo)
-        let bufferName = this.getBufferMemberName(resourceInfo)
+        this.assertBufferWritable(resourceInfo);
+        let bufferName = this.getBufferMemberName(resourceInfo);
 
-        let result = this.getTemp('atomic_op_result')
-        this.body.write(this.getIndentation(), `var ${result} : ${dtName};\n`)
-        let ptr = `&(${bufferName}[${stmt.getDestination().getName()}])`
+        let result = this.getTemp('atomic_op_result');
+        this.body.write(this.getIndentation(), `var ${result} : ${dtName};\n`);
+        let ptr = `&(${bufferName}[${stmt.getDestination().getName()}])`;
         switch (dt) {
             case PrimitiveType.i32: {
-                let atomicFuncName = ''
+                let atomicFuncName = '';
                 switch (stmt.op) {
                     case AtomicOpType.add: {
-                        atomicFuncName = 'atomicAdd'
-                        break
+                        atomicFuncName = 'atomicAdd';
+                        break;
                     }
                     case AtomicOpType.sub: {
-                        atomicFuncName = 'atomicSub'
-                        break
+                        atomicFuncName = 'atomicSub';
+                        break;
                     }
                     case AtomicOpType.max: {
-                        atomicFuncName = 'atomicMax'
-                        break
+                        atomicFuncName = 'atomicMax';
+                        break;
                     }
                     case AtomicOpType.min: {
-                        atomicFuncName = 'atomicMin'
-                        break
+                        atomicFuncName = 'atomicMin';
+                        break;
                     }
                     case AtomicOpType.bit_and: {
-                        atomicFuncName = 'atomicAnd'
-                        break
+                        atomicFuncName = 'atomicAnd';
+                        break;
                     }
                     case AtomicOpType.bit_or: {
-                        atomicFuncName = 'atomicOr'
-                        break
+                        atomicFuncName = 'atomicOr';
+                        break;
                     }
                     case AtomicOpType.bit_xor: {
-                        atomicFuncName = 'atomicXor'
-                        break
+                        atomicFuncName = 'atomicXor';
+                        break;
                     }
                     default: {
-                        error('atomic op not supported')
+                        error('atomic op not supported');
                     }
                 }
-                this.body.write(`${result} = ${atomicFuncName}(${ptr}, ${stmt.getOperand().getName()});\n`)
-                break
+                this.body.write(`${result} = ${atomicFuncName}(${ptr}, ${stmt.getOperand().getName()});\n`);
+                break;
             }
             case PrimitiveType.f32: {
                 /*
@@ -797,223 +797,223 @@ export class CodegenVisitor extends IRVisitor {
                 // WGSL doesn't allow declaring a function whose argument is a pointer to
                 // SSBO... so we inline it
 
-                this.body.write(this.getIndentation(), 'loop { \n')
-                this.indent()
+                this.body.write(this.getIndentation(), 'loop { \n');
+                this.indent();
 
-                let oldVal = this.getTemp('old_val')
-                this.emitLet(oldVal, 'f32')
-                this.body.write(`bitcast<f32>(atomicLoad(${ptr}));\n`)
+                let oldVal = this.getTemp('old_val');
+                this.emitLet(oldVal, 'f32');
+                this.body.write(`bitcast<f32>(atomicLoad(${ptr}));\n`);
 
-                let newValExpr = ''
+                let newValExpr = '';
                 switch (stmt.op) {
                     case AtomicOpType.add: {
-                        newValExpr = `${oldVal} + ${stmt.getOperand().getName()}`
-                        break
+                        newValExpr = `${oldVal} + ${stmt.getOperand().getName()}`;
+                        break;
                     }
                     case AtomicOpType.sub: {
-                        newValExpr = `${oldVal} - ${stmt.getOperand().getName()}`
-                        break
+                        newValExpr = `${oldVal} - ${stmt.getOperand().getName()}`;
+                        break;
                     }
                     case AtomicOpType.max: {
-                        newValExpr = `max(${oldVal}, ${stmt.getOperand().getName()})`
-                        break
+                        newValExpr = `max(${oldVal}, ${stmt.getOperand().getName()})`;
+                        break;
                     }
                     case AtomicOpType.min: {
-                        newValExpr = `min(${oldVal}, ${stmt.getOperand().getName()})`
-                        break
+                        newValExpr = `min(${oldVal}, ${stmt.getOperand().getName()})`;
+                        break;
                     }
                     default: {
-                        error('atomic op not supported for f32')
+                        error('atomic op not supported for f32');
                     }
                 }
 
-                let newVal = this.getTemp('new_val')
-                this.emitLet(newVal, 'f32')
-                this.body.write(`${newValExpr};\n`)
+                let newVal = this.getTemp('new_val');
+                this.emitLet(newVal, 'f32');
+                this.body.write(`${newValExpr};\n`);
 
                 this.body.write(
                     this.getIndentation(),
                     `if(atomicCompareExchangeWeak(${ptr}, bitcast<i32>(${oldVal}), bitcast<i32>(${newVal})).exchanged){\n`
-                )
-                this.indent()
-                this.body.write(this.getIndentation(), `${result} = ${oldVal};\n`)
-                this.body.write(this.getIndentation(), `break;\n`)
-                this.dedent()
-                this.body.write(this.getIndentation(), '}\n')
-                this.dedent()
-                this.body.write(this.getIndentation(), '}\n')
-                break
+                );
+                this.indent();
+                this.body.write(this.getIndentation(), `${result} = ${oldVal};\n`);
+                this.body.write(this.getIndentation(), `break;\n`);
+                this.dedent();
+                this.body.write(this.getIndentation(), '}\n');
+                this.dedent();
+                this.body.write(this.getIndentation(), '}\n');
+                break;
             }
             default: {
-                error('unrecognized prim type')
+                error('unrecognized prim type');
             }
         }
-        this.emitLet(stmt.getName(), dtName)
-        this.body.write(`${result};\n`)
+        this.emitLet(stmt.getName(), dtName);
+        this.body.write(`${result};\n`);
     }
 
     override visitAtomicLoadStmt(stmt: AtomicLoadStmt): void {
-        this.emitGlobalLoadExpr(stmt, /*atomic=*/ true)
+        this.emitGlobalLoadExpr(stmt, /*atomic=*/ true);
     }
 
     override visitAtomicStoreStmt(stmt: AtomicStoreStmt): void {
-        this.emitGlobalStore(stmt, /*atomic=*/ true)
+        this.emitGlobalStore(stmt, /*atomic=*/ true);
     }
 
     override visitLoopIndexStmt(stmt: LoopIndexStmt): void {
-        let loop = stmt.getLoop() as RangeForStmt
+        let loop = stmt.getLoop() as RangeForStmt;
         if (loop.isParallelFor) {
-            this.emitLet(stmt.getName(), 'i32')
-            this.body.write('ii;\n')
+            this.emitLet(stmt.getName(), 'i32');
+            this.body.write('ii;\n');
         } else {
-            this.emitLet(stmt.getName(), 'i32')
-            this.body.write(`${stmt.getLoop().getName()};\n`)
+            this.emitLet(stmt.getName(), 'i32');
+            this.body.write(`${stmt.getLoop().getName()};\n`);
         }
     }
 
     override visitFragmentForStmt(stmt: FragmentForStmt): void {
-        error('FragmentForStmt should have been offloaded')
+        error('FragmentForStmt should have been offloaded');
     }
 
     override visitVertexForStmt(stmt: VertexForStmt): void {
-        error('VertexForStmt should have been offloaded')
+        error('VertexForStmt should have been offloaded');
     }
 
     generateSerialKernel(): TaskParams {
-        this.startComputeFunction(1)
-        this.visitBlock(this.offload.block)
-        return new TaskParams(this.assembleShader(), 1, 1, this.resourceBindings.bindings)
+        this.startComputeFunction(1);
+        this.visitBlock(this.offload.block);
+        return new TaskParams(this.assembleShader(), 1, 1, this.resourceBindings.bindings);
     }
 
     generateRangeForKernel() {
-        let blockSize = 128
-        let numWorkgroups = 512
+        let blockSize = 128;
+        let numWorkgroups = 512;
 
-        let offload = this.offload as ComputeModule
-        let endExpr = ''
+        let offload = this.offload as ComputeModule;
+        let endExpr = '';
         if (offload.hasConstRange) {
-            endExpr = `${offload.rangeArg}`
-            numWorkgroups = divUp(offload.rangeArg, blockSize)
+            endExpr = `${offload.rangeArg}`;
+            numWorkgroups = divUp(offload.rangeArg, blockSize);
         } else {
-            let resource = new ResourceInfo(ResourceType.GlobalTmps)
-            let buffer = this.getBufferMemberName(resource)
-            endExpr = `${buffer}[${offload.rangeArg}]`
+            let resource = new ResourceInfo(ResourceType.GlobalTmps);
+            let buffer = this.getBufferMemberName(resource);
+            endExpr = `${buffer}[${offload.rangeArg}]`;
         }
 
-        this.startComputeFunction(blockSize)
+        this.startComputeFunction(blockSize);
 
-        let end = this.getTemp('end')
-        this.emitLet(end, 'i32')
-        this.body.write(`${endExpr};\n`)
+        let end = this.getTemp('end');
+        this.emitLet(end, 'i32');
+        this.body.write(`${endExpr};\n`);
 
-        let totalInvocs = this.getTemp('total_invocs')
-        this.emitLet(totalInvocs, 'i32')
-        this.body.write(`${blockSize} * i32(n_workgroups.x);\n`)
+        let totalInvocs = this.getTemp('total_invocs');
+        this.emitLet(totalInvocs, 'i32');
+        this.body.write(`${blockSize} * i32(n_workgroups.x);\n`);
 
-        this.emitVar('ii', 'i32')
-        this.body.write('i32(gid3.x);\n')
+        this.emitVar('ii', 'i32');
+        this.body.write('i32(gid3.x);\n');
 
-        this.body.write(this.getIndentation(), 'loop {\n')
-        this.indent()
+        this.body.write(this.getIndentation(), 'loop {\n');
+        this.indent();
 
-        this.body.write(this.getIndentation(), `if(ii >= ${end}) { break; }\n`)
-        this.visitBlock(this.offload.block)
-        this.body.write(this.getIndentation(), `continuing { ii = ii + ${totalInvocs}; }\n`)
+        this.body.write(this.getIndentation(), `if(ii >= ${end}) { break; }\n`);
+        this.visitBlock(this.offload.block);
+        this.body.write(this.getIndentation(), `continuing { ii = ii + ${totalInvocs}; }\n`);
 
-        this.dedent()
-        this.body.write(this.getIndentation(), '}\n')
-        return new TaskParams(this.assembleShader(), blockSize, numWorkgroups, this.resourceBindings.bindings)
+        this.dedent();
+        this.body.write(this.getIndentation(), '}\n');
+        return new TaskParams(this.assembleShader(), blockSize, numWorkgroups, this.resourceBindings.bindings);
     }
 
     generateVertexForKernel() {
-        this.visitBlock(this.offload.block)
-        this.startGraphicsFunction()
-        return new VertexShaderParams(this.assembleShader(), this.resourceBindings.bindings)
+        this.visitBlock(this.offload.block);
+        this.startGraphicsFunction();
+        return new VertexShaderParams(this.assembleShader(), this.resourceBindings.bindings);
     }
 
     generateFragmentForKernel() {
-        this.visitBlock(this.offload.block)
-        this.startGraphicsFunction()
-        return new FragmentShaderParams(this.assembleShader(), this.resourceBindings.bindings)
+        this.visitBlock(this.offload.block);
+        this.startGraphicsFunction();
+        return new FragmentShaderParams(this.assembleShader(), this.resourceBindings.bindings);
     }
 
     generate() {
         switch (this.offload.type) {
             case OffloadType.Serial: {
-                return this.generateSerialKernel()
+                return this.generateSerialKernel();
             }
             case OffloadType.Compute: {
-                return this.generateRangeForKernel()
+                return this.generateRangeForKernel();
             }
             case OffloadType.Vertex: {
-                return this.generateVertexForKernel()
+                return this.generateVertexForKernel();
             }
             case OffloadType.Fragment: {
-                return this.generateFragmentForKernel()
+                return this.generateFragmentForKernel();
             }
         }
     }
 
     emitLet(name: string, type: string) {
-        this.body.write(this.getIndentation(), `let ${name} : ${type} = `)
+        this.body.write(this.getIndentation(), `let ${name} : ${type} = `);
     }
 
     emitVar(name: string, type: string) {
-        this.body.write(this.getIndentation(), `var ${name} : ${type} = `)
+        this.body.write(this.getIndentation(), `var ${name} : ${type} = `);
     }
 
     getPointerIntTypeName() {
-        return 'i32'
+        return 'i32';
     }
 
     getPrimitiveTypeName(dt: PrimitiveType) {
         switch (dt) {
             case PrimitiveType.f32:
-                return 'f32'
+                return 'f32';
             case PrimitiveType.i32:
-                return 'i32'
+                return 'i32';
             default:
-                error(`unsupported primitive type `, dt)
-                return 'error'
+                error(`unsupported primitive type `, dt);
+                return 'error';
         }
     }
 
     getScalarOrVectorTypeName(dt: PrimitiveType, numComponents: number) {
-        let primName = this.getPrimitiveTypeName(dt)
-        let typeName = primName
+        let primName = this.getPrimitiveTypeName(dt);
+        let typeName = primName;
         if (numComponents > 1) {
-            typeName = `vec${numComponents}<${primName}>`
+            typeName = `vec${numComponents}<${primName}>`;
         }
-        return typeName
+        return typeName;
     }
 
     getScalarOrVectorExpr(values: Stmt[], typeName: string) {
-        let outputExpr = values[0].getName()
+        let outputExpr = values[0].getName();
         if (values.length > 1) {
-            outputExpr = `${typeName}(${values[0].getName()}`
+            outputExpr = `${typeName}(${values[0].getName()}`;
             for (let i = 1; i < values.length; ++i) {
-                outputExpr += `, ${values[i].getName()}`
+                outputExpr += `, ${values[i].getName()}`;
             }
-            outputExpr += ')'
+            outputExpr += ')';
         }
-        return outputExpr
+        return outputExpr;
     }
 
-    globalDecls = new StringBuilder()
+    globalDecls = new StringBuilder();
 
-    stageInStructBegin = new StringBuilder()
-    stageInStructBody = new StringBuilder()
-    stageInStructEnd = new StringBuilder()
+    stageInStructBegin = new StringBuilder();
+    stageInStructBody = new StringBuilder();
+    stageInStructEnd = new StringBuilder();
 
-    stageOutStructBegin = new StringBuilder()
-    stageOutStructBody = new StringBuilder()
-    stageOutStructEnd = new StringBuilder()
+    stageOutStructBegin = new StringBuilder();
+    stageOutStructBody = new StringBuilder();
+    stageOutStructEnd = new StringBuilder();
 
-    funtionSignature = new StringBuilder()
-    functionBodyPrologue = new StringBuilder()
-    body = new StringBuilder()
-    functionBodyEpilogue = new StringBuilder()
-    functionEnd = new StringBuilder()
+    funtionSignature = new StringBuilder();
+    functionBodyPrologue = new StringBuilder();
+    body = new StringBuilder();
+    functionBodyEpilogue = new StringBuilder();
+    functionEnd = new StringBuilder();
 
     assembleShader() {
         return (
@@ -1029,249 +1029,249 @@ export class CodegenVisitor extends IRVisitor {
             this.body.getString() +
             this.functionBodyEpilogue.getString() +
             this.functionEnd.getString()
-        )
+        );
     }
 
     startComputeFunction(blockSizeX: number) {
-        assert(this.funtionSignature.empty(), 'already has a signature')
+        assert(this.funtionSignature.empty(), 'already has a signature');
         let signature = `
 @compute @workgroup_size(${blockSizeX}, 1, 1)
 fn main(
     @builtin(global_invocation_id) gid3 : vec3<u32>, 
     @builtin(num_workgroups) n_workgroups : vec3<u32>) 
 {        
-`
-        this.funtionSignature.write(signature)
-        this.functionEnd.write('}\n')
+`;
+        this.funtionSignature.write(signature);
+        this.functionEnd.write('}\n');
     }
 
     startGraphicsFunction() {
-        assert(this.funtionSignature.empty(), 'already has a signature')
-        let stageName = ''
-        let builtInInput = ''
-        let stageInput = ''
-        let maybeOutput = ''
+        assert(this.funtionSignature.empty(), 'already has a signature');
+        let stageName = '';
+        let builtInInput = '';
+        let stageInput = '';
+        let maybeOutput = '';
         if (this.isVertexFor()) {
-            stageName = 'vertex'
-            builtInInput = `@builtin(vertex_index) vertex_index : u32,  @builtin(instance_index) instance_index : u32`
+            stageName = 'vertex';
+            builtInInput = `@builtin(vertex_index) vertex_index : u32,  @builtin(instance_index) instance_index : u32`;
         } else if (this.isFragmentFor()) {
-            stageName = 'fragment'
-            builtInInput = '@builtin(position) frag_coord : vec4<f32>'
+            stageName = 'fragment';
+            builtInInput = '@builtin(position) frag_coord : vec4<f32>';
         } else {
-            error("emit_graphics_function called, but we're not in vert/frag for")
+            error("emit_graphics_function called, but we're not in vert/frag for");
         }
         if (!this.stageInStructBegin.empty()) {
-            stageInput = ', stage_input: StageInput'
+            stageInput = ', stage_input: StageInput';
         }
         if (!this.stageOutStructBegin.empty()) {
-            maybeOutput = '-> StageOutput'
+            maybeOutput = '-> StageOutput';
         }
         let signature = `
 @${stageName}
 fn main(${builtInInput} ${stageInput}) ${maybeOutput}
 {
-`
-        this.funtionSignature.write(signature)
-        this.functionEnd.write('\n}\n')
+`;
+        this.funtionSignature.write(signature);
+        this.functionEnd.write('\n}\n');
     }
 
     ensureStageInStruct() {
         if (this.stageInStructBegin.parts.length > 0) {
-            return
+            return;
         }
-        this.stageInStructBegin.write('struct StageInput {\n')
-        this.stageInStructEnd.write('};\n')
+        this.stageInStructBegin.write('struct StageInput {\n');
+        this.stageInStructEnd.write('};\n');
     }
     ensureStageOutStruct() {
         if (this.stageOutStructBegin.parts.length > 0) {
-            return
+            return;
         }
-        this.stageOutStructBegin.write('struct StageOutput {\n')
-        this.stageOutStructEnd.write('};\n')
+        this.stageOutStructBegin.write('struct StageOutput {\n');
+        this.stageOutStructEnd.write('};\n');
 
-        this.functionBodyPrologue.write('  var stage_output: StageOutput;\n')
-        this.functionBodyEpilogue.write('  return stage_output;\n')
+        this.functionBodyPrologue.write('  var stage_output: StageOutput;\n');
+        this.functionBodyEpilogue.write('  return stage_output;\n');
     }
 
-    stageInMembers: Set<string> = new Set<string>()
+    stageInMembers: Set<string> = new Set<string>();
     addStageInMember(name: string, dt: string, loc: number, flat: boolean) {
         if (!this.stageInMembers.has(name)) {
-            this.stageInStructBody.write(`  @location(${loc}) `)
+            this.stageInStructBody.write(`  @location(${loc}) `);
             if (flat) {
-                this.stageInStructBody.write(`@interpolate(flat) `)
+                this.stageInStructBody.write(`@interpolate(flat) `);
             }
-            this.stageInStructBody.write(`${name} : ${dt},\n`)
-            this.stageInMembers.add(name)
+            this.stageInStructBody.write(`${name} : ${dt},\n`);
+            this.stageInMembers.add(name);
         }
     }
 
-    stageOutMembers: Set<string> = new Set<string>()
+    stageOutMembers: Set<string> = new Set<string>();
     addStageOutMember(name: string, dt: string, loc: number, flat: boolean) {
         if (!this.stageOutMembers.has(name)) {
-            this.stageOutStructBody.write(`  @location(${loc}) `)
+            this.stageOutStructBody.write(`  @location(${loc}) `);
             if (flat) {
-                this.stageOutStructBody.write(`@interpolate(flat) `)
+                this.stageOutStructBody.write(`@interpolate(flat) `);
             }
-            this.stageOutStructBody.write(`${name} : ${dt},\n`)
-            this.stageOutMembers.add(name)
+            this.stageOutStructBody.write(`${name} : ${dt},\n`);
+            this.stageOutMembers.add(name);
         }
     }
 
-    stageOutBuiltinMembers: Set<string> = new Set<string>()
+    stageOutBuiltinMembers: Set<string> = new Set<string>();
     addStageOutBuiltinMember(name: string, dt: string, builtin: string) {
         if (!this.stageOutBuiltinMembers.has(name)) {
-            this.stageOutStructBody.write(`  @builtin(${builtin}) ${name} : ${dt},\n`)
-            this.stageOutMembers.add(name)
+            this.stageOutStructBody.write(`  @builtin(${builtin}) ${name} : ${dt},\n`);
+            this.stageOutMembers.add(name);
         }
     }
 
-    bodyIndentCount = 1
+    bodyIndentCount = 1;
     indent() {
-        this.bodyIndentCount++
+        this.bodyIndentCount++;
     }
     dedent() {
-        this.bodyIndentCount--
+        this.bodyIndentCount--;
     }
     getIndentation() {
-        return '  '.repeat(this.bodyIndentCount)
+        return '  '.repeat(this.bodyIndentCount);
     }
 
-    nextInternalTemp = 0
+    nextInternalTemp = 0;
     getTemp(hint: string = '') {
-        return `_internal_temp_${this.nextInternalTemp++}_${hint}`
+        return `_internal_temp_${this.nextInternalTemp++}_${hint}`;
     }
 
     isVertexFor() {
-        return this.offload.type === OffloadType.Vertex
+        return this.offload.type === OffloadType.Vertex;
     }
 
     isFragmentFor() {
-        return this.offload.type === OffloadType.Fragment
+        return this.offload.type === OffloadType.Fragment;
     }
 
     getRawDataTypeName() {
-        return 'i32'
+        return 'i32';
     }
 
     getAtomicRawDataTypeName() {
-        return `atomic<${this.getRawDataTypeName()}>`
+        return `atomic<${this.getRawDataTypeName()}>`;
     }
 
     getRawDataTypeSize() {
-        return 4
+        return 4;
     }
 
     getElementCount(buffer: ResourceInfo) {
         switch (buffer.resourceType) {
             case ResourceType.Root: {
-                let treeSize = this.runtime.materializedTrees[buffer.resourceID!].size
-                return divUp(treeSize, this.getRawDataTypeSize())
+                let treeSize = this.runtime.materializedTrees[buffer.resourceID!].size;
+                return divUp(treeSize, this.getRawDataTypeSize());
             }
             case ResourceType.RootAtomic: {
-                let treeSize = this.runtime.materializedTrees[buffer.resourceID!].size
-                return divUp(treeSize, 4)
+                let treeSize = this.runtime.materializedTrees[buffer.resourceID!].size;
+                return divUp(treeSize, 4);
                 // WGSL doesn't allow atomic<vec4<i32>>, so the type size is always 4
             }
             case ResourceType.GlobalTmps: {
-                return divUp(65536, this.getRawDataTypeSize())
+                return divUp(65536, this.getRawDataTypeSize());
                 // maximum size (ubo) allowed by WebGPU Chrome DX backend. matches Runtime.ts
             }
             case ResourceType.GlobalTmpsAtomic: {
-                return divUp(65536, this.getRawDataTypeSize())
+                return divUp(65536, this.getRawDataTypeSize());
                 // maximum size (ubo) allowed by WebGPU Chrome DX backend. matches Runtime.ts
             }
             case ResourceType.RandStates: {
-                return 65536
+                return 65536;
                 // matches Runtime.ts // note that we have up to 65536 shader invocations
             }
             case ResourceType.Args: {
-                return divUp(this.argBytes, this.getRawDataTypeSize())
+                return divUp(this.argBytes, this.getRawDataTypeSize());
             }
             case ResourceType.Rets: {
-                return divUp(this.retBytes, this.getRawDataTypeSize())
+                return divUp(this.retBytes, this.getRawDataTypeSize());
             }
             default: {
-                error('not a buffer')
-                return -1
+                error('not a buffer');
+                return -1;
             }
         }
     }
 
-    resourceBindings: ResourceBindingMap = new ResourceBindingMap()
+    resourceBindings: ResourceBindingMap = new ResourceBindingMap();
 
     getBufferName(buffer: ResourceInfo) {
-        let name = ''
-        let binding: number
+        let name = '';
+        let binding: number;
         if (!this.resourceBindings.has(buffer)) {
-            binding = this.previousStageBindings.length + this.resourceBindings.size()
+            binding = this.previousStageBindings.length + this.resourceBindings.size();
         } else {
-            binding = this.resourceBindings.get(buffer)!
+            binding = this.resourceBindings.get(buffer)!;
         }
-        let elementType = this.getRawDataTypeName()
+        let elementType = this.getRawDataTypeName();
         switch (buffer.resourceType) {
             case ResourceType.Root: {
-                name = `root_buffer_binding_${binding}`
-                break
+                name = `root_buffer_binding_${binding}`;
+                break;
             }
             case ResourceType.RootAtomic: {
-                name = `root_buffer_atomic_binding_${binding}`
-                elementType = this.getAtomicRawDataTypeName()
-                break
+                name = `root_buffer_atomic_binding_${binding}`;
+                elementType = this.getAtomicRawDataTypeName();
+                break;
             }
             case ResourceType.GlobalTmps: {
-                name = 'global_tmps_'
-                break
+                name = 'global_tmps_';
+                break;
             }
             case ResourceType.GlobalTmpsAtomic: {
-                name = 'global_tmps_atomic_'
-                elementType = this.getAtomicRawDataTypeName()
-                break
+                name = 'global_tmps_atomic_';
+                elementType = this.getAtomicRawDataTypeName();
+                break;
             }
             case ResourceType.RandStates: {
-                name = 'rand_states_'
-                elementType = 'RandState'
-                break
+                name = 'rand_states_';
+                elementType = 'RandState';
+                break;
             }
             case ResourceType.Args: {
-                name = 'args_'
-                break
+                name = 'args_';
+                break;
             }
             case ResourceType.Rets: {
-                name = 'rets_'
-                break
+                name = 'rets_';
+                break;
             }
             default: {
-                error('not a buffer')
+                error('not a buffer');
             }
         }
         if (!this.resourceBindings.has(buffer)) {
-            this.resourceBindings.add(buffer, binding)
-            let elementCount = this.getElementCount(buffer)
-            this.declareNewBuffer(buffer, name, binding, elementType, elementCount)
+            this.resourceBindings.add(buffer, binding);
+            let elementCount = this.getElementCount(buffer);
+            this.declareNewBuffer(buffer, name, binding, elementType, elementCount);
         }
-        return name
+        return name;
     }
 
     isBufferWritable(buffer: ResourceInfo) {
         // vertex shader not allowed to write to global memory
         if (this.isVertexFor()) {
-            return false
+            return false;
         }
         if (this.isFragmentFor()) {
             for (let vertexBinding of this.previousStageBindings) {
                 if (vertexBinding.info.equals(buffer)) {
                     // fragment shader not allowed to bind as writable buffer, if the same buffer is also bound in vert shader
-                    return false
+                    return false;
                 }
             }
             if (buffer.resourceType === ResourceType.Root || buffer.resourceType === ResourceType.RootAtomic) {
-                let tree = this.runtime.materializedTrees[buffer.resourceID!]
+                let tree = this.runtime.materializedTrees[buffer.resourceID!];
                 if (!tree.fragmentShaderWritable) {
-                    return false
+                    return false;
                 }
             }
         }
-        return true
+        return true;
     }
 
     assertBufferWritable(buffer: ResourceInfo) {
@@ -1281,11 +1281,11 @@ fn main(${builtInInput} ${stageInput}) ${maybeOutput}
                 buffer.resourceType === ResourceType.GlobalTmps ||
                 buffer.resourceType === ResourceType.GlobalTmpsAtomic
             ) {
-                error('a vertex shader is not allowed to write to global temporary variables')
+                error('a vertex shader is not allowed to write to global temporary variables');
             } else if (buffer.resourceType === ResourceType.Root || buffer.resourceType === ResourceType.RootAtomic) {
-                error('a vertex shader is not allowed to write to fields')
+                error('a vertex shader is not allowed to write to fields');
             } else {
-                error('[Internal Error] Unexpected resource type')
+                error('[Internal Error] Unexpected resource type');
             }
         }
         if (this.isFragmentFor()) {
@@ -1297,41 +1297,41 @@ fn main(${builtInInput} ${stageInput}) ${maybeOutput}
                     ) {
                         error(
                             'a fragment shader is not allowed to write to global temporary variables, if the corresponding vertex shader reads any global temporary variable'
-                        )
+                        );
                     } else if (
                         buffer.resourceType === ResourceType.Root ||
                         buffer.resourceType === ResourceType.RootAtomic
                     ) {
-                        let tree = this.runtime.materializedTrees[buffer.resourceID!]
+                        let tree = this.runtime.materializedTrees[buffer.resourceID!];
                         if (tree.fragmentShaderWritable) {
                             error(
                                 "[Internal Error] the vertex shader shouldn't have been able to read from the field which is marked as `fragmentShaderWritable`"
-                            )
+                            );
                         } else {
                             error(
                                 '[Internal Error] a fragment shader can only write to a field if it is marked as `fragmentShaderWritable`'
-                            )
+                            );
                         }
                     } else {
-                        error('[Internal Error] Unexpected resource type')
+                        error('[Internal Error] Unexpected resource type');
                     }
                 }
             }
             if (buffer.resourceType === ResourceType.Root || buffer.resourceType === ResourceType.RootAtomic) {
-                let tree = this.runtime.materializedTrees[buffer.resourceID!]
+                let tree = this.runtime.materializedTrees[buffer.resourceID!];
                 if (!tree.fragmentShaderWritable) {
                     error(
                         '[Internal Error] a fragment shader can only write to a field if it is marked as `fragmentShaderWritable`'
-                    )
+                    );
                 }
             }
         }
     }
 
     declareNewBuffer(buffer: ResourceInfo, name: string, binding: number, elementType: string, elementCount: number) {
-        let storageAndAcess = 'storage, read_write'
+        let storageAndAcess = 'storage, read_write';
         if (!this.isBufferWritable(buffer)) {
-            storageAndAcess = 'storage, read'
+            storageAndAcess = 'storage, read';
         }
         let code = `
 struct ${name}_type {
@@ -1339,12 +1339,12 @@ struct ${name}_type {
 };
 @group(0) @binding(${binding})
 var<${storageAndAcess}> ${name}: ${name}_type;        
-`
-        this.globalDecls.write(code)
+`;
+        this.globalDecls.write(code);
     }
 
     getBufferMemberName(buffer: ResourceInfo) {
-        return this.getBufferName(buffer) + '.member'
+        return this.getBufferName(buffer) + '.member';
     }
 
     getTextureName(textureInfo: ResourceInfo) {
@@ -1352,130 +1352,130 @@ var<${storageAndAcess}> ${name}: ${name}_type;
             textureInfo.resourceType !== ResourceType.Texture &&
             textureInfo.resourceType !== ResourceType.StorageTexture
         ) {
-            error('not a texture')
+            error('not a texture');
         }
-        let binding: number
+        let binding: number;
         if (!this.resourceBindings.has(textureInfo)) {
-            binding = this.previousStageBindings.length + this.resourceBindings.size()
+            binding = this.previousStageBindings.length + this.resourceBindings.size();
         } else {
-            binding = this.resourceBindings.get(textureInfo)!
+            binding = this.resourceBindings.get(textureInfo)!;
         }
-        let isStorageTexture = textureInfo.resourceType === ResourceType.StorageTexture
-        let texture = this.runtime.textures[textureInfo.resourceID!]
-        let name: string
+        let isStorageTexture = textureInfo.resourceType === ResourceType.StorageTexture;
+        let texture = this.runtime.textures[textureInfo.resourceID!];
+        let name: string;
         if (isStorageTexture) {
-            name = `texture_binding_${binding}`
+            name = `texture_binding_${binding}`;
         } else {
-            name = `storage_texture_binding_${binding}`
+            name = `storage_texture_binding_${binding}`;
         }
-        let elementType = this.getPrimitiveTypeName(PrimitiveType.f32)
-        let typeName = ''
-        let isDepth = texture instanceof DepthTexture
-        assert(!(isDepth && isStorageTexture), 'cannot have depth storeage texture')
+        let elementType = this.getPrimitiveTypeName(PrimitiveType.f32);
+        let typeName = '';
+        let isDepth = texture instanceof DepthTexture;
+        assert(!(isDepth && isStorageTexture), 'cannot have depth storeage texture');
         switch (texture.getTextureDimensionality()) {
             case TextureDimensionality.Dim2d: {
                 if (!isDepth) {
                     if (isStorageTexture) {
-                        typeName = 'texture_storage_2d'
+                        typeName = 'texture_storage_2d';
                     } else {
-                        typeName = 'texture_2d'
+                        typeName = 'texture_2d';
                     }
                 } else {
                     if (texture.sampleCount === 1) {
-                        typeName = 'texture_depth_2d'
+                        typeName = 'texture_depth_2d';
                     } else {
-                        typeName = 'texture_depth_multisampled_2d'
+                        typeName = 'texture_depth_multisampled_2d';
                     }
                 }
-                break
+                break;
             }
             case TextureDimensionality.Dim3d: {
                 if (!isDepth) {
                     if (isStorageTexture) {
-                        typeName = 'texture_storage_3d'
+                        typeName = 'texture_storage_3d';
                     } else {
-                        typeName = 'texture_3d'
+                        typeName = 'texture_3d';
                     }
                 } else {
-                    error('depth 3d texture not supported')
+                    error('depth 3d texture not supported');
                 }
-                break
+                break;
             }
             case TextureDimensionality.DimCube: {
                 if (!isDepth) {
                     if (isStorageTexture) {
-                        error('storage cube texture not supported')
+                        error('storage cube texture not supported');
                     } else {
-                        typeName = 'texture_3d'
+                        typeName = 'texture_3d';
                     }
                 } else {
-                    error('depth cube texture not supported')
+                    error('depth cube texture not supported');
                 }
-                break
+                break;
             }
             default: {
-                error('unrecognized dimensionality')
+                error('unrecognized dimensionality');
             }
         }
         if (!this.resourceBindings.has(textureInfo)) {
-            this.resourceBindings.add(textureInfo, binding)
-            let templateArgs = ''
+            this.resourceBindings.add(textureInfo, binding);
+            let templateArgs = '';
             if (isStorageTexture) {
-                templateArgs = `<${texture.getGPUTextureFormat() as string}, write>`
+                templateArgs = `<${texture.getGPUTextureFormat() as string}, write>`;
             } else if (isDepth) {
-                templateArgs = ``
+                templateArgs = ``;
             } else {
-                templateArgs = `<${elementType}>`
+                templateArgs = `<${elementType}>`;
             }
-            this.declareNewTexture(textureInfo, name, typeName, templateArgs, binding)
+            this.declareNewTexture(textureInfo, name, typeName, templateArgs, binding);
         }
-        return name
+        return name;
     }
 
     declareNewTexture(texture: ResourceInfo, name: string, typeName: string, templateArgs: string, binding: number) {
         let decl = `
 @group(0) @binding(${binding})
 var ${name}: ${typeName}${templateArgs};
-        `
-        this.globalDecls.write(decl)
+        `;
+        this.globalDecls.write(decl);
     }
 
     getSamplerName(samplerInfo: ResourceInfo) {
         if (samplerInfo.resourceType !== ResourceType.Sampler) {
-            error('not a sampler')
+            error('not a sampler');
         }
-        let binding: number
+        let binding: number;
         if (!this.resourceBindings.has(samplerInfo)) {
-            binding = this.previousStageBindings.length + this.resourceBindings.size()
+            binding = this.previousStageBindings.length + this.resourceBindings.size();
         } else {
-            binding = this.resourceBindings.get(samplerInfo)!
+            binding = this.resourceBindings.get(samplerInfo)!;
         }
-        let texture = this.runtime.textures[samplerInfo.resourceID!]
-        let name = `sampler_binding_${binding}`
-        let typeName = 'sampler'
-        let isDepth = texture instanceof DepthTexture
+        let texture = this.runtime.textures[samplerInfo.resourceID!];
+        let name = `sampler_binding_${binding}`;
+        let typeName = 'sampler';
+        let isDepth = texture instanceof DepthTexture;
         if (isDepth) {
-            typeName = 'sampler_comparison'
+            typeName = 'sampler_comparison';
         }
         if (!this.resourceBindings.has(samplerInfo)) {
-            this.resourceBindings.add(samplerInfo, binding)
-            this.declareNewSampler(samplerInfo, name, typeName, binding)
+            this.resourceBindings.add(samplerInfo, binding);
+            this.declareNewSampler(samplerInfo, name, typeName, binding);
         }
-        return name
+        return name;
     }
 
     declareNewSampler(sampler: ResourceInfo, name: string, typeName: string, binding: number) {
         let decl = `
 @group(0) @binding(${binding})
 var ${name}: ${typeName};
-        `
-        this.globalDecls.write(decl)
+        `;
+        this.globalDecls.write(decl);
     }
 
-    randInitiated = false
+    randInitiated = false;
     initRand() {
         if (this.randInitiated) {
-            return
+            return;
         }
         let structDecl = `
 struct RandState{
@@ -1484,9 +1484,9 @@ struct RandState{
     z: u32,
     w: u32,
 };
-`
-        this.globalDecls.write(structDecl)
-        let randStatesMemberName = this.getBufferMemberName(new ResourceInfo(ResourceType.RandStates))
+`;
+        this.globalDecls.write(structDecl);
+        let randStatesMemberName = this.getBufferMemberName(new ResourceInfo(ResourceType.RandStates));
         let randFuncs = `
 fn rand_u32(id: u32) -> u32 {
     var state : RandState = ${randStatesMemberName}[id];
@@ -1515,8 +1515,8 @@ fn rand_i32(id:u32) -> i32 {
     let u32_res : u32 = rand_u32(id);
     return i32(u32_res);
 }
-`
-        this.globalDecls.write(randFuncs)
-        this.randInitiated = true
+`;
+        this.globalDecls.write(randFuncs);
+        this.randInitiated = true;
     }
 }

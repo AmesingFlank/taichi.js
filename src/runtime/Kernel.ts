@@ -1,9 +1,9 @@
-import { PrimitiveType, StructType, Type, VoidType } from '../language/frontend/Type'
-import { CanvasTexture, DepthTexture, Texture, TextureBase } from '../data/Texture'
-import { Field } from '../data/Field'
+import { PrimitiveType, StructType, Type, VoidType } from '../language/frontend/Type';
+import { CanvasTexture, DepthTexture, Texture, TextureBase } from '../data/Texture';
+import { Field } from '../data/Field';
 
-import { error } from '../utils/Logging'
-import { Runtime } from './Runtime'
+import { error } from '../utils/Logging';
+import { Runtime } from './Runtime';
 enum ResourceType {
     Root,
     RootAtomic,
@@ -21,14 +21,14 @@ class ResourceInfo {
     constructor(public resourceType: ResourceType, public resourceID?: number) {}
 
     equals(that: ResourceInfo): boolean {
-        return this.resourceID === that.resourceID && this.resourceType === that.resourceType
+        return this.resourceID === that.resourceID && this.resourceType === that.resourceType;
     }
 }
 class ResourceBinding {
     constructor(public info: ResourceInfo, public binding: number) {}
 
     equals(that: ResourceBinding): boolean {
-        return this.info.equals(that.info) && this.binding === that.binding
+        return this.info.equals(that.info) && this.binding === that.binding;
     }
 }
 
@@ -58,45 +58,45 @@ class RenderPipelineParams {
         public indexBuffer: Field | null = null,
         public indirectBuffer: Field | Promise<number[]> | null = null
     ) {
-        this.bindings = this.getBindings()
+        this.bindings = this.getBindings();
     }
 
-    public bindings: ResourceBinding[]
-    public indirectCount: number | Field = 1
+    public bindings: ResourceBinding[];
+    public indirectCount: number | Field = 1;
 
     public getBindings() {
-        let bindings: ResourceBinding[] = []
-        let candidates = this.vertex.bindings.concat(this.fragment.bindings)
+        let bindings: ResourceBinding[] = [];
+        let candidates = this.vertex.bindings.concat(this.fragment.bindings);
         for (let c of candidates) {
-            let found = false
+            let found = false;
             for (let b of bindings) {
                 if (c.equals(b)) {
-                    found = true
-                    break
+                    found = true;
+                    break;
                 }
             }
             if (!found) {
-                bindings.push(c)
+                bindings.push(c);
             }
         }
-        return bindings
+        return bindings;
     }
 }
 
 interface ColorAttachment {
-    texture: TextureBase
-    clearColor?: number[]
+    texture: TextureBase;
+    clearColor?: number[];
 }
 
 interface DepthAttachment {
-    texture: DepthTexture
-    clearDepth?: number
-    storeDepth?: boolean
+    texture: DepthTexture;
+    clearDepth?: number;
+    storeDepth?: boolean;
 }
 
 interface RenderPassParams {
-    colorAttachments: ColorAttachment[]
-    depthAttachment: DepthAttachment | null
+    colorAttachments: ColorAttachment[];
+    depthAttachment: DepthAttachment | null;
 }
 
 class KernelParams {
@@ -109,89 +109,89 @@ class KernelParams {
 }
 
 class CompiledTask {
-    pipeline: GPUComputePipeline | null = null
-    bindGroup: GPUBindGroup | null = null
+    pipeline: GPUComputePipeline | null = null;
+    bindGroup: GPUBindGroup | null = null;
     constructor(public params: TaskParams, runtime: Runtime) {
-        this.createPipeline(runtime)
+        this.createPipeline(runtime);
     }
     createPipeline(runtime: Runtime) {
-        let code = this.params.code
+        let code = this.params.code;
         this.pipeline = runtime.getGPUComputePipeline({
             compute: {
                 module: runtime.getGPUShaderModule(code),
                 entryPoint: 'main',
             },
             layout: 'auto',
-        })
+        });
     }
 }
 
 class CompiledRenderPipeline {
-    pipeline: GPURenderPipeline | null = null
-    bindGroup: GPUBindGroup | null = null
+    pipeline: GPURenderPipeline | null = null;
+    bindGroup: GPUBindGroup | null = null;
     constructor(public params: RenderPipelineParams, renderPassParams: RenderPassParams, runtime: Runtime) {
-        this.createPipeline(runtime, renderPassParams)
+        this.createPipeline(runtime, renderPassParams);
     }
 
     private getGPUVertexBufferStates(): GPUVertexBufferLayout {
-        let attrs: GPUVertexAttribute[] = []
-        let vertexInputType = this.params.vertexBuffer!.elementType
-        let prims = vertexInputType.getPrimitivesList()
+        let attrs: GPUVertexAttribute[] = [];
+        let vertexInputType = this.params.vertexBuffer!.elementType;
+        let prims = vertexInputType.getPrimitivesList();
         let getPrimFormat = (prim: PrimitiveType): GPUVertexFormat => {
             if (prim === PrimitiveType.f32) {
-                return 'float32'
+                return 'float32';
             } else if (prim === PrimitiveType.i32) {
-                return 'sint32'
+                return 'sint32';
             } else {
-                error('unrecongnized prim')
-                return 'float32'
+                error('unrecongnized prim');
+                return 'float32';
             }
-        }
+        };
         for (let i = 0; i < prims.length; ++i) {
             attrs.push({
                 shaderLocation: i,
                 format: getPrimFormat(prims[i]),
                 offset: i * 4,
-            })
+            });
         }
         return {
             arrayStride: prims.length * 4,
             attributes: attrs,
-        }
+        };
     }
     private getGPUColorTargetStates(renderPassParams: RenderPassParams): GPUColorTargetState[] {
-        let result: GPUColorTargetState[] = []
+        let result: GPUColorTargetState[] = [];
         for (let tex of renderPassParams.colorAttachments) {
             result.push({
                 format: tex.texture.getGPUTextureFormat(),
-            })
+            });
         }
-        return result
+        return result;
     }
     getVertexCount(): number {
         if (this.params.indexBuffer) {
-            return this.params.indexBuffer.dimensions[0]
+            return this.params.indexBuffer.dimensions[0];
         } else {
-            return this.params.vertexBuffer!.dimensions[0]
+            return this.params.vertexBuffer!.dimensions[0];
         }
     }
     createPipeline(runtime: Runtime, renderPassParams: RenderPassParams) {
-        let sampleCount = 1
+        let sampleCount = 1;
         if (renderPassParams.colorAttachments.length > 0) {
-            sampleCount = renderPassParams.colorAttachments[0].texture.sampleCount
+            sampleCount = renderPassParams.colorAttachments[0].texture.sampleCount;
         } else if (renderPassParams.depthAttachment !== null) {
-            sampleCount = renderPassParams.depthAttachment.texture.sampleCount
+            sampleCount = renderPassParams.depthAttachment.texture.sampleCount;
         }
         for (let attachment of renderPassParams.colorAttachments) {
             if (attachment.texture.sampleCount != sampleCount) {
-                error('all render target attachments (color or depth) must have the same sample count')
+                error('all render target attachments (color or depth) must have the same sample count');
             }
         }
         if (
             renderPassParams.depthAttachment !== null &&
             renderPassParams.depthAttachment.texture.sampleCount !== sampleCount
         ) {
-            error('all render target attachments (color or depth) must have the same sample count')
+            error('all render target attachments (color or depth) must have the same sample count');
         }
         let desc: GPURenderPipelineDescriptor = {
             vertex: {
@@ -212,19 +212,19 @@ class CompiledRenderPipeline {
                 count: sampleCount,
             },
             layout: 'auto',
-        }
+        };
         if (renderPassParams.depthAttachment !== null) {
-            let depthWrite = true
+            let depthWrite = true;
             if (renderPassParams.depthAttachment.storeDepth === false) {
-                depthWrite = false
+                depthWrite = false;
             }
             desc.depthStencil = {
                 depthWriteEnabled: depthWrite,
                 depthCompare: 'less-equal',
                 format: renderPassParams.depthAttachment.texture.getGPUTextureFormat(),
-            }
+            };
         }
-        this.pipeline = runtime.getGPURenderPipeline(desc)
+        this.pipeline = runtime.getGPURenderPipeline(desc);
     }
 }
 
@@ -232,14 +232,14 @@ class CompiledRenderPassInfo {
     constructor(public params: RenderPassParams) {}
 
     public getGPURenderPassDescriptor(): GPURenderPassDescriptor {
-        let colorAttachments: GPURenderPassColorAttachment[] = []
+        let colorAttachments: GPURenderPassColorAttachment[] = [];
         for (let attach of this.params.colorAttachments) {
-            let view: GPUTextureView = attach.texture.getGPUTextureView()
-            let resolveTarget: GPUTextureView | undefined = undefined
+            let view: GPUTextureView = attach.texture.getGPUTextureView();
+            let resolveTarget: GPUTextureView | undefined = undefined;
             if (attach.texture.sampleCount > 1) {
                 if (attach.texture instanceof CanvasTexture || attach.texture instanceof Texture) {
-                    view = attach.texture.multiSampledRenderTexture!.createView()
-                    resolveTarget = attach.texture.getGPUTextureView()
+                    view = attach.texture.multiSampledRenderTexture!.createView();
+                    resolveTarget = attach.texture.getGPUTextureView();
                 }
             }
             if (attach.clearColor === undefined) {
@@ -249,39 +249,39 @@ class CompiledRenderPassInfo {
                     clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
                     loadOp: 'load',
                     storeOp: 'store',
-                })
+                });
             } else {
                 let clearValue = {
                     r: attach.clearColor[0],
                     g: attach.clearColor[1],
                     b: attach.clearColor[2],
                     a: attach.clearColor[3],
-                }
+                };
                 colorAttachments.push({
                     view,
                     resolveTarget,
                     clearValue: clearValue,
                     loadOp: 'clear',
                     storeOp: 'store',
-                })
+                });
             }
         }
-        let depth = this.params.depthAttachment
+        let depth = this.params.depthAttachment;
         if (depth === null) {
             return {
                 colorAttachments,
-            }
+            };
         }
         let depthStencilAttachment: GPURenderPassDepthStencilAttachment = {
             view: depth.texture.getGPUTextureView(),
             depthClearValue: depth.clearDepth,
             depthLoadOp: depth.clearDepth === undefined ? 'load' : 'clear',
             depthStoreOp: depth.storeDepth === true ? 'store' : 'discard',
-        }
+        };
         return {
             colorAttachments,
             depthStencilAttachment,
-        }
+        };
     }
 }
 class CompiledKernel {
@@ -309,4 +309,4 @@ export {
     ColorAttachment,
     DepthAttachment,
     CompiledRenderPassInfo,
-}
+};

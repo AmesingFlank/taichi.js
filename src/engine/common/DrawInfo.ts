@@ -1,4 +1,4 @@
-import * as ti from '../../taichi'
+import * as ti from '../../taichi';
 
 export class DrawInfo {
     constructor(
@@ -16,6 +16,6 @@ export class DrawInfo {
             firstIndex: ti.i32,
             baseVertex: ti.i32,
             firstInstance: ti.i32,
-        })
+        });
     }
 }

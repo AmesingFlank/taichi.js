@@ -1,28 +1,28 @@
 class Scope {
     constructor() {}
 
-    obj: any = {}
-    thisObj: any = {}
+    obj: any = {};
+    thisObj: any = {};
 
     hasStored(name: string): boolean {
-        return name in this.obj
+        return name in this.obj;
     }
 
     getStored(name: string): any {
-        return this.obj[name]
+        return this.obj[name];
     }
 
     addStored(name: string, val: any) {
-        this.obj[name] = val
+        this.obj[name] = val;
     }
 
     clearStored() {
-        this.obj = {}
-        this.thisObj = {}
+        this.obj = {};
+        this.thisObj = {};
     }
 
     canEvaluate(str: string): boolean {
-        return this.tryEvaluate(str) !== undefined
+        return this.tryEvaluate(str) !== undefined;
     }
 
     tryEvaluate(str: string): any {
@@ -33,26 +33,26 @@ class Scope {
                 ...Object.keys(context),
                 'expr',
                 "return eval('expr = undefined;' + expr)",
-            ])
-            return evaluator.apply(this.thisObj, [...Object.values(context), expr])
-        }
+            ]);
+            return evaluator.apply(this.thisObj, [...Object.values(context), expr]);
+        };
         try {
-            return scopedEval(this.obj, str)
+            return scopedEval(this.obj, str);
         } catch (e) {
-            return undefined
+            return undefined;
         }
     }
 
     clone() {
-        let newObj: any = {}
+        let newObj: any = {};
         for (let k in this.obj) {
-            newObj[k] = this.obj[k]
+            newObj[k] = this.obj[k];
         }
-        let result = new Scope()
-        result.obj = newObj
-        result.thisObj = this.thisObj
-        return result
+        let result = new Scope();
+        result.obj = newObj;
+        result.thisObj = this.thisObj;
+        return result;
     }
 }
 
-export { Scope }
+export { Scope };

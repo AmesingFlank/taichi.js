@@ -1,6 +1,6 @@
 interface File {
-    content: string
-    version: number
+    content: string;
+    version: number;
 }
 
 export class VirtualFileSystem {
@@ -13,9 +13,9 @@ export class VirtualFileSystem {
     public writeFile(filename: string, content: string, overwrite: boolean = false): void {
         //log("vfs", `writeFile(filename: "${filename}", content: length ${content ? content.length : 0}, overwrite: ${overwrite}`, "debug");
 
-        const exists = this.fileExists(filename, true)
+        const exists = this.fileExists(filename, true);
         if (!overwrite && exists) {
-            throw new Error(`The file ${filename} already exists. Set overwrite to true if you want to override it`)
+            throw new Error(`The file ${filename} already exists. Set overwrite to true if you want to override it`);
         }
 
         if (!exists) {
@@ -23,12 +23,12 @@ export class VirtualFileSystem {
             this.files[filename] = {
                 version: 1,
                 content,
-            }
+            };
         } else if (this.files[filename].content !== content) {
             this.files[filename] = {
                 version: this.files[filename].version + 1,
                 content,
-            }
+            };
             //log("vfs", `  updating file => version ${this.files[filename].version}`, "debug");
         }
     }
@@ -38,8 +38,8 @@ export class VirtualFileSystem {
      * @param filename The path of the file to look for
      */
     public fileExists(filename: string, suppressLog: boolean = false): boolean {
-        const ret = filename in this.files
-        return ret
+        const ret = filename in this.files;
+        return ret;
     }
 
     /**
@@ -48,7 +48,7 @@ export class VirtualFileSystem {
      */
     public deleteFile(filename: string): void {
         //log("vfs", `deleteFile("${filename}")`, "debug");
-        if (this.fileExists(filename, true)) delete this.files[filename]
+        if (this.fileExists(filename, true)) delete this.files[filename];
     }
 
     /**
@@ -57,12 +57,12 @@ export class VirtualFileSystem {
      */
     public readFile(filename: string): string {
         if (!this.fileExists(filename, true)) {
-            throw new Error(`The file ${filename} doesn't exist`)
+            throw new Error(`The file ${filename} doesn't exist`);
         }
 
-        const ret = this.files[filename].content
+        const ret = this.files[filename].content;
         //log("vfs", `readFile("${filename}") => length ${ret ? ret.length : 0}`, "debug");
-        return ret
+        return ret;
     }
 
     /**
@@ -71,11 +71,11 @@ export class VirtualFileSystem {
      */
     public getFileVersion(filename: string): number {
         if (!this.fileExists(filename, true)) {
-            throw new Error(`The file ${filename} doesn't exist`)
+            throw new Error(`The file ${filename} doesn't exist`);
         }
-        const ret = this.files[filename].version
+        const ret = this.files[filename].version;
         //log("vfs", `getFileVersion("${filename}") => ${ret}`, "debug");
-        return ret
+        return ret;
     }
 
     /**
@@ -83,19 +83,19 @@ export class VirtualFileSystem {
      */
     public getFilenames(): string[] {
         //log("vfs", `getFilenames()`, "debug");
-        return Object.keys(this.files)
+        return Object.keys(this.files);
     }
 
     public getDirectories(root: string): string[] {
         //log("vfs", `fs.getDirectories(${root})`, "debug");
-        let paths = this.getFilenames()
+        let paths = this.getFilenames();
         //log("vfs", `fs.getDirectories => paths = ${paths}`, "debug");
-        paths = paths.filter((p) => p.startsWith(root))
+        paths = paths.filter((p) => p.startsWith(root));
         //log("vfs", `fs.getDirectories => paths = ${paths}`, "debug");
-        paths = paths.map((p) => p.substr(root.length + 1).split('/')[0])
+        paths = paths.map((p) => p.substr(root.length + 1).split('/')[0]);
         //log("vfs", `fs.getDirectories => paths = ${paths}`, "debug");
-        return paths
+        return paths;
     }
 
-    private files: { [filename: string]: File } = {}
+    private files: { [filename: string]: File } = {};
 }

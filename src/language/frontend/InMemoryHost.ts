@@ -3,10 +3,10 @@ import type {
     CompilerOptions as tsCompilerOptions,
     ScriptTarget as tsScriptTarget,
     SourceFile as tsSourceFile,
-} from 'typescript'
-import { log } from '../../utils/Logging'
-import * as ts from 'typescript'
-import { VirtualFileSystem } from '../../utils/VirtualFileSystem'
+} from 'typescript';
+import { log } from '../../utils/Logging';
+import * as ts from 'typescript';
+import { VirtualFileSystem } from '../../utils/VirtualFileSystem';
 
 // reference: https://github.com/Microsoft/TypeScript/wiki/Using-the-Compiler-API#customizing-module-resolution
 
@@ -15,10 +15,10 @@ import { VirtualFileSystem } from '../../utils/VirtualFileSystem'
  */
 export class InMemoryHost implements tsCompilerHost {
     constructor() {
-        this.fs = new VirtualFileSystem()
+        this.fs = new VirtualFileSystem();
     }
 
-    private fs: VirtualFileSystem
+    private fs: VirtualFileSystem;
 
     public getSourceFile(
         fileName: string,
@@ -26,41 +26,41 @@ export class InMemoryHost implements tsCompilerHost {
         onError?: (message: string) => void
     ): tsSourceFile | undefined {
         // log("getSourceFile ", fileName)
-        let fileContent: string | null = null
+        let fileContent: string | null = null;
         if (this.fs.fileExists(fileName)) {
-            fileContent = this.fs.readFile(fileName)
+            fileContent = this.fs.readFile(fileName);
         }
         if (fileContent != null) {
-            return ts.createSourceFile(fileName, this.fs.readFile(fileName), languageVersion)
+            return ts.createSourceFile(fileName, this.fs.readFile(fileName), languageVersion);
         }
     }
 
     public getDefaultLibFileName(options: tsCompilerOptions): string {
-        return 'typescript.js'
+        return 'typescript.js';
     }
 
     public writeFile(path: string, content: string) {
-        this.fs.writeFile(path, content, true)
+        this.fs.writeFile(path, content, true);
     }
 
     public getCurrentDirectory(): string {
-        const ret = '.'
-        return ret
+        const ret = '.';
+        return ret;
     }
 
     public getDirectories(path: string): string[] {
-        throw new Error('Method not implemented.')
+        throw new Error('Method not implemented.');
     }
 
     public getCanonicalFileName(fileName: string): string {
-        return fileName
+        return fileName;
     }
 
     public useCaseSensitiveFileNames(): boolean {
-        return true
+        return true;
     }
     public getNewLine(): string {
-        return '\n'
+        return '\n';
     }
 
     // public resolveModuleNames?(moduleNames: string[], containingFile: string): ts.ResolvedModule[] {
@@ -92,11 +92,11 @@ export class InMemoryHost implements tsCompilerHost {
     // }
 
     public fileExists(fileName: string): boolean {
-        log(`fileExists(${fileName})`)
-        return this.fs.fileExists(fileName)
+        log(`fileExists(${fileName})`);
+        return this.fs.fileExists(fileName);
     }
     public readFile(fileName: string): string {
-        log(`readFile(${fileName})`)
-        return this.fs.readFile(fileName)
+        log(`readFile(${fileName})`);
+        return this.fs.readFile(fileName);
     }
 }

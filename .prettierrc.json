@@ -3,6 +3,6 @@
     "tabWidth": 4,
     "printWidth": 120,
     "proseWrap": "never",
-    "semi": false,
+    "semi": true,
     "singleQuote": true
 }

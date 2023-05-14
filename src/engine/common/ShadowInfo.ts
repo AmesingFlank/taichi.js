@@ -1,5 +1,5 @@
-import { LightInfo } from './LightInfo'
-import * as ti from '../../taichi'
+import { LightInfo } from './LightInfo';
+import * as ti from '../../taichi';
 
 export class ShadowInfo {
     constructor(
@@ -8,9 +8,9 @@ export class ShadowInfo {
         public shadowMapResolution: number[] = [1024, 1024],
         public strength = 1.0
     ) {}
-    view: number[][] = []
-    projection: number[][] = []
-    viewProjection: number[][] = []
+    view: number[][] = [];
+    projection: number[][] = [];
+    viewProjection: number[][] = [];
 
     static createIblShadowInfo(
         representativePosition: number[],
@@ -20,15 +20,15 @@ export class ShadowInfo {
         shadowMapResolution: number[] = [1024, 1024],
         strength = 1.0
     ) {
-        let shadow = new ShadowInfo(physicalSize, maxDistance, shadowMapResolution, strength)
+        let shadow = new ShadowInfo(physicalSize, maxDistance, shadowMapResolution, strength);
         shadow.view = ti.lookAt(
             representativePosition,
             ti.add(representativePosition, representativeDirection),
             [0.0, 1.0, 0.0]
-        )
-        let size = physicalSize
-        shadow.projection = ti.ortho(-0.5 * size[0], 0.5 * size[0], -0.5 * size[1], 0.5 * size[0], 0.0, maxDistance)
-        shadow.viewProjection = ti.matmul(shadow.projection, shadow.view)
-        return shadow
+        );
+        let size = physicalSize;
+        shadow.projection = ti.ortho(-0.5 * size[0], 0.5 * size[0], -0.5 * size[1], 0.5 * size[0], 0.0, maxDistance);
+        shadow.viewProjection = ti.matmul(shadow.projection, shadow.view);
+        return shadow;
     }
 }
