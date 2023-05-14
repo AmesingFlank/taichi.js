@@ -1,4 +1,4 @@
-import * as ti from "../../dist/taichi.js"
+import * as ti from '../../dist/taichi.js';
 let main = async () => {
     await ti.init();
 
@@ -62,11 +62,7 @@ let main = async () => {
         for (let p of ti.range(n_particles)) {
             let base = i32(x[p] * inv_dx - 0.5);
             let fx = x[p] * inv_dx - f32(base);
-            let w = [
-                0.5 * (1.5 - fx) ** 2,
-                0.75 - (fx - 1) ** 2,
-                0.5 * (fx - 0.5) ** 2,
-            ];
+            let w = [0.5 * (1.5 - fx) ** 2, 0.75 - (fx - 1) ** 2, 0.5 * (fx - 0.5) ** 2];
             F[p] = (
                 [
                     [1.0, 0.0],
@@ -84,9 +80,9 @@ let main = async () => {
                 mu = 0.0;
             }
             let svd = ti.svd2D(F[p]);
-            let U = svd.U
-            let sig = svd.E
-            let V = svd.V
+            let U = svd.U;
+            let sig = svd.E;
+            let V = svd.V;
             let J = 1.0;
             for (let d of ti.static(ti.range(2))) {
                 let new_sig = sig[[d, d]];
@@ -113,9 +109,9 @@ let main = async () => {
                     [1.0, 0.0],
                     [0.0, 1.0],
                 ] *
-                la *
-                J *
-                (J - 1);
+                    la *
+                    J *
+                    (J - 1);
             stress = -dt * p_vol * 4 * inv_dx * inv_dx * stress;
             let affine = stress + p_mass * C[p];
             for (let i of ti.static(ti.range(3))) {
@@ -123,8 +119,7 @@ let main = async () => {
                     let offset = [i, j];
                     let dpos = (f32(offset) - fx) * dx;
                     let weight = w[[i, 0]] * w[[j, 1]];
-                    grid_v[base + offset] +=
-                        weight * (p_mass * v[p] + affine.matmul(dpos));
+                    grid_v[base + offset] += weight * (p_mass * v[p] + affine.matmul(dpos));
                     grid_m[base + offset] += weight * p_mass;
                 }
             }
@@ -152,11 +147,7 @@ let main = async () => {
         for (let p of range(n_particles)) {
             let base = i32(x[p] * inv_dx - 0.5);
             let fx = x[p] * inv_dx - f32(base);
-            let w = [
-                0.5 * (1.5 - fx) ** 2,
-                0.75 - (fx - 1.0) ** 2,
-                0.5 * (fx - 0.5) ** 2,
-            ];
+            let w = [0.5 * (1.5 - fx) ** 2, 0.75 - (fx - 1.0) ** 2, 0.5 * (fx - 0.5) ** 2];
             let new_v = [0.0, 0.0];
             let new_C = [
                 [0.0, 0.0],
@@ -180,10 +171,7 @@ let main = async () => {
     let reset = ti.kernel(() => {
         for (let i of range(n_particles)) {
             let group_id = i32(ti.floor(i / group_size));
-            x[i] = [
-                ti.random() * 0.2 + 0.3 + 0.1 * group_id,
-                ti.random() * 0.2 + 0.05 + 0.32 * group_id,
-            ];
+            x[i] = [ti.random() * 0.2 + 0.3 + 0.1 * group_id, ti.random() * 0.2 + 0.05 + 0.32 * group_id];
             material[i] = group_id;
             v[i] = [0, 0];
             F[i] = [
@@ -239,4 +227,4 @@ let main = async () => {
     }
     await frame();
 };
-main()
+main();

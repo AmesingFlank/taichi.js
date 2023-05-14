@@ -1,4 +1,4 @@
-import * as ti from "../../dist/taichi.js"
+import * as ti from '../../dist/taichi.js';
 let main = async () => {
     await ti.init();
 
@@ -41,24 +41,9 @@ let main = async () => {
         let iterations = 0;
         while (z_curr.norm() < max_norm && iterations < iters) {
             let cz = quat_conj(z_curr);
-            J0 = [
-                dot(J0, cz),
-                dot(J0.xy, z_curr.yx),
-                dot(J0.xz, z_curr.zx),
-                dot(J0.xw, z_curr.wx),
-            ];
-            J1 = [
-                dot(J1, cz),
-                dot(J1.xy, z_curr.yx),
-                dot(J1.xz, z_curr.zx),
-                dot(J1.xw, z_curr.wx),
-            ];
-            J2 = [
-                dot(J2, cz),
-                dot(J2.xy, z_curr.yx),
-                dot(J2.xz, z_curr.zx),
-                dot(J2.xw, z_curr.wx),
-            ];
+            J0 = [dot(J0, cz), dot(J0.xy, z_curr.yx), dot(J0.xz, z_curr.zx), dot(J0.xw, z_curr.wx)];
+            J1 = [dot(J1, cz), dot(J1.xy, z_curr.yx), dot(J1.xz, z_curr.zx), dot(J1.xw, z_curr.wx)];
+            J2 = [dot(J2, cz), dot(J2.xy, z_curr.yx), dot(J2.xz, z_curr.zx), dot(J2.xw, z_curr.wx)];
 
             z_curr = quat_mul(z_curr, z_curr) + c;
             iterations = iterations + 1;
@@ -90,9 +75,7 @@ let main = async () => {
 
     let march = ti.kernel((time_arg) => {
         let time = time_arg * 0.15;
-        let c =
-            0.45 * ti.cos([0.5, 3.9, 1.4, 1.1] + time * [1.2, 1.7, 1.3, 2.5]) -
-            [0.3, 0.0, 0.0, 0.0];
+        let c = 0.45 * ti.cos([0.5, 3.9, 1.4, 1.1] + time * [1.2, 1.7, 1.3, 2.5]) - [0.3, 0.0, 0.0, 0.0];
 
         let r = 1.8;
         let o3 =
@@ -108,8 +91,7 @@ let main = async () => {
             let x = I[0];
             let y = I[1];
 
-            let p =
-                (-[image_res[0], image_res[1]] + 2.0 * [x, y]) / (image_res[1] * 0.75);
+            let p = (-[image_res[0], image_res[1]] + 2.0 * [x, y]) / (image_res[1] * 0.75);
 
             let cw = (ta - o3).normalized();
             let cp = [ti.sin(cr), ti.cos(cr), 0.0];
@@ -161,4 +143,4 @@ let main = async () => {
     await frame();
 };
 
-main()
+main();

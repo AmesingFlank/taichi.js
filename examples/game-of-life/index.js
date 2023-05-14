@@ -1,53 +1,52 @@
-import * as ti from "../../dist/taichi.dev.js"
+import * as ti from '../../dist/taichi.dev.js';
 
 let main = async () => {
     await ti.init();
 
     let N = 128;
 
-    let liveness = ti.field(ti.i32, [N, N])
-    let numNeighbors = ti.field(ti.i32, [N, N])
+    let liveness = ti.field(ti.i32, [N, N]);
+    let numNeighbors = ti.field(ti.i32, [N, N]);
 
     ti.addToKernelScope({ N, liveness, numNeighbors });
 
     let init = ti.kernel(() => {
         for (let I of ti.ndrange(N, N)) {
-            liveness[I] = 0
-            let f = ti.random()
+            liveness[I] = 0;
+            let f = ti.random();
             if (f < 0.2) {
-                liveness[I] = 1
+                liveness[I] = 1;
             }
         }
-    })
-    await init()
+    });
+    await init();
 
     let countNeighbors = ti.kernel(() => {
         for (let I of ti.ndrange(N, N)) {
-            let neighbors = 0
+            let neighbors = 0;
             for (let delta of ti.ndrange(3, 3)) {
-                let J = (I + delta - 1) % N
+                let J = (I + delta - 1) % N;
                 if ((J.x != I.x || J.y != I.y) && liveness[J] == 1) {
                     neighbors = neighbors + 1;
                 }
             }
-            numNeighbors[I] = neighbors
+            numNeighbors[I] = neighbors;
         }
     });
     let updateLiveness = ti.kernel(() => {
         for (let I of ti.ndrange(N, N)) {
-            let neighbors = numNeighbors[I]
+            let neighbors = numNeighbors[I];
             if (liveness[I] == 1) {
                 if (neighbors < 2 || neighbors > 3) {
                     liveness[I] = 0;
                 }
-            }
-            else {
+            } else {
                 if (neighbors == 3) {
                     liveness[I] = 1;
                 }
             }
         }
-    })
+    });
 
     let htmlCanvas = document.getElementById('result_canvas');
     htmlCanvas.width = 512;
@@ -81,12 +80,12 @@ let main = async () => {
     });
 
     async function frame() {
-        countNeighbors()
-        updateLiveness()
+        countNeighbors();
+        updateLiveness();
         await render();
         requestAnimationFrame(frame);
     }
     await frame();
 };
 
-main()
+main();

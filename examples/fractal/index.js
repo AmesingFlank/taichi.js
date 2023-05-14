@@ -1,4 +1,4 @@
-import * as ti from "../../dist/taichi.dev.js"
+import * as ti from '../../dist/taichi.dev.js';
 
 let main = async () => {
     await ti.init();
@@ -46,4 +46,4 @@ let main = async () => {
     await frame();
 };
 
-main()
+main();

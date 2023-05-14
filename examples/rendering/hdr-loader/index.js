@@ -1,17 +1,17 @@
-import * as ti from "../../../dist/taichi.dev.js"
+import * as ti from '../../../dist/taichi.dev.js';
 
 let main = async () => {
     await ti.init();
 
-    let hdrTexture = await ti.engine.HdrLoader.loadFromURL("../resources/footprint_court.hdr") 
- 
+    let hdrTexture = await ti.engine.HdrLoader.loadFromURL('../resources/footprint_court.hdr');
+
     let pixels = ti.Vector.field(4, ti.f32, hdrTexture.dimensions);
- 
+
     ti.addToKernelScope({ pixels, hdrTexture });
 
     let kernel = ti.kernel(() => {
         for (let I of ndrange(hdrTexture.dimensions[0], hdrTexture.dimensions[1])) {
-            pixels[I] = ti.textureLoad(hdrTexture, I)
+            pixels[I] = ti.textureLoad(hdrTexture, I);
         }
     });
 
@@ -33,4 +33,4 @@ let main = async () => {
     await frame();
 };
 
-main()
+main();

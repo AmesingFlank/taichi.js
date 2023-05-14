@@ -1,4 +1,4 @@
-import * as ti from "../../dist/taichi.js"
+import * as ti from '../../dist/taichi.js';
 let main = async () => {
     let htmlCanvas = document.getElementById('result_canvas');
     htmlCanvas.width = 512;
@@ -78,11 +78,7 @@ let main = async () => {
             let Xp = x[p] / dx;
             let base = i32(Xp - 0.5);
             let fx = Xp - base;
-            let w = [
-                0.5 * (1.5 - fx) ** 2,
-                0.75 - (fx - 1) ** 2,
-                0.5 * (fx - 0.5) ** 2,
-            ];
+            let w = [0.5 * (1.5 - fx) ** 2, 0.75 - (fx - 1) ** 2, 0.5 * (fx - 0.5) ** 2];
             F[p] = (
                 [
                     [1.0, 0.0, 0.0],
@@ -101,9 +97,9 @@ let main = async () => {
                 mu = 0.0;
             }
             let svd = ti.svd3D(F[p]);
-            let U = svd.U
-            let sig = svd.E
-            let V = svd.V
+            let U = svd.U;
+            let sig = svd.E;
+            let V = svd.V;
             let J = f32(1.0);
             for (let d of ti.static(ti.range(3))) {
                 let new_sig = sig[[d, d]];
@@ -131,9 +127,9 @@ let main = async () => {
                     [0.0, 1.0, 0.0],
                     [0.0, 0.0, 1.0],
                 ] *
-                la *
-                J *
-                (J - 1);
+                    la *
+                    J *
+                    (J - 1);
             stress = (-dt * p_vol * 4 * stress) / dx ** 2;
             let affine = stress + p_mass * C[p];
             for (let i of ti.static(ti.range(3))) {
@@ -142,8 +138,7 @@ let main = async () => {
                         let offset = [i, j, k];
                         let dpos = (f32(offset) - fx) * dx;
                         let weight = w[[i, 0]] * w[[j, 1]] * w[[k, 2]];
-                        grid_v[base + offset] +=
-                            weight * (p_mass * v[p] + affine.matmul(dpos));
+                        grid_v[base + offset] += weight * (p_mass * v[p] + affine.matmul(dpos));
                         grid_m[base + offset] += weight * p_mass;
                     }
                 }
@@ -181,11 +176,7 @@ let main = async () => {
             let Xp = x[p] / dx;
             let base = i32(Xp - 0.5);
             let fx = Xp - base;
-            let w = [
-                0.5 * (1.5 - fx) ** 2,
-                0.75 - (fx - 1.0) ** 2,
-                0.5 * (fx - 0.5) ** 2,
-            ];
+            let w = [0.5 * (1.5 - fx) ** 2, 0.75 - (fx - 1.0) ** 2, 0.5 * (fx - 0.5) ** 2];
             let new_v = [0.0, 0.0, 0.0];
             let new_C = [
                 [0.0, 0.0, 0.0],
@@ -213,11 +204,7 @@ let main = async () => {
     let reset = ti.kernel(() => {
         for (let p of range(n_particles)) {
             let cube_id = i32(ti.floor(p / cube_num_particles));
-            let cube_min = [
-                0.05 + 0.15 * cube_id,
-                0.05 + 0.25 * (cube_id % 3),
-                0.05 + 0.2 * (cube_id % 4),
-            ];
+            let cube_min = [0.05 + 0.15 * cube_id, 0.05 + 0.25 * (cube_id % 3), 0.05 + 0.2 * (cube_id % 4)];
             let cube_max = cube_min + cube_dim;
 
             let id_in_cube = p % cube_num_particles;
@@ -227,9 +214,7 @@ let main = async () => {
             let k = i32(id_in_cube / (cube_dim_particles * cube_dim_particles));
 
             let pos = cube_min + (cube_dim * [i, j, k]) / cube_dim_particles;
-            let jitter =
-                ([ti.random(), ti.random(), ti.random()] * 0.1 * cube_dim) /
-                cube_dim_particles;
+            let jitter = ([ti.random(), ti.random(), ti.random()] * 0.1 * cube_dim) / cube_dim_particles;
             pos = pos + jitter;
             x[p] = pos;
 
@@ -333,20 +318,10 @@ let main = async () => {
             let c_idx = particle_idx_3d_to_1d(c);
             let d_idx = particle_idx_3d_to_1d(d);
 
-            let v_a =
-                face_id * num_vertices_per_face + quad_i * cube_dim_particles + quad_j;
-            let v_b =
-                face_id * num_vertices_per_face +
-                (quad_i + 1) * cube_dim_particles +
-                quad_j;
-            let v_c =
-                face_id * num_vertices_per_face +
-                quad_i * cube_dim_particles +
-                (quad_j + 1);
-            let v_d =
-                face_id * num_vertices_per_face +
-                (quad_i + 1) * cube_dim_particles +
-                (quad_j + 1);
+            let v_a = face_id * num_vertices_per_face + quad_i * cube_dim_particles + quad_j;
+            let v_b = face_id * num_vertices_per_face + (quad_i + 1) * cube_dim_particles + quad_j;
+            let v_c = face_id * num_vertices_per_face + quad_i * cube_dim_particles + (quad_j + 1);
+            let v_d = face_id * num_vertices_per_face + (quad_i + 1) * cube_dim_particles + (quad_j + 1);
 
             vertex_to_particle[v_a] = a_idx;
             vertex_to_particle[v_b] = b_idx;
@@ -482,16 +457,8 @@ let main = async () => {
             let refl_front = front_light_color * V_refl.dot(L_front) * fr;
             let refl_back = back_light_color * V_refl.dot(L_back) * fr;
 
-            let refr_front =
-                front_light_color *
-                max(0.0, refract(N, V, IOR).dot(L_front)) *
-                (1 - fr) *
-                jelly_color;
-            let refr_back =
-                back_light_color *
-                max(0.0, refract(N, V, IOR).dot(L_back)) *
-                (1 - fr) *
-                jelly_color;
+            let refr_front = front_light_color * max(0.0, refract(N, V, IOR).dot(L_front)) * (1 - fr) * jelly_color;
+            let refr_back = back_light_color * max(0.0, refract(N, V, IOR).dot(L_back)) * (1 - fr) * jelly_color;
 
             let color = refl_front + refl_back + refr_back + refr_front;
             ti.outputColor(renderTarget, color.concat([1.0]));
@@ -537,4 +504,4 @@ main().then(() => {
     var h1 = document.getElementById('hint');
     h1.innerHTML = 'Try pressing W/A/S/D!';
     h1.focus();
-}) 
+});

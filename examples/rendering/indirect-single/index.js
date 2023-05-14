@@ -1,4 +1,4 @@
-import * as ti from "../../../dist/taichi.dev.js"
+import * as ti from '../../../dist/taichi.dev.js';
 let main = async () => {
     await ti.init();
 
@@ -17,9 +17,9 @@ let main = async () => {
         instanceCount: ti.i32,
         firstIndex: ti.i32,
         baseVertex: ti.i32,
-        firstInstance: ti.i32
-    })
-    let indirectBuffer = ti.field(indirectType, 1)
+        firstInstance: ti.i32,
+    });
+    let indirectBuffer = ti.field(indirectType, 1);
 
     ti.addToKernelScope({ VBO, target, IBO, aspectRatio, depth, indirectBuffer });
 
@@ -34,9 +34,8 @@ let main = async () => {
         [1, 1, 1],
     ]);
     await IBO.fromArray([
-        0, 1, 2, 1, 3, 2, 4, 5, 6, 5, 7, 6, 0, 2, 4, 2, 6, 4, 1, 3, 5, 3, 7, 5, 0,
-        1, 4, 1, 5, 4, 2, 3, 6, 3, 7, 6,
-    ]); 
+        0, 1, 2, 1, 3, 2, 4, 5, 6, 5, 7, 6, 0, 2, 4, 2, 6, 4, 1, 3, 5, 3, 7, 5, 0, 1, 4, 1, 5, 4, 2, 3, 6, 3, 7, 6,
+    ]);
 
     let render = ti.kernel((t) => {
         let center = [0.5, 0.5, 0.5];
@@ -50,8 +49,8 @@ let main = async () => {
             instanceCount: 1,
             firstIndex: 0,
             baseVertex: 0,
-            firstInstance: 1
-        }
+            firstInstance: 1,
+        };
 
         ti.clearColor(target, [0.1, 0.2, 0.3, 1]);
         ti.useDepth(depth);
@@ -79,4 +78,4 @@ let main = async () => {
     requestAnimationFrame(frame);
 };
 
-main()
+main();

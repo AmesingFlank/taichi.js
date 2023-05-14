@@ -1,4 +1,4 @@
-import * as ti from "../../dist/taichi.js"
+import * as ti from '../../dist/taichi.js';
 let main = async () => {
     await ti.init();
 
@@ -9,12 +9,7 @@ let main = async () => {
     let num_samples_per_pixel = 4;
     let num_spp_sqrt = Math.floor(Math.sqrt(num_samples_per_pixel));
 
-    let samples = ti.Vector.field(4, ti.f32, [
-        width,
-        height,
-        num_spp_sqrt,
-        num_spp_sqrt,
-    ]);
+    let samples = ti.Vector.field(4, ti.f32, [width, height, num_spp_sqrt, num_spp_sqrt]);
     let pixels = ti.Vector.field(4, ti.f32, [width, height]);
 
     let A = ti.Vector.field(2, ti.f32, [num_triangles]);
@@ -24,15 +19,8 @@ let main = async () => {
     let c1 = ti.Vector.field(3, ti.f32, [num_triangles]);
     let c2 = ti.Vector.field(3, ti.f32, [num_triangles]);
 
-    let block_num_triangles = ti.field(ti.i32, [
-        width / tile_size,
-        height / tile_size,
-    ]);
-    let block_indicies = ti.field(ti.i32, [
-        width / tile_size,
-        height / tile_size,
-        num_triangles,
-    ]);
+    let block_num_triangles = ti.field(ti.i32, [width / tile_size, height / tile_size]);
+    let block_indicies = ti.field(ti.i32, [width / tile_size, height / tile_size, num_triangles]);
 
     let point_in_triangle = (P, A, B, C) => {
         let alpha = -(P.x - B.x) * (C.y - B.y) + (P.y - B.y) * (C.x - B.x);
@@ -40,17 +28,11 @@ let main = async () => {
         let beta = -(P.x - C.x) * (A.y - C.y) + (P.y - C.y) * (A.x - C.x);
         beta = beta / (-(B.x - C.x) * (A.y - C.y) + (B.y - C.y) * (A.x - C.x));
         let gamma = 1.0 - alpha - beta;
-        let result =
-            alpha >= 0.0 &&
-            alpha <= 1.0 &&
-            beta >= 0.0 &&
-            beta <= 1.0 &&
-            gamma >= 0.0;
+        let result = alpha >= 0.0 && alpha <= 1.0 && beta >= 0.0 && beta <= 1.0 && gamma >= 0.0;
         return [result, alpha, beta, gamma];
     };
 
-    let bbox_intersect = (A0, A1, B0, B1) =>
-        B0.x < A1.x && B0.y < A1.y && B1.x > A0.x && B1.y > A0.y;
+    let bbox_intersect = (A0, A1, B0, B1) => B0.x < A1.x && B0.y < A1.y && B1.x > A0.x && B1.y > A0.y;
 
     let num_blocks_x = width / tile_size;
     let num_blocks_y = height / tile_size;
@@ -111,16 +93,10 @@ let main = async () => {
                 for (let sub of ndrange(num_spp_sqrt, num_spp_sqrt)) {
                     let subi = sub[0];
                     let subj = sub[1];
-                    let P = [
-                        i + (subi + 0.5) / num_spp_sqrt,
-                        j + (subj + 0.5) / num_spp_sqrt,
-                    ];
+                    let P = [i + (subi + 0.5) / num_spp_sqrt, j + (subj + 0.5) / num_spp_sqrt];
                     let point_info = point_in_triangle(P, A[idx], B[idx], C[idx]);
                     if (point_info[0]) {
-                        let color =
-                            c0[idx] * point_info[1] +
-                            c1[idx] * point_info[2] +
-                            c2[idx] * point_info[3];
+                        let color = c0[idx] * point_info[1] + c1[idx] * point_info[2] + c2[idx] * point_info[3];
                         if (idx > samples[[i, j, subi, subj]].w) {
                             samples[[i, j, subi, subj]] = (color, idx);
                         }
@@ -178,4 +154,4 @@ let main = async () => {
     }
     await frame();
 };
-main()
+main();

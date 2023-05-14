@@ -1,4 +1,4 @@
-import * as ti from "../../dist/taichi.js"
+import * as ti from '../../dist/taichi.js';
 
 let main = async () => {
     await ti.init();
@@ -20,9 +20,7 @@ let main = async () => {
     let compute_u_single = (p, i) => {
         let r2 = (p - pos[i]).norm_sqr();
         let uv = [pos[i].y - p.y, p.x - pos[i].x];
-        return (
-            ((vort[i] * uv) / (r2 * Math.PI)) * 0.5 * (1.0 - exp(-r2 / eps ** 2))
-        );
+        return ((vort[i] * uv) / (r2 * Math.PI)) * 0.5 * (1.0 - exp(-r2 / eps ** 2));
     };
 
     let compute_u_full = (p) => {
@@ -129,4 +127,4 @@ let main = async () => {
     await frame();
 };
 
-main()
+main();

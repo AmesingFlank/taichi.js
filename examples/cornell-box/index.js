@@ -1,4 +1,4 @@
-import * as ti from "../../dist/taichi.js"
+import * as ti from '../../dist/taichi.js';
 let main = async () => {
     await ti.init();
 
@@ -25,11 +25,7 @@ let main = async () => {
     let light_z_range = 0.12;
     let light_area = light_x_range * light_z_range;
     let light_min_pos = [light_x_min_pos, light_y_pos, light_z_min_pos];
-    let light_max_pos = [
-        light_x_min_pos + light_x_range,
-        light_y_pos,
-        light_z_min_pos + light_z_range,
-    ];
+    let light_max_pos = [light_x_min_pos + light_x_range, light_y_pos, light_z_min_pos + light_z_range];
     let light_color = [0.9, 0.85, 0.7];
     let light_normal = [0.0, -1.0, 0.0];
 
@@ -223,27 +219,12 @@ let main = async () => {
         return intersect;
     };
 
-    let intersect_aabb_transformed = (
-        box_min,
-        box_max,
-        o,
-        d,
-        near_t,
-        near_norm
-    ) => {
+    let intersect_aabb_transformed = (box_min, box_max, o, d, near_t, near_norm) => {
         // Transform the ray to the box's local space
         let obj_o = mat_mul_point(box_m_inv, o);
         let obj_d = mat_mul_vec(box_m_inv, d);
         let far_t = f32(inf);
-        let intersect = intersect_aabb(
-            box_min,
-            box_max,
-            obj_o,
-            obj_d,
-            near_t,
-            far_t,
-            near_norm
-        );
+        let intersect = intersect_aabb(box_min, box_max, obj_o, obj_d, near_t, far_t, near_norm);
         if (intersect && 0 < near_t) {
             // Transform the normal in the box's local space to world space
             near_norm = mat_mul_vec(box_m_inv_t, near_norm);
@@ -256,15 +237,7 @@ let main = async () => {
     let intersect_light = (pos, d, tmax, t) => {
         let far_t = f32(inf);
         let near_norm = f32([0, 0, 0]);
-        let hit = intersect_aabb(
-            light_min_pos,
-            light_max_pos,
-            pos,
-            d,
-            t,
-            far_t,
-            near_norm
-        );
+        let hit = intersect_aabb(light_min_pos, light_max_pos, pos, d, t, far_t, near_norm);
         if (hit && 0 < t && t < tmax) {
             hit = 1;
         } else {
@@ -290,14 +263,7 @@ let main = async () => {
         }
         // left box
         let pnorm = f32([0, 0, 0]);
-        let hit = intersect_aabb_transformed(
-            box_min,
-            box_max,
-            pos,
-            ray_dir,
-            cur_dist,
-            pnorm
-        );
+        let hit = intersect_aabb_transformed(box_min, box_max, pos, ray_dir, cur_dist, pnorm);
         if (hit && 0 < cur_dist && cur_dist < closest) {
             closest = cur_dist;
             normal = pnorm;
@@ -557,12 +523,8 @@ let main = async () => {
             let str_x = i32(cur_iter / stratify_res);
             let str_y = cur_iter % stratify_res;
             let ray_dir = [
-                (2 * fov * (u + (str_x + ti.random()) * inv_stratify)) / res[1] -
-                fov * aspect_ratio -
-                1e-5,
-                (2 * fov * (v + (str_y + ti.random()) * inv_stratify)) / res[1] -
-                fov -
-                1e-5,
+                (2 * fov * (u + (str_x + ti.random()) * inv_stratify)) / res[1] - fov * aspect_ratio - 1e-5,
+                (2 * fov * (v + (str_y + ti.random()) * inv_stratify)) / res[1] - fov - 1e-5,
                 -1.0,
             ];
             ray_dir = ray_dir.normalized();
@@ -585,21 +547,14 @@ let main = async () => {
                     acc_color = acc_color + throughput * light_color;
                     break;
                 } else if (mat == mat_lambertian) {
-                    acc_color =
-                        acc_color +
-                        throughput * sample_direct_light(hit_pos, hit_normal, hit_color);
+                    acc_color = acc_color + throughput * sample_direct_light(hit_pos, hit_normal, hit_color);
                 }
                 depth += 1;
                 let pdf = 1.0;
                 ray_dir = sample_ray_dir(ray_dir, hit_normal, hit_pos, mat, pdf);
                 pos = hit_pos + 1e-4 * ray_dir;
                 if (mat == mat_lambertian) {
-                    throughput =
-                        (throughput *
-                            lambertian_brdf *
-                            hit_color *
-                            dot_or_zero(hit_normal, ray_dir)) /
-                        pdf;
+                    throughput = (throughput * lambertian_brdf * hit_color * dot_or_zero(hit_normal, ray_dir)) / pdf;
                 } else {
                     throughput = throughput * hit_color;
                 }
@@ -611,8 +566,7 @@ let main = async () => {
 
     let tonemap = ti.kernel((accumulated) => {
         for (let I of ndrange(res[0], res[1])) {
-            tonemapped_buffer[I] =
-                (ti.sqrt((color_buffer[I] / accumulated) * 100.0), 1.0);
+            tonemapped_buffer[I] = (ti.sqrt((color_buffer[I] / accumulated) * 100.0), 1.0);
         }
     });
 
@@ -644,4 +598,4 @@ let main = async () => {
     }
     await frame();
 };
-main()
+main();

@@ -1,4 +1,4 @@
-import * as ti from "../../dist/taichi.dev.js"
+import * as ti from '../../dist/taichi.dev.js';
 
 let main = async () => {
     let htmlCanvas = document.getElementById('result_canvas');
@@ -24,23 +24,23 @@ let main = async () => {
 
     let cellInfo = ti.types.struct({
         v: ti.types.vector(ti.f32, 3),
-        numParticles: ti.i32
-    })
+        numParticles: ti.i32,
+    });
 
-    let grid = ti.field(cellInfo, [n_grid, n_grid, n_grid])
+    let grid = ti.field(cellInfo, [n_grid, n_grid, n_grid]);
 
-    let maxParticlesPerCell = 1000
-    let gridParticleIds = ti.field(ti.i32, [n_grid, n_grid, n_grid, maxParticlesPerCell])
-    let gridParticleWeights = ti.field(ti.f32, [n_grid, n_grid, n_grid, maxParticlesPerCell])
+    let maxParticlesPerCell = 1000;
+    let gridParticleIds = ti.field(ti.i32, [n_grid, n_grid, n_grid, maxParticlesPerCell]);
+    let gridParticleWeights = ti.field(ti.f32, [n_grid, n_grid, n_grid, maxParticlesPerCell]);
 
     let particleInfo = ti.types.struct({
         x: ti.types.vector(ti.f32, 3),
         v: ti.types.vector(ti.f32, 3),
         C: ti.types.matrix(ti.f32, 3, 3),
-        J: ti.f32
-    })
+        J: ti.f32,
+    });
 
-    let particles = ti.field(particleInfo, [numParticles])
+    let particles = ti.field(particleInfo, [numParticles]);
 
     ti.addToKernelScope({
         numParticles,
@@ -59,33 +59,36 @@ let main = async () => {
         particles,
         grid,
         gridParticleIds,
-        gridParticleWeights
+        gridParticleWeights,
     });
 
     let substep = ti.kernel(() => {
         for (let I of ti.ndrange(n_grid, n_grid, n_grid)) {
             grid[I].v = [0.0, 0.0, 0.0];
-            grid[I].numParticles = 0
+            grid[I].numParticles = 0;
         }
         for (let p of ti.range(numParticles)) {
             let Xp = particles[p].x / dx;
             let base = i32(Xp - 0.5);
             let fx = Xp - base;
-            let w = [
-                0.5 * (1.5 - fx) ** 2,
-                0.75 - (fx - 1) ** 2,
-                0.5 * (fx - 0.5) ** 2,
-            ];
+            let w = [0.5 * (1.5 - fx) ** 2, 0.75 - (fx - 1) ** 2, 0.5 * (fx - 0.5) ** 2];
             for (let i of ti.static(ti.range(3))) {
                 for (let j of ti.static(ti.range(3))) {
                     for (let k of ti.static(ti.range(3))) {
                         let offset = [i, j, k];
-                        let cell = base + offset
-                        if (cell[0] >= 0 && cell[1] >= 0 && cell[2] >= 0 && cell[0] < n_grid && cell[1] < n_grid && cell[2] < n_grid) {
+                        let cell = base + offset;
+                        if (
+                            cell[0] >= 0 &&
+                            cell[1] >= 0 &&
+                            cell[2] >= 0 &&
+                            cell[0] < n_grid &&
+                            cell[1] < n_grid &&
+                            cell[2] < n_grid
+                        ) {
                             let weight = w[[i, 0]] * w[[j, 1]] * w[[k, 2]];
-                            let id = ti.atomicAdd(grid[base + offset].numParticles, 1)
-                            gridParticleIds[cell.concat([id])] = p
-                            gridParticleWeights[cell.concat([id])] = weight
+                            let id = ti.atomicAdd(grid[base + offset].numParticles, 1);
+                            gridParticleIds[cell.concat([id])] = p;
+                            gridParticleWeights[cell.concat([id])] = weight;
                         }
                     }
                 }
@@ -95,26 +98,25 @@ let main = async () => {
             let i = I[0];
             let j = I[1];
             let k = I[2];
-            let numParticlesInCell = grid[[i, j, k]].numParticles
+            let numParticlesInCell = grid[[i, j, k]].numParticles;
 
             let identity = [
                 [1.0, 0.0, 0.0],
                 [0.0, 1.0, 0.0],
-                [0.0, 0.0, 1.0]
-            ]
+                [0.0, 0.0, 1.0],
+            ];
 
-            let totalWeight = 0.0
+            let totalWeight = 0.0;
 
             for (let local_id of ti.range(numParticlesInCell)) {
-                let p = gridParticleIds[i, j, k, local_id]
-                let weight = gridParticleWeights[i, j, k, local_id]
+                let p = gridParticleIds[(i, j, k, local_id)];
+                let weight = gridParticleWeights[(i, j, k, local_id)];
 
-                let stress = -dt * 4 * E * particleVol * (particles[p].J - 1) / dx ** 2
+                let stress = (-dt * 4 * E * particleVol * (particles[p].J - 1)) / dx ** 2;
                 let affine = stress * identity + particleMass * particles[p].C;
-                let dpos = I * dx - particles[p].x
-                grid[I].v = grid[I].v +
-                    weight * (particleMass * particles[p].v + affine.matmul(dpos));
-                totalWeight = totalWeight + weight * particleMass
+                let dpos = I * dx - particles[p].x;
+                grid[I].v = grid[I].v + weight * (particleMass * particles[p].v + affine.matmul(dpos));
+                totalWeight = totalWeight + weight * particleMass;
             }
 
             let bound = 2;
@@ -145,11 +147,7 @@ let main = async () => {
             let Xp = particles[p].x / dx;
             let base = i32(Xp - 0.5);
             let fx = Xp - base;
-            let w = [
-                0.5 * (1.5 - fx) ** 2,
-                0.75 - (fx - 1.0) ** 2,
-                0.5 * (fx - 0.5) ** 2,
-            ];
+            let w = [0.5 * (1.5 - fx) ** 2, 0.75 - (fx - 1.0) ** 2, 0.5 * (fx - 0.5) ** 2];
             let newVelocity = [0.0, 0.0, 0.0];
             let newC = [
                 [0.0, 0.0, 0.0],
@@ -168,20 +166,16 @@ let main = async () => {
                     }
                 }
             }
-            particles[p].v = newVelocity
-            particles[p].C = newC
-            particles[p].x = particles[p].x + dt * newVelocity
-            particles[p].J = particles[p].J * (1 + dt * (newC[[0, 0]] + newC[[1, 1]] + newC[[2, 2]]))
+            particles[p].v = newVelocity;
+            particles[p].C = newC;
+            particles[p].x = particles[p].x + dt * newVelocity;
+            particles[p].J = particles[p].J * (1 + dt * (newC[[0, 0]] + newC[[1, 1]] + newC[[2, 2]]));
         }
     });
 
     let reset_water_only = ti.kernel(() => {
         for (let p of range(numParticles)) {
-            particles[p].x = [
-                ti.random() * 0.4 + 0.05,
-                ti.random() * 0.4 + 0.05,
-                ti.random() * 0.4 + 0.05,
-            ];
+            particles[p].x = [ti.random() * 0.4 + 0.05, ti.random() * 0.4 + 0.05, ti.random() * 0.4 + 0.05];
             particles[p].v = [0, 0, 0];
             particles[p].J = 1;
             particles[p].C = [
@@ -215,7 +209,6 @@ let main = async () => {
             VBO[i * 4 + 1].vertex_pos = [1, -1];
             VBO[i * 4 + 2].vertex_pos = [-1, 1];
             VBO[i * 4 + 3].vertex_pos = [1, 1];
-
         }
     });
 
@@ -266,8 +259,7 @@ let main = async () => {
 
             let z_in_sphere = ti.sqrt(1 - f.point_coord.norm_sqr());
             let coord_in_sphere = f.point_coord.concat([z_in_sphere]);
-            let frag_pos_camera_space =
-                f.center_pos_camera_space + coord_in_sphere * particles_radius;
+            let frag_pos_camera_space = f.center_pos_camera_space + coord_in_sphere * particles_radius;
 
             let clip_pos = proj.matmul(frag_pos_camera_space.concat([1.0]));
             let z = clip_pos.z / clip_pos.w;
@@ -275,9 +267,7 @@ let main = async () => {
 
             let normal_camera_space = coord_in_sphere;
             let light_pos_camera_space = view.matmul(light_pos.concat([1.0])).xyz;
-            let light_dir = (
-                light_pos_camera_space - frag_pos_camera_space
-            ).normalized();
+            let light_dir = (light_pos_camera_space - frag_pos_camera_space).normalized();
             let c = normal_camera_space.dot(light_dir);
 
             let mat_color = [0.1, 0.6, 0.9, 1.0];
@@ -325,4 +315,4 @@ main().then(() => {
     var h1 = document.getElementById('hint');
     h1.innerHTML = 'Try pressing W/A/S/D!';
     h1.focus();
-}) 
+});

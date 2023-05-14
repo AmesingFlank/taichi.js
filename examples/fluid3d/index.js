@@ -1,4 +1,4 @@
-import * as ti from "../../dist/taichi.js"
+import * as ti from '../../dist/taichi.js';
 
 let main = async () => {
     let htmlCanvas = document.getElementById('result_canvas');
@@ -28,7 +28,6 @@ let main = async () => {
     let J = ti.field(ti.f32, [n_particles]); // plastic deformation
     let grid_v = ti.Vector.field(3, ti.f32, [n_grid, n_grid, n_grid]);
     let grid_m = ti.field(ti.f32, [n_grid, n_grid, n_grid]);
-
 
     ti.addToKernelScope({
         n_particles,
@@ -60,17 +59,13 @@ let main = async () => {
             let Xp = x[p] / dx;
             let base = i32(Xp - 0.5);
             let fx = Xp - base;
-            let w = [
-                0.5 * (1.5 - fx) ** 2,
-                0.75 - (fx - 1) ** 2,
-                0.5 * (fx - 0.5) ** 2,
-            ];
-            let stress = -dt * 4 * E * p_vol * (J[p] - 1) / dx ** 2
+            let w = [0.5 * (1.5 - fx) ** 2, 0.75 - (fx - 1) ** 2, 0.5 * (fx - 0.5) ** 2];
+            let stress = (-dt * 4 * E * p_vol * (J[p] - 1)) / dx ** 2;
             let identity = [
                 [1.0, 0.0, 0.0],
                 [0.0, 1.0, 0.0],
-                [0.0, 0.0, 1.0]
-            ]
+                [0.0, 0.0, 1.0],
+            ];
             let affine = stress * identity + p_mass * C[p];
             for (let i of ti.static(ti.range(3))) {
                 for (let j of ti.static(ti.range(3))) {
@@ -78,10 +73,16 @@ let main = async () => {
                         let offset = [i, j, k];
                         let dpos = (f32(offset) - fx) * dx;
                         let weight = w[[i, 0]] * w[[j, 1]] * w[[k, 2]];
-                        let cell = base + offset
-                        if (cell[0] >= 0 && cell[1] >= 0 && cell[2] >= 0 && cell[0] < n_grid && cell[1] < n_grid && cell[2] < n_grid) {
-                            grid_v[cell] +=
-                                weight * (p_mass * v[p] + affine.matmul(dpos));
+                        let cell = base + offset;
+                        if (
+                            cell[0] >= 0 &&
+                            cell[1] >= 0 &&
+                            cell[2] >= 0 &&
+                            cell[0] < n_grid &&
+                            cell[1] < n_grid &&
+                            cell[2] < n_grid
+                        ) {
+                            grid_v[cell] += weight * (p_mass * v[p] + affine.matmul(dpos));
                             grid_m[cell] += weight * p_mass;
                         }
                     }
@@ -120,11 +121,7 @@ let main = async () => {
             let Xp = x[p] / dx;
             let base = i32(Xp - 0.5);
             let fx = Xp - base;
-            let w = [
-                0.5 * (1.5 - fx) ** 2,
-                0.75 - (fx - 1.0) ** 2,
-                0.5 * (fx - 0.5) ** 2,
-            ];
+            let w = [0.5 * (1.5 - fx) ** 2, 0.75 - (fx - 1.0) ** 2, 0.5 * (fx - 0.5) ** 2];
             let new_v = [0.0, 0.0, 0.0];
             let new_C = [
                 [0.0, 0.0, 0.0],
@@ -146,17 +143,13 @@ let main = async () => {
             v[p] = new_v;
             C[p] = new_C;
             x[p] = x[p] + dt * new_v;
-            J[p] *= 1 + dt * (new_C[[0, 0]] + new_C[[1, 1]] + new_C[[2, 2]])
+            J[p] *= 1 + dt * (new_C[[0, 0]] + new_C[[1, 1]] + new_C[[2, 2]]);
         }
     });
 
     let reset_water_only = ti.kernel(() => {
         for (let i of range(n_particles)) {
-            x[i] = [
-                ti.random() * 0.4 + 0.05,
-                ti.random() * 0.4 + 0.05,
-                ti.random() * 0.4 + 0.05,
-            ];
+            x[i] = [ti.random() * 0.4 + 0.05, ti.random() * 0.4 + 0.05, ti.random() * 0.4 + 0.05];
             v[i] = [0, 0, 0];
             J[i] = 1;
             C[i] = [
@@ -190,7 +183,6 @@ let main = async () => {
             VBO[i * 4 + 1].vertex_pos = [1, -1];
             VBO[i * 4 + 2].vertex_pos = [-1, 1];
             VBO[i * 4 + 3].vertex_pos = [1, 1];
-
         }
     });
 
@@ -241,8 +233,7 @@ let main = async () => {
 
             let z_in_sphere = ti.sqrt(1 - f.point_coord.norm_sqr());
             let coord_in_sphere = f.point_coord.concat([z_in_sphere]);
-            let frag_pos_camera_space =
-                f.center_pos_camera_space + coord_in_sphere * particles_radius;
+            let frag_pos_camera_space = f.center_pos_camera_space + coord_in_sphere * particles_radius;
 
             let clip_pos = proj.matmul(frag_pos_camera_space.concat([1.0]));
             let z = clip_pos.z / clip_pos.w;
@@ -250,9 +241,7 @@ let main = async () => {
 
             let normal_camera_space = coord_in_sphere;
             let light_pos_camera_space = view.matmul(light_pos.concat([1.0])).xyz;
-            let light_dir = (
-                light_pos_camera_space - frag_pos_camera_space
-            ).normalized();
+            let light_dir = (light_pos_camera_space - frag_pos_camera_space).normalized();
             let c = normal_camera_space.dot(light_dir);
 
             let mat_color = [0.1, 0.6, 0.9, 1.0];
@@ -300,4 +289,4 @@ main().then(() => {
     var h1 = document.getElementById('hint');
     h1.innerHTML = 'Try pressing W/A/S/D!';
     h1.focus();
-}) 
+});

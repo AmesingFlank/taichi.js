@@ -1,4 +1,4 @@
-import * as ti from "../../../dist/taichi.dev.js"
+import * as ti from '../../../dist/taichi.dev.js';
 
 let main = async () => {
     await ti.init();
@@ -12,17 +12,17 @@ let main = async () => {
     let target = ti.canvasTexture(htmlCanvas);
     let depth = ti.depthTexture([htmlCanvas.width, htmlCanvas.height]);
 
-    let scene = await ti.engine.ObjLoader.loadFromURL("../resources/PoolTable.obj")
-    let sceneData = await scene.getKernelData()
+    let scene = await ti.engine.ObjLoader.loadFromURL('../resources/PoolTable.obj');
+    let sceneData = await scene.getKernelData();
 
     let cubemap = await ti.CubeTexture.createFromURL([
-        "../resources/skybox/right.jpg",
-        "../resources/skybox/left.jpg",
-        "../resources/skybox/top.jpg",
-        "../resources/skybox/bottom.jpg",
-        "../resources/skybox/front.jpg",
-        "../resources/skybox/back.jpg"
-    ])
+        '../resources/skybox/right.jpg',
+        '../resources/skybox/left.jpg',
+        '../resources/skybox/top.jpg',
+        '../resources/skybox/bottom.jpg',
+        '../resources/skybox/front.jpg',
+        '../resources/skybox/back.jpg',
+    ]);
 
     let cubeVBO = ti.field(ti.types.vector(ti.f32, 3), 8);
     let cubeIBO = ti.field(ti.i32, 36);
@@ -37,12 +37,11 @@ let main = async () => {
         [1, 1, 1],
     ]);
     await cubeIBO.fromArray([
-        0, 1, 2, 1, 3, 2, 4, 5, 6, 5, 7, 6, 0, 2, 4, 2, 6, 4, 1, 3, 5, 3, 7, 5, 0,
-        1, 4, 1, 5, 4, 2, 3, 6, 3, 7, 6,
+        0, 1, 2, 1, 3, 2, 4, 5, 6, 5, 7, 6, 0, 2, 4, 2, 6, 4, 1, 3, 5, 3, 7, 5, 0, 1, 4, 1, 5, 4, 2, 3, 6, 3, 7, 6,
     ]);
 
-    console.log(sceneData)
-    ti.addToKernelScope({ sceneData, aspectRatio, target, depth, cubemap, cubeVBO, cubeIBO })
+    console.log(sceneData);
+    ti.addToKernelScope({ sceneData, aspectRatio, target, depth, cubemap, cubeVBO, cubeIBO });
 
     let render = ti.kernel((t) => {
         let center = [0, 0, 0];
@@ -59,29 +58,34 @@ let main = async () => {
             ti.outputVertex(v);
         }
         for (let f of ti.inputFragments()) {
-            let color = ti.textureSample(cubemap, f)
-            color[3] = 1.0
+            let color = ti.textureSample(cubemap, f);
+            color[3] = 1.0;
             ti.outputColor(target, color);
         }
         for (let batchID of ti.static(ti.range(sceneData.batchesDrawInfoBuffers.length))) {
-            for (let v of ti.inputVertices(sceneData.vertexBuffer, sceneData.indexBuffer, sceneData.batchesDrawInfoBuffers[batchID], sceneData.batchesDrawInfoBuffers[batchID].dimensions[0])) {
-                let instanceIndex = ti.getInstanceIndex()
-                let nodeIndex = sceneData.batchesDrawInstanceInfoBuffers[batchID][instanceIndex].nodeIndex
-                let modelMatrix = sceneData.nodesBuffer[nodeIndex].globalTransform.matrix
-                let mvp = vp.matmul(modelMatrix)
+            for (let v of ti.inputVertices(
+                sceneData.vertexBuffer,
+                sceneData.indexBuffer,
+                sceneData.batchesDrawInfoBuffers[batchID],
+                sceneData.batchesDrawInfoBuffers[batchID].dimensions[0]
+            )) {
+                let instanceIndex = ti.getInstanceIndex();
+                let nodeIndex = sceneData.batchesDrawInstanceInfoBuffers[batchID][instanceIndex].nodeIndex;
+                let modelMatrix = sceneData.nodesBuffer[nodeIndex].globalTransform.matrix;
+                let mvp = vp.matmul(modelMatrix);
                 let pos = mvp.matmul(v.position.concat([1.0]));
                 ti.outputPosition(pos);
                 ti.outputVertex(v);
             }
             for (let f of ti.inputFragments()) {
                 //let baseColor = getMaterialBaseColor(f.texCoords, f.materialID)
-                let normal = f.normal.normalized()
-                let viewDir = (eye - f.position).normalized()
+                let normal = f.normal.normalized();
+                let viewDir = (eye - f.position).normalized();
                 //let color = baseColor * normal.dot([0.0, 1.0, 0.0])
-                let reflected = normal * 2 * normal.dot(viewDir) - viewDir
-                reflected = reflected.normalized()
-                let color = ti.textureSample(cubemap, reflected)
-                color[3] = 1.0
+                let reflected = normal * 2 * normal.dot(viewDir) - viewDir;
+                reflected = reflected.normalized();
+                let color = ti.textureSample(cubemap, reflected);
+                color[3] = 1.0;
                 ti.outputColor(target, color);
             }
         }
@@ -94,7 +98,6 @@ let main = async () => {
         requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
-
 };
 
-main()
+main();

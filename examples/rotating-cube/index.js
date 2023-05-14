@@ -1,4 +1,4 @@
-import * as ti from "../../dist/taichi.js"
+import * as ti from '../../dist/taichi.js';
 let main = async () => {
     await ti.init();
 
@@ -25,8 +25,7 @@ let main = async () => {
         [1, 1, 1],
     ]);
     await IBO.fromArray([
-        0, 1, 2, 1, 3, 2, 4, 5, 6, 5, 7, 6, 0, 2, 4, 2, 6, 4, 1, 3, 5, 3, 7, 5, 0,
-        1, 4, 1, 5, 4, 2, 3, 6, 3, 7, 6,
+        0, 1, 2, 1, 3, 2, 4, 5, 6, 5, 7, 6, 0, 2, 4, 2, 6, 4, 1, 3, 5, 3, 7, 5, 0, 1, 4, 1, 5, 4, 2, 3, 6, 3, 7, 6,
     ]);
 
     let render = ti.kernel((t) => {
@@ -62,4 +61,4 @@ let main = async () => {
     requestAnimationFrame(frame);
 };
 
-main()
+main();

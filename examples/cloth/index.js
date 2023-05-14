@@ -1,4 +1,4 @@
-import * as ti from "../../dist/taichi.js"
+import * as ti from '../../dist/taichi.js';
 let main = async () => {
     await ti.init();
 
@@ -48,11 +48,7 @@ let main = async () => {
         for (let I of ti.ndrange(N, N)) {
             let i = I[0];
             let j = I[1];
-            x[[i, j]] = [
-                i * cell_size,
-                (j * cell_size) / ti.sqrt(2),
-                ((N - j) * cell_size) / ti.sqrt(2),
-            ];
+            x[[i, j]] = [i * cell_size, (j * cell_size) / ti.sqrt(2), ((N - j) * cell_size) / ti.sqrt(2)];
         }
         ball_center[0] = [0.5, -0.5, 0.0];
     });
@@ -71,10 +67,7 @@ let main = async () => {
                 let original_length = cell_size * ti.f32(i - j).norm();
                 if (original_length !== 0) {
                     force +=
-                        (stiffness *
-                            relative_pos.normalized() *
-                            (current_length - original_length)) /
-                        original_length;
+                        (stiffness * relative_pos.normalized() * (current_length - original_length)) / original_length;
                 }
             }
             v[i] = v[i] + force * dt;
@@ -221,8 +214,7 @@ let main = async () => {
 
             let z_in_sphere = ti.sqrt(1 - f.point_coord.norm_sqr());
             let coord_in_sphere = f.point_coord.concat([z_in_sphere]);
-            let frag_pos_camera_space =
-                f.center_pos_camera_space + coord_in_sphere * ball_radius * 0.99;
+            let frag_pos_camera_space = f.center_pos_camera_space + coord_in_sphere * ball_radius * 0.99;
 
             let clip_pos = proj.matmul(frag_pos_camera_space.concat([1.0]));
             let z = clip_pos.z / clip_pos.w;
@@ -230,9 +222,7 @@ let main = async () => {
 
             let normal_camera_space = coord_in_sphere;
             let light_pos_camera_space = view.matmul(light_pos.concat([1.0])).xyz;
-            let light_dir = (
-                light_pos_camera_space - frag_pos_camera_space
-            ).normalized();
+            let light_dir = (light_pos_camera_space - frag_pos_camera_space).normalized();
             let c = normal_camera_space.dot(light_dir);
             let color = [c, 0, 0, 1.0];
             ti.outputColor(renderTarget, color);
@@ -255,4 +245,4 @@ let main = async () => {
     requestAnimationFrame(frame);
 };
 
-main()
+main();
