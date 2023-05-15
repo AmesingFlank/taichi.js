@@ -1,14 +1,14 @@
-import * as ts from "typescript";
-import { ASTVisitor, VisitorResult } from "./ast/Visiter";
-import { ResourceBinding, KernelParams, RenderPipelineParams, RenderPassParams } from "../../runtime/Kernel";
-import { Scope } from "./Scope";
-import { TextureBase } from "../../data/Texture";
-import { Type, PrimitiveType } from "./Type";
-import { Value } from "./Value";
-import { BuiltinOp, BuiltinAtomicOp } from "./BuiltinOp";
-import { ResultOrError } from "./Error";
-import { ParsedFunction } from "./ParsedFunction";
-import { IRBuilder } from "../ir/Builder";
+import * as ts from 'typescript';
+import { ASTVisitor, VisitorResult } from './ast/Visiter';
+import { ResourceBinding, KernelParams, RenderPipelineParams, RenderPassParams } from '../../runtime/Kernel';
+import { Scope } from './Scope';
+import { TextureBase } from '../../data/Texture';
+import { Type, PrimitiveType } from './Type';
+import { Value } from './Value';
+import { BuiltinOp, BuiltinAtomicOp } from './BuiltinOp';
+import { ResultOrError } from './Error';
+import { ParsedFunction } from './ParsedFunction';
+import { IRBuilder } from '../ir/Builder';
 declare enum LoopKind {
     For = 0,
     While = 1,

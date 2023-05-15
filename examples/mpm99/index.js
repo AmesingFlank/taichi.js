@@ -159,7 +159,7 @@ let main = async () => {
                     let g_v = grid_v[base + [i, j]];
                     let weight = w[[i, 0]] * w[[j, 1]];
                     new_v = new_v + weight * g_v;
-                    new_C = new_C + 4 * inv_dx * weight * g_v.outer_product(dpos);
+                    new_C = new_C + 4 * inv_dx * weight * g_v.outerProduct(dpos);
                 }
             }
             v[p] = new_v;

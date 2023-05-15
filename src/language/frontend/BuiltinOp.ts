@@ -745,8 +745,8 @@ class BuiltinOpFactory {
             }
         );
 
-        let norm_sqr = new BuiltinCustomOp(
-            'norm_sqr',
+        let normSqr = new BuiltinCustomOp(
+            'normSqr',
             1,
             (args: Value[]) => {
                 if (args.length === 1 && args[0].getType().getCategory() === TypeCategory.Vector) {
@@ -773,7 +773,7 @@ class BuiltinOpFactory {
                 }
             },
             (args: Value[]) => {
-                let resultSqr = norm_sqr.apply(args);
+                let resultSqr = normSqr.apply(args);
                 let result = opsMap.get('sqrt')!.apply([resultSqr]);
                 return result;
             }
@@ -850,8 +850,8 @@ class BuiltinOpFactory {
             }
         );
 
-        let outer_product = new BuiltinCustomOp(
-            'outer_product',
+        let outerProduct = new BuiltinCustomOp(
+            'outerProduct',
             2,
             (args: Value[]) => {
                 let valid =
@@ -1128,14 +1128,14 @@ class BuiltinOpFactory {
             len,
             length,
             sum,
-            norm_sqr,
+            normSqr,
             norm,
             normalized,
             dot,
             cross,
             matmul,
             transpose,
-            outer_product,
+            outerProduct,
             static_,
             Static,
             mergeStructs,

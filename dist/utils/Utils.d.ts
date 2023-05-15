@@ -1,5 +1,5 @@
-import { StructType, Type } from "../language/frontend/Type";
-import { MultiDimensionalArray } from "./MultiDimensionalArray";
+import { StructType, Type } from '../language/frontend/Type';
+import { MultiDimensionalArray } from './MultiDimensionalArray';
 export declare function divUp(a: number, b: number): number;
 export declare function product(arr: number[]): number;
 export declare function nextPowerOf2(n: number): number;

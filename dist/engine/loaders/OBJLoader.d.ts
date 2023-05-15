@@ -1,6 +1,6 @@
-import { Vertex, VertexAttribSet } from "../Vertex";
-import { Scene } from "./../Scene";
-import { Material } from "./../Material";
+import { Vertex, VertexAttribSet } from '../Vertex';
+import { Scene } from './../Scene';
+import { Material } from './../Material';
 export declare class ObjLoader {
     static loadFromURL(url: string): Promise<Scene>;
     static getNewVertex(position: number[], attribs: VertexAttribSet): Vertex;

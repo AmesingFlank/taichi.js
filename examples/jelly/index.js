@@ -191,7 +191,7 @@ let main = async () => {
                         let g_v = grid_v[base + offset];
                         let weight = w[[i, 0]] * w[[j, 1]] * w[[k, 2]];
                         new_v = new_v + weight * g_v;
-                        new_C = new_C + (4 * weight * g_v.outer_product(dpos)) / (dx * dx);
+                        new_C = new_C + (4 * weight * g_v.outerProduct(dpos)) / (dx * dx);
                     }
                 }
             }

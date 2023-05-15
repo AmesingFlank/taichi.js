@@ -1,5 +1,5 @@
-import { Camera } from "./Camera";
-import { Scene } from "./Scene";
+import { Camera } from './Camera';
+import { Scene } from './Scene';
 export declare class Renderer {
     scene: Scene;
     htmlCanvas: HTMLCanvasElement;

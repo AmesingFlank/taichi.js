@@ -1,6 +1,6 @@
-import { Field } from "../../data/Field";
-import { TextureBase } from "../../data/Texture";
-import { PrimitiveType } from "../frontend/Type";
+import { Field } from '../../data/Field';
+import { TextureBase } from '../../data/Texture';
+import { PrimitiveType } from '../frontend/Type';
 export declare enum StmtKind {
     ConstStmt = 0,
     RangeForStmt = 1,

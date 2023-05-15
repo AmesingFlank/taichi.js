@@ -1,8 +1,8 @@
 /// <reference types="dist" />
-import { Type } from "../language/frontend/Type";
-import { DepthTexture, TextureBase } from "../data/Texture";
-import { Field } from "../data/Field";
-import { Runtime } from "./Runtime";
+import { Type } from '../language/frontend/Type';
+import { DepthTexture, TextureBase } from '../data/Texture';
+import { Field } from '../data/Field';
+import { Runtime } from './Runtime';
 declare enum ResourceType {
     Root = 0,
     RootAtomic = 1,
@@ -105,4 +105,4 @@ declare class CompiledKernel {
     renderPassInfo: CompiledRenderPassInfo | null;
     constructor(tasks?: (CompiledTask | CompiledRenderPipeline)[], argTypes?: Type[], returnType?: Type, renderPassInfo?: CompiledRenderPassInfo | null);
 }
-export { CompiledTask, CompiledKernel, TaskParams, ResourceType, ResourceInfo, ResourceBinding, KernelParams, VertexShaderParams, FragmentShaderParams, RenderPipelineParams, CompiledRenderPipeline, RenderPassParams, ColorAttachment, DepthAttachment, CompiledRenderPassInfo };
+export { CompiledTask, CompiledKernel, TaskParams, ResourceType, ResourceInfo, ResourceBinding, KernelParams, VertexShaderParams, FragmentShaderParams, RenderPipelineParams, CompiledRenderPipeline, RenderPassParams, ColorAttachment, DepthAttachment, CompiledRenderPassInfo, };

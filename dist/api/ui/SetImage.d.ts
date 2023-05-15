@@ -1,5 +1,5 @@
-import { Field } from "../../data/Field";
-import { CanvasTexture, DepthTexture, Texture } from "../../data/Texture";
+import { Field } from '../../data/Field';
+import { CanvasTexture, DepthTexture, Texture } from '../../data/Texture';
 declare class SetImage {
     htmlCanvas: HTMLCanvasElement;
     VBO: Field;

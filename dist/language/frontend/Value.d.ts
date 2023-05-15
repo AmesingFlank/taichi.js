@@ -1,5 +1,5 @@
-import { Type, PrimitiveType } from "./Type";
-import { Stmt } from "../ir/Stmt";
+import { Type, PrimitiveType } from './Type';
+import { Stmt } from '../ir/Stmt';
 export declare class Value {
     stmts: Stmt[];
     compileTimeConstants: number[];

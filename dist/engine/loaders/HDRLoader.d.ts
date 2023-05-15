@@ -1,4 +1,4 @@
-import { Texture } from "../../api/Textures";
+import { Texture } from '../../api/Textures';
 export declare class HdrTexture {
     texture: Texture;
     exposure: number;

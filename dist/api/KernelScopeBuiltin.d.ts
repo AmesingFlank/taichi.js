@@ -1,6 +1,6 @@
-import { DepthTexture, TextureBase } from "../data/Texture";
-import * as ti from "../taichi";
-import { Field } from "../data/Field";
+import { DepthTexture, TextureBase } from '../data/Texture';
+import * as ti from '../taichi';
+import { Field } from '../data/Field';
 export declare function range(n: number): number[];
 export declare function ndrange(...args: number[]): ti.types.vector[];
 export declare function inputVertices(vertexBuffer: Field, indexBuffer?: Field, indirectBuffer?: Field, indirectCount?: number): any[];
@@ -10,7 +10,7 @@ export declare function add(a: number | ti.types.vector, b: number | ti.types.ve
 export declare function sub(a: number | ti.types.vector, b: number | ti.types.vector): number | ti.types.vector;
 export declare function mul(a: number | ti.types.vector, b: number | ti.types.vector): number | ti.types.vector;
 export declare function div(a: number | ti.types.vector, b: number | ti.types.vector): number | ti.types.vector;
-export declare function norm_sqr(v: ti.types.vector): number;
+export declare function normSqr(v: ti.types.vector): number;
 export declare function norm(v: ti.types.vector): number;
 export declare function normalized(v: ti.types.vector): ti.types.vector;
 export declare function dot(a: ti.types.vector, b: ti.types.vector): number;
