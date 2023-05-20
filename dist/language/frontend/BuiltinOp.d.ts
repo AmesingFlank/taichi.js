@@ -1,7 +1,7 @@
-import { Type, TypeError } from "./Type";
-import { Value } from "./Value";
-import { AtomicOpType, BinaryOpType, UnaryOpType } from "../ir/Stmt";
-import { IRBuilder } from "../ir/Builder";
+import { Type, TypeError } from './Type';
+import { Value } from './Value';
+import { AtomicOpType, BinaryOpType, UnaryOpType } from '../ir/Stmt';
+import { IRBuilder } from '../ir/Builder';
 declare class BuiltinOp {
     name: string;
     arity: number;
@@ -54,4 +54,4 @@ declare class BuiltinOpFactory {
     static getAtomicOps(irBuilder: IRBuilder): Map<string, BuiltinAtomicOp>;
     static getBuiltinOps(irBuilder: IRBuilder): Map<string, BuiltinOp>;
 }
-export { BuiltinOp, BuiltinNullaryOp, BuiltinBinaryOp, BuiltinUnaryOp, BuiltinAtomicOp, BuiltinCustomOp, BuiltinOpFactory };
+export { BuiltinOp, BuiltinNullaryOp, BuiltinBinaryOp, BuiltinUnaryOp, BuiltinAtomicOp, BuiltinCustomOp, BuiltinOpFactory, };

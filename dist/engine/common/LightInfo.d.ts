@@ -1,4 +1,4 @@
-import { ShadowInfo } from "./ShadowInfo";
+import { ShadowInfo } from './ShadowInfo';
 export declare enum LightType {
     Point = 1,
     Spot = 2,
@@ -30,6 +30,6 @@ export declare class SpotLightInfo extends LightInfo {
     innerConeAngle?: number, outerConeAngle?: number, castsShadow?: boolean, shadow?: ShadowInfo | undefined);
 }
 export declare class DirectionalLightInfo extends LightInfo {
-    constructor(brightness: number, color: number[], direction: number[], // spot and dir 
+    constructor(brightness: number, color: number[], direction: number[], // spot and dir
     castsShadow?: boolean, shadowStartingPosition?: number[], shadow?: ShadowInfo | undefined);
 }

@@ -1,6 +1,6 @@
 /// <reference types="dist" />
 import { Field } from './Field';
-import { Type } from "../language/frontend/Type";
+import { Type } from '../language/frontend/Type';
 declare class SNodeTree {
     treeId: number;
     fields: Field[];

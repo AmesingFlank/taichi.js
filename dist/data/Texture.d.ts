@@ -48,6 +48,7 @@ export declare class Texture extends TextureBase {
 export declare class CanvasTexture extends TextureBase {
     htmlCanvas: HTMLCanvasElement;
     constructor(htmlCanvas: HTMLCanvasElement, sampleCount: number);
+    dimensions: number[];
     multiSampledRenderTexture: GPUTexture | null;
     context: GPUCanvasContext;
     format: GPUTextureFormat;

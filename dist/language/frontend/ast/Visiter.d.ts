@@ -1,4 +1,4 @@
-import * as ts from "typescript";
+import * as ts from 'typescript';
 declare type VisitorResult<T> = T | void | undefined;
 declare class ASTVisitor<T> {
     protected extractVisitorResult(result: VisitorResult<T>): T;

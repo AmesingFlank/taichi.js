@@ -174,9 +174,10 @@ export class CanvasTexture extends TextureBase {
         Program.getCurrentProgram().addTexture(this);
         this.sampler = Program.getCurrentProgram().runtime!.createGPUSampler(false, {});
         this.sampleCount = sampleCount;
+        this.dimensions = [htmlCanvas.width, htmlCanvas.height];
         if (this.sampleCount > 1) {
             this.multiSampledRenderTexture = Program.getCurrentProgram().runtime!.createGPUTexture(
-                [htmlCanvas.width, htmlCanvas.height],
+                this.dimensions,
                 this.getTextureDimensionality(),
                 this.getGPUTextureFormat(),
                 this.canUseAsRengerTarget(),
@@ -185,6 +186,7 @@ export class CanvasTexture extends TextureBase {
             );
         }
     }
+    dimensions: number[];
     multiSampledRenderTexture: GPUTexture | null = null;
     context: GPUCanvasContext;
     format: GPUTextureFormat;

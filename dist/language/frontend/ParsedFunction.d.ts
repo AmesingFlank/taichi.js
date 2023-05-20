@@ -1,4 +1,4 @@
-import * as ts from "typescript";
+import * as ts from 'typescript';
 export declare class ParsedFunction {
     static makeFromCode(code: string): ParsedFunction;
     static makeFromParsedNode(node: ts.ArrowFunction | ts.FunctionDeclaration, parentFunction: ParsedFunction): ParsedFunction;

@@ -1,5 +1,5 @@
-import { CompiledKernel } from "../../runtime/Kernel";
-import { Scope } from "./Scope";
+import { CompiledKernel } from '../../runtime/Kernel';
+import { Scope } from './Scope';
 export declare class Template {
 }
 export declare class TemplateKernel {
@@ -11,5 +11,5 @@ export declare class TemplateKernel {
 }
 export declare class KernelFactory {
     static templateKernelCache: Map<string, TemplateKernel>;
-    static kernel(scope: Scope, argTypes: any, code: any): ((...args: any[]) => void);
+    static kernel(scope: Scope, argTypes: any, code: any): (...args: any[]) => void;
 }

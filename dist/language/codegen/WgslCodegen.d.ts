@@ -1,10 +1,10 @@
-import { FragmentShaderParams, ResourceBinding, ResourceInfo, TaskParams, VertexShaderParams } from "../../runtime/Kernel";
-import { Runtime } from "../../runtime/Runtime";
-import { StringBuilder } from "../../utils/StringBuilder";
-import { PrimitiveType } from "../frontend/Type";
-import { AllocaStmt, ArgLoadStmt, AtomicLoadStmt, AtomicOpStmt, AtomicStoreStmt, BinaryOpStmt, BuiltInInputStmt, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionStmt, UnaryOpStmt, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from "../ir/Stmt";
-import { IRVisitor } from "../ir/Visitor";
-import { OffloadedModule } from "./Offload";
+import { FragmentShaderParams, ResourceBinding, ResourceInfo, TaskParams, VertexShaderParams } from '../../runtime/Kernel';
+import { Runtime } from '../../runtime/Runtime';
+import { StringBuilder } from '../../utils/StringBuilder';
+import { PrimitiveType } from '../frontend/Type';
+import { AllocaStmt, ArgLoadStmt, AtomicLoadStmt, AtomicOpStmt, AtomicStoreStmt, BinaryOpStmt, BuiltInInputStmt, BuiltInOutputStmt, CompositeExtractStmt, ConstStmt, ContinueStmt, DiscardStmt, FragmentDerivativeStmt, FragmentForStmt, FragmentInputStmt, GlobalLoadStmt, GlobalPtrStmt, GlobalStoreStmt, GlobalTemporaryLoadStmt, GlobalTemporaryStmt, GlobalTemporaryStoreStmt, IfStmt, LocalLoadStmt, LocalStoreStmt, LoopIndexStmt, RandStmt, RangeForStmt, ReturnStmt, Stmt, TextureFunctionStmt, UnaryOpStmt, VertexForStmt, VertexInputStmt, VertexOutputStmt, WhileControlStmt, WhileStmt } from '../ir/Stmt';
+import { IRVisitor } from '../ir/Visitor';
+import { OffloadedModule } from './Offload';
 declare class ResourceBindingMap {
     bindings: ResourceBinding[];
     has(resource: ResourceInfo): boolean;

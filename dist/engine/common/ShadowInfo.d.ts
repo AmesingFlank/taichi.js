@@ -1,4 +1,4 @@
-import * as ti from "../../taichi";
+import * as ti from '../../taichi';
 export declare class ShadowInfo {
     physicalSize: number[];
     maxDistance: number;

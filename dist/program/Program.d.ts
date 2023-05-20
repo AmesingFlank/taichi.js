@@ -1,7 +1,7 @@
-import { Runtime } from "../runtime/Runtime";
-import { SNodeTree } from "../data/SNodeTree";
-import { Scope } from "../language/frontend/Scope";
-import { TextureBase } from "../data/Texture";
+import { Runtime } from '../runtime/Runtime';
+import { SNodeTree } from '../data/SNodeTree';
+import { Scope } from '../language/frontend/Scope';
+import { TextureBase } from '../data/Texture';
 export interface ProgramOptions {
     printIR: boolean;
     printWGSL: boolean;

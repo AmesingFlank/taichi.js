@@ -1,4 +1,4 @@
-import { IRModule } from "../ir/Stmt";
+import { IRModule } from '../ir/Stmt';
 export declare enum OffloadType {
     Serial = 0,
     Compute = 1,

@@ -1,6 +1,6 @@
-import { DepthTexture, TextureBase } from "../data/Texture";
-import * as ti from "../taichi";
-import { Field } from "../data/Field";
+import { DepthTexture, TextureBase } from '../data/Texture';
+import * as ti from '../taichi';
+import { Field } from '../data/Field';
 export declare function range(n: number): number[];
 export declare function ndrange(...args: number[]): ti.types.vector[];
 export declare function inputVertices(vertexBuffer: Field, indexBuffer?: Field, indirectBuffer?: Field, indirectCount?: number): any[];

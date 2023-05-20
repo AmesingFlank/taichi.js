@@ -1,5 +1,5 @@
 import type { SNodeTree } from './SNodeTree';
-import { Type } from "../language/frontend/Type";
+import { Type } from '../language/frontend/Type';
 declare class Field {
     snodeTree: SNodeTree;
     offsetBytes: number;
