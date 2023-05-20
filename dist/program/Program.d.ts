@@ -20,9 +20,5 @@ declare class Program {
     addTexture(texture: TextureBase): void;
     addToKernelScope(obj: any): void;
     clearKernelScope(): void;
-    private nextAnonymousKernel;
-    getAnonymousKernelName(): string;
-    private nextFunction;
-    getNextFunctionID(): string;
 }
 export { Program };
