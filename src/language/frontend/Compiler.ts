@@ -1830,13 +1830,16 @@ class CompilingVisitor extends ASTVisitor<Value> {
                 `the index buffer ${vertexArgs[0].getText()} must be an instance of taichi field that's visible in kernel scope`
             );
             let indexBuffer = argumentValues[1].hostSideValue as Field;
+            this.assertNode(null, indexBuffer.dimensions.length === 1, 'the index buffer must be a 1D field');
             this.assertNode(
                 null,
-                indexBuffer.dimensions.length === 1 &&
-                    indexBuffer.elementType.getCategory() === TypeCategory.Scalar &&
-                    TypeUtils.getPrimitiveType(indexBuffer.elementType) === PrimitiveType.i32,
-                'the index buffer must be a 1D field of i32 scalars'
+                TypeUtils.getPrimitiveType(indexBuffer.elementType) === PrimitiveType.i32 &&
+                    (indexBuffer.elementType.getCategory() === TypeCategory.Scalar ||
+                        (indexBuffer.elementType.getCategory() === TypeCategory.Vector &&
+                            (indexBuffer.elementType as VectorType).getNumRows() == 3)),
+                'the index buffer must container i32 scalars or 3D i32 vectors'
             );
+
             this.currentRenderPipelineParams.indexBuffer = indexBuffer;
         }
         if (vertexArgs.length >= 3) {

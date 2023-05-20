@@ -1,8 +1,8 @@
-import { PrimitiveType, StructType, Type, VoidType } from '../language/frontend/Type';
+import { PrimitiveType, StructType, Type, TypeCategory, VectorType, VoidType } from '../language/frontend/Type';
 import { CanvasTexture, DepthTexture, Texture, TextureBase } from '../data/Texture';
 import { Field } from '../data/Field';
 
-import { error } from '../utils/Logging';
+import { error, assert } from '../utils/Logging';
 import { Runtime } from './Runtime';
 enum ResourceType {
     Root,
@@ -170,7 +170,16 @@ class CompiledRenderPipeline {
     }
     getVertexCount(): number {
         if (this.params.indexBuffer) {
-            return this.params.indexBuffer.dimensions[0];
+            let elementType = this.params.indexBuffer.elementType;
+            if (elementType.getCategory() == TypeCategory.Scalar) {
+                return this.params.indexBuffer.dimensions[0];
+            } else if (elementType.getCategory() == TypeCategory.Vector) {
+                assert((elementType as VectorType).getNumRows() === 3);
+                return this.params.indexBuffer.dimensions[0] * 3;
+            } else {
+                error('unexpected index buffer element type');
+                return -1;
+            }
         } else {
             return this.params.vertexBuffer!.dimensions[0];
         }
