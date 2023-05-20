@@ -467,9 +467,9 @@ class Renderer {
                     }
                     for (let f of ti.inputFragments()) {
                         let materialID = f.materialIndex;
-                        let material = getMaterial(f.texCoords, materialID);
+                        let material = getMaterial(f.texCoords0, materialID);
                         let normal = f.normal.normalized();
-                        normal = getNormal(normal, material.normalMap, f.texCoords, f.position);
+                        normal = getNormal(normal, material.normalMap, f.texCoords0, f.position);
                         let viewDir = (camera.position - f.position).normalized();
 
                         let color = [0.0, 0.0, 0.0];
@@ -623,6 +623,7 @@ let main = async () => {
         t = t + 1;
         camera.position = [3 * Math.sin(t * 0.01), 0, 3 * Math.cos(t * 0.01)];
         camera.direction = ti.neg(ti.normalized(camera.position));
+        camera.computeMatrices()
         renderer.render(camera);
         requestAnimationFrame(frame);
     }
