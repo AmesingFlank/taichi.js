@@ -98,7 +98,7 @@ export function div(a: number | ti.types.vector, b: number | ti.types.vector): n
     return broadCastableMathOp(a, b, (a: number, b: number) => a / b);
 }
 
-export function norm_sqr(v: ti.types.vector): number {
+export function normSqr(v: ti.types.vector): number {
     let result = 0;
     for (let x of v) {
         result += x * x;
@@ -107,7 +107,7 @@ export function norm_sqr(v: ti.types.vector): number {
 }
 
 export function norm(v: ti.types.vector): number {
-    return Math.sqrt(norm_sqr(v));
+    return Math.sqrt(normSqr(v));
 }
 
 export function normalized(v: ti.types.vector): ti.types.vector {

@@ -241,7 +241,7 @@ let main = async () => {
                 ti.discard();
             }
 
-            let z_in_sphere = ti.sqrt(1 - f.point_coord.norm_sqr());
+            let z_in_sphere = ti.sqrt(1 - f.point_coord.normSqr());
             let coord_in_sphere = f.point_coord.concat([z_in_sphere]);
             let frag_pos_camera_space = f.center_pos_camera_space + coord_in_sphere * ball_radius * 0.99;
 

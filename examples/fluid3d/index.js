@@ -136,7 +136,7 @@ let main = async () => {
                         let g_v = grid_v[base + offset];
                         let weight = w[[i, 0]] * w[[j, 1]] * w[(k, 2)];
                         new_v = new_v + weight * g_v;
-                        new_C = new_C + (4 * weight * g_v.outer_product(dpos)) / (dx * dx);
+                        new_C = new_C + (4 * weight * g_v.outerProduct(dpos)) / (dx * dx);
                     }
                 }
             }
@@ -231,7 +231,7 @@ let main = async () => {
                 ti.discard();
             }
 
-            let z_in_sphere = ti.sqrt(1 - f.point_coord.norm_sqr());
+            let z_in_sphere = ti.sqrt(1 - f.point_coord.normSqr());
             let coord_in_sphere = f.point_coord.concat([z_in_sphere]);
             let frag_pos_camera_space = f.center_pos_camera_space + coord_in_sphere * particles_radius;
 

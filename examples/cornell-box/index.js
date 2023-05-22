@@ -473,7 +473,7 @@ let main = async () => {
 
             let refr_dir = refract(indir, outn, ni_over_nt);
             let has_refr = 1;
-            if (refr_dir.norm_sqr() == 0.0) {
+            if (refr_dir.normSqr() == 0.0) {
                 has_refr = 0;
             }
             let refl_prob = 1.0;

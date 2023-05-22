@@ -18,7 +18,7 @@ let main = async () => {
     let tracer = ti.Vector.field(2, ti.f32, n_tracer);
 
     let compute_u_single = (p, i) => {
-        let r2 = (p - pos[i]).norm_sqr();
+        let r2 = (p - pos[i]).normSqr();
         let uv = [pos[i].y - p.y, p.x - pos[i].x];
         return ((vort[i] * uv) / (r2 * Math.PI)) * 0.5 * (1.0 - exp(-r2 / eps ** 2));
     };

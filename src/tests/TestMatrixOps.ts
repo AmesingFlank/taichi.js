@@ -25,7 +25,7 @@ async function testMatrixOps(): Promise<boolean> {
         f[0] = m3;
         f[1] = m2.transpose();
         f[2] = m1.transpose().transpose();
-        f[3] = [1, 2].outer_product([3, 4]);
+        f[3] = [1, 2].outerProduct([3, 4]);
         let v1 = [9, 10];
         let v2 = m1.matmul(v1);
         v[0] = v2;
