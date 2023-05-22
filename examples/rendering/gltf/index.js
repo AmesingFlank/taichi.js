@@ -596,22 +596,7 @@ let main = async () => {
         'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb'
     );
     scene.ibl = await ti.engine.HdrLoader.loadFromURL('../resources/footprint_court.hdr');
-
-    // scene.lights.push(new ti.engine.LightInfo(
-    //     ti.engine.LightType.Point,
-    //     [300, 300, 300],
-    //     1000000,
-    //     [1, 1, 1],
-    //     1000
-    // ))
-    // scene.lights.push(new ti.engine.LightInfo(
-    //     ti.engine.LightType.Point,
-    //     [-300, -300, -300],
-    //     1000000,
-    //     [1, 1, 1],
-    //     1000
-    // ))
-
+    
     console.log(scene);
 
     let renderer = new Renderer(scene, htmlCanvas);
