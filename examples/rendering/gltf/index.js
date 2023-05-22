@@ -595,8 +595,10 @@ let main = async () => {
     let scene = await ti.engine.GltfLoader.loadFromURL(
         'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/DamagedHelmet/glTF-Binary/DamagedHelmet.glb'
     );
-    scene.ibl = await ti.engine.HdrLoader.loadFromURL('../resources/footprint_court.hdr');
-    
+    scene.ibl = await ti.engine.HdrLoader.loadFromURL(
+        'https://raw.githubusercontent.com/AmesingFlank/taichi-js-example-resources/main/footprint_court.hdr'
+    );
+
     console.log(scene);
 
     let renderer = new Renderer(scene, htmlCanvas);
@@ -608,7 +610,7 @@ let main = async () => {
         t = t + 1;
         camera.position = [3 * Math.sin(t * 0.01), 0, 3 * Math.cos(t * 0.01)];
         camera.direction = ti.neg(ti.normalized(camera.position));
-        camera.computeMatrices()
+        camera.computeMatrices();
         renderer.render(camera);
         requestAnimationFrame(frame);
     }
