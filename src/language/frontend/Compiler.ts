@@ -523,6 +523,8 @@ class CompilingVisitor extends ASTVisitor<Value> {
     }
 
     protected isBuiltinFunctionWithName(funcText: string, builtinName: string): boolean {
+        // remove whitespaces
+        funcText = funcText.replace(/\s+/g,'').replace(/\t+/g,'').replace(/\n+/g,'')
         return (
             funcText === builtinName ||
             funcText === 'ti.' + builtinName ||
