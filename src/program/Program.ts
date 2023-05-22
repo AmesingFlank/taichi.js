@@ -22,7 +22,7 @@ class Program {
             this.options.printWGSL = options.printWGSL;
         }
         await this.materializeRuntime();
-        this.clearKernelScope()
+        this.clearKernelScope();
     }
 
     runtime: Runtime | null = null;
@@ -79,7 +79,7 @@ class Program {
 
     clearKernelScope() {
         this.kernelScope = new Scope();
-    } 
+    }
 }
 
 export { Program };
